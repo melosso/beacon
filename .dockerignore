@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE and editors
+.idea
+.vs
+.vscode
+*.suo
+*.user
+
+# Build outputs
+**/bin
+**/obj
+**/publish
+**/out
+
+# Test results
+**/TestResults
+**/coverage
+
+# Documentation
+*.md
+!README.md
+LICENSE
+
+# CI/CD
+.github
+
+# Local settings
+appsettings.Development.json
+appsettings.Local.json
+*.local.json
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db

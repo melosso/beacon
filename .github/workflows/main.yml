@@ -4,22 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name (e.g. v1.3.2)'
+        description: 'Tag name (e.g. v1.0.0)'
         required: true
         type: string
 
 env:
   DOTNET_VERSION: '10.0.x'
   SOLUTION_PATH: 'Source/Beacon.sln'
-  PROJECT_PATH: 'Source/Beacon/Beacon.csproj'
-  SOURCE_DIR: 'Source/Beacon'
-  DEPLOYMENT_PATH: 'Deployment'
+  PROJECT_PATH: 'Source/beacon/Beacon.csproj'
+  SOURCE_DIR: 'Source/beacon'
+  BUILD_OUTPUT: 'build-output'
 
 jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,15 +31,6 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: |
-          dotnet tool install -g dotnet-project-licenses
-
       - name: Create and push tag
         run: |
           git config user.name "github-actions[bot]"
@@ -47,22 +38,9 @@ jobs:
           git tag -a "${{ github.event.inputs.tag_name }}" -m "Release ${{ github.event.inputs.tag_name }}"
           git push origin "${{ github.event.inputs.tag_name }}"
 
-      - name: Clean deployment directory
-        run: |
-          rm -rf ${{ env.DEPLOYMENT_PATH }}
-          mkdir -p ${{ env.DEPLOYMENT_PATH }}
-
       - name: Restore and build
         run: |
-          echo "Working directory: $(pwd)"
-          echo "Looking for solution at: ${{ env.SOLUTION_PATH }}"
-          ls -la Source/ || true
-          echo ""
-          echo "Restoring solution..."
-          dotnet clean ${{ env.SOURCE_DIR }} -c Release || true
           dotnet restore ${{ env.SOLUTION_PATH }}
-          echo ""
-          echo "Building solution..."
           dotnet build ${{ env.SOLUTION_PATH }} -c Release --no-restore
 
       - name: Publish application
@@ -74,268 +52,40 @@ jobs:
             -p:PublishSingleFile=true \
             -p:DebugType=None \
             -p:DebugSymbols=false \
-            --framework net10.0 \
-            -o ${{ env.DEPLOYMENT_PATH }}
+            -o ${{ env.BUILD_OUTPUT }}
 
       - name: Create deployment structure
         run: |
-          cd ${{ env.DEPLOYMENT_PATH }}
-          
+          cd ${{ env.BUILD_OUTPUT }}
+
           # Create required folders
-          mkdir -p exports log .core license/packages
-          
+          mkdir -p log .core license
+
           # Remove unnecessary files
           rm -f *.pdb *.xml *.deps.json web.config *.Development.json \
                 *.staticwebassets.endpoints.json
-          
-          # Copy documentation
+
+          # Copy deployment files from repo
+          cp ../Deployment/Beacon.bat .
+          cp ../Deployment/README.txt .
+
+          # Copy license
           cp ../LICENSE license/LICENSE.txt || true
-          cp ../README.md . || true
-          
+
           # Create source reference
           echo "https://github.com/${{ github.repository }}" > license/source.txt
 
-      - name: Create service management script
-        run: |
-          cat > ${{ env.DEPLOYMENT_PATH }}/Beacon.bat << 'EOFBAT'
-          @echo off
-          setlocal enabledelayedexpansion
-          
-          set SERVICE_NAME=BeaconService
-          set DISPLAY_NAME=Beacon Service
-          set DESCRIPTION=Enterprise data export and automation service
-          set EXE_PATH=%~dp0Beacon.exe
-          
-          if "%1"=="" goto :usage
-          
-          if /i "%1"=="install" goto :install
-          if /i "%1"=="uninstall" goto :uninstall
-          if /i "%1"=="start" goto :start
-          if /i "%1"=="stop" goto :stop
-          if /i "%1"=="restart" goto :restart
-          if /i "%1"=="status" goto :status
-          if /i "%1"=="test" goto :test
-          goto :usage
-          
-          :install
-            echo Installing Beacon Service...
-            sc create "%SERVICE_NAME%" ^
-              binPath= "\"%EXE_PATH%\"" ^
-              start= auto ^
-              displayname= "%DISPLAY_NAME%"
-            
-            if !ERRORLEVEL! EQU 0 (
-              sc description "%SERVICE_NAME%" "%DESCRIPTION%"
-              echo ✓ Service installed successfully
-              echo Run '%~nx0 start' to start the service
-            ) else (
-              echo ✗ Installation failed. Run as Administrator.
-            )
-            goto :eof
-          
-          :uninstall
-            echo Stopping service...
-            sc stop "%SERVICE_NAME%" >nul 2>&1
-            timeout /t 3 /nobreak >nul
-            
-            echo Uninstalling Beacon Service...
-            sc delete "%SERVICE_NAME%"
-            
-            if !ERRORLEVEL! EQU 0 (
-              echo ✓ Service uninstalled successfully
-            ) else (
-              echo ✗ Uninstall failed. Run as Administrator.
-            )
-            goto :eof
-          
-          :start
-            echo Starting Beacon Service...
-            sc start "%SERVICE_NAME%"
-            
-            if !ERRORLEVEL! EQU 0 (
-              echo ✓ Service started successfully
-              echo Access admnin UI at: http://localhost:5001
-            ) else (
-              echo ✗ Failed to start service
-            )
-            goto :eof
-          
-          :stop
-            echo Stopping Beacon Service...
-            sc stop "%SERVICE_NAME%"
-            
-            if !ERRORLEVEL! EQU 0 (
-              echo ✓ Service stopped successfully
-            ) else (
-              echo ✗ Failed to stop service
-            )
-            goto :eof
-          
-          :restart
-            call :stop
-            timeout /t 3 /nobreak >nul
-            call :start
-            goto :eof
-          
-          :status
-            echo Beacon Service Status:
-            echo ====================
-            sc query "%SERVICE_NAME%"
-            echo.
-            echo Recent logs:
-            if exist "%~dp0log\beacon-*.log" (
-              powershell -Command "Get-Content '%~dp0log\beacon-*.log' -Tail 20"
-            ) else (
-              echo No logs found
-            )
-            goto :eof
-          
-          :test
-            echo Running Beacon in console mode...
-            echo Press Ctrl+C to stop
-            echo.
-            echo Web UI will be available at: http://localhost:5001
-            echo.
-            "%EXE_PATH%"
-            goto :eof
-          
-          :usage
-            echo Beacon Service Manager
-            echo ============================
-            echo.
-            echo Usage: %~nx0 {command}
-            echo.
-            echo Commands:
-            echo   install   - Install as Windows service (requires Admin)
-            echo   uninstall - Remove Windows service (requires Admin)
-            echo   start     - Start the service
-            echo   stop      - Stop the service
-            echo   restart   - Restart the service
-            echo   status    - Show service status and recent logs
-            echo   test      - Run in console mode for testing
-            echo.
-            goto :eof
-          EOFBAT
-
-      - name: Create README
-        run: |
-          cat > ${{ env.DEPLOYMENT_PATH }}/README.txt << 'EOFREADME'
-          ╔═══════════════════════════════════════════════════════════╗
-          ║                  BEACON EXPORT SERVICE                    ║
-          ╚═══════════════════════════════════════════════════════════╝
-          
-          PREREQUISITES
-          =============
-          
-          ** REQUIRED: .NET 10.0 Runtime **
-          Download from: https://dotnet.microsoft.com/download/dotnet/10.0
-          Install "ASP.NET Core Runtime 10.0.x" for Windows x64
-          
-          QUICK START
-          ===========
-          
-          1. TEST MODE (Recommended First)
-             Run: Beacon.bat test
-             Access: http://localhost:5001
-             Stop: Press Ctrl+C
-          
-          2. INSTALL AS WINDOWS SERVICE
-             Run as Administrator: Beacon.bat install
-             Start service: Beacon.bat start
-             Access: http://localhost:5001
-          
-          CONFIGURATION
-          =============
-          
-          Required Configuration:
-          - Set encryption key (HIGHLY RECOMMENDED):
-            Set Windows environment variable:
-            BEACON_ENCRYPTION_KEY=your-secure-random-key-here
-          
-          - Edit appsettings.json for:
-            * Port (default: 5001)
-            * JWT secret
-            * SMTP settings
-            * Export path
-          
-          Optional:
-          - Edit appsettings.Development.json for development
-          - Create .env file in deployment folder
-          
-          SERVICE MANAGEMENT
-          ==================
-          
-          Beacon.bat commands:
-            install   - Install Windows service (requires Admin)
-            start     - Start the service
-            stop      - Stop the service
-            restart   - Restart the service
-            status    - Show status and recent logs
-            uninstall - Remove Windows service (requires Admin)
-            test      - Run in console mode
-          
-          FOLDER STRUCTURE
-          ================
-          
-          exports/     - Exported data files (configurable)
-          log/         - Application logs (Serilog)
-          .core/       - Encryption keys (DO NOT DELETE)
-          wwwroot/     - Web UI static files
-          Beacon.db    - SQLite database
-          
-          TROUBLESHOOTING
-          ===============
-          
-          Service won't start:
-          1. Run: Beacon.bat test (check console errors)
-          2. Check logs in: log/beacon-YYYYMMDD.log
-          3. Verify port 5001 is available
-          4. Ensure BEACON_ENCRYPTION_KEY is set
-          
-          Web UI not accessible:
-          1. Check service status: Beacon.bat status
-          2. Verify firewall allows port 5001
-          
-          Database issues:
-          1. Check Beacon.db exists and is writable
-          2. Check file permissions
-          3. Review logs for SQLite errors
-          
-          SECURITY NOTES
-          ==============
-          
-          IMPORTANT:
-          - Set BEACON_ENCRYPTION_KEY environment variable
-          - Change default JWT secret in appsettings.json
-          - Use HTTPS in production (reverse proxy)
-          - Backup Beacon.db regularly
-          - Backup .core/ folder (encryption keys)
-          - Limit network access to port 5001
-          
-          LICENSE
-          =======
-          
-          AGPL-3.0-or-later
-          See license/LICENSE.txt
-          
-          SUPPORT
-          =======
-          
-          Issues: https://github.com/melosso/beacon/issues
-          EOFREADME
-
       - name: Create version file
         run: |
-          echo "${{ github.event.inputs.tag_name }}" > ${{ env.DEPLOYMENT_PATH }}/.version.txt
-          echo "Built: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> ${{ env.DEPLOYMENT_PATH }}/.version.txt
-          echo "Commit: ${{ github.sha }}" >> ${{ env.DEPLOYMENT_PATH }}/.version.txt
+          echo "${{ github.event.inputs.tag_name }}" > ${{ env.BUILD_OUTPUT }}/.version.txt
+          echo "Built: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> ${{ env.BUILD_OUTPUT }}/.version.txt
+          echo "Commit: ${{ github.sha }}" >> ${{ env.BUILD_OUTPUT }}/.version.txt
 
       - name: Create deployment archive
         run: |
-          cd ${{ env.DEPLOYMENT_PATH }}
+          cd ${{ env.BUILD_OUTPUT }}
           zip -r ../Beacon-${{ github.event.inputs.tag_name }}-win-x64.zip .
           cd ..
-          # Create checksums
           sha256sum Beacon-${{ github.event.inputs.tag_name }}-win-x64.zip > \
             Beacon-${{ github.event.inputs.tag_name }}-win-x64.zip.sha256
 
