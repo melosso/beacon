@@ -1,4 +1,5 @@
 using Beacon.Core.Security;
+using Beacon.Core.Services;
 using Xunit;
 
 namespace Beacon.Tests;
@@ -95,5 +96,262 @@ public class SecurityTests
 
         Assert.Equal(64, hash.Length);
         Assert.True(hash.All(c => char.IsAsciiHexDigitLower(c)));
+    }
+
+    private static EncryptionService CreateEncryptionService(string testDir)
+    {
+        // Create test directory with appsettings.json so it's recognized as root
+        Directory.CreateDirectory(testDir);
+        File.WriteAllText(Path.Combine(testDir, "appsettings.json"), "{}");
+        return new EncryptionService(testDir, "test-encryption-key-for-unit-tests");
+    }
+
+    private static void CleanupTestDir(string testDir)
+    {
+        if (Directory.Exists(testDir))
+        {
+            Directory.Delete(testDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_EncryptDecrypt_RoundTrips()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+            var plaintext = "sensitive connection string";
+
+            var encrypted = service.Encrypt(plaintext);
+            var decrypted = service.Decrypt(encrypted);
+
+            Assert.Equal(plaintext, decrypted);
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_AddsPrefixToEncryptedValues()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            var encrypted = service.Encrypt("test");
+
+            Assert.StartsWith("BENC:", encrypted);
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_IsEncrypted_ReturnsTrueForEncryptedValues()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            var encrypted = service.Encrypt("test");
+
+            Assert.True(service.IsEncrypted(encrypted));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_IsEncrypted_ReturnsFalseForPlaintext()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            Assert.False(service.IsEncrypted("plaintext"));
+            Assert.False(service.IsEncrypted(""));
+            Assert.False(service.IsEncrypted(null!));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_EncryptIfNotEncrypted_SkipsAlreadyEncrypted()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            var encrypted = service.Encrypt("test");
+            var result = service.EncryptIfNotEncrypted(encrypted);
+
+            Assert.Equal(encrypted, result);
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_EncryptIfNotEncrypted_EncryptsPlaintext()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            var result = service.EncryptIfNotEncrypted("plaintext");
+
+            Assert.True(service.IsEncrypted(result));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_DecryptIfEncrypted_DecryptsEncrypted()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            var encrypted = service.Encrypt("secret");
+            var result = service.DecryptIfEncrypted(encrypted);
+
+            Assert.Equal("secret", result);
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_DecryptIfEncrypted_ReturnsPlaintextUnchanged()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            var result = service.DecryptIfEncrypted("not encrypted");
+
+            Assert.Equal("not encrypted", result);
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_Decrypt_ThrowsOnNonEncryptedValue()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            Assert.Throws<ArgumentException>(() => service.Decrypt("not encrypted"));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_HandlesEmptyStrings()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            Assert.Equal("", service.Encrypt(""));
+            Assert.Equal("", service.Decrypt(""));
+            Assert.Equal("", service.EncryptIfNotEncrypted(""));
+            Assert.Equal("", service.DecryptIfEncrypted(""));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_CreatesCoreFolder()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service = CreateEncryptionService(testDir);
+
+            Assert.True(Directory.Exists(service.CertificatesPath));
+            Assert.True(File.Exists(Path.Combine(service.CertificatesPath, "recovery.baklz4")));
+            Assert.True(File.Exists(Path.Combine(service.CertificatesPath, "snapshot_blob.bin")));
+            Assert.True(File.Exists(Path.Combine(service.CertificatesPath, "store.jsonc")));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_ReusesExistingKeys()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            var service1 = CreateEncryptionService(testDir);
+            var encrypted = service1.Encrypt("test data");
+
+            // Create new service instance with same directory
+            var service2 = new EncryptionService(testDir, "test-encryption-key-for-unit-tests");
+            var decrypted = service2.Decrypt(encrypted);
+
+            Assert.Equal("test data", decrypted);
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
+    }
+
+    [Fact]
+    public void EncryptionService_ThrowsOnKeyChange()
+    {
+        var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
+        try
+        {
+            _ = CreateEncryptionService(testDir);
+
+            // Try to create new service with different key
+            Assert.Throws<InvalidOperationException>(() =>
+                new EncryptionService(testDir, "different-encryption-key"));
+        }
+        finally
+        {
+            CleanupTestDir(testDir);
+        }
     }
 }

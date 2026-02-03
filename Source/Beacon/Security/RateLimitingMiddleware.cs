@@ -81,7 +81,7 @@ public class RateLimitingMiddleware
 
 public class RateLimitOptions
 {
-    public int MaxRequests { get; set; } = 100;
+    public int MaxRequests { get; set; } = 1500;
     public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
 }
 

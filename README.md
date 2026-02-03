@@ -23,31 +23,63 @@ Beacon manages email permission states via logical groupings called Buckets. For
 
 In other words, Beacon provides a decoupled infrastructure for managing communication preferences, allowing you to externalize consent logic and opt-out processing from your primary data sources.
 
-## Quick Start
+## Getting Started
 
-### Docker Compose (Development)
+We've prepared two methods to deploy Beacon. It's up to you to choose your preferred method:
 
-Uses port-based routing: API on port 5000, Admin panel on port 5001.
-
+### Docker Compose (Recommended)
 ```yaml
 services:
   beacon:
+    container_name: beacon
     image: ghcr.io/melosso/beacon:latest
     ports:
       - "5000:5000"  # Public API
       - "5001:5001"  # Admin panel
     volumes:
+      - beacon_core:/app/.core
       - beacon_db:/app/data
     environment:
-      - Beacon__SigningKey=${BEACON_SIGNING_KEY}
-      - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
-      - Beacon__Pepper=${BEACON_PEPPER}
-      - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
+      - BEACON_ENCRYPTION_KEY=YourKeyHere
       - Beacon__ConnectionString=Data Source=/app/data/Beacon.db
 
 volumes:
+  beacon_core:
   beacon_db:
 ```
+```bash
+docker compose up -d
+```
+
+Access Admin panel at **http://localhost:5001** and API at **http://localhost:5000**.
+
+On first run, Beacon will auto-generate secure keys for `SigningKey`, `EncryptionKey`, `Pepper`, and `AdminApiKey` in `appsettings.json`. Check the logs or admin panel for your API key.
+
+### Windows Installation
+
+Download the latest release from [Releases](https://github.com/melosso/beacon/releases).
+
+1. **Install .NET 10 Runtime:**
+```powershell
+winget install --id Microsoft.DotNet.Runtime.10 -e
+```
+
+2. **Set encryption key:**
+```powershell
+$bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [Environment]::SetEnvironmentVariable("BEACON_ENCRYPTION_KEY", [Convert]::ToBase64String($bytes), "Machine")
+```
+
+3. **Install service:**
+```powershell
+.\Beacon.bat install
+.\Beacon.bat start
+```
+
+4. Open browser → **http://localhost:5001**
+
+On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted. You should safely store your API key to keep access to the admin panel.
+
+---
 
 For production deployments with host-based routing, see the [Configuration](#configuration) section.
 

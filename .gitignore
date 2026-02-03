@@ -47,6 +47,9 @@ appsettings.*.json
 .env.*
 *.local
 
+# Encryption certificates (RSA keypair)
+.core/
+
 # Logs
 logs/
 *.log

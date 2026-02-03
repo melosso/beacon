@@ -1,4 +1,5 @@
 using Beacon.Api;
+using Beacon.Configuration;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Middleware;
@@ -10,14 +11,23 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuration
+// Initialize EncryptionService first (uses BEACON_ENCRYPTION_KEY from environment)
+var encryptionService = new EncryptionService(builder.Environment.ContentRootPath);
+
+// Process configuration - decrypt encrypted values and encrypt plaintext values
 var config = builder.Configuration.GetSection("Beacon");
+var decryptedConfig = ConfigurationEncryptor.ProcessConfiguration(
+    builder.Configuration,
+    encryptionService,
+    builder.Environment.ContentRootPath);
+
+// Read configuration values (use decrypted values where available)
 var databaseProvider = config["DatabaseProvider"] ?? "sqlite";
-var connectionString = config["ConnectionString"] ?? "Data Source=Beacon.db";
-var signingKey = config["SigningKey"] ?? throw new InvalidOperationException("Beacon__SigningKey is required");
-var encryptionKey = config["EncryptionKey"] ?? throw new InvalidOperationException("Beacon__EncryptionKey is required");
-var pepper = config["Pepper"] ?? throw new InvalidOperationException("Beacon__Pepper is required");
-var adminApiKey = config["AdminApiKey"] ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
+var connectionString = decryptedConfig.GetValueOrDefault("ConnectionString", config["ConnectionString"] ?? "Data Source=Beacon.db");
+var signingKey = decryptedConfig.GetValueOrDefault("SigningKey") ?? throw new InvalidOperationException("Beacon__SigningKey is required");
+var encryptionKey = decryptedConfig.GetValueOrDefault("EncryptionKey") ?? throw new InvalidOperationException("Beacon__EncryptionKey is required");
+var pepper = decryptedConfig.GetValueOrDefault("Pepper") ?? throw new InvalidOperationException("Beacon__Pepper is required");
+var adminApiKey = decryptedConfig.GetValueOrDefault("AdminApiKey") ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
 var tokenExpiryDays = int.TryParse(config["TokenExpiryDays"], out var days) ? days : 30;
 var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
 
@@ -73,6 +83,7 @@ builder.Services.AddSingleton<TokenValidator>(sp =>
     new TokenValidator(sp.GetRequiredService<TokenOptions>()));
 
 builder.Services.AddSingleton(new Encryptor(normalizedEncryptionKey));
+builder.Services.AddSingleton<IEncryptionService>(encryptionService);
 builder.Services.AddSingleton(new EmailHasher(pepper));
 
 builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
@@ -194,7 +205,7 @@ app.UseHostRouting();
 
 app.UseRateLimiting(options =>
 {
-    options.MaxRequests = 100;
+    options.MaxRequests = 1500;
     options.Window = TimeSpan.FromMinutes(1);
 });
 
