@@ -7,6 +7,7 @@ COPY Source/Beacon/Beacon.csproj Source/Beacon/
 COPY Source/Beacon.Core/Beacon.Core.csproj Source/Beacon.Core/
 COPY Source/Beacon.Storage/Beacon.Storage.csproj Source/Beacon.Storage/
 COPY Source/Beacon.Tokens/Beacon.Tokens.csproj Source/Beacon.Tokens/
+COPY Source/Beacon.Tests/Beacon.Tests.csproj Source/Beacon.Tests/
 
 # Restore dependencies
 RUN dotnet restore Source/Beacon.sln
