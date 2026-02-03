@@ -1,0 +1,22 @@
+*.exe filter=lfs diff=lfs merge=lfs -text
+# .gitattributes
+# This file is used to define attributes for paths in the repository.
+
+# Exclude directory from GitHub language statistics
+Pages/* linguist-vendored
+Deployment/* linguist-vendored
+Documentation/* linguist-vendored
+*.html linguist-vendored=true
+*.htm linguist-vendored=true
+*.css linguist-vendored=true
+*.conf linguist-vendored=true
+*.yml linguist-vendored=true
+*.sh linguist-vendored=true
+*.sln linguist-vendored=true
+*.js linguist-vendored=true
+*.sql linguist-vendored=true
+*.ps1 linguist-vendored=true
+*.bat linguist-vendored=true
+*.cmd linguist-vendored=true
+*.pack filter=lfs diff=lfs merge=lfs -text
+*.idx filter=lfs diff=lfs merge=lfs -text

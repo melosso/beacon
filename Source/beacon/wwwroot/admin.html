@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Beacon</title>
+  <style>
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --border: 240 5.9% 90%;
+      --primary: 240 5.9% 10%;
+      --primary-foreground: 0 0% 98%;
+      --success: 142 76% 36%;
+      --destructive: 0 84.2% 60.2%;
+      --warning: 38 92% 50%;
+      --radius: 0.5rem;
+      --sidebar-width: 260px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: 240 10% 3.9%;
+        --foreground: 0 0% 98%;
+        --muted: 240 3.7% 15.9%;
+        --muted-foreground: 240 5% 64.9%;
+        --border: 240 3.7% 15.9%;
+        --primary: 0 0% 98%;
+        --primary-foreground: 240 5.9% 10%;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 0.875rem 1rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 280px;
+      max-width: 400px;
+      pointer-events: auto;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .toast.hiding {
+      animation: slideOut 0.2s ease-in forwards;
+    }
+
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+
+    .toast-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .toast.success { border-left: 3px solid hsl(var(--success)); }
+    .toast.success .toast-icon { color: hsl(var(--success)); }
+    .toast.error { border-left: 3px solid hsl(var(--destructive)); }
+    .toast.error .toast-icon { color: hsl(var(--destructive)); }
+    .toast.warning { border-left: 3px solid hsl(var(--warning)); }
+    .toast.warning .toast-icon { color: hsl(var(--warning)); }
+
+    .toast-content {
+      flex: 1;
+      font-size: 0.875rem;
+    }
+
+    .toast-title {
+      font-weight: 600;
+      margin-bottom: 0.125rem;
+    }
+
+    .toast-message {
+      color: hsl(var(--muted-foreground));
+    }
+
+    /* Auth overlay */
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: hsl(var(--background));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .auth-box {
+      width: 360px;
+      padding: 2rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+    }
+
+    .auth-box h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .auth-box p {
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 1.5rem;
+    }
+
+    .auth-box input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      background: transparent;
+      color: inherit;
+      margin-bottom: 1rem;
+      font-family: monospace;
+    }
+
+    .auth-box .error {
+      color: hsl(var(--destructive));
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* Sidebar */
+    aside {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width);
+      border-right: 1px solid hsl(var(--border));
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      padding: 0 0.75rem;
+      margin-bottom: 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .nav-group { margin-bottom: 1.5rem; }
+    .nav-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: hsl(var(--muted-foreground));
+      padding: 0 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .nav-item {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      margin-bottom: 2px;
+      transition: background 0.2s;
+      color: hsl(var(--foreground));
+      text-decoration: none;
+      display: block;
+    }
+
+    .nav-item:hover { background-color: hsl(var(--muted)); }
+    .nav-item.active { background-color: hsl(var(--muted)); font-weight: 600; }
+
+    .nav-item.show-more {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      padding: 0.375rem 0.75rem;
+      margin-top: 0.25rem;
+      border-radius: calc(var(--radius) - 2px);
+      background: transparent;
+      border: 1px dashed hsl(var(--border));
+      text-align: center;
+    }
+
+    .nav-item.show-more:hover {
+      color: hsl(var(--foreground));
+      background: hsl(var(--muted));
+      border-style: solid;
+    }
+
+    /* Sidebar Footer and GitHub Icon */
+    .sidebar-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding-top: 1rem;
+    }
+
+    .github-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: hsl(var(--muted-foreground));
+      transition: color 0.2s;
+    }
+
+    .github-link:hover {
+      color: hsl(var(--foreground));
+    }
+
+    .github-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Buckets Header and Submenu */
+    .nav-label-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-right: 0.5rem;
+    }
+
+    .btn-plus {
+      background: transparent;
+      border: none;
+      color: hsl(var(--muted-foreground));
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 2px;
+      border-radius: 4px;
+    }
+
+    .btn-plus:hover {
+      background-color: hsl(var(--muted));
+      color: hsl(var(--foreground));
+    }
+
+    .submenu {
+      display: none;
+      margin-bottom: 0.5rem;
+      border-left: 1px solid hsl(var(--border));
+      margin-left: 0.75rem;
+      padding-left: 0.25rem;
+    }
+
+    .submenu.open {
+      display: block;
+    }
+
+    .nav-item.unavailable {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-logout {
+      border: 1px solid hsl(var(--border));
+      background: transparent;
+      color: hsl(var(--foreground));
+      font-weight: 600;
+      padding: 0.6rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 3rem;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 2rem;
+      flex-shrink: 0;
+    }
+
+    h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+
+    .status-badge {
+      display: inline-flex;
+      background: hsl(var(--muted));
+      color: hsl(var(--muted-foreground));
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+      font-weight: 500;
+    }
+
+    .status-badge.opted-in { background: hsl(142 76% 90%); color: hsl(var(--success)); }
+    .status-badge.opted-out { background: hsl(0 84% 95%); color: hsl(var(--destructive)); }
+
+    .bucket-actions { display: flex; gap: 0.75rem; }
+
+    .btn {
+      height: 2.25rem;
+      padding: 0 0.875rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      transition: opacity 0.2s;
+      gap: 0.5rem;
+    }
+
+    .btn-outline { border: 1px solid hsl(var(--border)); background: transparent; color: hsl(var(--foreground)); }
+    .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+    .btn-destructive { border: 1px solid hsl(var(--destructive)); background: transparent; color: hsl(var(--destructive)); }
+    .btn-destructive:hover { background: hsl(var(--destructive)); color: white; }
+
+    /* Table */
+    .table-wrapper {
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .scroll-area {
+      flex: 1;
+      overflow: auto;
+      background: hsl(var(--background));
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    thead { position: sticky; top: 0; background: hsl(var(--background)); z-index: 10; box-shadow: inset 0 -1px 0 hsl(var(--border)); }
+    th { text-align: left; padding: 0.875rem 1rem; color: hsl(var(--muted-foreground)); font-weight: 500; white-space: nowrap; }
+    td { padding: 1rem; border-bottom: 1px solid hsl(var(--border)); }
+    tr:last-child td { border-bottom: none; }
+
+    .email-hash {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .email-text {
+      font-size: 0.875rem;
+    }
+
+    /* Toggle switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: hsl(var(--muted));
+      transition: 0.2s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: hsl(var(--background));
+      transition: 0.2s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: hsl(var(--success));
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    .switch.disabled {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* Checkbox toggle for forms */
+    .form-group label.checkbox-toggle,
+    .checkbox-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-bottom: 0;
+    }
+
+    .checkbox-toggle:hover {
+      background: hsl(var(--muted));
+    }
+
+    .checkbox-toggle-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .checkbox-toggle-desc {
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      margin-top: 0.125rem;
+    }
+
+    .checkbox-toggle input {
+      display: none;
+    }
+
+    .checkbox-toggle .toggle-track {
+      width: 36px;
+      height: 20px;
+      background: hsl(var(--muted));
+      border-radius: 10px;
+      position: relative;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .checkbox-toggle .toggle-track::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: hsl(var(--background));
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    .checkbox-toggle input:checked + .toggle-track {
+      background: hsl(var(--success));
+    }
+
+    .checkbox-toggle input:checked + .toggle-track::after {
+      transform: translateX(16px);
+    }
+
+    /* Security Modal */
+    .passphrase-box {
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+      font-family: monospace;
+      padding: 1rem;
+      border-radius: var(--radius);
+      text-align: center;
+      margin: 1.5rem 0;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    .input-auth {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      background: transparent;
+      color: inherit;
+      margin-bottom: 1.5rem;
+      outline: none;
+      text-align: center;
+      font-family: monospace;
+      text-transform: uppercase;
+    }
+
+    .btn-confirm {
+      background: hsl(var(--destructive));
+      color: white;
+      border: none;
+      opacity: 0.3;
+      pointer-events: none;
+      font-weight: 600;
+    }
+
+    .btn-confirm.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Pagination */
+    .pagination-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      border-top: 1px solid hsl(var(--border));
+      background: hsl(var(--background));
+      flex-shrink: 0;
+    }
+
+    .pagination-settings { display: flex; align-items: center; gap: 1.5rem; }
+    .page-size-selector { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
+    select.page-size-input { background: transparent; border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); border-radius: 4px; padding: 0.25rem; outline: none; }
+    .pagination-info { font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
+
+    /* Token Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+      z-index: 100;
+    }
+
+    .modal {
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      width: 480px;
+      border-radius: var(--radius);
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .modal p {
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    .required {
+      color: hsl(var(--destructive));
+      cursor: help;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 0.625rem;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      background: transparent;
+      color: inherit;
+    }
+
+    .permissions-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .permission-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .permission-row:last-child { border-bottom: none; }
+
+    .permission-name {
+      flex: 1;
+      font-size: 0.875rem;
+    }
+
+    .permission-toggle {
+      display: flex;
+      gap: 0.25rem;
+      background: hsl(var(--muted));
+      border-radius: var(--radius);
+      padding: 2px;
+    }
+
+    .permission-toggle button {
+      padding: 0.25rem 0.75rem;
+      border: none;
+      background: transparent;
+      color: hsl(var(--muted-foreground));
+      font-size: 0.75rem;
+      font-weight: 500;
+      border-radius: calc(var(--radius) - 2px);
+      cursor: pointer;
+    }
+
+    .permission-toggle button.active {
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .permission-toggle button.opted-in.active { color: hsl(var(--success)); }
+    .permission-toggle button.opted-out.active { color: hsl(var(--destructive)); }
+    .permission-toggle button.skip.active { color: hsl(var(--muted-foreground)); }
+
+    .btn-remove {
+      background: transparent;
+      border: none;
+      color: hsl(var(--muted-foreground));
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0 0.5rem;
+      line-height: 1;
+    }
+    .btn-remove:hover { color: hsl(var(--destructive)); }
+
+    .token-output {
+      background: hsl(var(--muted));
+      padding: 1rem;
+      border-radius: var(--radius);
+      font-family: monospace;
+      font-size: 0.8rem;
+      word-break: break-all;
+      margin: 1rem 0;
+      display: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .modal-actions .btn { flex: 1; justify-content: center; }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: hsl(var(--muted-foreground));
+    }
+
+    /* Row Actions Dropdown */
+    .row-actions {
+      position: relative;
+      display: inline-block;
+    }
+
+    .btn-actions {
+      background: transparent;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .btn-actions:hover {
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 180px;
+      z-index: 50;
+      display: none;
+    }
+
+    .dropdown-menu.open { display: block; }
+
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.625rem 0.875rem;
+      text-align: left;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: hsl(var(--foreground));
+    }
+
+    .dropdown-item:hover { background: hsl(var(--muted)); }
+    .dropdown-item + .dropdown-item { border-top: 1px solid hsl(var(--border)); }
+
+    /* View containers */
+    .view {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .view.active {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Auth Overlay -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-box">
+      <h2>Beam Me In, Scotty</h2>
+      <p>Enter the sequence and power up the admin mainframe. In other words: enter your API-key.</p>
+      <input type="password" id="apiKeyInput" placeholder="X-Api-Key" onkeydown="if(event.key==='Enter')authenticate()">
+      <div class="error" id="authError">Invalid API key</div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="authenticate()">Sign In</button>
+    </div>
+  </div>
+
+  <aside>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+      </svg>
+      Beacon
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Navigation</div>
+      <a href="#" class="nav-item" data-view="overview" onclick="showView('overview')">Overview</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label-container">
+        <div class="nav-label">Buckets</div>
+        <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="submenu" id="bucketSubmenu">
+        <a href="#" class="nav-item unavailable">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px">
+            <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+          </svg>
+          New bucket
+        </a>
+        <a href="#" class="nav-item" data-view="tokens" onclick="showView('tokens')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          New token
+        </a>
+      </div>
+
+      <div id="bucketsList"></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-logout" style="flex: 1;" onclick="logout()">Log Out</button>
+      <a href="https://github.com/melosso/beacon" target="_blank" class="github-link" title="GitHub Repository">
+        <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+        </svg>
+      </a>
+    </div>
+  </aside>
+
+  <main id="mainContent">
+    <!-- Overview View -->
+    <div id="view-overview" class="view">
+      <section class="header-container">
+        <div>
+          <h1>Overview</h1>
+          <span class="status-badge">Admin Panel</span>
+        </div>
+        <div class="bucket-actions">
+          <button class="btn btn-outline" onclick="loadOverview()">Refresh</button>
+        </div>
+      </section>
+      <div class="table-wrapper">
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr>
+                <th>Bucket</th>
+                <th>Records</th>
+                <th>Permissions</th>
+                <th style="width:50px"></th>
+              </tr>
+            </thead>
+            <tbody id="overviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bucket View -->
+    <div id="view-bucket" class="view">
+      <section class="header-container">
+        <div>
+          <h1 id="bucketTitle">-</h1>
+          <span class="status-badge">Read-Only</span>
+        </div>
+        <div class="bucket-actions">
+          <button class="btn btn-outline" onclick="loadBucket(currentBucket)">Refresh</button>
+          <button class="btn btn-destructive" onclick="initiateRemoval()">Remove Bucket</button>
+        </div>
+      </section>
+      <div class="table-wrapper">
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr id="bucketTableHead">
+                <th>Email</th>
+                <th>Loading...</th>
+              </tr>
+            </thead>
+            <tbody id="bucketBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-container">
+          <div class="pagination-settings">
+            <div class="page-size-selector">
+              <span>Show</span>
+              <select class="page-size-input" id="pageSize" onchange="updatePageSize()">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>per page</span>
+            </div>
+            <div class="pagination-info" id="paginationInfo"></div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" id="prevBtn" onclick="changePage(-1)">Previous</button>
+            <button class="btn btn-outline" id="nextBtn" onclick="changePage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tokens View -->
+    <div id="view-tokens" class="view" style="overflow-y:auto">
+      <section class="header-container" style="flex-shrink:0">
+        <div>
+          <h1>Generate Token</h1>
+          <span class="status-badge">Token Management</span>
+        </div>
+      </section>
+      <div class="modal" style="box-shadow:none;border:1px solid hsl(var(--border));margin-bottom:2rem">
+        <h3>Create New Permission</h3>
+        <p>Generate a secure token that allows users to manage their email preferences, stored in a specific bucket.</p>
+
+        <div class="form-group">
+          <label>Bucket <span class="required" title="Required field">*</span></label>
+          <input type="text" id="tokenBucket" placeholder="e.g., Marketing_Campaign_Q1">
+        </div>
+
+        <div class="form-group">
+          <label>Email Address <span class="required" title="Required field">*</span></label>
+          <input type="email" id="tokenEmail" placeholder="user@example.com">
+        </div>
+
+        <div class="form-group">
+          <label>Permissions (select state for each)</label>
+          <div class="permissions-grid" id="permissionsGrid">
+            <!-- Generated by JS -->
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+            <input type="text" id="newPermissionInput" placeholder="Add custom permission..." style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomPermission()}">
+            <button type="button" class="btn btn-outline" onclick="addCustomPermission()">Add</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Expiry (days)</label>
+          <input type="number" id="tokenExpiry" value="60" min="1" max="365">
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-toggle">
+            <div>
+              <div class="checkbox-toggle-label">Allow multiple uses</div>
+              <div class="checkbox-toggle-desc">User can revisit the preference page until token expires</div>
+            </div>
+            <input type="checkbox" id="tokenAllowReplay" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="token-output" id="tokenOutput"></div>
+
+        <div class="modal-actions">
+          <button class="btn btn-primary" onclick="generateToken()">Generate Token</button>
+          <button class="btn btn-outline" id="copyBtn" style="display:none" onclick="copyToken()">Copy Token</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Remove Bucket Security Modal -->
+  <div class="modal-backdrop" id="removeModal">
+    <div class="modal">
+      <h3>Remove Bucket</h3>
+      <p>This action will permanently delete all consent records in this bucket. This cannot be undone.</p>
+      <p style="font-weight:500;margin-bottom:0.5rem">Type the following passphrase to confirm:</p>
+      <div class="passphrase-box select-none" id="passphraseDisplay">-</div>
+      <input type="text" class="input-auth" id="passphraseInput" placeholder="Enter the passphrase" oninput="verifyPassphrase()">
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeRemoveModal()">Cancel</button>
+        <button class="btn btn-confirm" id="confirmRemoveBtn" onclick="confirmRemoval()">Remove Bucket</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Permissions Modal -->
+  <div class="modal-backdrop" id="editPermissionsModal">
+    <div class="modal">
+      <h3>Edit Permissions</h3>
+      <p id="editPermissionsEmail" style="font-family:monospace;font-size:0.9rem">-</p>
+      <div class="form-group">
+        <label>Permissions (select state for each)</label>
+        <div class="permissions-grid" id="editPermissionsGrid">
+          <!-- Generated by JS -->
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeEditPermissionsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePermissions()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.port === '5001' ? 'http://localhost:5000' : '';
+    const MAX_SIDEBAR_BUCKETS = 10;
+    let apiKey = localStorage.getItem('beacon_api_key') || '';
+    let currentBucket = '';
+    let currentPage = 1;
+    let pageSize = 10;
+    let totalRecords = 0;
+    let buckets = [];
+
+    // ========== SANITIZATION ==========
+    function sanitize(str) {
+      if (str === null || str === undefined) return '';
+      const div = document.createElement('div');
+      div.textContent = String(str);
+      return div.innerHTML;
+    }
+
+    // ========== TOAST NOTIFICATIONS ==========
+    function notify(type, title, message = '') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+
+      const icons = {
+        success: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>',
+        error: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+        warning: '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+      };
+
+      toast.innerHTML = `
+        ${icons[type] || icons.error}
+        <div class="toast-content">
+          <div class="toast-title">${sanitize(title)}</div>
+          ${message ? `<div class="toast-message">${sanitize(message)}</div>` : ''}
+        </div>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 200);
+      }, 4000);
+    }
+
+    // ========== CENTRALIZED API REQUESTS ==========
+    async function apiRequest(endpoint, options = {}) {
+      const url = `${API_BASE}${endpoint}`;
+      const config = {
+        ...options,
+        headers: {
+          'X-Api-Key': apiKey,
+          ...options.headers
+        }
+      };
+
+      if (options.body && typeof options.body === 'object') {
+        config.headers['Content-Type'] = 'application/json';
+        config.body = JSON.stringify(options.body);
+      }
+
+      try {
+        const res = await fetch(url, config);
+
+        if (res.status === 401) {
+          notify('error', 'Session Expired', 'Please log in again.');
+          logout();
+          return { ok: false, status: 401, data: null };
+        }
+
+        let data = null;
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await res.json();
+        }
+
+        if (!res.ok) {
+          const errorMsg = data?.error || `Request failed (${res.status})`;
+          notify('error', 'Error', errorMsg);
+          return { ok: false, status: res.status, data };
+        }
+
+        return { ok: true, status: res.status, data };
+      } catch (e) {
+        notify('error', 'Network Error', 'Could not connect to server.');
+        return { ok: false, status: 0, data: null };
+      }
+    }
+
+    // ========== AUTH ==========
+    async function authenticate() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (!key) return;
+
+      apiKey = key;
+      const result = await apiRequest('/api/admin/buckets');
+
+      if (result.ok) {
+        localStorage.setItem('beacon_api_key', apiKey);
+        document.getElementById('authOverlay').style.display = 'none';
+        buckets = result.data || [];
+        renderBucketsSidebar();
+        renderPermissionsGrid();
+        showView('overview');
+      } else if (result.status !== 401) {
+        document.getElementById('authError').style.display = 'block';
+      }
+    }
+
+    async function testAuth() {
+      const result = await apiRequest('/api/admin/buckets');
+      return result.ok;
+    }
+
+    function logout() {
+      localStorage.removeItem('beacon_api_key');
+      apiKey = '';
+      location.reload();
+    }
+
+    // ========== INIT ==========
+    async function init() {
+      if (!apiKey) {
+        document.getElementById('authOverlay').style.display = 'flex';
+        return;
+      }
+
+      const valid = await testAuth();
+      if (!valid) {
+        document.getElementById('authOverlay').style.display = 'flex';
+        return;
+      }
+
+      document.getElementById('authOverlay').style.display = 'none';
+      await loadBuckets();
+      showView('overview');
+    }
+
+    // ========== LOAD BUCKETS ==========
+    async function loadBuckets() {
+      const result = await apiRequest('/api/admin/buckets');
+      if (result.ok) {
+        buckets = result.data || [];
+        renderBucketsSidebar();
+        renderPermissionsGrid();
+      }
+    }
+
+    function renderBucketsSidebar() {
+      const container = document.getElementById('bucketsList');
+      if (buckets.length === 0) {
+        container.innerHTML = '<div class="nav-item" style="opacity:0.5">No buckets yet</div>';
+        return;
+      }
+
+      const displayBuckets = buckets.slice(0, MAX_SIDEBAR_BUCKETS);
+      let html = displayBuckets.map(b =>
+        `<a href="#" class="nav-item" data-bucket="${sanitize(b.name)}" onclick="showBucket('${sanitize(b.name)}')">${sanitize(formatPermission(b.name))}</a>`
+      ).join('');
+
+      if (buckets.length > MAX_SIDEBAR_BUCKETS) {
+        const remaining = buckets.length - MAX_SIDEBAR_BUCKETS;
+        html += `<a href="#" class="nav-item show-more" onclick="showView('overview')">+${remaining} more in Overview</a>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    let tokenPermissions = new Set();
+    let removedPermissions = new Set();
+
+    function renderPermissionsGrid() {
+      const container = document.getElementById('permissionsGrid');
+
+      const bucketPerms = new Set();
+      buckets.forEach(b => {
+        (b.permissions || []).forEach(p => bucketPerms.add(p));
+      });
+
+      // Add bucket permissions that haven't been explicitly removed
+      bucketPerms.forEach(p => {
+        if (!removedPermissions.has(p)) {
+          tokenPermissions.add(p);
+        }
+      });
+
+      if (tokenPermissions.size === 0) {
+        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0">No permissions yet. Add a custom permission below or generate a token first.</div>';
+        return;
+      }
+
+      container.innerHTML = [...tokenPermissions].sort().map(p => `
+        <div class="permission-row" data-perm="${sanitize(p)}">
+          <span class="permission-name">${sanitize(formatPermission(p))}</span>
+          <div class="permission-toggle">
+            <button type="button" class="opted-in active" onclick="setPermState('${sanitize(p)}', true)">In</button>
+            <button type="button" class="opted-out" onclick="setPermState('${sanitize(p)}', false)">Out</button>
+            <button type="button" class="skip" onclick="setPermState('${sanitize(p)}', null)">Skip</button>
+          </div>
+          <button type="button" class="btn-remove" onclick="removePermission('${sanitize(p)}')" title="Remove">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    function addCustomPermission() {
+      const input = document.getElementById('newPermissionInput');
+      const perm = input.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+
+      if (!perm) {
+        notify('warning', 'Invalid Permission', 'Please enter a permission name');
+        return;
+      }
+
+      if (tokenPermissions.has(perm)) {
+        notify('warning', 'Duplicate', 'Permission already exists');
+        return;
+      }
+
+      tokenPermissions.add(perm);
+      input.value = '';
+      renderPermissionsGrid();
+    }
+
+    function removePermission(perm) {
+      tokenPermissions.delete(perm);
+      removedPermissions.add(perm);
+      renderPermissionsGrid();
+      notify('success', 'Permission Removed', `"${formatPermission(perm)}" removed from this token`);
+    }
+
+    function setPermState(perm, state) {
+      const row = document.querySelector(`.permission-row[data-perm="${perm}"]`);
+      if (!row) return;
+      row.querySelectorAll('.permission-toggle button').forEach(btn => btn.classList.remove('active'));
+      if (state === true) row.querySelector('.opted-in').classList.add('active');
+      else if (state === false) row.querySelector('.opted-out').classList.add('active');
+      else row.querySelector('.skip').classList.add('active');
+    }
+
+    function getPermissionStates() {
+      const states = {};
+      document.querySelectorAll('#permissionsGrid .permission-row').forEach(row => {
+        const perm = row.dataset.perm;
+        const inBtn = row.querySelector('.opted-in');
+        const outBtn = row.querySelector('.opted-out');
+        if (inBtn.classList.contains('active')) states[perm] = true;
+        else if (outBtn.classList.contains('active')) states[perm] = false;
+      });
+      return states;
+    }
+
+    // ========== VIEWS ==========
+    function showView(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+      const viewEl = document.getElementById(`view-${view}`);
+      if (viewEl) viewEl.classList.add('active');
+
+      document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+
+      if (view === 'overview') loadOverview();
+    }
+
+    function showBucket(bucket) {
+      currentBucket = bucket;
+      currentPage = 1;
+
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+      document.getElementById('view-bucket').classList.add('active');
+      document.getElementById('bucketTitle').textContent = formatPermission(bucket);
+
+      document.querySelector(`.nav-item[data-bucket="${bucket}"]`)?.classList.add('active');
+
+      loadBucket(bucket);
+    }
+
+    // ========== OVERVIEW ==========
+    async function loadOverview() {
+      const body = document.getElementById('overviewBody');
+
+      const result = await apiRequest('/api/admin/buckets');
+      if (!result.ok) return;
+
+      buckets = result.data || [];
+      renderBucketsSidebar();
+
+      if (buckets.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No buckets yet. Generate a token to create one.</td></tr>';
+        return;
+      }
+
+      body.innerHTML = buckets.map((b, idx) => `
+        <tr>
+          <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong></td>
+          <td>${sanitize(b.totalEmails ?? 'N/A')}</td>
+          <td>${(b.permissions || []).map(p => `<span class="status-badge">${sanitize(formatPermission(p))}</span>`).join(' ') || 'None'}</td>
+          <td>
+            <div class="row-actions">
+              <button class="btn-actions" onclick="toggleOverviewMenu(event, ${idx})">:</button>
+              <div class="dropdown-menu" id="overviewMenu-${idx}">
+                <button class="dropdown-item" onclick="showBucket('${sanitize(b.name)}')">View Records</button>
+                <button class="dropdown-item" onclick="initiateBucketRemoval('${sanitize(b.name)}')">Remove Bucket</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    let currentBucketPermissions = [];
+
+    // ========== BUCKET RECORDS ==========
+    async function loadBucket(bucket) {
+      const thead = document.getElementById('bucketTableHead');
+      const body = document.getElementById('bucketBody');
+
+      const detailsResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}`);
+      if (!detailsResult.ok) return;
+
+      const details = detailsResult.data;
+      currentBucketPermissions = details.permissions || [];
+
+      thead.innerHTML = `
+        <th>Email</th>
+        ${currentBucketPermissions.map(p => `<th>${sanitize(formatPermission(p))}</th>`).join('')}
+        <th>Last Changed</th>
+        <th style="width:50px"></th>
+      `;
+
+      const recordsResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/records?page=${currentPage}&pageSize=${pageSize}`);
+      if (!recordsResult.ok) return;
+
+      const data = recordsResult.data;
+      totalRecords = data.total;
+
+      if (data.records.length === 0) {
+        body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 3}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No records</td></tr>`;
+      } else {
+        body.innerHTML = data.records.map((r, idx) => {
+          const permCells = currentBucketPermissions.map(p => {
+            const isOptedIn = r.permissions && r.permissions[p];
+            return `<td><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label></td>`;
+          }).join('');
+
+          const emailDisplay = r.email
+            ? `<span class="email-text">${sanitize(r.email)}</span>`
+            : `<span class="email-hash" title="${sanitize(r.emailHash || '')}">${r.emailHash ? sanitize(r.emailHash.substring(0, 16)) + '...' : 'N/A'}</span>`;
+
+          const recordData = encodeURIComponent(JSON.stringify({
+            email: r.email,
+            emailHash: r.emailHash,
+            permissions: r.permissions || {}
+          }));
+
+          return `
+            <tr>
+              <td>${emailDisplay}</td>
+              ${permCells}
+              <td>${sanitize(formatDate(r.lastChanged))}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="btn-actions" onclick="toggleRowMenu(event, ${idx})">:</button>
+                  <div class="dropdown-menu" id="rowMenu-${idx}">
+                    <button class="dropdown-item" onclick="openEditPermissions('${recordData}')">Edit Permissions</button>
+                    <button class="dropdown-item" onclick="openOptOutPage('${recordData}')">Open Opt-Out Page</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      updatePagination();
+    }
+
+    function updatePagination() {
+      const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+      const start = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+      const end = Math.min(currentPage * pageSize, totalRecords);
+
+      document.getElementById('paginationInfo').textContent = `Showing ${start} to ${end} of ${totalRecords} entries`;
+      document.getElementById('prevBtn').disabled = currentPage === 1;
+      document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+    }
+
+    function updatePageSize() {
+      pageSize = parseInt(document.getElementById('pageSize').value);
+      currentPage = 1;
+      if (currentBucket) loadBucket(currentBucket);
+    }
+
+    function changePage(delta) {
+      currentPage += delta;
+      if (currentBucket) loadBucket(currentBucket);
+    }
+
+    // ========== TOKEN GENERATION ==========
+    async function generateToken() {
+      const bucket = document.getElementById('tokenBucket').value.trim();
+      if (!bucket) {
+        notify('warning', 'Missing Field', 'Please enter a bucket name');
+        return;
+      }
+
+      const email = document.getElementById('tokenEmail').value.trim();
+      if (!email) {
+        notify('warning', 'Missing Field', 'Please enter an email address');
+        return;
+      }
+
+      const permissions = getPermissionStates();
+      if (Object.keys(permissions).length === 0) {
+        notify('warning', 'No Permissions', 'Please set at least one permission to In or Out');
+        return;
+      }
+
+      // Check if email already exists in this bucket
+      const checkResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/check-email`, {
+        method: 'POST',
+        body: { email }
+      });
+
+      if (checkResult.ok && checkResult.data.exists) {
+        notify('error', 'Duplicate Email', `This email address already exists in bucket "${bucket}"`);
+        return;
+      }
+
+      const expiryDays = parseInt(document.getElementById('tokenExpiry').value) || 60;
+      const allowReplay = document.getElementById('tokenAllowReplay').checked;
+
+      const result = await apiRequest('/api/tokens/generate', {
+        method: 'POST',
+        body: { bucket, email, permissions, expiryDays, allowReplay }
+      });
+
+      if (result.ok) {
+        const tokenUrl = `${window.location.protocol}//${window.location.hostname}:5000/u/${result.data.token}`;
+        document.getElementById('tokenOutput').textContent = tokenUrl;
+        document.getElementById('tokenOutput').style.display = 'block';
+        document.getElementById('copyBtn').style.display = 'flex';
+        notify('success', 'Token Generated', 'The opt-out token has been created successfully');
+        loadBuckets();
+      }
+    }
+
+    function copyToken() {
+      const text = document.getElementById('tokenOutput').textContent;
+      navigator.clipboard.writeText(text);
+      document.getElementById('copyBtn').textContent = 'Copied!';
+      notify('success', 'Copied', 'Token URL copied to clipboard');
+      setTimeout(() => document.getElementById('copyBtn').textContent = 'Copy Token', 2000);
+    }
+
+    // ========== HELPERS ==========
+    function formatPermission(p) {
+      if (!p) return '';
+      // Convert snake_case or kebab-case to Title Case
+      return p
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return 'N/A';
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    // ========== REMOVE BUCKET ==========
+    let generatedPassphrase = '';
+    let bucketToRemove = '';
+
+    function initiateRemoval() {
+      if (!currentBucket) return;
+      bucketToRemove = currentBucket;
+      showRemoveModal();
+    }
+
+    function initiateBucketRemoval(bucket) {
+      bucketToRemove = bucket;
+      showRemoveModal();
+      closeAllMenus();
+    }
+
+    function showRemoveModal() {
+      const lexicon = ['PHOTON', 'CHIRP', 'JITTER', 'PARITY', 'LUMEN', 'GOSSIP', 'LATENCY', 'QUORUM', 'UPSTREAM', 'PACKET', 'PULSAR', 'QUASAR', 'ENTROPY', 'NONCE', 'CIPHER', 'MANTISSA', 'MODULO', 'KERNEL', 'SOCKET', 'BINARY'];
+      const code = [];
+      for (let i = 0; i < 3; i++) {
+        code.push(lexicon[Math.floor(Math.random() * lexicon.length)]);
+      }
+      generatedPassphrase = code.join(' ');
+
+      document.getElementById('passphraseDisplay').textContent = generatedPassphrase;
+      document.getElementById('passphraseInput').value = '';
+      document.getElementById('confirmRemoveBtn').classList.remove('active');
+      document.getElementById('removeModal').style.display = 'flex';
+    }
+
+    function verifyPassphrase() {
+      const input = document.getElementById('passphraseInput').value.toUpperCase().trim();
+      const btn = document.getElementById('confirmRemoveBtn');
+
+      if (input === generatedPassphrase) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+
+    async function confirmRemoval() {
+      if (!bucketToRemove) return;
+
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucketToRemove)}`, {
+        method: 'DELETE'
+      });
+
+      if (result.ok) {
+        notify('success', 'Bucket Removed', `Successfully deleted bucket "${bucketToRemove}"`);
+        closeRemoveModal();
+        await loadBuckets();
+        showView('overview');
+      }
+    }
+
+    function closeRemoveModal() {
+      document.getElementById('removeModal').style.display = 'none';
+      generatedPassphrase = '';
+      bucketToRemove = '';
+    }
+
+    // ========== ROW ACTIONS DROPDOWN ==========
+    let openMenuId = null;
+
+    function toggleRowMenu(event, idx) {
+      event.stopPropagation();
+      toggleMenu(`rowMenu-${idx}`);
+    }
+
+    function toggleOverviewMenu(event, idx) {
+      event.stopPropagation();
+      toggleMenu(`overviewMenu-${idx}`);
+    }
+
+    function toggleMenu(menuId) {
+      const menu = document.getElementById(menuId);
+      if (!menu) return;
+
+      if (openMenuId && openMenuId !== menuId) {
+        document.getElementById(openMenuId)?.classList.remove('open');
+      }
+
+      menu.classList.toggle('open');
+      openMenuId = menu.classList.contains('open') ? menuId : null;
+    }
+
+    function closeAllMenus() {
+      if (openMenuId) {
+        document.getElementById(openMenuId)?.classList.remove('open');
+        openMenuId = null;
+      }
+    }
+
+    document.addEventListener('click', closeAllMenus);
+
+    // ========== EDIT PERMISSIONS MODAL ==========
+    let editingRecord = null;
+    let editingBucket = '';
+
+    function openEditPermissions(encodedData) {
+      editingRecord = JSON.parse(decodeURIComponent(encodedData));
+      editingBucket = currentBucket;
+
+      document.getElementById('editPermissionsEmail').textContent = editingRecord.email || `Hash: ${editingRecord.emailHash?.substring(0, 16)}...`;
+
+      const grid = document.getElementById('editPermissionsGrid');
+      grid.innerHTML = currentBucketPermissions.map(p => {
+        const currentState = editingRecord.permissions[p];
+        return `
+          <div class="permission-row" data-perm="${sanitize(p)}">
+            <span class="permission-name">${sanitize(formatPermission(p))}</span>
+            <div class="permission-toggle">
+              <button type="button" class="opted-in ${currentState === true ? 'active' : ''}" onclick="setEditPermState('${sanitize(p)}', true)">In</button>
+              <button type="button" class="opted-out ${currentState === false ? 'active' : ''}" onclick="setEditPermState('${sanitize(p)}', false)">Out</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('editPermissionsModal').style.display = 'flex';
+      closeAllMenus();
+    }
+
+    function setEditPermState(perm, state) {
+      const row = document.querySelector(`#editPermissionsGrid .permission-row[data-perm="${perm}"]`);
+      if (!row) return;
+      row.querySelectorAll('.permission-toggle button').forEach(btn => btn.classList.remove('active'));
+      if (state === true) row.querySelector('.opted-in').classList.add('active');
+      else row.querySelector('.opted-out').classList.add('active');
+    }
+
+    function closeEditPermissionsModal() {
+      document.getElementById('editPermissionsModal').style.display = 'none';
+      editingRecord = null;
+      editingBucket = '';
+    }
+
+    function toggleBucketSubmenu() {
+      const submenu = document.getElementById('bucketSubmenu');
+      submenu.classList.toggle('open');
+    }
+
+    async function savePermissions() {
+      if (!editingRecord || !editingRecord.email) {
+        notify('error', 'Error', 'Cannot update permissions: email not available');
+        return;
+      }
+
+      const updates = [];
+      document.querySelectorAll('#editPermissionsGrid .permission-row').forEach(row => {
+        const perm = row.dataset.perm;
+        const inBtn = row.querySelector('.opted-in');
+        const status = inBtn.classList.contains('active') ? 'OptedIn' : 'OptedOut';
+        updates.push({ permission: perm, status });
+      });
+
+      let allSuccess = true;
+      for (const update of updates) {
+        const result = await apiRequest('/api/consent/override', {
+          method: 'POST',
+          body: {
+            bucket: editingBucket || currentBucket,
+            email: editingRecord.email,
+            permission: update.permission,
+            status: update.status
+          }
+        });
+
+        if (!result.ok) {
+          allSuccess = false;
+          break;
+        }
+      }
+
+      if (allSuccess) {
+        notify('success', 'Permissions Updated', 'Consent preferences have been saved');
+        closeEditPermissionsModal();
+        if (currentBucket) loadBucket(currentBucket);
+      }
+    }
+
+    async function openOptOutPage(encodedData) {
+      const record = JSON.parse(decodeURIComponent(encodedData));
+      closeAllMenus();
+
+      if (!record.email) {
+        notify('error', 'Error', 'Cannot generate opt-out link: email not available');
+        return;
+      }
+
+      const permissions = {};
+      currentBucketPermissions.forEach(p => {
+        permissions[p] = record.permissions[p] === true;
+      });
+
+      const result = await apiRequest('/api/tokens/generate', {
+        method: 'POST',
+        body: {
+          bucket: currentBucket,
+          email: record.email,
+          permissions,
+          expiryDays: 30,
+          allowReplay: true,
+          skipPermissionUpdate: true
+        }
+      });
+
+      if (result.ok) {
+        const url = `${window.location.protocol}//${window.location.hostname}:5000/u/${result.data.token}`;
+        window.open(url, '_blank');
+      }
+    }
+
+    // ========== START ==========
+    init();
+  </script>
+</body>
+</html>

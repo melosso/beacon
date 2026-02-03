@@ -1,0 +1,81 @@
+name: Build And Push As Docker Image
+
+on:
+  push:
+    tags: [ 'v.*' ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: docker-build-${{ github.ref }}
+      cancel-in-progress: true
+
+    env:
+      IMAGE_NAME: beacon
+      SOLUTION_PATH: Source/Beacon.sln
+      PROJECT_DIR: Source/Beacon
+      DOTNET_CONFIGURATION: Release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: |
+          dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build solution
+        run: |
+          dotnet build ${{ env.SOLUTION_PATH }} --configuration ${{ env.DOTNET_CONFIGURATION }} --no-restore --no-incremental
+
+      - name: Publish project
+        run: |
+          dotnet publish ${PROJECT_DIR} -c ${{ env.DOTNET_CONFIGURATION }} -o publish --no-restore
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        id: build-image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Push image to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Upload image digest
+        if: steps.build-image.outputs.digest != ''
+        run: echo "IMAGE_DIGEST=${{ steps.build-image.outputs.digest }}" >> $GITHUB_OUTPUT

@@ -1,0 +1,118 @@
+using System.Security.Cryptography;
+using System.Text;
+using Beacon.Core.Models;
+using Beacon.Core.Security;
+
+namespace Beacon.Core.Services;
+
+public sealed class ConsentService : IConsentService
+{
+    private readonly IConsentRepository _repository;
+    private readonly EmailHasher _emailHasher;
+    private readonly Encryptor _encryptor;
+
+    public ConsentService(IConsentRepository repository, EmailHasher emailHasher, Encryptor encryptor)
+    {
+        _repository = repository;
+        _emailHasher = emailHasher;
+        _encryptor = encryptor;
+    }
+
+    public async Task<ConsentStatus> CheckAsync(string bucket, string email, string permission)
+    {
+        var normalizedBucket = NormalizeBucket(bucket);
+        var emailHash = _emailHasher.Hash(email);
+        var record = await _repository.GetAsync(normalizedBucket, emailHash, permission);
+        return record?.Status ?? ConsentStatus.OptedIn;
+    }
+
+    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source)
+    {
+        var normalizedBucket = NormalizeBucket(bucket);
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var emailHash = _emailHasher.Hash(normalizedEmail);
+        var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
+        var tokenHash = ComputeTokenHash(token);
+
+        foreach (var permission in permissions)
+        {
+            var record = new ConsentRecord
+            {
+                Id = Guid.NewGuid(),
+                Bucket = normalizedBucket,
+                EmailHash = emailHash,
+                EncryptedEmail = encryptedEmail,
+                Permission = permission,
+                Status = ConsentStatus.OptedOut,
+                Source = source,
+                ChangedAt = DateTime.UtcNow,
+                TokenHash = tokenHash
+            };
+
+            await _repository.UpsertAsync(record);
+        }
+    }
+
+    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status)
+    {
+        var normalizedBucket = NormalizeBucket(bucket);
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var emailHash = _emailHasher.Hash(normalizedEmail);
+        var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
+
+        var record = new ConsentRecord
+        {
+            Id = Guid.NewGuid(),
+            Bucket = normalizedBucket,
+            EmailHash = emailHash,
+            EncryptedEmail = encryptedEmail,
+            Permission = permission,
+            Status = status,
+            Source = ConsentSource.Admin,
+            ChangedAt = DateTime.UtcNow
+        };
+
+        await _repository.UpsertAsync(record);
+    }
+
+    public async Task EnsureAsync(string bucket, string email, string permission, ConsentStatus status)
+    {
+        var normalizedBucket = NormalizeBucket(bucket);
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var emailHash = _emailHasher.Hash(normalizedEmail);
+
+        // Check if record already exists - if so, preserve user's choice
+        var existing = await _repository.GetAsync(normalizedBucket, emailHash, permission);
+        if (existing is not null)
+        {
+            return;
+        }
+
+        // Record doesn't exist, create it
+        var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
+        var record = new ConsentRecord
+        {
+            Id = Guid.NewGuid(),
+            Bucket = normalizedBucket,
+            EmailHash = emailHash,
+            EncryptedEmail = encryptedEmail,
+            Permission = permission,
+            Status = status,
+            Source = ConsentSource.Admin,
+            ChangedAt = DateTime.UtcNow
+        };
+
+        await _repository.UpsertAsync(record);
+    }
+
+    private static string ComputeTokenHash(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static string NormalizeBucket(string bucket)
+    {
+        return bucket.Trim().ToLowerInvariant();
+    }
+}
