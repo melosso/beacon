@@ -16,7 +16,8 @@ Beacon manages email permission states via logical groupings called Buckets. For
 
 - **Token-based opt-out**: Secure HMAC-signed URLs that validate without database lookups
 - **Multi-database support**: SQLite (default), SQL Server, PostgreSQL, MySQL
-- **Admin panel**: Web UI for managing buckets and consent records (port 5001)
+- **Admin panel**: Web UI for managing buckets and consent records
+- **Flexible routing**: Port-based (development) or host-based (production with reverse proxy)
 - **Granular permissions**: Set multiple permission states in a single API call
 - **Security first**: Encrypted data at rest, hashed emails, rate limiting
 
@@ -24,13 +25,16 @@ In other words, Beacon provides a decoupled infrastructure for managing communic
 
 ## Quick Start
 
-### Docker Compose
+### Docker Compose (Development)
+
+Uses port-based routing: API on port 5000, Admin panel on port 5001.
+
 ```yaml
 services:
   beacon:
     image: ghcr.io/melosso/beacon:latest
     ports:
-      - "5000:5000"  # API
+      - "5000:5000"  # Public API
       - "5001:5001"  # Admin panel
     volumes:
       - beacon_db:/app/data
@@ -44,6 +48,8 @@ services:
 volumes:
   beacon_db:
 ```
+
+For production deployments with host-based routing, see the [Configuration](#configuration) section.
 
 ## How to Use
 
@@ -129,7 +135,9 @@ curl -X POST http://localhost:5000/api/tokens/generate \
 
 ## Configuration
 
-Depending on your environment, these settings are changed in your `.env.`, `docker-compose.yml` or `appsettings.json` file.
+Depending on your environment, these settings are changed in your `.env`, `docker-compose.yml` or `appsettings.json` file.
+
+### Core Settings
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
@@ -141,12 +149,63 @@ Depending on your environment, these settings are changed in your `.env.`, `dock
 | `Beacon__AdminApiKey` | API key for authenticated endpoints | **Required** |
 | `Beacon__TokenExpiryDays` | Default token validity period | 30 |
 
-We don't force you to use secure keys, but make sure to do so with:
+### Host-Based Routing (Production)
+
+When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based routing to separate public API and admin traffic on different subdomains:
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `Beacon__ApiHosts` | Hosts for public API access | beacon-api.example.com |
+| `Beacon__AdminHosts` | Hosts for admin panel access | beacon-admin.example.com |
+| `Beacon__AllowedOrigins` | Additional CORS origins | https://app.example.com |
+| `Beacon__TrustForwardedHeaders` | Trust X-Forwarded-* headers from proxy | true |
+
+### Port-Based Routing (Development)
+
+When `ApiHosts`/`AdminHosts` are not configured, Beacon uses port-based routing:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `Beacon__ApiPort` | Port for public API endpoints | 5000 |
+| `Beacon__AdminPort` | Port for admin panel and OpenAPI docs | 5001 |
+
+### Routing Behavior
+
+| Context | Public Endpoints | Admin Endpoints |
+|---------|------------------|-----------------|
+| API host (e.g., beacon-api.example.com) | Allowed | Blocked |
+| Admin host (e.g., beacon-admin.example.com) | Allowed | Allowed |
+| localhost | Allowed | Allowed |
+| Port 5000 (port-based mode) | Allowed | Blocked |
+| Port 5001 (port-based mode) | Allowed | Allowed |
+
+### Production Example (Docker Compose with Traefik)
+
+```yaml
+services:
+  beacon:
+    image: ghcr.io/melosso/beacon:latest
+    environment:
+      - Beacon__SigningKey=${BEACON_SIGNING_KEY}
+      - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
+      - Beacon__Pepper=${BEACON_PEPPER}
+      - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
+      - Beacon__ApiHosts=beacon-api.example.com
+      - Beacon__AdminHosts=beacon-admin.example.com
+      - Beacon__TrustForwardedHeaders=true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.beacon-api.rule=Host(`beacon-api.example.com`)"
+      - "traefik.http.routers.beacon-admin.rule=Host(`beacon-admin.example.com`)"
+```
+
+### Generating Secure Keys
+
 ```bash
-# Linux
+# Linux/macOS
 openssl rand -base64 32
 
-# Powershell
+# PowerShell
 $b = New-Object Byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
 ```
 

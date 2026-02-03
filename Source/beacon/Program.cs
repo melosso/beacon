@@ -1,19 +1,14 @@
 using Beacon.Api;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Beacon.Middleware;
 using Beacon.Security;
 using Beacon.Storage;
 using Beacon.Tokens;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Configure Kestrel for dual-port hosting
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(5000); // Main API
-    options.ListenAnyIP(5001); // Admin panel and Documentation
-});
 
 // Configuration
 var config = builder.Configuration.GetSection("Beacon");
@@ -24,6 +19,23 @@ var encryptionKey = config["EncryptionKey"] ?? throw new InvalidOperationExcepti
 var pepper = config["Pepper"] ?? throw new InvalidOperationException("Beacon__Pepper is required");
 var adminApiKey = config["AdminApiKey"] ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
 var tokenExpiryDays = int.TryParse(config["TokenExpiryDays"], out var days) ? days : 30;
+var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
+
+// Host routing configuration
+var hostOptions = HostRoutingOptionsFactory.Create(builder.Configuration);
+builder.Services.AddSingleton(hostOptions);
+
+// Configure Kestrel - use host-based or port-based depending on configuration
+if (!hostOptions.UseHostBasedRouting)
+{
+    // Port-based mode: Listen on specific ports
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenAnyIP(hostOptions.ApiPort);   // API port
+        options.ListenAnyIP(hostOptions.AdminPort); // Admin port
+    });
+}
+// else: Host-based mode uses ASPNETCORE_URLS or default port
 
 // Security validation
 if (!builder.Environment.IsDevelopment())
@@ -92,16 +104,71 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
+// CORS Configuration - supports both localhost and configured origins
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AdminPanel", policy =>
+    options.AddPolicy("Default", policy =>
     {
-        var serverName = config["ServerName"] ?? "localhost";
-        policy.WithOrigins("http://localhost:5001", "http://127.0.0.1:5001", $"https://{serverName}:5001", $"http://{serverName}:5001")
+        var origins = new List<string>
+        {
+            // Localhost origins (development)
+            "http://localhost:5000",
+            "http://localhost:5001",
+            "http://127.0.0.1:5000",
+            "http://127.0.0.1:5001"
+        };
+
+        // Add configured allowed origins
+        var allowedOrigins = config["AllowedOrigins"];
+        if (!string.IsNullOrWhiteSpace(allowedOrigins))
+        {
+            foreach (var origin in allowedOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                origins.Add(origin);
+            }
+        }
+
+        // Add admin hosts as origins (https by default)
+        var adminHosts = config["AdminHosts"];
+        if (!string.IsNullOrWhiteSpace(adminHosts))
+        {
+            foreach (var host in adminHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                origins.Add($"https://{host}");
+                origins.Add($"http://{host}"); // For internal/dev scenarios
+            }
+        }
+
+        // Add API hosts as origins
+        var apiHosts = config["ApiHosts"];
+        if (!string.IsNullOrWhiteSpace(apiHosts))
+        {
+            foreach (var host in apiHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                origins.Add($"https://{host}");
+                origins.Add($"http://{host}");
+            }
+        }
+
+        policy.WithOrigins(origins.Distinct().ToArray())
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
 });
+
+// Forwarded Headers configuration (for reverse proxy)
+if (trustForwardedHeaders)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                                   ForwardedHeaders.XForwardedProto |
+                                   ForwardedHeaders.XForwardedHost;
+        // Clear known networks/proxies to accept from any proxy
+        // In production, you may want to restrict this
+        options.KnownProxies.Clear();
+    });
+}
 
 var app = builder.Build();
 
@@ -113,7 +180,17 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Middleware Pipeline
-app.UseCors("AdminPanel");
+
+// Forwarded Headers must be first (before any middleware that reads Host/Scheme)
+if (trustForwardedHeaders)
+{
+    app.UseForwardedHeaders();
+}
+
+app.UseCors("Default");
+
+// Host-based routing security (replaces port-based checks)
+app.UseHostRouting();
 
 app.UseRateLimiting(options =>
 {
@@ -124,24 +201,6 @@ app.UseRateLimiting(options =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Integrated Port Security Middleware
-app.Use(async (context, next) =>
-{
-    var port = context.Connection.LocalPort;
-    var path = context.Request.Path;
-
-    // Restrict Admin and OpenAPI metadata to Port 5001
-    if (port == 5000)
-    {
-        if (path.StartsWithSegments("/admin") || path.StartsWithSegments("/openapi"))
-        {
-            context.Response.StatusCode = 404;
-            return;
-        }
-    }
-    await next();
-});
-
 app.UseStaticFiles();
 
 // Endpoint Mapping
@@ -149,15 +208,9 @@ app.MapOpenApi(); // Maps /openapi/v1.json
 app.MapConsentEndpoints();
 app.MapAdminEndpoints();
 
-// UI Endpoints (Port 5001 restricted via middleware above)
+// UI Endpoints (access controlled by HostRoutingMiddleware)
 app.MapGet("/admin", async context =>
 {
-    if (context.Connection.LocalPort != 5001)
-    {
-        context.Response.StatusCode = 404;
-        return;
-    }
-
     context.Response.ContentType = "text/html";
     await context.Response.SendFileAsync(
         Path.Combine(app.Environment.WebRootPath, "admin.html"));
@@ -165,20 +218,30 @@ app.MapGet("/admin", async context =>
 
 app.MapGet("/openapi", async context =>
 {
-    if (context.Connection.LocalPort != 5001)
-    {
-        context.Response.StatusCode = 404;
-        return;
-    }
-
     context.Response.ContentType = "text/html";
     await context.Response.SendFileAsync(
         Path.Combine(app.Environment.WebRootPath, "openapi.html"));
 }).ExcludeFromDescription();
 
-app.MapGet("/", async context =>
+app.MapGet("/", context =>
 {
-    if (context.Connection.LocalPort == 5001)
+    var routingOptions = context.RequestServices.GetRequiredService<HostRoutingOptions>();
+    var host = context.Request.Host.Host.ToLowerInvariant();
+    var port = context.Connection.LocalPort;
+
+    // Determine if this is an admin context
+    bool isAdminContext;
+    if (routingOptions.UseHostBasedRouting)
+    {
+        isAdminContext = routingOptions.AdminHosts.Contains(host) ||
+                         host == "localhost" || host == "127.0.0.1";
+    }
+    else
+    {
+        isAdminContext = port == routingOptions.AdminPort;
+    }
+
+    if (isAdminContext)
     {
         context.Response.Redirect("/admin");
     }
@@ -186,6 +249,8 @@ app.MapGet("/", async context =>
     {
         context.Response.StatusCode = 404;
     }
+
+    return Task.CompletedTask;
 }).ExcludeFromDescription();
 
 app.Run();
