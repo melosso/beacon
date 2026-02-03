@@ -31,29 +31,32 @@ We've prepared two methods to deploy Beacon. It's up to you to choose your prefe
 ```yaml
 services:
   beacon:
-    container_name: beacon
     image: ghcr.io/melosso/beacon:latest
     ports:
       - "5000:5000"  # Public API
       - "5001:5001"  # Admin panel
     volumes:
-      - beacon_core:/app/.core
       - beacon_db:/app/data
     environment:
-      - BEACON_ENCRYPTION_KEY=YourKeyHere
+      - Beacon__SigningKey=${BEACON_SIGNING_KEY}
+      - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
+      - Beacon__Pepper=${BEACON_PEPPER}
+      - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
       - Beacon__ConnectionString=Data Source=/app/data/Beacon.db
 
 volumes:
-  beacon_core:
   beacon_db:
 ```
+
 ```bash
+# Create the .env file
+[ -f .env ] && echo ".env already exists! Aborting." && exit 1; ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "BEACON_SIGNING_KEY=%s\nBEACON_ENCRYPTION_KEY=%s\nBEACON_PEPPER=%s\nBEACON_ADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"
+
+# Start the container
 docker compose up -d
 ```
 
-Access Admin panel at **http://localhost:5001** and API at **http://localhost:5000**.
-
-On first run, Beacon will auto-generate secure keys for `SigningKey`, `EncryptionKey`, `Pepper`, and `AdminApiKey` in `appsettings.json`. Check the logs or admin panel for your API key.
+Access the Admin panel at **http://localhost:5001** and API at **http://localhost:5000**.
 
 ### Windows Installation
 
