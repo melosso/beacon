@@ -3,7 +3,7 @@ WORKDIR /src
 
 # Copy solution and project files first for better layer caching
 COPY Source/Beacon.sln Source/
-COPY Source/beacon/Beacon.csproj Source/beacon/
+COPY Source/Beacon/Beacon.csproj Source/Beacon/
 COPY Source/Beacon.Core/Beacon.Core.csproj Source/Beacon.Core/
 COPY Source/Beacon.Storage/Beacon.Storage.csproj Source/Beacon.Storage/
 COPY Source/Beacon.Tokens/Beacon.Tokens.csproj Source/Beacon.Tokens/
@@ -15,7 +15,7 @@ RUN dotnet restore Source/Beacon.sln
 COPY Source/ Source/
 
 # Build and publish
-RUN dotnet publish Source/beacon/Beacon.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish Source/Beacon/Beacon.csproj -c Release -o /app/publish --no-restore
 
 # Runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
