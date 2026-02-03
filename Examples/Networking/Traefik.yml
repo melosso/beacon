@@ -1,0 +1,19 @@
+### Production Example (Docker Compose with Traefik)
+
+```yaml
+services:
+  beacon:
+    image: ghcr.io/melosso/beacon:latest
+    environment:
+      - Beacon__SigningKey=${BEACON_SIGNING_KEY}
+      - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
+      - Beacon__Pepper=${BEACON_PEPPER}
+      - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
+      - Beacon__ApiHosts=beacon-api.example.com
+      - Beacon__AdminHosts=beacon-admin.example.com
+      - Beacon__TrustForwardedHeaders=true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.beacon-api.rule=Host(`beacon-api.example.com`)"
+      - "traefik.http.routers.beacon-admin.rule=Host(`beacon-admin.example.com`)"
+```

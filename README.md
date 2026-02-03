@@ -204,36 +204,6 @@ When `ApiHosts`/`AdminHosts` are not configured, Beacon uses port-based routing:
 | `Beacon__ApiPort` | Port for public API endpoints | 5000 |
 | `Beacon__AdminPort` | Port for admin panel and OpenAPI docs | 5001 |
 
-### Routing Behavior
-
-| Context | Public Endpoints | Admin Endpoints |
-|---------|------------------|-----------------|
-| API host (e.g., beacon-api.example.com) | Allowed | Blocked |
-| Admin host (e.g., beacon-admin.example.com) | Allowed | Allowed |
-| localhost | Allowed | Allowed |
-| Port 5000 (port-based mode) | Allowed | Blocked |
-| Port 5001 (port-based mode) | Allowed | Allowed |
-
-### Production Example (Docker Compose with Traefik)
-
-```yaml
-services:
-  beacon:
-    image: ghcr.io/melosso/beacon:latest
-    environment:
-      - Beacon__SigningKey=${BEACON_SIGNING_KEY}
-      - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
-      - Beacon__Pepper=${BEACON_PEPPER}
-      - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
-      - Beacon__ApiHosts=beacon-api.example.com
-      - Beacon__AdminHosts=beacon-admin.example.com
-      - Beacon__TrustForwardedHeaders=true
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.beacon-api.rule=Host(`beacon-api.example.com`)"
-      - "traefik.http.routers.beacon-admin.rule=Host(`beacon-admin.example.com`)"
-```
-
 ### Generating Secure Keys
 
 ```bash
