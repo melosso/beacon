@@ -66,8 +66,8 @@ jobs:
                 *.staticwebassets.endpoints.json
 
           # Copy deployment files from repo
-          cp ../Deployment/Beacon.bat .
-          cp ../Deployment/README.txt .
+          cp ../scripts/Beacon.bat .
+          cp ../scripts/README.txt .
 
           # Copy license
           cp ../LICENSE license/LICENSE.txt || true

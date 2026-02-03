@@ -42,6 +42,7 @@ Deployment/
 appsettings.*.json
 !appsettings.json
 !appsettings.Development.json.example
+!appsettings.Production.example.json
 .env
 .env.*
 *.local
