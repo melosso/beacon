@@ -11,20 +11,29 @@ namespace Beacon.Api;
 
 public static class ConsentEndpoints
 {
+    private const string PublicTag = "Public";
+    private const string IntegrationTag = "Integration";
+
     public static void MapConsentEndpoints(this IEndpointRouteBuilder routes)
     {
         routes.MapGet("/u/{token}", ShowPreferencePage)
             .WithName("ShowPreferencePage")
-            .WithDescription("Show email preference management page");
+            .WithTags(PublicTag)
+            .WithOpenApi()
+            .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.");
 
         routes.MapPost("/u/{token}", ProcessPreferenceUpdate)
             .WithName("ProcessPreferenceUpdate")
-            .WithDescription("Process preference update from form submission");
+            .WithTags(PublicTag)
+            .WithOpenApi()
+            .WithDescription("Process user preference updates from the form submission.");
 
         routes.MapPost("/api/consent/check", CheckConsent)
             .WithName("CheckConsent")
+            .WithTags(IntegrationTag)
+            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("Check consent status for an email/permission combination");
+            .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
     }
 
     private static async Task<IResult> ShowPreferencePage(

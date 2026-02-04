@@ -140,6 +140,48 @@ try
         {
             document.Info.Title = "Beacon API";
             document.Info.Version = "v1";
+            document.Info.Description = "Email consent management API for GDPR compliance.";
+
+            // Add API key security scheme
+            document.Components ??= new Microsoft.OpenApi.Models.OpenApiComponents();
+            document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.Models.OpenApiSecurityScheme>();
+            document.Components.SecuritySchemes["ApiKey"] = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Name = "X-Api-Key",
+                Description = "API key for authentication. Required for all Integration and Management endpoints."
+            };
+
+            return Task.CompletedTask;
+        });
+
+        // Add security requirement to operations that need authorization
+        options.AddOperationTransformer((operation, context, cancellationToken) =>
+        {
+            var hasAuthorization = context.Description.ActionDescriptor.EndpointMetadata
+                .Any(m => m is Microsoft.AspNetCore.Authorization.AuthorizeAttribute ||
+                         m is Microsoft.AspNetCore.Authorization.IAuthorizeData);
+
+            if (hasAuthorization)
+            {
+                operation.Security ??= [];
+                operation.Security.Add(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                {
+                    {
+                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                        {
+                            Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                            {
+                                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                                Id = "ApiKey"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            }
+
             return Task.CompletedTask;
         });
     });
