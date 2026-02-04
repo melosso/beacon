@@ -17,7 +17,6 @@ Beacon manages email permission states via logical groupings called Buckets. For
 - **Token-based opt-out**: Secure HMAC-signed URLs that validate without database lookups
 - **Multi-database support**: SQLite (default), SQL Server, PostgreSQL, MySQL
 - **Admin panel**: Web UI for managing buckets and consent records
-- **Flexible routing**: Port-based (development) or host-based (production with reverse proxy)
 - **Granular permissions**: Set multiple permission states in a single API call
 - **Security first**: Encrypted data at rest, hashed emails, rate limiting
 
@@ -111,7 +110,7 @@ You can incorporate this in your newsletters, system notifications, or anything 
 
 ## API-first
 
-As Beacon is an API-first platform, all consent management operations should be handled programmatically. While manual execution via CLI is possible, integration typically involves automating these calls within your specific workflow. The first step requires creating a permission state for an email address in a bucket–which triggers the automatic creation of the target bucket if it is not already present. Note, if the e-mail exists, 
+As Beacon is an API-first platform, all consent management operations should be handled programmatically. While manual execution via CLI is possible, integration typically involves automating these calls within your specific workflow. The first step requires creating a permission state for an email address in a bucket–which triggers the automatic creation of the target bucket if it is not already present. If you're reusing buckets, you may want to use configure `skipPermissionUpdate` to prevent overwriting updated permissions. 
 
 #### Generate Token
 Creates consent records and returns a signed opt-out token (`{"token":"<signed_jwt>"}`).
