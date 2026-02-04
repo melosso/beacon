@@ -176,6 +176,7 @@ curl -X POST http://localhost:5000/api/tokens/generate \
     },
     "allowReplay": false,
     "expiryDays": 30,
+    "language": "nl", # Supported: en (default), de, fr, nl, pl, es
     "skipPermissionUpdate": true
   }'
 ```
