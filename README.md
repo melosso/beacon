@@ -164,6 +164,7 @@ curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
 
 #### Generate Token with Optional Features
 ```bash
+# Supported languages: en (default), de, fr, nl, pl, es
 curl -X POST http://localhost:5000/api/tokens/generate \
   -H "X-Api-Key: INSECURE-CHANGE-ME-api-key" \
   -H "Content-Type: application/json" \
@@ -176,7 +177,7 @@ curl -X POST http://localhost:5000/api/tokens/generate \
     },
     "allowReplay": false,
     "expiryDays": 30,
-    "language": "nl", # Supported: en (default), de, fr, nl, pl, es
+    "language": "nl",
     "skipPermissionUpdate": true
   }'
 ```
