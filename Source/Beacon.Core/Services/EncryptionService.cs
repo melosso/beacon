@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Serilog;
 
 namespace Beacon.Core.Services;
 
@@ -201,8 +202,8 @@ public class EncryptionService : IEncryptionService
         }
 
         // Priority 5: Fallback key (with console warning)
-        Console.WriteLine("WARNING: No BEACON_ENCRYPTION_KEY found. Using fallback key.");
-        Console.WriteLine("WARNING: For production, set BEACON_ENCRYPTION_KEY environment variable.");
+        Log.Warning("BEACON_ENCRYPTION_KEY not found, using hardcoded fallback key. Set the environment variable for production");
+        Log.Information("");
 
         return FallbackKey;
     }
@@ -260,7 +261,7 @@ public class EncryptionService : IEncryptionService
             File.WriteAllText(referencePath, JsonSerializer.Serialize(referenceContent, new JsonSerializerOptions { WriteIndented = true }));
 
             _currentPublicKeyPem = publicKeyPem;
-            Console.WriteLine("Generated new RSA keypair for encryption in .core folder");
+            Log.Information("Generated new RSA keypair for encryption in .core folder");
         }
         else
         {

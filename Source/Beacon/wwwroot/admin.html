@@ -1178,8 +1178,11 @@
         const res = await fetch(url, config);
 
         if (res.status === 401) {
-          notify('error', 'Session Expired', 'Please log in again.');
-          logout();
+          // Only auto-logout if not during login attempt
+          if (!options.skipAuthRedirect) {
+            notify('error', 'Session Expired', 'Please log in again.');
+            logout();
+          }
           return { ok: false, status: 401, data: null };
         }
 
@@ -1212,7 +1215,7 @@
       }
 
       apiKey = key;
-      const result = await apiRequest('/api/admin/buckets');
+      const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
 
       if (result.ok) {
         localStorage.setItem('beacon_api_key', apiKey);
@@ -1224,19 +1227,20 @@
         // Notify on successful login
         notify('success', 'Authenticated', 'Mainframe access granted.');
       } else {
-        // Logic for failed authentication
+        // Clear the invalid key
+        apiKey = '';
+
+        // Show error UI
         document.getElementById('authError').style.display = 'block';
-        
-        // Trigger the toast notification
-        notify('error', 'Authentication Failed', 'The provided API key is invalid or unauthorized.');
-        
-        // Clear the input for security and UX
         document.getElementById('apiKeyInput').value = '';
+
+        // Toast notification
+        notify('error', 'Authentication Failed', 'Invalid API key.');
       }
     }
 
     async function testAuth() {
-      const result = await apiRequest('/api/admin/buckets');
+      const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
       return result.ok;
     }
 

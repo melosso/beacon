@@ -1,6 +1,5 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Beacon.Core.Services;
+using Serilog;
 
 namespace Beacon.Configuration;
 
@@ -69,7 +68,7 @@ public static class ConfigurationEncryptor
         var appSettingsPath = Path.Combine(contentRootPath, "appsettings.json");
         if (!File.Exists(appSettingsPath))
         {
-            Console.WriteLine("WARNING: appsettings.json not found, cannot encrypt configuration.");
+            Log.Warning("appsettings.json not found, cannot encrypt configuration");
             return;
         }
 
@@ -108,12 +107,12 @@ public static class ConfigurationEncryptor
             if (encryptedCount > 0)
             {
                 File.WriteAllText(appSettingsPath, json);
-                Console.WriteLine($"Encrypted {encryptedCount} sensitive configuration value(s) in appsettings.json");
+                Log.Information($"Encrypted {encryptedCount} configuration value(s) in appsettings.json");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"WARNING: Failed to encrypt appsettings.json: {ex.Message}");
+            Log.Error($"Failed to encrypt appsettings.json: {ex.Message}");
         }
     }
 

@@ -18,9 +18,11 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        // No API key header present - this is normal for unauthenticated endpoints
+        // Use NoResult() to indicate this scheme doesn't apply (not a failure)
         if (!Request.Headers.TryGetValue(ApiKeyHeader, out var apiKeyHeader))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Missing API key header"));
+            return Task.FromResult(AuthenticateResult.NoResult());
         }
 
         var providedKey = apiKeyHeader.ToString();
@@ -28,8 +30,12 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         if (string.IsNullOrEmpty(Options.AdminApiKey) ||
             !CryptographicEquals(providedKey, Options.AdminApiKey))
         {
+            Logger.LogWarning("Invalid API key attempt from {RemoteIp}",
+                Context.Connection.RemoteIpAddress);
             return Task.FromResult(AuthenticateResult.Fail("Invalid API key"));
         }
+
+        Logger.LogInformation("API key authenticated successfully");
 
         var claims = new[] { new Claim(ClaimTypes.Name, "ApiKeyUser") };
         var identity = new ClaimsIdentity(claims, Scheme.Name);

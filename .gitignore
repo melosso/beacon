@@ -51,6 +51,7 @@ appsettings.*.json
 .core/
 
 # Logs
+log/
 logs/
 *.log
 
