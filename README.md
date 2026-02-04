@@ -38,11 +38,22 @@ services:
     volumes:
       - beacon_db:/app/data
     environment:
+      # Core settings (required)
       - Beacon__SigningKey=${BEACON_SIGNING_KEY}
       - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
       - Beacon__Pepper=${BEACON_PEPPER}
       - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
       - Beacon__ConnectionString=Data Source=/app/data/Beacon.db
+
+      # Host-based routing (Used with Reverse proxy)
+      # - Beacon__ApiHosts=beacon-api.example.com
+      # - Beacon__AdminHosts=beacon-admin.example.com
+      # - Beacon__AllowedOrigins=https://app.example.com
+      # - Beacon__TrustForwardedHeaders=true
+
+      # Port-based routing (Used without Reverse proxy. Remark: ApiHosts/AdminHosts must not set)
+      # - Beacon__ApiPort=5000
+      # - Beacon__AdminPort=5001
 
 volumes:
   beacon_db:
