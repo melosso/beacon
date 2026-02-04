@@ -607,6 +607,16 @@
       z-index: 100;
     }
 
+    .modal-backdrop-secondary {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: none;
+      z-index: 100;
+    }
+
     .modal {
       background: hsl(var(--background));
       border: 1px solid hsl(var(--border));
@@ -890,21 +900,21 @@
   </div>
 
   <aside>
-    <div class="brand">
+    <div class="brand select-none">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
       </svg>
       Beacon
     </div>
 
-    <div class="nav-group">
+    <div class="nav-group select-none">
       <div class="nav-label">Navigation</div>
       <a href="#" class="nav-item" data-view="overview" onclick="showView('overview')">Overview</a>
     </div>
 
     <div class="nav-group">
       <div class="nav-label-container">
-        <div class="nav-label">Buckets</div>
+        <div class="nav-label select-none">Buckets</div>
         <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -1102,7 +1112,7 @@
   <!-- Remove Bucket Security Modal -->
   <div class="modal-backdrop" id="removeModal">
     <div class="modal">
-      <h3>Remove Bucket</h3>
+      <h3 style="margin-bottom:1.5rem;">Remove Bucket</h3>
       <p>This action will permanently delete all consent records in this bucket. This cannot be undone.</p>
       <p style="font-weight:500;margin-bottom:0.5rem">Type the following passphrase to confirm:</p>
       <div class="passphrase-box select-none" id="passphraseDisplay">-</div>
@@ -1114,7 +1124,7 @@
         </span>
         <span class="tooltip-wrapper">
           <button class="btn btn-confirm" id="confirmRemoveBtn" onclick="confirmRemoval()">Remove Bucket</button>
-          <span class="tooltip tooltip-above">Confirm permanent deletion</span>
+          <span class="tooltip tooltip-above">There is no way back!</span>
         </span>
       </div>
     </div>
@@ -1149,16 +1159,15 @@
   </div>
 
   <!-- Permissions Change Confirmation Modal -->
-  <div class="modal-backdrop" id="permissionsConfirmModal">
+  <div class="modal-backdrop-secondary" id="permissionsConfirmModal">
     <div class="modal">
-      <h3>Confirm Permission Changes</h3>
-      <p style="margin-bottom:1rem">Updating permissions will affect how consent is tracked for this user.</p>
-      <div style="background:hsl(var(--muted));border-left:3px solid hsl(var(--warning));padding:0.75rem 1rem;margin-bottom:1rem;border-radius:4px">
-        <p style="margin:0;font-weight:500;color:hsl(var(--warning))">Warning</p>
-        <p style="margin:0.5rem 0 0 0;font-size:0.9rem;color:hsl(var(--muted-foreground))">
-          New permission settings have invalidated previously issued tokens. Users must obtain a fresh token to apply these changes, as links in older emails will no longer function correctly.
-        </p>
-      </div>
+      <h3 style="margin-bottom:1.5rem;">Confirm Changes</h3>
+      <p style="margin-bottom:1rem">
+        Updating permissions will affect how consent is tracked for this user. Are you sure you want to proceed?
+      </p>
+      <p style="margin-bottom:2rem;">
+        These updates will <strong>invalidate</strong> existing tokens. Older tokens will no longer reflect the users' permissions.
+      </p>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closePermissionsConfirmModal()">Cancel</button>
         <button class="btn btn-confirm active" onclick="confirmSavePermissions()">Confirm Changes</button>
@@ -1167,11 +1176,12 @@
   </div>
 
   <!-- Delete Record Confirmation Modal -->
-  <div class="modal-backdrop" id="deleteRecordModal">
+  <div class="modal-backdrop-secondary" id="deleteRecordModal">
     <div class="modal">
-      <h3>Remove Consent Record</h3>
+      <h3>Confirm Deletion</h3>
       <p id="deleteRecordEmail" style="font-family:monospace;font-size:0.9rem;margin-bottom:1rem">-</p>
-      <p>This action will permanently delete the selected consent record from this bucket. This cannot be undone.</p>
+      <p>This will permanently remove the selected consent record from this bucket. Are you sure you want to do this?</p>
+      <p>After deletion, any links associated with this record will stop working.</p>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeDeleteRecordModal()">Cancel</button>
         <button class="btn btn-confirm active" onclick="confirmDeleteRecord()">Remove Record</button>
@@ -2088,6 +2098,13 @@
 
     // ========== START ==========
     init();
+  </script>
+  <script>
+      (function(){{
+          console.log(
+              atob('JWNAbWVsb3Nzby9iZWFjb24lYy4gTGljZW5zZWQgdW5kZXIgJWNBR1BMIDMuMCVjLg=='), atob('Y29sb3I6ICM2ZjQyYzE7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDEycHg7'), atob('Y29sb3I6ICMzMzM7IGZvbnQtc2l6ZTogMTJweDs='), atob('Y29sb3I6ICMyOGE3NDU7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDEycHg7'), atob('Y29sb3I6ICMzMzM7IGZvbnQtc2l6ZTogMTJ4Ow==')
+          );
+      }})();
   </script>
 </body>
 </html>

@@ -179,6 +179,24 @@ public class ConsentTests
             });
         }
 
+        public Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket)
+        {
+            var bucketRecords = _records.Values.Where(r => r.Bucket == bucket).ToList();
+
+            var emailGroups = bucketRecords
+                .GroupBy(r => r.EmailHash)
+                .Select(g => new EmailPermissions
+                {
+                    EmailHash = g.Key,
+                    Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                    LastChanged = g.Max(r => r.ChangedAt)
+                })
+                .OrderByDescending(e => e.LastChanged)
+                .ToList();
+
+            return Task.FromResult<IReadOnlyList<EmailPermissions>>(emailGroups);
+        }
+
         public Task<int> DeleteRecordAsync(string bucket, string emailHash)
         {
             var keysToRemove = _records

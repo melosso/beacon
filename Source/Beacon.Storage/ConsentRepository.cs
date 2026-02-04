@@ -136,6 +136,25 @@ public sealed class ConsentRepository : IConsentRepository
         };
     }
 
+    public async Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket)
+    {
+        var bucketRecords = await _context.ConsentRecords
+            .Where(r => r.Bucket == bucket)
+            .ToListAsync();
+
+        return bucketRecords
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new EmailPermissions
+            {
+                EmailHash = g.Key,
+                EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
+                Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                LastChanged = g.Max(r => r.ChangedAt)
+            })
+            .OrderByDescending(e => e.LastChanged)
+            .ToList();
+    }
+
     public async Task<int> DeleteBucketAsync(string bucket)
     {
         var records = await _context.ConsentRecords

@@ -59,6 +59,13 @@ public static class AdminEndpoints
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Check if an email already exists in a bucket");
+
+        // Public API endpoint for bucket records (secured with API key)
+        routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
+            .WithName("GetAllBucketRecords")
+            .WithOpenApi()
+            .RequireAuthorization()
+            .WithDescription("Get all consent records for a bucket (API key required)");
     }
 
     private static async Task<IResult> OverrideConsent(
@@ -317,6 +324,39 @@ public static class AdminEndpoints
         var exists = await repository.EmailExistsInBucketAsync(normalizedBucket, emailHash);
 
         return Results.Ok(new { exists });
+    }
+
+    private static async Task<IResult> GetAllBucketRecords(
+        string bucket,
+        [FromServices] IConsentRepository repository,
+        [FromServices] Encryptor encryptor)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        var records = await repository.GetAllBucketRecordsAsync(normalizedBucket);
+
+        // Decrypt emails for display
+        foreach (var record in records)
+        {
+            if (!string.IsNullOrEmpty(record.EncryptedEmail))
+            {
+                try
+                {
+                    record.Email = encryptor.Decrypt(record.EncryptedEmail);
+                }
+                catch
+                {
+                    // Decryption failed, leave email as null
+                }
+            }
+        }
+
+        return Results.Ok(new { bucket = normalizedBucket, records, total = records.Count });
     }
 }
 

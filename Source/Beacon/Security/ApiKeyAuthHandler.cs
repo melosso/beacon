@@ -49,7 +49,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
     {
         Response.StatusCode = 401;
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Unauthorized. Provide a valid X-Api-Key header.\"}");
+        await Response.WriteAsync("{\"error\":\"Unauthorized.\"}");
         await Response.CompleteAsync();
     }
 

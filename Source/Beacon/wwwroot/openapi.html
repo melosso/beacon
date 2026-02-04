@@ -11,9 +11,7 @@
   </head>
   <body>
     <div id="app"></div>
-    <!-- Load the Script -->
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-    <!-- Initialize the Scalar API Reference -->
     <script>
       Scalar.createApiReference('#app', {
         // The URL of the OpenAPI/Swagger document
@@ -21,11 +19,20 @@
         // Avoid CORS issues
         proxyUrl: 'https://proxy.scalar.com',
         // Customization options
+        theme: 'purple',
         hideClientButton: true,
+        defaultOpenAllTags: true,
         hideModels: true,
         telemetry: false,
         url: '/openapi/v1.json'
       })
+    </script>
+    <script>
+        (function(){{
+            console.log(
+                atob('JWNAbWVsb3Nzby9iZWFjb24lYy4gTGljZW5zZWQgdW5kZXIgJWNBR1BMIDMuMCVjLg=='), atob('Y29sb3I6ICM2ZjQyYzE7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDEycHg7'), atob('Y29sb3I6ICMzMzM7IGZvbnQtc2l6ZTogMTJweDs='), atob('Y29sb3I6ICMyOGE3NDU7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDEycHg7'), atob('Y29sb3I6ICMzMzM7IGZvbnQtc2l6ZTogMTJ4Ow==')
+            );
+        }})();
     </script>
   </body>
 </html>
