@@ -35,7 +35,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
             return Task.FromResult(AuthenticateResult.Fail("Invalid API key"));
         }
 
-        Logger.LogInformation("API key authenticated successfully");
+        Logger.LogDebug("API key authenticated successfully");
 
         var claims = new[] { new Claim(ClaimTypes.Name, "ApiKeyUser") };
         var identity = new ClaimsIdentity(claims, Scheme.Name);

@@ -10,8 +10,9 @@ public interface IConsentRepository
     // Admin queries
     Task<IReadOnlyList<BucketInfo>> GetBucketsAsync();
     Task<BucketDetails> GetBucketDetailsAsync(string bucket);
-    Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize);
+    Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
     Task<int> DeleteBucketAsync(string bucket);
+    Task<int> DeleteRecordAsync(string bucket, string emailHash);
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
 }
 

@@ -80,7 +80,7 @@ public sealed class ConsentRepository : IConsentRepository
         };
     }
 
-    public async Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize)
+    public async Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
     {
         // Get all records for this bucket
         var bucketRecords = await _context.ConsentRecords
@@ -97,11 +97,32 @@ public sealed class ConsentRepository : IConsentRepository
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
                 LastChanged = g.Max(r => r.ChangedAt)
             })
-            .OrderByDescending(e => e.LastChanged)
             .ToList();
 
-        var total = emailGroups.Count;
-        var pagedRecords = emailGroups
+        // Filter by search (matches emailHash prefix - the ID shown in logs)
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            emailGroups = emailGroups
+                .Where(e => e.EmailHash.StartsWith(searchLower, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Apply sorting
+        IEnumerable<EmailPermissions> sorted = sortBy?.ToLowerInvariant() switch
+        {
+            "email" => sortDir == "asc"
+                ? emailGroups.OrderBy(e => e.EmailHash)
+                : emailGroups.OrderByDescending(e => e.EmailHash),
+            "lastchanged" => sortDir == "asc"
+                ? emailGroups.OrderBy(e => e.LastChanged)
+                : emailGroups.OrderByDescending(e => e.LastChanged),
+            _ => emailGroups.OrderByDescending(e => e.LastChanged) // Default sort
+        };
+
+        var sortedList = sorted.ToList();
+        var total = sortedList.Count;
+        var pagedRecords = sortedList
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToList();
@@ -119,6 +140,18 @@ public sealed class ConsentRepository : IConsentRepository
     {
         var records = await _context.ConsentRecords
             .Where(r => r.Bucket == bucket)
+            .ToListAsync();
+
+        _context.ConsentRecords.RemoveRange(records);
+        await _context.SaveChangesAsync();
+
+        return records.Count;
+    }
+
+    public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
+    {
+        var records = await _context.ConsentRecords
+            .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
             .ToListAsync();
 
         _context.ConsentRecords.RemoveRange(records);

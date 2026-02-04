@@ -4,7 +4,7 @@
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
 
-This is **Beacon**, a lightweight consent and opt-out service for .NET 10. Beacon manages email consent state independently of any ERP, CRM, or automation platform. It issues secure, temporary URLs for opt-out and preference changes, validates them without upstream dependencies, and exposes a simple API that other systems query before sending email.
+This is **Beacon**, a lightweight consent and opt-out service built with .NET 10. Beacon manages email consent state independently of any ERP, CRM, or automation platform. It issues secure, temporary URLs for opt-out and preference changes, validates them without upstream dependencies, and exposes a simple API that other systems query before sending email.
 
 ![Screenshot of Beacon](https://github.com/melosso/beacon/blob/main/.github/images/screenshot.webp?raw=true)
 

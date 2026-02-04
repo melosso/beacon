@@ -251,6 +251,21 @@ try
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
 
+    // Health check endpoint
+    app.MapGet("/health", async (BeaconDbContext db) =>
+    {
+        try
+        {
+            // Test database connectivity
+            await db.Database.CanConnectAsync();
+            return Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+        }
+        catch
+        {
+            return Results.Json(new { status = "unhealthy", timestamp = DateTime.UtcNow }, statusCode: 503);
+        }
+    }).ExcludeFromDescription();
+
     // UI Endpoints (access controlled by HostRoutingMiddleware)
     app.MapGet("/admin", async context =>
     {

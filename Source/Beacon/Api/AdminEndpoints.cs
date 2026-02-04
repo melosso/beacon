@@ -48,6 +48,12 @@ public static class AdminEndpoints
             .RequireAuthorization()
             .WithDescription("Delete a bucket and all its consent records");
 
+        routes.MapDelete("/api/admin/buckets/{bucket}/records/{emailHash}", DeleteRecord)
+            .WithName("DeleteRecord")
+            .WithOpenApi()
+            .RequireAuthorization()
+            .WithDescription("Delete a consent record by email hash");
+
         routes.MapPost("/api/admin/buckets/{bucket}/check-email", CheckEmailExists)
             .WithName("CheckEmailExists")
             .WithOpenApi()
@@ -58,6 +64,7 @@ public static class AdminEndpoints
     private static async Task<IResult> OverrideConsent(
         [FromBody] OverrideConsentRequest request,
         [FromServices] IConsentService consentService,
+        [FromServices] EmailHasher emailHasher,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -83,9 +90,11 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "Invalid status. Use 'OptedIn' or 'OptedOut'" });
         }
 
+        var emailId = emailHasher.Hash(request.Email)[..12];
         logger.LogInformation(
-            "Admin consent override: bucket={Bucket}, permission={Permission}, status={Status}, timestamp={Timestamp}",
+            "Admin consent override: bucket={Bucket}, id={EmailId}, permission={Permission}, status={Status}, timestamp={Timestamp}",
             request.Bucket,
+            emailId,
             request.Permission,
             status,
             DateTime.UtcNow);
@@ -99,6 +108,7 @@ public static class AdminEndpoints
         [FromBody] GenerateTokenRequest request,
         [FromServices] TokenGenerator generator,
         [FromServices] IConsentService consentService,
+        [FromServices] EmailHasher emailHasher,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -151,9 +161,11 @@ public static class AdminEndpoints
             }
         }
 
+        var emailId = emailHasher.Hash(request.Email)[..12];
         logger.LogInformation(
-            "Token generated: bucket={Bucket}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
+            "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
             request.Bucket,
+            emailId,
             string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
             request.AllowReplay,
             request.ExpiryDays,
@@ -182,6 +194,10 @@ public static class AdminEndpoints
         string bucket,
         [FromQuery] int page,
         [FromQuery] int pageSize,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir,
+        [FromQuery] string? search,
+        [FromQuery] string? searchType,
         [FromServices] IConsentRepository repository,
         [FromServices] Encryptor encryptor)
     {
@@ -189,7 +205,9 @@ public static class AdminEndpoints
         if (pageSize < 1) pageSize = 10;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await repository.GetBucketRecordsAsync(bucket, page, pageSize);
+        // For ID search, pass to repository. For email search, we filter after decryption.
+        var idSearch = searchType == "email" ? null : search;
+        var result = await repository.GetBucketRecordsAsync(bucket, page, pageSize, sortBy, sortDir, idSearch);
 
         // Decrypt emails for admin display
         foreach (var record in result.Records)
@@ -207,10 +225,22 @@ public static class AdminEndpoints
             }
         }
 
+        // If searching by email, filter after decryption
+        var records = result.Records;
+        var total = result.Total;
+        if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            records = records.Where(r =>
+                r.Email != null && r.Email.ToLowerInvariant().Contains(searchLower)
+            ).ToList();
+            total = records.Count;
+        }
+
         return Results.Ok(new
         {
-            records = result.Records,
-            total = result.Total,
+            records,
+            total,
             page = result.Page,
             pageSize = result.PageSize
         });
@@ -234,6 +264,33 @@ public static class AdminEndpoints
         var deleted = await repository.DeleteBucketAsync(bucket);
 
         return Results.Ok(new { message = "Bucket deleted", recordsDeleted = deleted });
+    }
+
+    private static async Task<IResult> DeleteRecord(
+        string bucket,
+        string emailHash,
+        [FromServices] IConsentRepository repository,
+        ILogger<Program> logger)
+    {
+        if (string.IsNullOrWhiteSpace(bucket))
+        {
+            return Results.BadRequest(new { error = "Bucket name is required" });
+        }
+
+        if (string.IsNullOrWhiteSpace(emailHash))
+        {
+            return Results.BadRequest(new { error = "Email hash is required" });
+        }
+
+        logger.LogInformation(
+            "Record deletion: bucket={Bucket}, id={EmailId}, timestamp={Timestamp}",
+            bucket,
+            emailHash[..Math.Min(12, emailHash.Length)],
+            DateTime.UtcNow);
+
+        var deleted = await repository.DeleteRecordAsync(bucket, emailHash);
+
+        return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });
     }
 
     private static async Task<IResult> CheckEmailExists(
