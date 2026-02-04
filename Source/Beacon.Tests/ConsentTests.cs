@@ -149,7 +149,7 @@ public class ConsentTests
             });
         }
 
-        public Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize)
+        public Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
         {
             var bucketRecords = _records.Values.Where(r => r.Bucket == bucket).ToList();
 
@@ -177,6 +177,21 @@ public class ConsentTests
                 Page = page,
                 PageSize = pageSize
             });
+        }
+
+        public Task<int> DeleteRecordAsync(string bucket, string emailHash)
+        {
+            var keysToRemove = _records
+                .Where(kv => kv.Value.Bucket == bucket && kv.Value.EmailHash == emailHash)
+                .Select(kv => kv.Key)
+                .ToList();
+
+            foreach (var key in keysToRemove)
+            {
+                _records.Remove(key);
+            }
+
+            return Task.FromResult(keysToRemove.Count);
         }
 
         public Task<int> DeleteBucketAsync(string bucket)
