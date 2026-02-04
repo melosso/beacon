@@ -28,11 +28,14 @@ RUN groupadd -r beacon && useradd -r -g beacon beacon
 # Copy published output
 COPY --from=build /app/publish .
 
+# Create directories for data persistence
+RUN mkdir -p /app/data /app/.core
+
 # Set ownership and switch to non-root user
 RUN chown -R beacon:beacon /app
 USER beacon
 
-# Expose default ASP.NET Core port
-EXPOSE 8080
+# Expose ports for port-based routing
+EXPOSE 5000 5001
 
 ENTRYPOINT ["dotnet", "Beacon.dll"]

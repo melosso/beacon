@@ -4,11 +4,15 @@
 services:
   beacon:
     image: ghcr.io/melosso/beacon:latest
+    volumes:
+      - beacon_data:/app/data    # Database storage
+      - beacon_core:/app/.core   # Encryption keys
     environment:
       - Beacon__SigningKey=${BEACON_SIGNING_KEY}
       - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
       - Beacon__Pepper=${BEACON_PEPPER}
       - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
+      - Beacon__ConnectionString=Data Source=/app/data/Beacon.db
       - Beacon__ApiHosts=beacon-api.example.com
       - Beacon__AdminHosts=beacon-admin.example.com
       - Beacon__TrustForwardedHeaders=true
@@ -16,4 +20,8 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.beacon-api.rule=Host(`beacon-api.example.com`)"
       - "traefik.http.routers.beacon-admin.rule=Host(`beacon-admin.example.com`)"
+
+volumes:
+  beacon_data:
+  beacon_core:
 ```

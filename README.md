@@ -35,7 +35,8 @@ services:
       - "5000:5000"  # Public API
       - "5001:5001"  # Admin panel
     volumes:
-      - beacon_db:/app/data
+      - beacon_data:/app/data    # Database storage
+      - beacon_core:/app/.core   # Encryption keys
     environment:
       # Core settings (required)
       - Beacon__SigningKey=${BEACON_SIGNING_KEY}
@@ -44,18 +45,19 @@ services:
       - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
       - Beacon__ConnectionString=Data Source=/app/data/Beacon.db
 
-      # Host-based routing (Used with Reverse proxy)
+      # Port-based routing (default, no reverse proxy)
+      - Beacon__ApiPort=5000
+      - Beacon__AdminPort=5001
+
+      # Host-based routing (for reverse proxy deployments)
       # - Beacon__ApiHosts=beacon-api.example.com
       # - Beacon__AdminHosts=beacon-admin.example.com
       # - Beacon__AllowedOrigins=https://app.example.com
       # - Beacon__TrustForwardedHeaders=true
 
-      # Port-based routing (Used without Reverse proxy. Remark: ApiHosts/AdminHosts must not set)
-      # - Beacon__ApiPort=5000
-      # - Beacon__AdminPort=5001
-
 volumes:
-  beacon_db:
+  beacon_data:
+  beacon_core:
 ```
 
 ```bash
