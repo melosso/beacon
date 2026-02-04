@@ -158,7 +158,8 @@ public static class AdminEndpoints
         var tokenOptions = new Tokens.GenerateTokenRequest
         {
             AllowReplay = request.AllowReplay,
-            ExpiryDays = request.ExpiryDays
+            ExpiryDays = request.ExpiryDays,
+            Language = request.Language
         };
 
         var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
@@ -431,6 +432,13 @@ public sealed class GenerateTokenRequest
     /// Default: false (always upsert).
     /// </summary>
     public bool SkipPermissionUpdate { get; set; } = false;
+
+    /// <summary>
+    /// Language code for the preference page.
+    /// Supported: "en", "de", "fr", "nl", "pl", "es".
+    /// Default: "en" (English).
+    /// </summary>
+    public string Language { get; set; } = "en";
 }
 
 public sealed class GenerateTokenResponse

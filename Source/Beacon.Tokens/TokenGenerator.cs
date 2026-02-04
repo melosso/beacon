@@ -21,6 +21,7 @@ public sealed class TokenGenerator
         var now = DateTimeOffset.UtcNow;
         var expiryDays = options?.ExpiryDays ?? _defaultExpiryDays;
         var allowReplay = options?.AllowReplay ?? true;
+        var language = options?.Language ?? "en";
 
         var payload = new TokenPayload
         {
@@ -30,7 +31,8 @@ public sealed class TokenGenerator
             IssuedAt = now.ToUnixTimeSeconds(),
             ExpiresAt = now.AddDays(expiryDays).ToUnixTimeSeconds(),
             Nonce = GenerateNonce(),
-            AllowReplay = allowReplay
+            AllowReplay = allowReplay,
+            Language = language
         };
 
         return CreateToken(payload);
@@ -105,4 +107,11 @@ public sealed class GenerateTokenRequest
     /// Default: 60 days.
     /// </summary>
     public int ExpiryDays { get; set; } = 60;
+
+    /// <summary>
+    /// Language code for the preference page.
+    /// Supported: "en", "de", "fr", "nl", "pl", "es".
+    /// Default: "en" (English).
+    /// </summary>
+    public string Language { get; set; } = "en";
 }

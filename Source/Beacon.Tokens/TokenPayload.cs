@@ -29,6 +29,13 @@ public sealed class TokenPayload
     [JsonPropertyName("r")]
     public bool AllowReplay { get; set; } = true;
 
+    /// <summary>
+    /// Language code for the preference page (e.g., "en", "de", "fr", "nl", "pl", "es").
+    /// Default: "en" (English).
+    /// </summary>
+    [JsonPropertyName("l")]
+    public string Language { get; set; } = "en";
+
     [JsonIgnore]
     public DateTime IssuedAtUtc => DateTimeOffset.FromUnixTimeSeconds(IssuedAt).UtcDateTime;
 

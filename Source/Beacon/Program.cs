@@ -393,12 +393,12 @@ try
 
     lifetime.ApplicationStopped.Register(() =>
     {
-        Log.Information("Application stopped");
+        Log.Information("Exit: Application stopped");
     });
 
     app.Run();
 
-    Log.Information("Exit: Application shutdown complete");
+    Log.Information("Application shutdown complete");
 }
 catch (Exception ex)
 {

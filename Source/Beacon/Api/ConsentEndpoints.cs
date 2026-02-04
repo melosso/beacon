@@ -74,7 +74,7 @@ public static class ConsentEndpoints
             }
         }
 
-        return Results.Content(GetPreferencePage(token, result.Payload.Email, permissionStates), "text/html");
+        return Results.Content(GetPreferencePage(token, result.Payload.Email, permissionStates, result.Payload.Language), "text/html");
     }
 
     private static async Task<IResult> ProcessPreferenceUpdate(
@@ -288,8 +288,62 @@ public static class ConsentEndpoints
         .center { text-align: center; }
         """;
 
-    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions)
+    private static readonly Dictionary<string, (string Title, string Description, string SaveButton, string UnsubscribeButton, string PreferencesFor)> Translations = new()
     {
+        ["en"] = (
+            Title: "Email preferences",
+            Description: "You're receiving these emails because you previously opted in. You can change that here.",
+            SaveButton: "Save preferences",
+            UnsubscribeButton: "Unsubscribe from all",
+            PreferencesFor: "Preferences for:"
+        ),
+        ["de"] = (
+            Title: "E-Mail-Einstellungen",
+            Description: "Sie erhalten diese E-Mails, weil Sie sich zuvor angemeldet haben. Hier können Sie das ändern.",
+            SaveButton: "Einstellungen speichern",
+            UnsubscribeButton: "Von allem abmelden",
+            PreferencesFor: "Einstellungen für:"
+        ),
+        ["fr"] = (
+            Title: "Préférences e-mail",
+            Description: "Vous recevez ces e-mails parce que vous vous êtes inscrit précédemment. Vous pouvez modifier cela ici.",
+            SaveButton: "Enregistrer les préférences",
+            UnsubscribeButton: "Se désabonner de tout",
+            PreferencesFor: "Préférences pour :"
+        ),
+        ["nl"] = (
+            Title: "E-mailvoorkeuren",
+            Description: "Je ontvangt deze e-mails omdat u zich eerder heeft aangemeld. Jouw voorkeuren kan je hier wijzigen.",
+            SaveButton: "Voorkeuren opslaan",
+            UnsubscribeButton: "Alles afmelden",
+            PreferencesFor: "Voorkeuren voor:"
+        ),
+        ["pl"] = (
+            Title: "Preferencje e-mail",
+            Description: "Otrzymujesz te e-maile, ponieważ wcześniej wyraziłeś zgodę. Możesz to zmienić tutaj.",
+            SaveButton: "Zapisz preferencje",
+            UnsubscribeButton: "Wypisz się ze wszystkiego",
+            PreferencesFor: "Preferencje dla:"
+        ),
+        ["es"] = (
+            Title: "Preferencias de correo",
+            Description: "Recibe estos correos porque se suscribió anteriormente. Puede cambiar eso aquí.",
+            SaveButton: "Guardar preferencias",
+            UnsubscribeButton: "Cancelar todas las suscripciones",
+            PreferencesFor: "Preferencias para:"
+        )
+    };
+
+    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string language = "en")
+    {
+        // Get translations, fallback to English if language not found
+        var lang = language?.ToLowerInvariant() ?? "en";
+        if (!Translations.ContainsKey(lang))
+        {
+            lang = "en";
+        }
+        var t = Translations[lang];
+
         var togglesHtml = new StringBuilder();
         foreach (var (permission, optedIn) in permissions)
         {
@@ -308,11 +362,11 @@ public static class ConsentEndpoints
 
         return $$"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="{{lang}}">
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
-              <title>Email Preferences</title>
+              <title>{{WebUtility.HtmlEncode(t.Title)}}</title>
               <meta name="color-scheme" content="light dark" />
               <style>
                 {{GetBaseStyles()}}
@@ -392,25 +446,27 @@ public static class ConsentEndpoints
                   color: color-mix(in srgb, var(--fg) 70%, transparent);
                   word-break: break-all;
                 }
+
+                .select-none { user-select: none;}
               </style>
             </head>
             <body>
               <main>
                 <section class="card">
-                  <h1>Email preferences</h1>
-                  <p>You're receiving these emails because you previously opted in. You can change that here.</p>
+                  <h1 class="select-none">{{WebUtility.HtmlEncode(t.Title)}}</h1>
+                  <p>{{WebUtility.HtmlEncode(t.Description)}}</p>
 
                   <form method="post" action="/u/{{WebUtility.HtmlEncode(token)}}">
                     <div class="preferences">
                       {{togglesHtml}}
                     </div>
 
-                    <button type="submit" name="action" value="update">Save preferences</button>
-                    <button type="submit" name="action" value="unsubscribe_all" class="secondary">Unsubscribe from all</button>
+                    <button type="submit" name="action" value="update">{{WebUtility.HtmlEncode(t.SaveButton)}}</button>
+                    <button type="submit" name="action" value="unsubscribe_all" class="secondary">{{WebUtility.HtmlEncode(t.UnsubscribeButton)}}</button>
                   </form>
 
-                  <footer>
-                    Preferences for:<br />
+                  <footer class="select-none">
+                    {{WebUtility.HtmlEncode(t.PreferencesFor)}}<br />
                     <span class="email">{{WebUtility.HtmlEncode(maskedEmail)}}</span>
                   </footer>
                 </section>
