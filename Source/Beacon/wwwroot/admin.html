@@ -613,7 +613,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      backdrop-filter: none;
+      backdrop-filter: blur(2px);
       z-index: 100;
     }
 
@@ -1099,11 +1099,13 @@
           </label>
         </div>
 
-        <div class="token-output" id="tokenOutput"></div>
+        <div class="tooltip-wrapper" id="tokenOutputWrapper" style="display:none">
+          <div class="token-output" id="tokenOutput" onclick="copyTokenLink()" style="cursor:pointer"></div>
+          <span class="tooltip tooltip-above">Click to copy</span>
+        </div>
 
         <div class="modal-actions">
-          <button class="btn btn-primary" onclick="generateToken()">Generate Token</button>
-          <button class="btn btn-outline" id="copyBtn" style="display:none" onclick="copyToken()">Copy Token</button>
+          <button class="btn btn-primary" id="generateTokenBtn" onclick="handleGenerateToken()">Generate Token</button>
         </div>
       </div>
     </div>
@@ -1745,6 +1747,31 @@
     });
 
     // ========== TOKEN GENERATION ==========
+    function handleGenerateToken() {
+      const btn = document.getElementById('generateTokenBtn');
+      if (btn.textContent === 'Create new token') {
+        clearTokenForm();
+      } else {
+        generateToken();
+      }
+    }
+
+    function clearTokenForm() {
+      document.getElementById('tokenBucket').value = '';
+      document.getElementById('tokenEmail').value = '';
+      document.getElementById('tokenExpiry').value = '60';
+      document.getElementById('tokenAllowReplay').checked = true;
+      document.getElementById('tokenOutputWrapper').style.display = 'none';
+      document.getElementById('tokenOutput').textContent = '';
+      document.getElementById('generateTokenBtn').textContent = 'Generate Token';
+
+      // Reset permission states to default (all "In")
+      document.querySelectorAll('#permissionsGrid .permission-row').forEach(row => {
+        row.querySelectorAll('.permission-toggle button').forEach(btn => btn.classList.remove('active'));
+        row.querySelector('.opted-in').classList.add('active');
+      });
+    }
+
     async function generateToken() {
       const bucket = document.getElementById('tokenBucket').value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
       if (!bucket) {
@@ -1786,19 +1813,18 @@
       if (result.ok) {
         const tokenUrl = `${window.location.protocol}//${window.location.hostname}:5000/u/${result.data.token}`;
         document.getElementById('tokenOutput').textContent = tokenUrl;
+        document.getElementById('tokenOutputWrapper').style.display = 'block';
         document.getElementById('tokenOutput').style.display = 'block';
-        document.getElementById('copyBtn').style.display = 'flex';
+        document.getElementById('generateTokenBtn').textContent = 'Create new token';
         notify('success', 'Token Generated', 'The opt-out token has been created successfully');
         loadBuckets();
       }
     }
 
-    function copyToken() {
+    function copyTokenLink() {
       const text = document.getElementById('tokenOutput').textContent;
       navigator.clipboard.writeText(text);
-      document.getElementById('copyBtn').textContent = 'Copied!';
       notify('success', 'Copied', 'Token URL copied to clipboard');
-      setTimeout(() => document.getElementById('copyBtn').textContent = 'Copy Token', 2000);
     }
 
     // ========== HELPERS ==========
