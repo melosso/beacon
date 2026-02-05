@@ -882,23 +882,21 @@
     }
 
     .dropdown-menu {
-      position: absolute;
-      right: 0;
-      top: 100%;
-      margin-top: 4px;
+      position: fixed;
       background: hsl(var(--background));
       border: 1px solid hsl(var(--border));
       border-radius: var(--radius);
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       min-width: 180px;
-      z-index: 50;
+      z-index: 1000;
       display: none;
     }
 
     .dropdown-menu.open { display: block; }
 
     .dropdown-item {
-      display: block;
+      display: flex;
+      align-items: center;
       width: 100%;
       padding: 0.625rem 0.875rem;
       text-align: left;
@@ -907,6 +905,7 @@
       cursor: pointer;
       font-size: 0.875rem;
       color: hsl(var(--foreground));
+      white-space: nowrap;
     }
 
     .dropdown-item:hover { background: hsl(var(--muted)); }
@@ -1090,7 +1089,7 @@
             <span id="bucketTitle">-</span>
             <span class="tooltip" id="bucketTooltip">example-bucket-name</span>
           </h1>
-          <span class="status-badge">Read-Only</span>
+          <span class="status-badge select-none">Read-Only</span>
         </div>
         <div class="bucket-actions">
           <span class="tooltip-wrapper">
@@ -1907,7 +1906,7 @@
             </div>
           </div>
         </th>
-        ${currentBucketPermissions.map(p => `<th>${sanitize(formatPermission(p))}</th>`).join('')}
+        ${currentBucketPermissions.map(p => `<th><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')">${sanitize(formatPermission(p))}<span class="tooltip">${sanitize(p)}</span></span></th>`).join('')}
         <th class="sortable ${dateSortClass}" onclick="toggleSort('lastchanged')">Last Changed ${sortIcon}</th>
         <th style="width:50px"></th>
       `;
@@ -1932,8 +1931,9 @@
             return `<td><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label></td>`;
           }).join('');
 
+          const emailId = r.emailHash ? sanitize(r.emailHash.substring(0, 12)) : '';
           const emailDisplay = r.email
-            ? `<span class="email-text">${sanitize(r.email)}</span>`
+            ? `<span class="tooltip-wrapper"><span class="email-text select-none" style="cursor:pointer" onclick="copyText('${sanitize(r.email)}')" ondblclick="copyTextNow('${emailId}')">${sanitize(r.email)}</span><span class="tooltip">Click to copy &middot; double-click for ID</span></span>`
             : `<span class="email-hash" title="${sanitize(r.emailHash || '')}">${r.emailHash ? sanitize(r.emailHash.substring(0, 16)) + '...' : 'N/A'}</span>`;
 
           const recordData = encodeURIComponent(JSON.stringify({
@@ -1956,7 +1956,7 @@
                   </span>
                   <div class="dropdown-menu" id="rowMenu-${idx}">
                     <button class="dropdown-item" onclick="openEditPermissions('${recordData}')">Edit Permissions</button>
-                    <button class="dropdown-item" onclick="openOptOutPage('${recordData}')">Open Opt-Out Page</button>
+                    <button class="dropdown-item" onclick="openOptOutPage('${recordData}')">Open Consent Page <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></button>
                   </div>
                 </div>
               </td>
@@ -2202,7 +2202,7 @@
       });
 
       if (result.ok) {
-        const tokenUrl = API_BASE ? `${API_BASE}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
+        const tokenUrl = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
         document.getElementById('tokenOutput').textContent = tokenUrl;
         document.getElementById('tokenOutputWrapper').style.display = 'block';
         document.getElementById('tokenOutput').style.display = 'block';
@@ -2218,6 +2218,22 @@
       notify('success', 'Copied', 'Token URL copied to clipboard');
     }
 
+    let copyClickTimer = null;
+
+    function copyText(text) {
+      clearTimeout(copyClickTimer);
+      copyClickTimer = setTimeout(() => {
+        navigator.clipboard.writeText(text);
+        notify('success', 'Copied', text);
+      }, 250);
+    }
+
+    function copyTextNow(text) {
+      clearTimeout(copyClickTimer);
+      navigator.clipboard.writeText(text);
+      notify('success', 'Copied', text);
+    }
+
     // ========== HELPERS ==========
     function formatPermission(p) {
       if (!p) return '';
@@ -2229,6 +2245,8 @@
 
     function formatDate(dateStr) {
       if (!dateStr) return 'N/A';
+      // Server stores UTC but may serialize without Z suffix — ensure UTC parsing
+      if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) dateStr += 'Z';
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return 'N/A';
       return date.toLocaleString(undefined, {
@@ -2317,15 +2335,15 @@
 
     function toggleRowMenu(event, idx) {
       event.stopPropagation();
-      toggleMenu(`rowMenu-${idx}`);
+      toggleMenu(`rowMenu-${idx}`, event.currentTarget);
     }
 
     function toggleOverviewMenu(event, idx) {
       event.stopPropagation();
-      toggleMenu(`overviewMenu-${idx}`);
+      toggleMenu(`overviewMenu-${idx}`, event.currentTarget);
     }
 
-    function toggleMenu(menuId) {
+    function toggleMenu(menuId, trigger) {
       const menu = document.getElementById(menuId);
       if (!menu) return;
 
@@ -2335,6 +2353,12 @@
 
       menu.classList.toggle('open');
       openMenuId = menu.classList.contains('open') ? menuId : null;
+
+      if (menu.classList.contains('open') && trigger) {
+        const rect = trigger.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + 4}px`;
+        menu.style.left = `${rect.right - menu.offsetWidth}px`;
+      }
     }
 
     function closeAllMenus() {
@@ -2520,7 +2544,7 @@
       });
 
       if (result.ok) {
-        const url = API_BASE ? `${API_BASE}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
+        const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
         window.open(url, '_blank');
       }
     }

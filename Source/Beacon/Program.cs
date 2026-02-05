@@ -334,7 +334,12 @@ try
             apiBase = $"{context.Request.Scheme}://{routingOptions.ApiHosts.First()}";
         }
 
-        var js = $"const API_BASE = '{apiBase}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
+        // Public URL: always use the configured API host for user-facing links (token URLs, opt-out pages)
+        var publicUrl = routingOptions.ApiHosts.Count > 0
+            ? $"https://{routingOptions.ApiHosts.First()}"
+            : "";
+
+        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
 
