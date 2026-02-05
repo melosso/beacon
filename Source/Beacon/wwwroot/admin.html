@@ -1273,8 +1273,8 @@
     </div>
   </div>
 
+  <script src="/admin/config.js"></script>
   <script>
-    const API_BASE = window.location.port === '5001' ? 'http://localhost:5000' : '';
     const MAX_SIDEBAR_BUCKETS = 10;
     let apiKey = localStorage.getItem('beacon_api_key') || '';
     let currentBucket = '';
@@ -1979,7 +1979,7 @@
       });
 
       if (result.ok) {
-        const tokenUrl = `${window.location.protocol}//${window.location.hostname}:5000/u/${result.data.token}`;
+        const tokenUrl = API_BASE ? `${API_BASE}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
         document.getElementById('tokenOutput').textContent = tokenUrl;
         document.getElementById('tokenOutputWrapper').style.display = 'block';
         document.getElementById('tokenOutput').style.display = 'block';
@@ -2289,7 +2289,7 @@
       });
 
       if (result.ok) {
-        const url = `${window.location.protocol}//${window.location.hostname}:5000/u/${result.data.token}`;
+        const url = API_BASE ? `${API_BASE}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
         window.open(url, '_blank');
       }
     }

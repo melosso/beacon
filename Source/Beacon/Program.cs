@@ -321,6 +321,14 @@ try
             Path.Combine(app.Environment.WebRootPath, "admin.html"));
     }).ExcludeFromDescription();
 
+    app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
+    {
+        var apiBase = routingOptions.ApiHosts.Count > 0
+            ? $"{context.Request.Scheme}://{routingOptions.ApiHosts.First()}"
+            : "";
+        return Results.Content($"const API_BASE = '{apiBase}';", "application/javascript");
+    }).ExcludeFromDescription();
+
     app.MapGet("/openapi", async context =>
     {
         context.Response.ContentType = "text/html";
