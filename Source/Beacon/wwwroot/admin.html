@@ -1820,7 +1820,7 @@
         <tr>
           <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong></td>
           <td>${sanitize(b.totalEmails ?? 'N/A')}</td>
-          <td>${(b.permissions || []).map(p => `<span class="status-badge">${sanitize(formatPermission(p))}</span>`).join(' ') || 'None'}</td>
+          <td>${(b.permissions || []).map(p => `<span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')"><span class="status-badge">${sanitize(formatPermission(p))}</span><span class="tooltip">${sanitize(p)}</span></span>`).join(' ') || 'None'}</td>
           <td>
             <div class="row-actions">
               <span class="tooltip-wrapper">
