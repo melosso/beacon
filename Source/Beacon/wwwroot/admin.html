@@ -1851,7 +1851,7 @@
 
         try {
             // Utilizing the Asynchronous Clipboard API
-            await navigator.clipboard.writeText(bucketName);
+            await clipboardWrite(bucketName);
             
             // Optional: Provide visual confirmation
             const originalText = tooltipElement.innerText;
@@ -2214,7 +2214,7 @@
 
     function copyTokenLink() {
       const text = document.getElementById('tokenOutput').textContent;
-      navigator.clipboard.writeText(text);
+      clipboardWrite(text);
       notify('success', 'Copied', 'Token URL copied to clipboard');
     }
 
@@ -2223,18 +2223,32 @@
     function copyText(text) {
       clearTimeout(copyClickTimer);
       copyClickTimer = setTimeout(() => {
-        navigator.clipboard.writeText(text);
+        clipboardWrite(text);
         notify('success', 'Copied', text);
       }, 250);
     }
 
     function copyTextNow(text) {
       clearTimeout(copyClickTimer);
-      navigator.clipboard.writeText(text);
+      clipboardWrite(text);
       notify('success', 'Copied', text);
     }
 
     // ========== HELPERS ==========
+    async function clipboardWrite(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+
     function formatPermission(p) {
       if (!p) return '';
       // Convert snake_case or kebab-case to Title Case
