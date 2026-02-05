@@ -64,17 +64,12 @@ try
     var hostOptions = HostRoutingOptionsFactory.Create(builder.Configuration);
     builder.Services.AddSingleton(hostOptions);
 
-    // Configure Kestrel - use host-based or port-based depending on configuration
-    if (!hostOptions.UseHostBasedRouting)
+    // Configure Kestrel to listen on both API and Admin ports
+    builder.WebHost.ConfigureKestrel(options =>
     {
-        // Port-based mode: Listen on specific ports
-        builder.WebHost.ConfigureKestrel(options =>
-        {
-            options.ListenAnyIP(hostOptions.ApiPort);   // API port
-            options.ListenAnyIP(hostOptions.AdminPort); // Admin port
-        });
-    }
-    // else: Host-based mode uses ASPNETCORE_URLS or default port
+        options.ListenAnyIP(hostOptions.ApiPort);   // API port
+        options.ListenAnyIP(hostOptions.AdminPort); // Admin port
+    });
 
     // Security validation
     if (!builder.Environment.IsDevelopment())
