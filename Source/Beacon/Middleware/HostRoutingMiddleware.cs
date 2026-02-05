@@ -105,9 +105,11 @@ public class HostRoutingMiddleware
             return true;
         }
 
-        // Unknown host - reject
-        _logger.LogWarning("Rejected request from unknown host: {Host}", host);
-        return false;
+        // Unknown host - fall back to port-based validation
+        // This allows direct access via internal hostnames (e.g. Docker service names)
+        // while still enforcing port-based separation for admin/api paths
+        _logger.LogDebug("Unknown host {Host}, falling back to port-based validation", host);
+        return ValidatePortBasedAccess(context, path);
     }
 
     private bool ValidatePortBasedAccess(HttpContext context, string path)
