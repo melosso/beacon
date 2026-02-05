@@ -336,13 +336,16 @@ try
 
         // Determine if this is an admin context
         bool isAdminContext;
-        if (routingOptions.UseHostBasedRouting)
+        if (routingOptions.UseHostBasedRouting &&
+            (routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host) ||
+             host == "localhost" || host == "127.0.0.1"))
         {
             isAdminContext = routingOptions.AdminHosts.Contains(host) ||
                              host == "localhost" || host == "127.0.0.1";
         }
         else
         {
+            // Port-based (or unknown host fallback): use port to determine context
             isAdminContext = port == routingOptions.AdminPort;
         }
 
