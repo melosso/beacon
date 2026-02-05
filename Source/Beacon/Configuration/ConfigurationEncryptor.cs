@@ -107,7 +107,7 @@ public static class ConfigurationEncryptor
             if (encryptedCount > 0)
             {
                 File.WriteAllText(appSettingsPath, json);
-                Log.Information($"Encrypted {encryptedCount} configuration value(s) in appsettings.json");
+                Log.Debug($"Encrypted {encryptedCount} configuration value(s) in appsettings.json");
             }
         }
         catch (Exception ex)

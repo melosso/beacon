@@ -5,6 +5,7 @@ using Beacon.Core.Models;
 using Beacon.Core.Services;
 using Beacon.Core.Validation;
 using Beacon.Tokens;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Beacon.Api;
@@ -38,6 +39,8 @@ public static class ConsentEndpoints
 
     private static async Task<IResult> ShowPreferencePage(
         string token,
+        HttpContext context,
+        [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
         [FromServices] IConsentService consentService,
         [FromServices] ITokenUsageRepository tokenUsageRepository)
@@ -74,16 +77,30 @@ public static class ConsentEndpoints
             }
         }
 
-        return Results.Content(GetPreferencePage(token, result.Payload.Email, permissionStates, result.Payload.Language), "text/html");
+        var tokens = antiforgery.GetAndStoreTokens(context);
+
+        return Results.Content(GetPreferencePage(
+            token,
+            result.Payload.Email,
+            permissionStates,
+            tokens.RequestToken!,
+            tokens.FormFieldName,
+            result.Payload.Language), "text/html");
     }
 
     private static async Task<IResult> ProcessPreferenceUpdate(
         string token,
         HttpContext context,
+        [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
         [FromServices] IConsentService consentService,
         [FromServices] ITokenUsageRepository tokenUsageRepository)
     {
+        if (!await antiforgery.IsRequestValidAsync(context))
+        {
+            return Results.BadRequest("Invalid antiforgery token.");
+        }
+
         var result = validator.Validate(token);
 
         if (result.IsExpired)
@@ -334,7 +351,7 @@ public static class ConsentEndpoints
         )
     };
 
-    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string language = "en")
+    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string antiforgeryToken, string formFieldName, string language = "en")
     {
         // Get translations, fallback to English if language not found
         var lang = language?.ToLowerInvariant() ?? "en";
@@ -457,6 +474,7 @@ public static class ConsentEndpoints
                   <p>{{WebUtility.HtmlEncode(t.Description)}}</p>
 
                   <form method="post" action="/u/{{WebUtility.HtmlEncode(token)}}">
+                    <input name="{{formFieldName}}" type="hidden" value="{{antiforgeryToken}}" />
                     <div class="preferences">
                       {{togglesHtml}}
                     </div>

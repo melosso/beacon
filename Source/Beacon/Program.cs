@@ -125,6 +125,7 @@ try
             options.AdminApiKey = adminApiKey;
         });
 
+    builder.Services.AddAntiforgery();
     builder.Services.AddAuthorization();
     builder.Services.AddEndpointsApiExplorer();
 
@@ -290,6 +291,8 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.UseAntiforgery();
 
     app.UseStaticFiles();
 

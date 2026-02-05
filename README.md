@@ -10,7 +10,7 @@ This is **Beacon**, a lightweight consent and opt-out service built with .NET 10
 
 ## What is Beacon?
 
-Beacon manages email permission states via logical groupings called Buckets. For every email address within a bucket, the application generates a unique, temporary URL that enables users to update their consent records directly. This functionality is exposed through a unified Web API, allowing automation tools to retrieve these URLs and inject them into outgoing messages for decentralized preference management.
+Beacon manages email permission states via logical groupings called Buckets. For every email address within a bucket, the application generates a unique, temporary URL that enables users to update their consent records directly. This functionality is exposed through a unified web API, allowing automation tools to retrieve these URLs and inject them into outgoing messages for decentralized permission management.
 
 **There are some other noteworthy features that must be mentioned:**
 
@@ -92,7 +92,7 @@ $bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Cr
 
 4. Open browser → **http://localhost:5000** / **http://localhost:5001**
 
-On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted. You should safely store your API key to keep access to the admin panel.
+On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted. You should, ofcourse, safely store your API key to keep access to the admin panel too.
 
 ---
 
@@ -201,7 +201,7 @@ Depending on your environment, these settings are changed in your `.env`, `docke
 | `Beacon__AdminApiKey` | API key for authenticated endpoints | **Required** |
 | `Beacon__TokenExpiryDays` | Default token validity period | 30 |
 
-### Host-Based Routing (Production)
+### Host-Based Routing
 
 When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based routing to separate public API and admin traffic on different subdomains:
 
@@ -212,7 +212,7 @@ When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based ro
 | `Beacon__AllowedOrigins` | Additional CORS origins | https://app.example.com |
 | `Beacon__TrustForwardedHeaders` | Trust X-Forwarded-* headers from proxy | true |
 
-### Port-Based Routing (Development)
+### Port-Based Routing
 
 When `ApiHosts`/`AdminHosts` are not configured, Beacon uses port-based routing:
 
@@ -220,6 +220,8 @@ When `ApiHosts`/`AdminHosts` are not configured, Beacon uses port-based routing:
 |----------|---------|---------|
 | `Beacon__ApiPort` | Port for public API endpoints | 5000 |
 | `Beacon__AdminPort` | Port for admin panel and OpenAPI docs | 5001 |
+
+You may need to combine both when working with a reverse proxy (e.g. Cloudflare Tunnels or Pangolin).
 
 ### Generating Secure Keys
 
