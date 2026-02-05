@@ -178,7 +178,7 @@ curl -X POST http://localhost:5000/api/tokens/generate \
     "customFields": {
       "externalId": "external-reference"
     }
-    "allowReplay": false,N
+    "allowReplay": false,
     "expiryDays": 30,
     "language": "nl",
     "skipPermissionUpdate": true
