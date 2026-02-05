@@ -112,14 +112,18 @@ public static class AdminEndpoints
 
         var emailId = emailHasher.Hash(request.Email)[..12];
         logger.LogInformation(
-            "Admin consent override: bucket={Bucket}, id={EmailId}, permission={Permission}, status={Status}, timestamp={Timestamp}",
+            "Processing consent override: bucket={Bucket}, id={EmailId}, permission={Permission}, status={Status}, timestamp={Timestamp}",
             request.Bucket,
             emailId,
             request.Permission,
             status,
             DateTime.UtcNow);
 
-        await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status);
+        string? customFieldsJson = request.CustomFields is { Count: > 0 }
+            ? JsonSerializer.Serialize(request.CustomFields)
+            : null;
+
+        await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson);
 
         return Results.Ok(new { message = "Consent updated" });
     }
@@ -407,6 +411,7 @@ public sealed class OverrideConsentRequest
     public string Email { get; set; } = string.Empty;
     public string Permission { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public Dictionary<string, string>? CustomFields { get; set; }
 }
 
 public sealed class GenerateTokenRequest

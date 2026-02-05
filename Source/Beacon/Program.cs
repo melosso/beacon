@@ -256,13 +256,13 @@ try
         db.Database.EnsureCreated();
 
         // Add CustomFields column to existing databases (EnsureCreated doesn't alter existing tables)
-        try
+        var columnExists = db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM pragma_table_info('ConsentRecords') WHERE name='CustomFields'")
+            .AsEnumerable().FirstOrDefault() > 0;
+
+        if (!columnExists)
         {
             db.Database.ExecuteSqlRaw("ALTER TABLE ConsentRecords ADD COLUMN CustomFields TEXT NULL");
-        }
-        catch
-        {
-            // Column already exists, ignore
         }
     }
 
@@ -334,7 +334,8 @@ try
             apiBase = $"{context.Request.Scheme}://{routingOptions.ApiHosts.First()}";
         }
 
-        return Results.Content($"const API_BASE = '{apiBase}';", "application/javascript");
+        var js = $"const API_BASE = '{apiBase}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
+        return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
 
     app.MapGet("/openapi", async context =>
@@ -391,8 +392,8 @@ try
         }
     }).ExcludeFromDescription();
 
-    // Catch-all: serve 404 page for any unmatched routes
-    app.MapFallback(async context =>
+    // Catch-all: serve 404 page for any unmatched routes (including file paths)
+    app.MapFallback("{**path}", async context =>
     {
         context.Response.StatusCode = 404;
         var notFoundPath = Path.Combine(app.Environment.WebRootPath, "404.html");

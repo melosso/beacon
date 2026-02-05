@@ -782,6 +782,37 @@
     }
     .btn-remove:hover { color: hsl(var(--destructive)); }
 
+    .custom-fields-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .custom-field-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .custom-field-row:last-child { border-bottom: none; }
+
+    .custom-field-key {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: hsl(var(--muted-foreground));
+      min-width: 80px;
+    }
+
+    .custom-field-value {
+      flex: 1;
+      font-size: 0.875rem;
+      word-break: break-word;
+    }
+
     .token-output {
       background: hsl(var(--muted));
       padding: 1rem;
@@ -1144,7 +1175,7 @@
 
         <div class="form-group">
           <label>Expiry (days)</label>
-          <input type="number" id="tokenExpiry" value="60" min="1" max="365">
+          <input type="number" id="tokenExpiry" min="1" max="365">
         </div>
 
         <div class="form-group">
@@ -1157,6 +1188,11 @@
             <option value="pl">Polski</option>
             <option value="es">Español</option>
           </select>
+        </div>
+
+        <div class="form-group" id="tokenCustomFieldsGroup" style="display:none">
+          <label>Custom Fields</label>
+          <div id="tokenCustomFieldsList" class="custom-fields-list"></div>
         </div>
 
         <div class="form-group">
@@ -1177,10 +1213,35 @@
 
         <div class="modal-actions">
           <button class="btn btn-primary" id="generateTokenBtn" onclick="handleGenerateToken()">Generate Token</button>
+          <button class="btn-icon" onclick="openCustomFieldsDialog()" title="Custom Fields" style="flex:0;padding:0.5rem;border:1px solid hsl(var(--border));border-radius:var(--radius);color:hsl(var(--foreground))">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- Custom Fields Modal -->
+  <div class="modal-backdrop" id="customFieldsModal">
+    <div class="modal">
+      <h3>Custom Fields</h3>
+      <p>Add key-value pairs to store alongside consent records.</p>
+      <div class="form-group">
+        <div class="custom-fields-list" id="customFieldsGrid"></div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+          <input type="text" id="newFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
+          <input type="text" id="newFieldValue" placeholder="Value" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
+          <button type="button" class="btn btn-outline" onclick="addCustomField('token')">Add</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeCustomFieldsDialog()">Done</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Remove Bucket Security Modal -->
   <div class="modal-backdrop" id="removeModal">
@@ -1234,6 +1295,17 @@
           <option value="pl">Polski</option>
           <option value="es">Español</option>
         </select>
+      </div>
+      <div class="form-group" id="editCustomFieldsGroup" style="display:none">
+        <label>Custom Fields</label>
+        <div id="editCustomFieldsList" class="custom-fields-list"></div>
+        <div class="form-group" style="margin-bottom:0">
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+            <input type="text" id="editFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('edit')}">
+            <input type="text" id="editFieldValue" placeholder="Value" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('edit')}">
+            <button type="button" class="btn btn-outline" onclick="addCustomField('edit')">Add</button>
+          </div>
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeEditPermissionsModal()">Cancel</button>
@@ -1421,6 +1493,8 @@
 
     // ========== INIT ==========
     async function init() {
+      document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
+
       if (!apiKey) {
         document.getElementById('authOverlay').style.display = 'flex';
         return;
@@ -1435,7 +1509,27 @@
       document.getElementById('authOverlay').style.display = 'none';
       renderBucketsSidebar();
       renderPermissionsGrid();
-      showView('overview');
+      restoreViewFromUrl();
+    }
+
+    function restoreViewFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const view = params.get('view');
+      const bucket = params.get('bucket');
+
+      if (view === 'bucket' && bucket) {
+        sortBy = params.get('sort') || 'lastchanged';
+        sortDir = params.get('dir') || 'desc';
+        currentPage = parseInt(params.get('page')) || 1;
+        pageSize = parseInt(params.get('size')) || 10;
+        searchQuery = params.get('q') || '';
+        searchType = params.get('qtype') || 'id';
+        showBucket(bucket, false);
+      } else if (view === 'tokens') {
+        showView('tokens', false);
+      } else {
+        showView('overview', false);
+      }
     }
 
     // ========== LOAD BUCKETS ==========
@@ -1470,6 +1564,8 @@
 
     let tokenPermissions = new Set();
     let removedPermissions = new Set();
+    let tokenCustomFields = {};
+    let editCustomFields = {};
 
     function renderPermissionsGrid() {
       const container = document.getElementById('permissionsGrid');
@@ -1551,8 +1647,126 @@
       return states;
     }
 
+    // ========== CUSTOM FIELDS ==========
+    function openCustomFieldsDialog() {
+      renderCustomFieldsGrid();
+      document.getElementById('customFieldsModal').style.display = 'flex';
+    }
+
+    function closeCustomFieldsDialog() {
+      document.getElementById('customFieldsModal').style.display = 'none';
+      renderTokenCustomFieldsDisplay();
+    }
+
+    function addCustomField(context) {
+      const isEdit = context === 'edit';
+      const keyInput = document.getElementById(isEdit ? 'editFieldKey' : 'newFieldKey');
+      const valueInput = document.getElementById(isEdit ? 'editFieldValue' : 'newFieldValue');
+      const key = keyInput.value.trim();
+      const value = valueInput.value.trim();
+
+      if (!key) { notify('warning', 'Missing Key', 'Please enter a field key'); return; }
+
+      const fields = isEdit ? editCustomFields : tokenCustomFields;
+      fields[key] = value;
+      keyInput.value = '';
+      valueInput.value = '';
+      keyInput.focus();
+
+      if (isEdit) {
+        renderEditCustomFieldsList();
+      } else {
+        renderCustomFieldsGrid();
+        renderTokenCustomFieldsDisplay();
+      }
+    }
+
+    function removeCustomField(key, context) {
+      const isEdit = context === 'edit';
+      const fields = isEdit ? editCustomFields : tokenCustomFields;
+      delete fields[key];
+
+      if (isEdit) {
+        renderEditCustomFieldsList();
+      } else {
+        renderCustomFieldsGrid();
+        renderTokenCustomFieldsDisplay();
+      }
+    }
+
+    function renderCustomFieldsGrid() {
+      const grid = document.getElementById('customFieldsGrid');
+      const entries = Object.entries(tokenCustomFields);
+      grid.innerHTML = entries.map(([k, v]) => `
+        <div class="custom-field-row">
+          <span class="custom-field-key">${sanitize(k)}</span>
+          <span class="custom-field-value">${sanitize(v)}</span>
+          <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'token')" title="Remove">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    function renderTokenCustomFieldsDisplay() {
+      const entries = Object.entries(tokenCustomFields);
+      const group = document.getElementById('tokenCustomFieldsGroup');
+      const list = document.getElementById('tokenCustomFieldsList');
+
+      if (entries.length === 0) {
+        group.style.display = 'none';
+        return;
+      }
+
+      group.style.display = '';
+      list.innerHTML = entries.map(([k, v]) => `
+        <div class="custom-field-row">
+          <span class="custom-field-key">${sanitize(k)}</span>
+          <span class="custom-field-value">${sanitize(v)}</span>
+          <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'token')" title="Remove">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    function renderEditCustomFieldsList() {
+      const entries = Object.entries(editCustomFields);
+      const group = document.getElementById('editCustomFieldsGroup');
+      const list = document.getElementById('editCustomFieldsList');
+
+      group.style.display = '';
+      list.innerHTML = entries.map(([k, v]) => `
+        <div class="custom-field-row">
+          <span class="custom-field-key">${sanitize(k)}</span>
+          <span class="custom-field-value">${sanitize(v)}</span>
+          <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'edit')" title="Remove">&times;</button>
+        </div>
+      `).join('');
+    }
+
     // ========== VIEWS ==========
-    function showView(view) {
+    function updateUrl(params, replace = false) {
+      const url = new URL(window.location);
+      url.search = '';
+      for (const [key, value] of Object.entries(params)) {
+        if (value) url.searchParams.set(key, value);
+      }
+      if (replace) {
+        history.replaceState(null, '', url);
+      } else {
+        history.pushState(null, '', url);
+      }
+    }
+
+    function syncBucketUrl(replace = false) {
+      const params = { view: 'bucket', bucket: currentBucket };
+      if (sortBy !== 'lastchanged') params.sort = sortBy;
+      if (sortDir !== 'desc') params.dir = sortDir;
+      if (currentPage > 1) params.page = String(currentPage);
+      if (pageSize !== 10) params.size = String(pageSize);
+      if (searchQuery) params.q = searchQuery;
+      if (searchType !== 'id') params.qtype = searchType;
+      updateUrl(params, replace);
+    }
+
+    function showView(view, pushState = true) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -1561,16 +1775,19 @@
 
       document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
 
+      if (pushState) updateUrl({ view });
       if (view === 'overview') loadOverview();
     }
 
-    function showBucket(bucket) {
+    function showBucket(bucket, pushState = true) {
       currentBucket = bucket;
-      currentPage = 1;
-      sortBy = 'lastchanged';
-      sortDir = 'desc';
-      searchQuery = '';
-      searchType = 'id';
+      if (pushState) {
+        currentPage = 1;
+        sortBy = 'lastchanged';
+        sortDir = 'desc';
+        searchQuery = '';
+        searchType = 'id';
+      }
 
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1581,6 +1798,7 @@
 
       document.querySelector(`.nav-item[data-bucket="${bucket}"]`)?.classList.add('active');
 
+      if (pushState) syncBucketUrl();
       loadBucket(bucket);
     }
 
@@ -1721,7 +1939,8 @@
           const recordData = encodeURIComponent(JSON.stringify({
             email: r.email,
             emailHash: r.emailHash,
-            permissions: r.permissions || {}
+            permissions: r.permissions || {},
+            customFields: r.customFields || {}
           }));
 
           return `
@@ -1762,12 +1981,12 @@
     function updatePageSize() {
       pageSize = parseInt(document.getElementById('pageSize').value);
       currentPage = 1;
-      if (currentBucket) loadBucket(currentBucket);
+      if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
 
     function changePage(delta) {
       currentPage += delta;
-      if (currentBucket) loadBucket(currentBucket);
+      if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
 
     function toggleSort(column) {
@@ -1778,7 +1997,7 @@
         sortDir = column === 'lastchanged' ? 'desc' : 'asc';
       }
       currentPage = 1;
-      if (currentBucket) loadBucket(currentBucket);
+      if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
 
     function toggleSearchPopover(event) {
@@ -1795,7 +2014,7 @@
     function setSearchType(type) {
       searchType = type;
       // Re-render to update labels and placeholders
-      if (currentBucket) loadBucket(currentBucket);
+      if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
       setTimeout(() => {
         document.getElementById('searchPopover')?.classList.add('open');
         document.querySelector('.search-trigger')?.classList.add('active');
@@ -1807,7 +2026,7 @@
       const input = document.getElementById('searchInput');
       searchQuery = input ? input.value.trim() : '';
       currentPage = 1;
-      if (currentBucket) loadBucket(currentBucket);
+      if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
 
     function clearSearch() {
@@ -1815,7 +2034,7 @@
       if (input) input.value = '';
       searchQuery = '';
       currentPage = 1;
-      if (currentBucket) loadBucket(currentBucket);
+      if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
 
     // Close search popover when clicking outside
@@ -1925,7 +2144,7 @@
     function clearTokenForm() {
       document.getElementById('tokenBucket').value = '';
       document.getElementById('tokenEmail').value = '';
-      document.getElementById('tokenExpiry').value = '60';
+      document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
       document.getElementById('tokenAllowReplay').checked = true;
       document.getElementById('tokenLanguage').value = 'en';
       document.getElementById('tokenOutputWrapper').style.display = 'none';
@@ -1937,6 +2156,9 @@
         row.querySelectorAll('.permission-toggle button').forEach(btn => btn.classList.remove('active'));
         row.querySelector('.opted-in').classList.add('active');
       });
+
+      tokenCustomFields = {};
+      renderTokenCustomFieldsDisplay();
     }
 
     async function generateToken() {
@@ -1969,13 +2191,14 @@
         return;
       }
 
-      const expiryDays = parseInt(document.getElementById('tokenExpiry').value) || 60;
+      const expiryDays = parseInt(document.getElementById('tokenExpiry').value) || DEFAULT_EXPIRY_DAYS;
       const allowReplay = document.getElementById('tokenAllowReplay').checked;
       const language = document.getElementById('tokenLanguage').value;
+      const customFields = Object.keys(tokenCustomFields).length > 0 ? tokenCustomFields : undefined;
 
       const result = await apiRequest('/api/tokens/generate', {
         method: 'POST',
-        body: { bucket, email, permissions, expiryDays, allowReplay, language }
+        body: { bucket, email, permissions, expiryDays, allowReplay, language, customFields }
       });
 
       if (result.ok) {
@@ -2148,6 +2371,11 @@
       }).join('');
 
       document.getElementById('editLanguage').value = 'en';
+
+      // Populate custom fields
+      editCustomFields = { ...(editingRecord.customFields || {}) };
+      renderEditCustomFieldsList();
+
       document.getElementById('editPermissionsModal').style.display = 'flex';
       closeAllMenus();
     }
@@ -2234,6 +2462,8 @@
         updates.push({ permission: perm, status });
       });
 
+      const customFields = Object.keys(editCustomFields).length > 0 ? editCustomFields : undefined;
+
       let allSuccess = true;
       for (const update of updates) {
         const result = await apiRequest('/api/consent/override', {
@@ -2242,7 +2472,8 @@
             bucket: editingBucket || currentBucket,
             email: editingRecord.email,
             permission: update.permission,
-            status: update.status
+            status: update.status,
+            customFields
           }
         });
 
@@ -2295,6 +2526,7 @@
     }
 
     // ========== START ==========
+    window.addEventListener('popstate', () => { if (apiKey) restoreViewFromUrl(); });
     init();
   </script>
   <script>
