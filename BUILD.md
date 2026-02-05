@@ -30,8 +30,8 @@ API_KEY="INSECURE-CHANGE-ME-api-key"
 # Constraint Parameters
 MIN_BUCKETS=5
 MAX_BUCKETS=15
-MIN_EMAILS_PER_BUCKET=3
-MAX_EMAILS_PER_BUCKET=1200
+MIN_EMAILS_PER_BUCKET=5
+MAX_EMAILS_PER_BUCKET=600
 
 # Arrays for randomized data generation
 DOMAINS=("provider.com" "corporate.net" "startup.io" "agency.org" "tech.com" "global.com")

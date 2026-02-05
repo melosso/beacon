@@ -37,6 +37,7 @@ Deployment/
 *.db-wal
 *.sqlite
 *.sqlite3
+Source/Beacon/Beacon.db
 
 # Sensitive configuration
 appsettings.*.json
@@ -70,5 +71,4 @@ publish/
 # Claude
 /.claude
 /CLAUDE.md
-/currentPlan.md
-Source/Beacon/Beacon.db
+

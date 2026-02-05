@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution and project files first for better layer caching
@@ -19,7 +19,7 @@ COPY Source/ Source/
 RUN dotnet publish Source/Beacon/Beacon.csproj -c Release -o /app/publish --no-restore
 
 # Runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 # Create non-root user for security

@@ -90,7 +90,7 @@ $bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Cr
 .\Beacon.bat start
 ```
 
-4. Open browser → **http://localhost:5001**
+4. Open browser → **http://localhost:5000** / **http://localhost:5001**
 
 On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted. You should safely store your API key to keep access to the admin panel.
 
@@ -100,7 +100,7 @@ For production deployments with host-based routing, see the [Configuration](#con
 
 ## How to Use
 
-Beacon will provide you a simple, non-customizable API that does one thing: securely store permissions for an e-mailaddress in an object (bucket). Your application can use this API to create a new permission state in the bucket–and return a secure token:
+Beacon will provide you a simple, non-customizable API that does one thing: securely store permissions for an e-mail address in a bucket. Your application can use this API to create a new permission state in the bucket–and return a token. This JWT-token contains all data, allowing the user to access its data without putting load on the database:
 
 ```bash
 https://beacon.acme-corporation.com/u/v1.eyJiIjoicTEtY2FtcGFpZ24iLCJlIjoia...
@@ -237,4 +237,4 @@ Free for open source projects and personal use under the **AGPL 3.0** license. F
 
 ## Contributing
 
-Contributions welcome! Please submit issues and pull requests, using the templates we provided.
+Contributions are always welcome! Please submit issues and pull requests, using the templates we provided.
