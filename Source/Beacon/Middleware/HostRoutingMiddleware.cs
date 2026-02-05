@@ -34,6 +34,7 @@ public class HostRoutingMiddleware
     private readonly RequestDelegate _next;
     private readonly HostRoutingOptions _options;
     private readonly ILogger<HostRoutingMiddleware> _logger;
+    private readonly string? _notFoundHtml;
 
     // Admin-only paths that should never be accessible from API host
     private static readonly string[] AdminPaths = ["/admin", "/openapi"];
@@ -41,11 +42,15 @@ public class HostRoutingMiddleware
     public HostRoutingMiddleware(
         RequestDelegate next,
         HostRoutingOptions options,
-        ILogger<HostRoutingMiddleware> logger)
+        ILogger<HostRoutingMiddleware> logger,
+        IWebHostEnvironment env)
     {
         _next = next;
         _options = options;
         _logger = logger;
+
+        var notFoundPath = Path.Combine(env.WebRootPath, "404.html");
+        _notFoundHtml = File.Exists(notFoundPath) ? File.ReadAllText(notFoundPath) : null;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -56,7 +61,7 @@ public class HostRoutingMiddleware
         {
             if (!ValidateHostBasedAccess(context, path))
             {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                await WriteNotFound(context);
                 return;
             }
         }
@@ -64,12 +69,22 @@ public class HostRoutingMiddleware
         {
             if (!ValidatePortBasedAccess(context, path))
             {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                await WriteNotFound(context);
                 return;
             }
         }
 
         await _next(context);
+    }
+
+    private async Task WriteNotFound(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        if (_notFoundHtml != null)
+        {
+            context.Response.ContentType = "text/html";
+            await context.Response.WriteAsync(_notFoundHtml);
+        }
     }
 
     private bool ValidateHostBasedAccess(HttpContext context, string path)

@@ -381,7 +381,25 @@ try
             else
             {
                 context.Response.StatusCode = 404;
+                var notFoundPath = Path.Combine(app.Environment.WebRootPath, "404.html");
+                if (File.Exists(notFoundPath))
+                {
+                    context.Response.ContentType = "text/html";
+                    await context.Response.SendFileAsync(notFoundPath);
+                }
             }
+        }
+    }).ExcludeFromDescription();
+
+    // Catch-all: serve 404 page for any unmatched routes
+    app.MapFallback(async context =>
+    {
+        context.Response.StatusCode = 404;
+        var notFoundPath = Path.Combine(app.Environment.WebRootPath, "404.html");
+        if (File.Exists(notFoundPath))
+        {
+            context.Response.ContentType = "text/html";
+            await context.Response.SendFileAsync(notFoundPath);
         }
     }).ExcludeFromDescription();
 
