@@ -313,7 +313,7 @@ public static class ConsentEndpoints
         ),
         ["nl"] = (
             Title: "E-mailvoorkeuren",
-            Description: "Je ontvangt deze e-mails omdat u zich eerder heeft aangemeld. Jouw voorkeuren kan je hier wijzigen.",
+            Description: "Je krijgt deze e-mails omdat je je eerder hebt aangemeld. Je kunt hier je voorkeuren aanpassen.",
             SaveButton: "Voorkeuren opslaan",
             UnsubscribeButton: "Alles afmelden",
             PreferencesFor: "Voorkeuren voor:"
