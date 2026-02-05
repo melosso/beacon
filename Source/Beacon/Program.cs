@@ -323,9 +323,17 @@ try
 
     app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
     {
-        var apiBase = routingOptions.ApiHosts.Count > 0
-            ? $"{context.Request.Scheme}://{routingOptions.ApiHosts.First()}"
-            : "";
+        var host = context.Request.Host.Host.ToLowerInvariant();
+        var apiBase = "";
+
+        // Only set cross-origin API base when accessed via a configured host
+        // Internal/direct access (e.g. peaches:5011) uses same-origin via port-based fallback
+        if (routingOptions.ApiHosts.Count > 0 &&
+            (routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host)))
+        {
+            apiBase = $"{context.Request.Scheme}://{routingOptions.ApiHosts.First()}";
+        }
+
         return Results.Content($"const API_BASE = '{apiBase}';", "application/javascript");
     }).ExcludeFromDescription();
 
