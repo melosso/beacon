@@ -67,8 +67,8 @@ try
     // Configure Kestrel to listen on both API and Admin ports
     builder.WebHost.ConfigureKestrel(options =>
     {
-        options.ListenAnyIP(hostOptions.ApiPort);   // API port
-        options.ListenAnyIP(hostOptions.AdminPort); // Admin port
+        options.ListenAnyIP(hostOptions.ApiPort);
+        options.ListenAnyIP(hostOptions.AdminPort);
     });
 
     // Security validation
@@ -135,7 +135,7 @@ try
         {
             document.Info.Title = "Beacon API";
             document.Info.Version = "v1";
-            document.Info.Description = "Email consent management API for GDPR compliance.";
+            document.Info.Description = "A lightweight consent management platform. Handle email consent states independently from any ERP, CRM or platform.";
 
             // Add API key security scheme
             document.Components ??= new Microsoft.OpenApi.Models.OpenApiComponents();
@@ -145,7 +145,7 @@ try
                 Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
                 In = Microsoft.OpenApi.Models.ParameterLocation.Header,
                 Name = "X-Api-Key",
-                Description = "API key for authentication. Required for all Integration and Management endpoints."
+                Description = "A mandatory API key for authentication."
             };
 
             return Task.CompletedTask;
@@ -327,7 +327,6 @@ try
         var apiBase = "";
 
         // Only set cross-origin API base when accessed via a configured host
-        // Internal/direct access (e.g. peaches:5011) uses same-origin via port-based fallback
         if (routingOptions.ApiHosts.Count > 0 &&
             (routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host)))
         {
@@ -412,7 +411,7 @@ try
     // Log startup information
     if (hostOptions.UseHostBasedRouting)
     {
-        Log.Information("Beacon is spinning up with host-based routing");
+        Log.Information("Beacon is spinning up!");
         Log.Information("API hosts: {ApiHosts}", string.Join(", ", hostOptions.ApiHosts));
         Log.Information("Admin hosts: {AdminHosts}", string.Join(", ", hostOptions.AdminHosts));
     }
