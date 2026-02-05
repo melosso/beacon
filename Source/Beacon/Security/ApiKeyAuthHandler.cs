@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
@@ -61,17 +63,19 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         await Response.CompleteAsync();
     }
 
-    private static bool CryptographicEquals(string a, string b)
+    private static bool CryptographicEquals(string providedKey, string expectedKey)
     {
-        if (a.Length != b.Length)
-            return false;
-
-        var result = 0;
-        for (int i = 0; i < a.Length; i++)
+        if (providedKey == null || expectedKey == null)
         {
-            result |= a[i] ^ b[i];
+            return false;
         }
-        return result == 0;
+
+        // Use a fixed-length representation to mask the actual key length
+        byte[] providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(providedKey));
+        byte[] expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedKey));
+
+        // FixedTimeEquals ensures the bitwise comparison time is constant
+        return CryptographicOperations.FixedTimeEquals(providedHash, expectedHash);
     }
 }
 
