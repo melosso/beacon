@@ -53,7 +53,7 @@ public sealed class ConsentService : IConsentService
         }
     }
 
-    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status)
+    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -69,13 +69,14 @@ public sealed class ConsentService : IConsentService
             Permission = permission,
             Status = status,
             Source = ConsentSource.Admin,
-            ChangedAt = DateTime.UtcNow
+            ChangedAt = DateTime.UtcNow,
+            CustomFields = customFieldsJson
         };
 
         await _repository.UpsertAsync(record);
     }
 
-    public async Task EnsureAsync(string bucket, string email, string permission, ConsentStatus status)
+    public async Task EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -99,7 +100,8 @@ public sealed class ConsentService : IConsentService
             Permission = permission,
             Status = status,
             Source = ConsentSource.Admin,
-            ChangedAt = DateTime.UtcNow
+            ChangedAt = DateTime.UtcNow,
+            CustomFields = customFieldsJson
         };
 
         await _repository.UpsertAsync(record);

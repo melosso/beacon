@@ -45,6 +45,7 @@ public sealed class EmailPermissions
     public string? Email { get; set; }  // Decrypted for admin display
     public required Dictionary<string, bool> Permissions { get; init; }
     public DateTime LastChanged { get; init; }
+    public Dictionary<string, string>? CustomFields { get; init; }
 }
 
 public sealed class PagedResult<T>

@@ -12,4 +12,10 @@ public sealed class ConsentRecord
     public DateTime ChangedAt { get; set; }
     public string? TokenHash { get; set; }
     public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Optional custom fields stored as JSON. Set during token generation,
+    /// returned when fetching bucket records.
+    /// </summary>
+    public string? CustomFields { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
@@ -164,6 +165,11 @@ public static class AdminEndpoints
 
         var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
 
+        // Serialize custom fields to JSON for storage
+        string? customFieldsJson = request.CustomFields is { Count: > 0 }
+            ? JsonSerializer.Serialize(request.CustomFields)
+            : null;
+
         // Create/update consent records with specified states
         foreach (var (permission, optedIn) in request.Permissions)
         {
@@ -172,12 +178,12 @@ public static class AdminEndpoints
             if (request.SkipPermissionUpdate)
             {
                 // Only insert if record doesn't exist, preserving existing user preferences
-                await consentService.EnsureAsync(request.Bucket, request.Email, permission, status);
+                await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
             }
             else
             {
                 // Always upsert (insert or update)
-                await consentService.OverrideAsync(request.Bucket, request.Email, permission, status);
+                await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
             }
         }
 
@@ -439,6 +445,13 @@ public sealed class GenerateTokenRequest
     /// Default: "en" (English).
     /// </summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// Optional custom fields to store alongside the email record.
+    /// These are returned when fetching bucket data via the API.
+    /// Example: {"company": "Acme", "source": "webinar"}
+    /// </summary>
+    public Dictionary<string, string>? CustomFields { get; set; }
 }
 
 public sealed class GenerateTokenResponse

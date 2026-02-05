@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,10 @@ public sealed class ConsentRepository : IConsentRepository
             existing.TokenHash = record.TokenHash;
             existing.ExpiresAt = record.ExpiresAt;
             existing.EncryptedEmail ??= record.EncryptedEmail;  // Update if not already set
+            if (record.CustomFields is not null)
+            {
+                existing.CustomFields = record.CustomFields;
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -95,7 +100,8 @@ public sealed class ConsentRepository : IConsentRepository
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
-                LastChanged = g.Max(r => r.ChangedAt)
+                LastChanged = g.Max(r => r.ChangedAt),
+                CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
             })
             .ToList();
 
@@ -149,7 +155,8 @@ public sealed class ConsentRepository : IConsentRepository
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
-                LastChanged = g.Max(r => r.ChangedAt)
+                LastChanged = g.Max(r => r.ChangedAt),
+                CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
             })
             .OrderByDescending(e => e.LastChanged)
             .ToList();
@@ -183,5 +190,18 @@ public sealed class ConsentRepository : IConsentRepository
     {
         return await _context.ConsentRecords
             .AnyAsync(r => r.Bucket == bucket && r.EmailHash == emailHash);
+    }
+
+    private static Dictionary<string, string>? DeserializeCustomFields(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

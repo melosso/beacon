@@ -175,6 +175,9 @@ curl -X POST http://localhost:5000/api/tokens/generate \
       "newsletter": true,
       "marketing": false
     },
+    "customFields": {
+      "externalId": "external-reference"
+    }
     "allowReplay": false,
     "expiryDays": 30,
     "language": "nl",

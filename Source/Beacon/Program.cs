@@ -259,6 +259,16 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         db.Database.EnsureCreated();
+
+        // Add CustomFields column to existing databases (EnsureCreated doesn't alter existing tables)
+        try
+        {
+            db.Database.ExecuteSqlRaw("ALTER TABLE ConsentRecords ADD COLUMN CustomFields TEXT NULL");
+        }
+        catch
+        {
+            // Column already exists, ignore
+        }
     }
 
     // Middleware Pipeline
