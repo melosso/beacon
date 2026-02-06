@@ -47,14 +47,16 @@ public static class ConsentEndpoints
     {
         var result = validator.Validate(token);
 
+        var lang = result.Payload?.Language ?? "en";
+
         if (result.IsExpired)
         {
-            return Results.Content(GetStatusPage("expired"), "text/html");
+            return Results.Content(GetStatusPage("expired", lang), "text/html");
         }
 
         if (!result.IsValid || result.Payload is null)
         {
-            return Results.Content(GetStatusPage("invalid"), "text/html");
+            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
         }
 
         // Only check token usage if replay is not allowed
@@ -63,7 +65,7 @@ public static class ConsentEndpoints
             var tokenHash = ComputeTokenHash(token);
             if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
             {
-                return Results.Content(GetStatusPage("already_processed"), "text/html");
+                return Results.Content(GetStatusPage("already_processed", lang), "text/html");
             }
         }
 
@@ -102,15 +104,17 @@ public static class ConsentEndpoints
         }
 
         var result = validator.Validate(token);
+        
+        var lang = result.Payload?.Language ?? "en";
 
         if (result.IsExpired)
         {
-            return Results.Content(GetStatusPage("expired"), "text/html");
+            return Results.Content(GetStatusPage("expired", lang), "text/html");
         }
 
         if (!result.IsValid || result.Payload is null)
         {
-            return Results.Content(GetStatusPage("invalid"), "text/html");
+            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
         }
 
         // Only check token usage if replay is not allowed
@@ -119,7 +123,7 @@ public static class ConsentEndpoints
             var tokenHash = ComputeTokenHash(token);
             if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
             {
-                return Results.Content(GetStatusPage("already_processed"), "text/html");
+                return Results.Content(GetStatusPage("already_processed", lang), "text/html");
             }
         }
 
@@ -145,7 +149,7 @@ public static class ConsentEndpoints
                 var tokenHash = ComputeTokenHash(token);
                 await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
             }
-            return Results.Content(GetStatusPage("unsubscribed", validPermissions), "text/html");
+            return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions), "text/html");
         }
 
         // Process individual toggle states
@@ -184,7 +188,7 @@ public static class ConsentEndpoints
             var tokenHash = ComputeTokenHash(token);
             await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
         }
-        return Results.Content(GetStatusPage("updated", [.. optedOut], [.. keptIn]), "text/html");
+        return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn]), "text/html");
     }
 
     private static async Task<IResult> CheckConsent(
@@ -351,9 +355,70 @@ public static class ConsentEndpoints
         )
     };
 
+    // New record to hold status page translations
+    private record StatusStrings(
+        string ExpiredTitle, string ExpiredMsg,
+        string InvalidTitle, string InvalidMsg,
+        string ProcessedTitle, string ProcessedMsg,
+        string UnsubTitle, string UnsubMsgPrefix,
+        string UpdatedTitle, string UpdatedOptOutPrefix, string UpdatedOptInPrefix,
+        string SuccessTitle, string SuccessMsg
+    );
+
+    private static readonly Dictionary<string, StatusStrings> StatusTranslations = new()
+    {
+        ["en"] = new(
+            "Link expired", "This link has expired. Please use the link in a more recent email.",
+            "Invalid link", "This link is invalid. Please use the link from your email.",
+            "Already processed", "Your preferences have already been updated using this link.",
+            "Unsubscribed", "You have been unsubscribed from:",
+            "Preferences updated", "Unsubscribed from:", "Still subscribed to:",
+            "Success", "Your preferences have been updated."
+        ),
+        ["de"] = new(
+            "Link abgelaufen", "Dieser Link ist abgelaufen. Bitte verwenden Sie den Link in einer aktuelleren E-Mail.",
+            "Ungültiger Link", "Dieser Link ist ungültig. Bitte verwenden Sie den Link aus Ihrer E-Mail.",
+            "Bereits bearbeitet", "Ihre Einstellungen wurden bereits über diesen Link aktualisiert.",
+            "Abgemeldet", "Sie wurden abgemeldet von:",
+            "Einstellungen aktualisiert", "Abgemeldet von:", "Noch angemeldet für:",
+            "Erfolg", "Ihre Einstellungen wurden aktualisiert."
+        ),
+        ["fr"] = new(
+            "Lien expiré", "Ce lien a expiré. Veuillez utiliser le lien contenu dans un e-mail plus récent.",
+            "Lien invalide", "Ce lien est invalide. Veuillez utiliser le lien contenu dans votre e-mail.",
+            "Déjà traité", "Vos préférences ont déjà été mises à jour via ce lien.",
+            "Désabonné", "Vous avez été désabonné de :",
+            "Préférences mises à jour", "Désabonné de :", "Toujours abonné à :",
+            "Succès", "Vos préférences ont été mises à jour."
+        ),
+        ["nl"] = new(
+            "Link verlopen", "Deze link is verlopen. Gebruik de link in een recentere e-mail.",
+            "Ongeldige link", "Deze link is ongeldig. Gebruik de link uit je e-mail.",
+            "Reeds verwerkt", "Je voorkeuren zijn al bijgewerkt via deze link.",
+            "Afgemeld", "Je bent afgemeld voor:",
+            "Voorkeuren bijgewerkt", "Afgemeld voor:", "Nog aangemeld voor:",
+            "Succes", "Je voorkeuren zijn bijgewerkt."
+        ),
+        ["pl"] = new(
+            "Link wygasł", "Ten link wygasł. Proszę użyć linku z nowszej wiadomości e-mail.",
+            "Nieprawidłowy link", "Ten link jest nieprawidłowy. Proszę użyć linku z wiadomości e-mail.",
+            "Już przetworzono", "Twoje preferencje zostały już zaktualizowane przy użyciu tego linku.",
+            "Wypisano", "Wypisano z:",
+            "Zaktualizowano preferencje", "Wypisano z:", "Nadal subskrybowany do:",
+            "Sukces", "Twoje preferencje zostały zaktualizowane."
+        ),
+        ["es"] = new(
+            "Enlace caducado", "Este enlace ha caducado. Por favor, utilice el enlace de un correo más reciente.",
+            "Enlace inválido", "Este enlace no es válido. Por favor, utilice el enlace de su correo.",
+            "Ya procesado", "Sus preferencias ya han sido actualizadas usando este enlace.",
+            "Dado de baja", "Se ha dado de baja de:",
+            "Preferencias actualizadas", "Dado de baja de:", "Suscrito todavía a:",
+            "Éxito", "Sus preferencias han sido actualizadas."
+        )
+    };
+
     private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string antiforgeryToken, string formFieldName, string language = "en")
     {
-        // Get translations, fallback to English if language not found
         var lang = language?.ToLowerInvariant() ?? "en";
         if (!Translations.ContainsKey(lang))
         {
@@ -494,21 +559,28 @@ public static class ConsentEndpoints
             """;
     }
 
-    private static string GetStatusPage(string status, string[]? optedOut = null, string[]? keptIn = null)
+    private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null)
     {
+        var lang = language?.ToLowerInvariant() ?? "en";
+        if (!StatusTranslations.ContainsKey(lang))
+        {
+            lang = "en";
+        }
+        var t = StatusTranslations[lang];
+
         var (icon, iconClass, title, message) = status switch
         {
-            "expired" => ("⚠", "warning", "Link expired", "This link has expired. Please use the link in a more recent email."),
-            "invalid" => ("✗", "error", "Invalid link", "This link is invalid. Please use the link from your email."),
-            "already_processed" => ("ℹ", "info", "Already processed", "Your preferences have already been updated using this link."),
-            "unsubscribed" => ("✓", "success", "Unsubscribed", $"You have been unsubscribed from: {FormatList(optedOut)}"),
-            "updated" => ("✓", "success", "Preferences updated", BuildUpdateMessage(optedOut, keptIn)),
-            _ => ("✓", "success", "Success", "Your preferences have been updated.")
+            "expired" => ("⚠", "warning", t.ExpiredTitle, t.ExpiredMsg),
+            "invalid" => ("✗", "error", t.InvalidTitle, t.InvalidMsg),
+            "already_processed" => ("ℹ", "info", t.ProcessedTitle, t.ProcessedMsg),
+            "unsubscribed" => ("✓", "success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
+            "updated" => ("✓", "success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
+            _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
         };
 
         return $$"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="{{lang}}">
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -549,13 +621,13 @@ public static class ConsentEndpoints
         return string.Join(", ", items.Select(p => FormatPermission(p)));
     }
 
-    private static string BuildUpdateMessage(string[]? optedOut, string[]? keptIn)
+    private static string BuildUpdateMessage(StatusStrings t, string[]? optedOut, string[]? keptIn)
     {
         var parts = new List<string>();
         if (optedOut?.Length > 0)
-            parts.Add($"Unsubscribed from: {FormatList(optedOut)}");
+            parts.Add($"{t.UpdatedOptOutPrefix} {FormatList(optedOut)}");
         if (keptIn?.Length > 0)
-            parts.Add($"Still subscribed to: {FormatList(keptIn)}");
+            parts.Add($"{t.UpdatedOptInPrefix} {FormatList(keptIn)}");
         return string.Join("<br><br>", parts);
     }
 }
