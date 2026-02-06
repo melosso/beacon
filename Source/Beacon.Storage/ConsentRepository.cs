@@ -22,38 +22,33 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task UpsertAsync(ConsentRecord record)
     {
-        try
+        var existing = await _context.ConsentRecords
+            .FirstOrDefaultAsync(r 
+                => r.Bucket == record.Bucket 
+                && r.EmailHash == record.EmailHash 
+                && r.Permission == record.Permission);
+
+        if (existing is null)
         {
-            // Attempt to add the record first
             _context.ConsentRecords.Add(record);
-            await _context.SaveChangesAsync();
         }
-        catch (DbUpdateException ex)
+        else
         {
-            // Check if it's a unique constraint violation
-            if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
+            // Update only mutable properties on the tracked entity
+            existing.Status = record.Status;
+            existing.Source = record.Source;
+            existing.ChangedAt = record.ChangedAt;
+            existing.TokenHash = record.TokenHash;
+            existing.ExpiresAt = record.ExpiresAt;
+            existing.EncryptedEmail ??= record.EncryptedEmail;
+            if (record.CustomFields is not null)
             {
-                // Record already exists, so update it
-                var existing = await _context.ConsentRecords
-                    .AsNoTracking() // Use AsNoTracking to avoid conflicts with the entity already tracked by Add(record)
-                    .FirstOrDefaultAsync(r => r.Bucket == record.Bucket && r.EmailHash == record.EmailHash && r.Permission == record.Permission);
-
-                if (existing is null)
-                {
-                    throw; // This shouldn't happen, but Im'a re-throw the exception
-                }
-
-                _context.Entry(existing).CurrentValues.SetValues(record); 
-
-                existing.EncryptedEmail ??= record.EncryptedEmail;
-
-                await _context.SaveChangesAsync();
+                existing.CustomFields = record.CustomFields;
             }
-            else
-            {
-                throw;
-            }
+            // EF Core tracks changes automatically, no need for Update()
         }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<IReadOnlyList<BucketInfo>> GetBucketsAsync()

@@ -127,9 +127,27 @@ public static class AdminEndpoints
             ? JsonSerializer.Serialize(request.CustomFields)
             : null;
 
-        await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson);
+        try
+        {
+            await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson);
+            return Results.Ok(new { message = "Consent updated" });
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                logger.LogWarning("Unique constraint violation during consent override for bucket={Bucket}, email={Email}, permission={Permission}: {ErrorMessage}", request.Bucket, request.Email, request.Permission, ex.InnerException?.Message);
+                return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
+            }
 
-        return Results.Ok(new { message = "Consent updated" });
+            logger.LogError(ex, "Database update error during consent override for bucket={Bucket}, email={Email}, permission={Permission}", request.Bucket, request.Email, request.Permission);
+            return Results.StatusCode(500); // Generic 500 for other database errors
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An unexpected error occurred during consent override for bucket={Bucket}, email={Email}, permission={Permission}", request.Bucket, request.Email, request.Permission);
+            return Results.StatusCode(500); // Generic 500 for other unexpected errors
+        }
     }
 
     private static async Task<IResult> GenerateToken(
