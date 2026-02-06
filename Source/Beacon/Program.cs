@@ -328,7 +328,6 @@ try
     {
         var host = context.Request.Host.Host.ToLowerInvariant();
         
-        // Sanitize to prevent https://https:// bugs
         var primaryApiHost = routingOptions.ApiHosts.FirstOrDefault()?
             .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
             .Replace("http://", "", StringComparison.OrdinalIgnoreCase);
@@ -339,20 +338,18 @@ try
 
         if (isProductionHost && !string.IsNullOrEmpty(primaryApiHost))
         {
-            // Production: Force HTTPS
             apiBase = $"https://{primaryApiHost}";
         }
         else
         {
-            // Development: Trust current scheme and point to the API port
             apiBase = $"{context.Request.Scheme}://{host}:{routingOptions.ApiPort}";
         }
 
         var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
         var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
         
-        // Critical: Prevent Cloudflare/Browser from caching the wrong environment's config
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+        context.Response.Headers.Append("Expires", "0");
         
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
