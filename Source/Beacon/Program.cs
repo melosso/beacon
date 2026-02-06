@@ -269,10 +269,18 @@ try
 
     // Middleware Pipeline
 
-    // Forwarded Headers must be first (before any middleware that reads Host/Scheme)
+    // Forwarded Headers configuration (for reverse proxy)
     if (trustForwardedHeaders)
     {
-        app.UseForwardedHeaders();
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | 
+                                    ForwardedHeaders.XForwardedProto | 
+                                    ForwardedHeaders.XForwardedHost;
+                                    
+            options.KnownProxies.Clear();
+            options.KnownIPNetworks.Clear();
+        });
     }
 
     // Add Serilog request logging
