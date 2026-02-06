@@ -168,7 +168,7 @@ curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
 ```bash
 # Supported languages: en (default), de, fr, nl, pl, es
 curl -X POST http://localhost:5000/api/tokens/generate \
-  -H "X-Api-Key: INSECURE-CHANGE-ME-api-key" \
+  -H "X-Api-Key: your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
     "bucket": "q1-campaign",
@@ -216,14 +216,14 @@ When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based ro
 
 ### Port-Based Routing
 
-When `ApiHosts`/`AdminHosts` are not configured, Beacon uses port-based routing:
+When `ApiHosts`/`AdminHosts` are not configured, Beacon uses the following ports that can be overridden by changing the following variables:
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `Beacon__ApiPort` | Port for public API endpoints | 5000 |
 | `Beacon__AdminPort` | Port for admin panel and OpenAPI docs | 5001 |
 
-You may need to combine both when working with a reverse proxy (e.g. Cloudflare Tunnels or Pangolin).
+You may need to combine both the host- and port-based variables when working with a reverse proxy (e.g. Cloudflare Tunnels or Pangolin).
 
 ### Generating Secure Keys
 
