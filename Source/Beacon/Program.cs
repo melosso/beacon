@@ -329,14 +329,12 @@ try
         var host = context.Request.Host.Host.ToLowerInvariant();
         var apiBase = "";
 
-        // Only set cross-origin API base when accessed via a configured host
         if (routingOptions.ApiHosts.Count > 0 &&
             (routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host)))
         {
-            apiBase = $"{context.Request.Scheme}://{routingOptions.ApiHosts.First()}";
+            apiBase = $"//{routingOptions.ApiHosts.First()}";
         }
 
-        // Public URL: always use the configured API host for user-facing links (token URLs, opt-out pages)
         var publicUrl = routingOptions.ApiHosts.Count > 0
             ? $"https://{routingOptions.ApiHosts.First()}"
             : "";
