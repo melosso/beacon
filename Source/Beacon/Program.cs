@@ -329,17 +329,21 @@ try
         var host = context.Request.Host.Host.ToLowerInvariant();
         var apiBase = "";
 
+        // If ApiHosts are defined, force the API_BASE to use HTTPS
         if (routingOptions.ApiHosts.Count > 0 &&
             (routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host)))
         {
-            apiBase = $"//{routingOptions.ApiHosts.First()}";
+            // Explicitly hardcode https to resolve Mixed Content issues
+            apiBase = $"https://{routingOptions.ApiHosts.First()}";
         }
 
+        // Public URL logic remains consistent with forced HTTPS
         var publicUrl = routingOptions.ApiHosts.Count > 0
             ? $"https://{routingOptions.ApiHosts.First()}"
             : "";
 
         var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
+        
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
 
