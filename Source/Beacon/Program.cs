@@ -327,22 +327,32 @@ try
     app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
     {
         var host = context.Request.Host.Host.ToLowerInvariant();
-        var apiBase = "";
+        
+        // Sanitize to prevent https://https:// bugs
+        var primaryApiHost = routingOptions.ApiHosts.FirstOrDefault()?
+            .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("http://", "", StringComparison.OrdinalIgnoreCase);
 
-        // If ApiHosts are defined, force the API_BASE to use HTTPS
-        if (routingOptions.ApiHosts.Count > 0 &&
-            (routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host)))
+        string apiBase;
+        bool isProductionHost = routingOptions.AdminHosts.Contains(host) || 
+                                routingOptions.ApiHosts.Contains(host);
+
+        if (isProductionHost && !string.IsNullOrEmpty(primaryApiHost))
         {
-            // Explicitly hardcode https to resolve Mixed Content issues
-            apiBase = $"https://{routingOptions.ApiHosts.First()}";
+            // Production: Force HTTPS
+            apiBase = $"https://{primaryApiHost}";
+        }
+        else
+        {
+            // Development: Trust current scheme and point to the API port
+            apiBase = $"{context.Request.Scheme}://{host}:{routingOptions.ApiPort}";
         }
 
-        // Public URL logic remains consistent with forced HTTPS
-        var publicUrl = routingOptions.ApiHosts.Count > 0
-            ? $"https://{routingOptions.ApiHosts.First()}"
-            : "";
-
+        var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
         var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
+        
+        // Critical: Prevent Cloudflare/Browser from caching the wrong environment's config
+        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
