@@ -232,5 +232,13 @@ public class ConsentTests
             var exists = _records.Values.Any(r => r.Bucket == bucket && r.EmailHash == emailHash);
             return Task.FromResult(exists);
         }
+
+        public Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash)
+        {
+            var records = _records.Values
+                .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
+                .ToList();
+            return Task.FromResult<IReadOnlyList<ConsentRecord>>(records);
+        }
     }
 }

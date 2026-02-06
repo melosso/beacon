@@ -113,6 +113,12 @@ try
     builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
     builder.Services.AddScoped<IConsentService, ConsentService>();
     builder.Services.AddScoped<ITokenUsageRepository, TokenUsageRepository>();
+    builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
+    builder.Services.AddSingleton<IWebhookDeliveryQueue, WebhookDeliveryQueue>();
+    builder.Services.AddScoped<IWebhookService, WebhookService>();
+    builder.Services.AddHostedService<Beacon.Api.WebhookDeliveryService>();
+
+    builder.Services.AddHttpClient();
 
     builder.Services.AddAuthentication(options =>
         {
@@ -268,6 +274,43 @@ try
         if (!columnExists)
         {
             db.Database.ExecuteSqlRaw("ALTER TABLE ConsentRecords ADD COLUMN CustomFields TEXT NULL");
+        }
+
+        // Create WebhookConfigs table if it doesn't exist (EnsureCreated doesn't add new tables to existing databases)
+        var webhookTableExists = db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='WebhookConfigs'")
+            .AsEnumerable().FirstOrDefault() > 0;
+
+        if (!webhookTableExists)
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE WebhookConfigs (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Bucket TEXT NOT NULL,
+                    EncryptedUrl TEXT NOT NULL,
+                    EncryptedMethod TEXT NOT NULL,
+                    EncryptedHeaders TEXT NULL,
+                    EncryptedSecret TEXT NULL,
+                    BodyTemplate TEXT NULL,
+                    IsEnabled INTEGER NOT NULL DEFAULT 1,
+                    CreatedAt TEXT NOT NULL,
+                    LastTriggeredAt TEXT NULL,
+                    TriggerCount INTEGER NOT NULL DEFAULT 0
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_WebhookConfigs_Bucket ON WebhookConfigs (Bucket)");
+        }
+        else
+        {
+            // Add EncryptedSecret column to existing WebhookConfigs tables
+            var secretColumnExists = db.Database.SqlQueryRaw<int>(
+                "SELECT COUNT(*) AS Value FROM pragma_table_info('WebhookConfigs') WHERE name='EncryptedSecret'")
+                .AsEnumerable().FirstOrDefault() > 0;
+
+            if (!secretColumnExists)
+            {
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookConfigs ADD COLUMN EncryptedSecret TEXT NULL");
+            }
         }
     }
 

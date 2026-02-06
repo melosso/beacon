@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
@@ -83,11 +85,30 @@ public static class AdminEndpoints
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Check if an email address exists in a bucket.");
+
+        routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        // Webhook Management APIs (excluded from OpenAPI)
+        routes.MapGet("/api/admin/buckets/{bucket}/webhook", GetWebhookConfig)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/buckets/{bucket}/webhook", SaveWebhookConfig)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapDelete("/api/admin/buckets/{bucket}/webhook", DeleteWebhookConfig)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
         [FromBody] OverrideConsentRequest request,
         [FromServices] IConsentService consentService,
+        [FromServices] IConsentRepository consentRepository,
+        [FromServices] IWebhookService webhookService,
         [FromServices] EmailHasher emailHasher,
         ILogger<Program> logger)
     {
@@ -114,11 +135,11 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "Invalid status. Use 'OptedIn' or 'OptedOut'" });
         }
 
-        var emailId = emailHasher.Hash(request.Email)[..12];
+        var emailHash = emailHasher.Hash(request.Email);
         logger.LogInformation(
             "Processing consent override: bucket={Bucket}, id={EmailId}, permission={Permission}, status={Status}, timestamp={Timestamp}",
             request.Bucket,
-            emailId,
+            emailHash[..12],
             request.Permission,
             status,
             DateTime.UtcNow);
@@ -130,6 +151,9 @@ public static class AdminEndpoints
         try
         {
             await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson);
+
+            await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+
             return Results.Ok(new { message = "Consent updated" });
         }
         catch (DbUpdateException ex)
@@ -150,10 +174,86 @@ public static class AdminEndpoints
         }
     }
 
+    private static async Task<IResult> BatchOverrideConsent(
+        string bucket,
+        [FromBody] BatchOverrideRequest request,
+        [FromServices] IConsentService consentService,
+        [FromServices] IConsentRepository consentRepository,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] EmailHasher emailHasher,
+        ILogger<Program> logger)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var emailValidation = InputValidator.ValidateEmail(request.Email);
+        if (!emailValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = emailValidation.Error });
+        }
+
+        if (request.Permissions is null || request.Permissions.Count == 0)
+        {
+            return Results.BadRequest(new { error = "At least one permission is required" });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        var emailHash = emailHasher.Hash(request.Email);
+
+        string? customFieldsJson = request.CustomFields is { Count: > 0 }
+            ? JsonSerializer.Serialize(request.CustomFields)
+            : null;
+
+        try
+        {
+            foreach (var (permission, status) in request.Permissions)
+            {
+                if (!Enum.TryParse<ConsentStatus>(status, true, out var consentStatus))
+                {
+                    return Results.BadRequest(new { error = $"Invalid status '{status}' for permission '{permission}'" });
+                }
+
+                await consentService.OverrideAsync(normalizedBucket, request.Email, permission, consentStatus, customFieldsJson);
+            }
+
+            logger.LogInformation(
+                "Batch consent override: bucket={Bucket}, id={EmailId}, permissions={Permissions}, timestamp={Timestamp}",
+                normalizedBucket,
+                emailHash[..12],
+                string.Join(",", request.Permissions.Select(p => $"{p.Key}:{p.Value}")),
+                DateTime.UtcNow);
+
+            // Fire one webhook with full permission snapshot
+            await TriggerWebhookSafe(webhookService, consentRepository, normalizedBucket, request.Email, emailHash, customFieldsJson);
+
+            return Results.Ok(new { message = "Consent updated" });
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
+            }
+
+            logger.LogError(ex, "Database update error during batch consent override for bucket={Bucket}", normalizedBucket);
+            return Results.StatusCode(500);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error during batch consent override for bucket={Bucket}", normalizedBucket);
+            return Results.StatusCode(500);
+        }
+    }
+
     private static async Task<IResult> GenerateToken(
         [FromBody] GenerateTokenRequest request,
         [FromServices] TokenGenerator generator,
         [FromServices] IConsentService consentService,
+        [FromServices] IConsentRepository consentRepository,
+        [FromServices] IWebhookService webhookService,
         [FromServices] EmailHasher emailHasher,
         ILogger<Program> logger)
     {
@@ -204,6 +304,7 @@ public static class AdminEndpoints
                 : null;
 
             // Create/update consent records with specified states
+            var hasChanges = false;
             foreach (var (permission, optedIn) in request.Permissions)
             {
                 var status = optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut;
@@ -211,16 +312,24 @@ public static class AdminEndpoints
                 if (request.SkipPermissionUpdate)
                 {
                     // Only insert if record doesn't exist, preserving existing user preferences
-                    await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                    var created = await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                    if (created) hasChanges = true;
                 }
                 else
                 {
                     // Always upsert (insert or update)
                     await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                    hasChanges = true;
                 }
             }
 
-            var emailId = emailHasher.Hash(request.Email)[..12];
+            var emailHash = emailHasher.Hash(request.Email);
+            if (hasChanges)
+            {
+                await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+            }
+
+            var emailId = emailHash[..12];
             logger.LogInformation(
                 "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
                 request.Bucket,
@@ -410,9 +519,9 @@ public static class AdminEndpoints
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var emailHash = emailHasher.Hash(normalizedEmail);
+        var hash = emailHasher.Hash(normalizedEmail);
 
-        var exists = await repository.EmailExistsInBucketAsync(normalizedBucket, emailHash);
+        var exists = await repository.EmailExistsInBucketAsync(normalizedBucket, hash);
 
         return Results.Ok(new { exists });
     }
@@ -448,6 +557,193 @@ public static class AdminEndpoints
         }
 
         return Results.Ok(new { bucket = normalizedBucket, records, total = records.Count });
+    }
+
+    // Webhook endpoints
+
+    private static async Task<IResult> GetWebhookConfig(
+        string bucket,
+        [FromServices] IWebhookService webhookService)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var config = await webhookService.GetWebhookConfigAsync(bucket.Trim().ToLowerInvariant());
+        if (config == null)
+        {
+            return Results.Ok(new { configured = false });
+        }
+
+        var headersDict = !string.IsNullOrEmpty(config.EncryptedHeaders)
+            ? JsonSerializer.Deserialize<Dictionary<string, string>>(config.EncryptedHeaders)
+            : new Dictionary<string, string>();
+
+        return Results.Ok(new
+        {
+            configured = true,
+            url = config.EncryptedUrl,
+            method = config.EncryptedMethod,
+            headers = headersDict,
+            bodyTemplate = config.BodyTemplate,
+            isEnabled = config.IsEnabled,
+            lastTriggeredAt = config.LastTriggeredAt,
+            triggerCount = config.TriggerCount
+        });
+    }
+
+    private static async Task<IResult> SaveWebhookConfig(
+        string bucket,
+        [FromBody] WebhookConfigRequest request,
+        [FromServices] IWebhookService webhookService)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Url))
+        {
+            return Results.BadRequest(new { error = "URL is required" });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Method))
+        {
+            return Results.BadRequest(new { error = "HTTP method is required" });
+        }
+
+        var validMethods = new[] { "GET", "POST", "PUT", "PATCH", "DELETE" };
+        if (!validMethods.Contains(request.Method.ToUpperInvariant()))
+        {
+            return Results.BadRequest(new { error = "Invalid HTTP method" });
+        }
+
+        // Validate URL format
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != "http" && uri.Scheme != "https"))
+        {
+            return Results.BadRequest(new { error = "Invalid URL format" });
+        }
+
+        // SSRF protection: block private/reserved IP addresses
+        if (!await IsWebhookUrlSafeAsync(uri))
+        {
+            return Results.BadRequest(new { error = "URL must not point to a private or reserved address" });
+        }
+
+        var secret = await webhookService.SaveWebhookConfigAsync(
+            bucket.Trim().ToLowerInvariant(),
+            request.Url,
+            request.Method,
+            request.Headers,
+            request.BodyTemplate);
+
+        return Results.Ok(new
+        {
+            success = true,
+            signingSecret = secret
+        });
+    }
+
+    private static async Task<IResult> DeleteWebhookConfig(
+        string bucket,
+        [FromServices] IWebhookService webhookService)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        await webhookService.DeleteWebhookConfigAsync(bucket.Trim().ToLowerInvariant());
+        return Results.Ok(new { success = true });
+    }
+
+    private static async Task<bool> IsWebhookUrlSafeAsync(Uri uri)
+    {
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(uri.Host);
+            return addresses.All(addr => !IsPrivateOrReserved(addr));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static async Task TriggerWebhookSafe(
+        IWebhookService webhookService,
+        IConsentRepository repository,
+        string bucket,
+        string email,
+        string emailHash,
+        string? customFieldsJson)
+    {
+        try
+        {
+            var normalizedBucket = bucket.Trim().ToLowerInvariant();
+
+            // Fetch full permission snapshot for this email
+            var records = await repository.GetByEmailAsync(normalizedBucket, emailHash);
+            var permissions = records.Select(r => new PermissionState
+            {
+                Permission = r.Permission,
+                Status = r.Status
+            }).ToList();
+
+            if (permissions.Count == 0) return;
+
+            var data = new WebhookTriggerData
+            {
+                Bucket = normalizedBucket,
+                Email = email.Trim().ToLowerInvariant(),
+                EmailHash = emailHash,
+                Permissions = permissions,
+                CustomFields = customFieldsJson
+            };
+
+            await webhookService.TriggerWebhookAsync(normalizedBucket, data);
+        }
+        catch
+        {
+            // Silently ignore webhook failures to not disrupt the main operation
+        }
+    }
+
+    private static bool IsPrivateOrReserved(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address))
+            return true;
+
+        if (address.IsIPv4MappedToIPv6)
+            address = address.MapToIPv4();
+
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var bytes = address.GetAddressBytes();
+            return bytes[0] switch
+            {
+                10 => true,                                          // 10.0.0.0/8
+                127 => true,                                         // 127.0.0.0/8
+                169 when bytes[1] == 254 => true,                    // 169.254.0.0/16
+                172 when bytes[1] >= 16 && bytes[1] <= 31 => true,   // 172.16.0.0/12
+                192 when bytes[1] == 168 => true,                    // 192.168.0.0/16
+                0 => true,                                           // 0.0.0.0/8
+                100 when bytes[1] >= 64 && bytes[1] <= 127 => true,  // 100.64.0.0/10
+                _ => false
+            };
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
+        }
+
+        return false;
     }
 }
 
@@ -513,4 +809,22 @@ public sealed class GenerateTokenResponse
 public sealed class CheckEmailRequest
 {
     public string Email { get; set; } = string.Empty;
+}
+
+public sealed class BatchOverrideRequest
+{
+    public string Email { get; set; } = string.Empty;
+    /// <summary>
+    /// Permission states: {"newsletter": "OptedIn", "marketing": "OptedOut"}
+    /// </summary>
+    public Dictionary<string, string> Permissions { get; set; } = new();
+    public Dictionary<string, string>? CustomFields { get; set; }
+}
+
+public sealed class WebhookConfigRequest
+{
+    public string Url { get; set; } = string.Empty;
+    public string Method { get; set; } = "POST";
+    public Dictionary<string, string>? Headers { get; set; }
+    public string? BodyTemplate { get; set; }
 }
