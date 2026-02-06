@@ -239,12 +239,12 @@ try
     {
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                       ForwardedHeaders.XForwardedProto |
-                                       ForwardedHeaders.XForwardedHost;
-            // Clear known networks/proxies to accept from any proxy
-            // In production, you may want to restrict this
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | 
+                                    ForwardedHeaders.XForwardedProto | 
+                                    ForwardedHeaders.XForwardedHost;
+
             options.KnownProxies.Clear();
+            options.KnownIPNetworks.Clear();
         });
     }
 
@@ -267,22 +267,6 @@ try
         }
     }
 
-    // Middleware Pipeline
-
-    // Forwarded Headers configuration (for reverse proxy)
-    if (trustForwardedHeaders)
-    {
-        builder.Services.Configure<ForwardedHeadersOptions>(options =>
-        {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | 
-                                    ForwardedHeaders.XForwardedProto | 
-                                    ForwardedHeaders.XForwardedHost;
-                                    
-            options.KnownProxies.Clear();
-            options.KnownIPNetworks.Clear();
-        });
-    }
-
     // Add Serilog request logging
     app.UseSerilogRequestLogging();
 
@@ -296,6 +280,12 @@ try
         options.MaxRequests = 1500;
         options.Window = TimeSpan.FromMinutes(1);
     });
+
+    // Middleware pipeline
+    if (trustForwardedHeaders)
+    {
+        app.UseForwardedHeaders();
+    }
 
     app.UseAuthentication();
     app.UseAuthorization();
