@@ -243,8 +243,12 @@ try
                                     ForwardedHeaders.XForwardedProto | 
                                     ForwardedHeaders.XForwardedHost;
 
+            // Clear both to ensure no internal IP filtering occurs
             options.KnownProxies.Clear();
-            options.KnownIPNetworks.Clear();
+            options.KnownIPNetworks.Clear(); 
+            
+            // Ensure we process headers from the tunneling proxy
+            options.ForwardLimit = null; 
         });
     }
 
@@ -272,9 +276,6 @@ try
 
     app.UseCors("Default");
 
-    // Host-based routing security (replaces port-based checks)
-    app.UseHostRouting();
-
     app.UseRateLimiting(options =>
     {
         options.MaxRequests = 1500;
@@ -287,6 +288,7 @@ try
         app.UseForwardedHeaders();
     }
 
+    app.UseHostRouting();
     app.UseAuthentication();
     app.UseAuthorization();
 
