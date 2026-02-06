@@ -8,6 +8,8 @@ This is **Beacon**, a lightweight consent and opt-out service built with .NET 10
 
 ![Screenshot of Beacon](https://github.com/melosso/beacon/blob/main/.github/images/screenshot.webp?raw=true)
 
+> Feel free to play around in our live demo instance, available on [beacon-demo.melosso.com](https://beacon-demo.melosso.com). Use `Beacon-Api-Key` as your access token.
+
 ## What is Beacon?
 
 Beacon manages email permission states via logical groupings called Buckets. For every email address within a bucket, the application generates a unique, temporary URL that enables users to update their consent records directly. This functionality is exposed through a unified web API, allowing automation tools to retrieve these URLs and inject them into outgoing messages for decentralized permission management.
