@@ -5,6 +5,7 @@ using Beacon.Core.Services;
 using Beacon.Core.Validation;
 using Beacon.Tokens;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Api;
 
@@ -160,49 +161,68 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = permissionsValidation.Error });
         }
 
-        var tokenOptions = new Tokens.GenerateTokenRequest
+        try
         {
-            AllowReplay = request.AllowReplay,
-            ExpiryDays = request.ExpiryDays,
-            Language = request.Language
-        };
-
-        var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
-
-        // Serialize custom fields to JSON for storage
-        string? customFieldsJson = request.CustomFields is { Count: > 0 }
-            ? JsonSerializer.Serialize(request.CustomFields)
-            : null;
-
-        // Create/update consent records with specified states
-        foreach (var (permission, optedIn) in request.Permissions)
-        {
-            var status = optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut;
-
-            if (request.SkipPermissionUpdate)
+            var tokenOptions = new Tokens.GenerateTokenRequest
             {
-                // Only insert if record doesn't exist, preserving existing user preferences
-                await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
-            }
-            else
+                AllowReplay = request.AllowReplay,
+                ExpiryDays = request.ExpiryDays,
+                Language = request.Language
+            };
+
+            var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
+
+            // Serialize custom fields to JSON for storage
+            string? customFieldsJson = request.CustomFields is { Count: > 0 }
+                ? JsonSerializer.Serialize(request.CustomFields)
+                : null;
+
+            // Create/update consent records with specified states
+            foreach (var (permission, optedIn) in request.Permissions)
             {
-                // Always upsert (insert or update)
-                await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                var status = optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut;
+
+                if (request.SkipPermissionUpdate)
+                {
+                    // Only insert if record doesn't exist, preserving existing user preferences
+                    await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                }
+                else
+                {
+                    // Always upsert (insert or update)
+                    await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                }
             }
+
+            var emailId = emailHasher.Hash(request.Email)[..12];
+            logger.LogInformation(
+                "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
+                request.Bucket,
+                emailId,
+                string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
+                request.AllowReplay,
+                request.ExpiryDays,
+                request.SkipPermissionUpdate,
+                DateTime.UtcNow);
+
+            return Results.Ok(new GenerateTokenResponse { Token = token });
         }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                logger.LogWarning("Unique constraint violation during token generation for bucket={Bucket}, email={Email}: {ErrorMessage}", request.Bucket, request.Email, ex.InnerException?.Message);
+                return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
+            }
 
-        var emailId = emailHasher.Hash(request.Email)[..12];
-        logger.LogInformation(
-            "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
-            request.Bucket,
-            emailId,
-            string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
-            request.AllowReplay,
-            request.ExpiryDays,
-            request.SkipPermissionUpdate,
-            DateTime.UtcNow);
-
-        return Results.Ok(new GenerateTokenResponse { Token = token });
+            logger.LogError(ex, "Database update error during token generation for bucket={Bucket}, email={Email}", request.Bucket, request.Email);
+            return Results.StatusCode(500);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An unexpected error occurred during token generation for bucket={Bucket}, email={Email}", request.Bucket, request.Email);
+            return Results.StatusCode(500);
+        }
     }
 
     private static async Task<IResult> GetBuckets(

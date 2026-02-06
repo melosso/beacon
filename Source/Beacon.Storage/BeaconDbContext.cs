@@ -29,7 +29,7 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.TokenHash)
                 .HasMaxLength(64);
 
-            entity.HasIndex(e => new { e.EmailHash, e.Permission })
+            entity.HasIndex(e => new { e.Bucket, e.EmailHash, e.Permission })
                 .IsUnique();
 
             entity.HasIndex(e => e.EmailHash);

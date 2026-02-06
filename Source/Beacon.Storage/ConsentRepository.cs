@@ -22,28 +22,38 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task UpsertAsync(ConsentRecord record)
     {
-        var existing = await _context.ConsentRecords
-            .FirstOrDefaultAsync(r => r.Bucket == record.Bucket && r.EmailHash == record.EmailHash && r.Permission == record.Permission);
-
-        if (existing is null)
+        try
         {
+            // Attempt to add the record first
             _context.ConsentRecords.Add(record);
+            await _context.SaveChangesAsync();
         }
-        else
+        catch (DbUpdateException ex)
         {
-            existing.Status = record.Status;
-            existing.Source = record.Source;
-            existing.ChangedAt = record.ChangedAt;
-            existing.TokenHash = record.TokenHash;
-            existing.ExpiresAt = record.ExpiresAt;
-            existing.EncryptedEmail ??= record.EncryptedEmail;  // Update if not already set
-            if (record.CustomFields is not null)
+            // Check if it's a unique constraint violation
+            if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
             {
-                existing.CustomFields = record.CustomFields;
+                // Record already exists, so update it
+                var existing = await _context.ConsentRecords
+                    .AsNoTracking() // Use AsNoTracking to avoid conflicts with the entity already tracked by Add(record)
+                    .FirstOrDefaultAsync(r => r.Bucket == record.Bucket && r.EmailHash == record.EmailHash && r.Permission == record.Permission);
+
+                if (existing is null)
+                {
+                    throw; // This shouldn't happen, but Im'a re-throw the exception
+                }
+
+                _context.Entry(existing).CurrentValues.SetValues(record); 
+
+                existing.EncryptedEmail ??= record.EncryptedEmail;
+
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw;
             }
         }
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task<IReadOnlyList<BucketInfo>> GetBucketsAsync()
@@ -105,7 +115,7 @@ public sealed class ConsentRepository : IConsentRepository
             })
             .ToList();
 
-        // Filter by search (matches emailHash prefix - the ID shown in logs)
+        // Filter by search (matches emailHash prefix which is the ID shown in logs)
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLowerInvariant();

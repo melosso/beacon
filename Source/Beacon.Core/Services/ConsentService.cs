@@ -22,7 +22,8 @@ public sealed class ConsentService : IConsentService
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var emailHash = _emailHasher.Hash(email);
-        var record = await _repository.GetAsync(normalizedBucket, emailHash, permission);
+        var normalizedPermission = NormalizePermission(permission);
+        var record = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
         return record?.Status ?? ConsentStatus.OptedIn;
     }
 
@@ -36,13 +37,14 @@ public sealed class ConsentService : IConsentService
 
         foreach (var permission in permissions)
         {
+            var normalizedPermission = NormalizePermission(permission);
             var record = new ConsentRecord
             {
                 Id = Guid.NewGuid(),
                 Bucket = normalizedBucket,
                 EmailHash = emailHash,
                 EncryptedEmail = encryptedEmail,
-                Permission = permission,
+                Permission = normalizedPermission,
                 Status = ConsentStatus.OptedOut,
                 Source = source,
                 ChangedAt = DateTime.UtcNow,
@@ -59,6 +61,7 @@ public sealed class ConsentService : IConsentService
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var emailHash = _emailHasher.Hash(normalizedEmail);
         var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
+        var normalizedPermission = NormalizePermission(permission);
 
         var record = new ConsentRecord
         {
@@ -66,7 +69,7 @@ public sealed class ConsentService : IConsentService
             Bucket = normalizedBucket,
             EmailHash = emailHash,
             EncryptedEmail = encryptedEmail,
-            Permission = permission,
+            Permission = normalizedPermission,
             Status = status,
             Source = ConsentSource.Admin,
             ChangedAt = DateTime.UtcNow,
@@ -81,9 +84,10 @@ public sealed class ConsentService : IConsentService
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var emailHash = _emailHasher.Hash(normalizedEmail);
+        var normalizedPermission = NormalizePermission(permission);
 
-        // Check if record already exists - if so, preserve user's choice
-        var existing = await _repository.GetAsync(normalizedBucket, emailHash, permission);
+        // Check if record already exists, if so I'll preserve user's choice
+        var existing = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
         if (existing is not null)
         {
             return;
@@ -97,7 +101,7 @@ public sealed class ConsentService : IConsentService
             Bucket = normalizedBucket,
             EmailHash = emailHash,
             EncryptedEmail = encryptedEmail,
-            Permission = permission,
+            Permission = normalizedPermission,
             Status = status,
             Source = ConsentSource.Admin,
             ChangedAt = DateTime.UtcNow,
@@ -116,5 +120,10 @@ public sealed class ConsentService : IConsentService
     private static string NormalizeBucket(string bucket)
     {
         return bucket.Trim().ToLowerInvariant();
+    }
+
+    private static string NormalizePermission(string permission)
+    {
+        return permission.Trim().ToLowerInvariant();
     }
 }
