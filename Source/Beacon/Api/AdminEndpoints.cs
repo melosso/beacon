@@ -14,9 +14,12 @@ public static class AdminEndpoints
     private const string ManagementTag = "Management";
     private const string IntegrationTag = "Integration";
 
+    // The current list of supported languages as of right now
+    private static readonly IReadOnlyList<string> SupportedLanguages = new List<string> { "en", "de", "fr", "nl", "pl", "es" }.AsReadOnly();
+
     public static void MapAdminEndpoints(this IEndpointRouteBuilder routes)
     {
-        // Integration APIs (for external systems)
+        // Integration APIs (e.g. for external systems)
         routes.MapPost("/api/consent/override", OverrideConsent)
             .WithName("OverrideConsent")
             .WithTags(IntegrationTag)
@@ -159,6 +162,11 @@ public static class AdminEndpoints
         if (!permissionsValidation.IsValid)
         {
             return Results.BadRequest(new { error = permissionsValidation.Error });
+        }
+
+        if (!string.IsNullOrEmpty(request.Language) && !SupportedLanguages.Contains(request.Language.ToLowerInvariant()))
+        {
+            return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", SupportedLanguages)}" });
         }
 
         try
