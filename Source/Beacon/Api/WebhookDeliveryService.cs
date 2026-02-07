@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Beacon.Core.Models;
 using Beacon.Core.Services;
 
 namespace Beacon.Api;
@@ -45,6 +46,8 @@ public sealed class WebhookDeliveryService : BackgroundService
 
     private async Task DeliverWithRetryAsync(WebhookDeliveryMessage message, CancellationToken stoppingToken)
     {
+        Exception? lastException = null;
+
         for (var attempt = 0; attempt <= MaxRetries; attempt++)
         {
             try
@@ -64,6 +67,7 @@ public sealed class WebhookDeliveryService : BackgroundService
                     _logger.LogWarning(
                         "Webhook delivery blocked for bucket {Bucket}: URL {Url} resolves to a private/reserved address",
                         message.Bucket, message.Url);
+                    await PersistErrorAsync(message.Bucket, "URL resolves to a private/reserved address (SSRF blocked)", 0);
                     return; // Don't retry SSRF blocks
                 }
 
@@ -83,6 +87,7 @@ public sealed class WebhookDeliveryService : BackgroundService
             }
             catch (Exception ex)
             {
+                lastException = ex;
                 _logger.LogWarning(ex,
                     "Webhook delivery failed for bucket {Bucket} (attempt {Attempt}/{MaxRetries})",
                     message.Bucket, attempt + 1, MaxRetries + 1);
@@ -92,6 +97,41 @@ public sealed class WebhookDeliveryService : BackgroundService
         _logger.LogError(
             "Webhook delivery permanently failed for bucket {Bucket} after {MaxRetries} retries",
             message.Bucket, MaxRetries);
+
+        // Persist the delivery error
+        var statusCode = 0;
+        var errorMessage = lastException?.Message ?? "Unknown error";
+        if (lastException is HttpRequestException httpEx && httpEx.StatusCode.HasValue)
+        {
+            statusCode = (int)httpEx.StatusCode.Value;
+            errorMessage = $"HTTP {statusCode}: {httpEx.Message}";
+        }
+
+        await PersistErrorAsync(message.Bucket, errorMessage, statusCode);
+    }
+
+    private async Task PersistErrorAsync(string bucket, string errorMessage, int statusCode)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IWebhookRepository>();
+
+            await repository.AddErrorAsync(new WebhookDeliveryError
+            {
+                Id = Guid.NewGuid(),
+                Bucket = bucket,
+                ErrorMessage = errorMessage,
+                StatusCode = statusCode,
+                OccurredAt = DateTime.UtcNow
+            });
+
+            await repository.PruneErrorsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist webhook delivery error for bucket {Bucket}", bucket);
+        }
     }
 
     private async Task SendAsync(WebhookDeliveryMessage message)

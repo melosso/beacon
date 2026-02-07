@@ -12,6 +12,7 @@ public class BeaconDbContext : DbContext
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<UsedToken> UsedTokens => Set<UsedToken>();
     public DbSet<WebhookConfig> WebhookConfigs => Set<WebhookConfig>();
+    public DbSet<WebhookDeliveryError> WebhookDeliveryErrors => Set<WebhookDeliveryError>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,6 +66,20 @@ public class BeaconDbContext : DbContext
 
             entity.HasIndex(e => e.Bucket)
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<WebhookDeliveryError>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.ErrorMessage)
+                .IsRequired();
+
+            entity.HasIndex(e => e.Bucket);
         });
     }
 }

@@ -65,4 +65,27 @@ public sealed class WebhookRepository : IWebhookRepository
             await _context.SaveChangesAsync();
         }
     }
+
+    public async Task AddErrorAsync(WebhookDeliveryError error)
+    {
+        await _context.WebhookDeliveryErrors.AddAsync(error);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<WebhookDeliveryError>> GetRecentErrorsAsync(string bucket, int count = 5)
+    {
+        return await _context.WebhookDeliveryErrors
+            .Where(e => e.Bucket == bucket)
+            .OrderByDescending(e => e.OccurredAt)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    public async Task PruneErrorsAsync(int retentionDays = 14)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        await _context.WebhookDeliveryErrors
+            .Where(e => e.OccurredAt < cutoff)
+            .ExecuteDeleteAsync();
+    }
 }

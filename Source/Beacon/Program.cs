@@ -312,6 +312,25 @@ try
                 db.Database.ExecuteSqlRaw("ALTER TABLE WebhookConfigs ADD COLUMN EncryptedSecret TEXT NULL");
             }
         }
+
+        // Create WebhookDeliveryErrors table if it doesn't exist
+        var errorsTableExists = db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='WebhookDeliveryErrors'")
+            .AsEnumerable().FirstOrDefault() > 0;
+
+        if (!errorsTableExists)
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE WebhookDeliveryErrors (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Bucket TEXT NOT NULL,
+                    ErrorMessage TEXT NOT NULL,
+                    StatusCode INTEGER NOT NULL DEFAULT 0,
+                    OccurredAt TEXT NOT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_WebhookDeliveryErrors_Bucket ON WebhookDeliveryErrors (Bucket)");
+        }
     }
 
     // Add Serilog request logging

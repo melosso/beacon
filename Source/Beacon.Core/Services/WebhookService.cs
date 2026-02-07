@@ -149,6 +149,15 @@ public sealed class WebhookService : IWebhookService
         }
     }
 
+    public async Task<IReadOnlyList<string>> GetWebhookBucketsAsync()
+    {
+        var configs = await _repository.GetAllAsync();
+        return configs
+            .Where(c => c.IsEnabled)
+            .Select(c => c.Bucket)
+            .ToList();
+    }
+
     private static string ComputeSignature(string payload, string secret)
     {
         var keyBytes = Convert.FromBase64String(secret);

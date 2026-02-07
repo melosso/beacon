@@ -91,6 +91,10 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         // Webhook Management APIs (excluded from OpenAPI)
+        routes.MapGet("/api/admin/webhooks/buckets", GetWebhookBuckets)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
         routes.MapGet("/api/admin/buckets/{bucket}/webhook", GetWebhookConfig)
             .RequireAuthorization()
             .ExcludeFromDescription();
@@ -100,6 +104,10 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/webhook", DeleteWebhookConfig)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/buckets/{bucket}/webhook/errors", GetWebhookErrors)
             .RequireAuthorization()
             .ExcludeFromDescription();
     }
@@ -561,6 +569,13 @@ public static class AdminEndpoints
 
     // Webhook endpoints
 
+    private static async Task<IResult> GetWebhookBuckets(
+        [FromServices] IWebhookService webhookService)
+    {
+        var bucketNames = await webhookService.GetWebhookBucketsAsync();
+        return Results.Ok(bucketNames);
+    }
+
     private static async Task<IResult> GetWebhookConfig(
         string bucket,
         [FromServices] IWebhookService webhookService)
@@ -660,6 +675,26 @@ public static class AdminEndpoints
 
         await webhookService.DeleteWebhookConfigAsync(bucket.Trim().ToLowerInvariant());
         return Results.Ok(new { success = true });
+    }
+
+    private static async Task<IResult> GetWebhookErrors(
+        string bucket,
+        [FromServices] IWebhookRepository webhookRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var errors = await webhookRepository.GetRecentErrorsAsync(bucket.Trim().ToLowerInvariant());
+        return Results.Ok(errors.Select(e => new
+        {
+            bucket = e.Bucket,
+            errorMessage = e.ErrorMessage,
+            statusCode = e.StatusCode,
+            occurredAt = e.OccurredAt
+        }));
     }
 
     private static async Task<bool> IsWebhookUrlSafeAsync(Uri uri)
