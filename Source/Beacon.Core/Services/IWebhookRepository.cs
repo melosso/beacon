@@ -11,5 +11,7 @@ public interface IWebhookRepository
     Task UpdateTriggerStatsAsync(Guid id, DateTime triggeredAt);
     Task AddErrorAsync(WebhookDeliveryError error);
     Task<List<WebhookDeliveryError>> GetRecentErrorsAsync(string bucket, int count = 5);
+    Task DeleteErrorAsync(Guid id);
+    Task ClearErrorsAsync(string bucket);
     Task PruneErrorsAsync(int retentionDays = 14);
 }

@@ -79,6 +79,11 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.ErrorMessage)
                 .IsRequired();
 
+            entity.Property(e => e.RequestUrl);
+            entity.Property(e => e.RequestMethod).HasMaxLength(10);
+            entity.Property(e => e.AttemptCount);
+            entity.Property(e => e.StackTrace);
+
             entity.HasIndex(e => e.Bucket);
         });
     }

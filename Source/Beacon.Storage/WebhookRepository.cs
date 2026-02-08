@@ -81,6 +81,23 @@ public sealed class WebhookRepository : IWebhookRepository
             .ToListAsync();
     }
 
+    public async Task DeleteErrorAsync(Guid id)
+    {
+        var error = await _context.WebhookDeliveryErrors.FindAsync(id);
+        if (error != null)
+        {
+            _context.WebhookDeliveryErrors.Remove(error);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task ClearErrorsAsync(string bucket)
+    {
+        await _context.WebhookDeliveryErrors
+            .Where(e => e.Bucket == bucket)
+            .ExecuteDeleteAsync();
+    }
+
     public async Task PruneErrorsAsync(int retentionDays = 14)
     {
         var cutoff = DateTime.UtcNow.AddDays(-retentionDays);

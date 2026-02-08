@@ -110,6 +110,18 @@ public static class AdminEndpoints
         routes.MapGet("/api/admin/buckets/{bucket}/webhook/errors", GetWebhookErrors)
             .RequireAuthorization()
             .ExcludeFromDescription();
+
+        routes.MapDelete("/api/admin/buckets/{bucket}/webhook/errors/{id}", DeleteWebhookError)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapDelete("/api/admin/buckets/{bucket}/webhook/errors", ClearWebhookErrors)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/events", StreamEvents)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
@@ -690,11 +702,70 @@ public static class AdminEndpoints
         var errors = await webhookRepository.GetRecentErrorsAsync(bucket.Trim().ToLowerInvariant());
         return Results.Ok(errors.Select(e => new
         {
+            id = e.Id,
             bucket = e.Bucket,
             errorMessage = e.ErrorMessage,
             statusCode = e.StatusCode,
-            occurredAt = e.OccurredAt
+            occurredAt = e.OccurredAt,
+            requestUrl = e.RequestUrl,
+            requestMethod = e.RequestMethod,
+            attemptCount = e.AttemptCount,
+            stackTrace = e.StackTrace
         }));
+    }
+
+    private static async Task<IResult> DeleteWebhookError(
+        string bucket,
+        Guid id,
+        [FromServices] IWebhookRepository webhookRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        await webhookRepository.DeleteErrorAsync(id);
+        return Results.Ok(new { success = true });
+    }
+
+    private static async Task<IResult> ClearWebhookErrors(
+        string bucket,
+        [FromServices] IWebhookRepository webhookRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        await webhookRepository.ClearErrorsAsync(bucket.Trim().ToLowerInvariant());
+        return Results.Ok(new { success = true });
+    }
+
+    private static async Task StreamEvents(
+        HttpContext context,
+        [FromServices] IAdminNotificationService notifications)
+    {
+        context.Response.Headers.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers.Connection = "keep-alive";
+
+        var cancellationToken = context.RequestAborted;
+
+        await foreach (var notification in notifications.SubscribeAsync(cancellationToken))
+        {
+            var json = JsonSerializer.Serialize(new
+            {
+                bucket = notification.Bucket,
+                errorMessage = notification.ErrorMessage,
+                statusCode = notification.StatusCode,
+                occurredAt = notification.OccurredAt
+            });
+
+            await context.Response.WriteAsync($"event: webhook-error\ndata: {json}\n\n", cancellationToken);
+            await context.Response.Body.FlushAsync(cancellationToken);
+        }
     }
 
     private static async Task<bool> IsWebhookUrlSafeAsync(Uri uri)

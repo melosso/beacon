@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Beacon\Beacon.csproj" />
     <ProjectReference Include="..\Beacon.Core\Beacon.Core.csproj" />
     <ProjectReference Include="..\Beacon.Storage\Beacon.Storage.csproj" />
     <ProjectReference Include="..\Beacon.Tokens\Beacon.Tokens.csproj" />

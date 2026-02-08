@@ -207,6 +207,9 @@
       color: hsl(var(--foreground));
       text-decoration: none;
       display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .nav-item:hover { background-color: hsl(var(--muted)); }
@@ -265,7 +268,13 @@
       padding-right: 0.5rem;
     }
 
-    .btn-plus {
+    .nav-label-actions {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .btn-plus, .btn-sidebar {
       background: transparent;
       border: none;
       color: hsl(var(--muted-foreground));
@@ -276,8 +285,12 @@
       border-radius: 4px;
     }
 
-    .btn-plus:hover {
+    .btn-plus:hover, .btn-sidebar:hover {
       background-color: hsl(var(--muted));
+      color: hsl(var(--foreground));
+    }
+
+    .btn-sidebar.active {
       color: hsl(var(--foreground));
     }
 
@@ -395,7 +408,10 @@
       padding: 0.5rem 0.875rem;
       border-bottom: 1px solid hsl(var(--border));
       font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s;
     }
+    .webhook-errors-dropdown .error-item:hover { background: hsl(var(--muted)); }
     .webhook-errors-dropdown .error-item:last-child { border-bottom: none; }
     .webhook-errors-dropdown .error-time {
       color: hsl(var(--muted-foreground));
@@ -422,6 +438,45 @@
       font-weight: 600;
       color: hsl(var(--muted-foreground));
       border-bottom: 1px solid hsl(var(--border));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .webhook-errors-dropdown .error-header .clear-all-btn {
+      font-size: 0.65rem;
+      color: hsl(var(--destructive));
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      transition: background 0.15s;
+    }
+    .webhook-errors-dropdown .error-header .clear-all-btn:hover {
+      background: hsl(0 84% 95%);
+    }
+    .error-detail-message {
+      background: hsl(var(--muted));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 0.875rem;
+      font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      user-select: text;
+    }
+    .error-detail-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
     }
 
     .btn {
@@ -1044,6 +1099,17 @@
       gap: 0.4rem;
     }
 
+    .col-actions {
+      white-space: nowrap;
+    }
+    .row-status-icons {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.4rem;
+      width: 2rem;
+    }
+
     .btn-actions {
       background: transparent;
       border: 1px solid hsl(var(--border));
@@ -1145,6 +1211,11 @@
       left: auto;
       right: 0;
     }
+
+    .tooltip-wrapper .tooltip.tooltip-left {
+      left: 0;
+      right: auto;
+    }
   </style>
 </head>
 <body>
@@ -1179,12 +1250,26 @@
     <div class="nav-group">
       <div class="nav-label-container">
         <div class="nav-label select-none">Buckets</div>
-        <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
+        <div class="nav-label-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn-sidebar" id="btnSort" onclick="cycleSidebarSort()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="btnSortIcon"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h4"/></svg>
+            </button>
+            <span class="tooltip tooltip-above tooltip-right" id="btnSortTooltip">Sort buckets</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn-sidebar" id="btnDisplayMode" onclick="toggleSidebarDisplay()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </button>
+            <span class="tooltip tooltip-above tooltip-right" id="btnDisplayTooltip">Show code names</span>
+          </span>
+          <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="submenu" id="bucketSubmenu">
@@ -1233,7 +1318,7 @@
       <section class="header-container">
         <div>
           <h1>Overview</h1>
-          <span class="status-badge">Admin Panel</span>
+          <span class="status-badge">Buckets</span>
         </div>
         <div class="bucket-actions">
           <span class="tooltip-wrapper">
@@ -1243,14 +1328,14 @@
         </div>
       </section>
       <div class="table-wrapper">
-        <div class="scroll-area">
+        <div class="scroll-area" style="overflow-x:hidden">
           <table>
             <thead>
               <tr>
                 <th>Bucket</th>
                 <th>Records</th>
                 <th>Permissions</th>
-                <th style="width:50px"></th>
+                <th class="col-actions"></th>
               </tr>
             </thead>
             <tbody id="overviewBody"></tbody>
@@ -1277,7 +1362,7 @@
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
               </svg>
             </button>
-            <span class="tooltip">Webhook delivery errors</span>
+            <span class="tooltip">Notifications</span>
           </span>
           <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
           <span class="tooltip-wrapper">
@@ -1647,6 +1732,29 @@
     </div>
   </div>
 
+  <!-- Error Detail Modal -->
+  <div class="modal-backdrop" id="errorDetailModal" onclick="closeErrorDetailModal()">
+    <div class="modal" style="width:560px;max-width:95vw" onclick="event.stopPropagation()">
+      <h3>Error Details</h3>
+      <div class="error-detail-meta">
+        <span id="errorDetailTime">-</span>
+        <span id="errorDetailBadge"></span>
+      </div>
+      <div id="errorDetailRequest" style="margin-bottom:1rem;font-size:0.8rem;color:hsl(var(--muted-foreground))"></div>
+      <label style="display:block;font-size:0.75rem;font-weight:600;color:hsl(var(--muted-foreground));margin-bottom:0.35rem">Error Message</label>
+      <div class="error-detail-message" id="errorDetailMessage">-</div>
+      <div id="errorDetailStackWrap" style="display:none">
+        <label style="display:block;font-size:0.75rem;font-weight:600;color:hsl(var(--muted-foreground));margin-bottom:0.35rem">Stack Trace</label>
+        <div class="error-detail-message" id="errorDetailStack" style="font-size:0.7rem;max-height:200px;color:hsl(var(--muted-foreground))"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeErrorDetailModal()">Close</button>
+        <button class="btn btn-outline" onclick="copyErrorMessage()">Copy</button>
+        <button class="btn btn-destructive" onclick="removeWebhookError()">Remove</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/admin/config.js"></script>
   <script>
     const MAX_SIDEBAR_BUCKETS = 10;
@@ -1763,6 +1871,7 @@
         renderBucketsSidebar();
         renderPermissionsGrid();
         showView('overview');
+        connectSSE();
         // Notify on successful login
         notify('success', 'Authenticated', 'Mainframe access granted.');
       } else {
@@ -1788,6 +1897,7 @@
     }
 
     function logout() {
+      disconnectSSE();
       localStorage.removeItem('beacon_api_key');
       apiKey = '';
       location.reload();
@@ -1812,6 +1922,7 @@
       renderBucketsSidebar();
       renderPermissionsGrid();
       restoreViewFromUrl();
+      connectSSE();
     }
 
     function restoreViewFromUrl() {
@@ -1846,17 +1957,58 @@
       }
     }
 
+    // Sidebar preferences (persisted in localStorage)
+    const sidebarPrefs = JSON.parse(localStorage.getItem('beacon_sidebar_prefs') || '{}');
+    if (!sidebarPrefs.sort) sidebarPrefs.sort = 'default';
+    if (!sidebarPrefs.display) sidebarPrefs.display = 'description';
+
+    function saveSidebarPrefs() {
+      localStorage.setItem('beacon_sidebar_prefs', JSON.stringify(sidebarPrefs));
+    }
+
+    function cycleSidebarSort() {
+      const cycle = { default: 'az', az: 'za', za: 'default' };
+      sidebarPrefs.sort = cycle[sidebarPrefs.sort] || 'az';
+      saveSidebarPrefs();
+      renderBucketsSidebar();
+    }
+
+    function toggleSidebarDisplay() {
+      sidebarPrefs.display = sidebarPrefs.display === 'description' ? 'code' : 'description';
+      saveSidebarPrefs();
+      renderBucketsSidebar();
+    }
+
+    function updateSidebarButtons() {
+      const btn = document.getElementById('btnSort');
+      const icon = document.getElementById('btnSortIcon');
+      btn.classList.toggle('active', sidebarPrefs.sort !== 'default');
+      document.getElementById('btnSortTooltip').textContent =
+        sidebarPrefs.sort === 'az' ? 'Sorted A\u2013Z' : sidebarPrefs.sort === 'za' ? 'Sorted Z\u2013A' : 'Sort buckets';
+      icon.style.transform = sidebarPrefs.sort === 'za' ? 'scaleY(-1)' : '';
+      document.getElementById('btnDisplayMode').classList.toggle('active', sidebarPrefs.display === 'code');
+      document.getElementById('btnDisplayTooltip').textContent =
+        sidebarPrefs.display === 'code' ? 'Show descriptions' : 'Show code names';
+    }
+
     function renderBucketsSidebar() {
       const container = document.getElementById('bucketsList');
+      updateSidebarButtons();
       if (buckets.length === 0) {
         container.innerHTML = '<div class="nav-item" style="opacity:0.5">No buckets yet</div>';
         return;
       }
 
-      const displayBuckets = buckets.slice(0, MAX_SIDEBAR_BUCKETS);
-      let html = displayBuckets.map(b =>
-        `<a href="#" class="nav-item" data-bucket="${sanitize(b.name)}" onclick="showBucket('${sanitize(b.name)}')" title="${sanitize(b.name)}">${sanitize(formatPermission(b.name))}</a>`
-      ).join('');
+      let sorted = [...buckets];
+      if (sidebarPrefs.sort === 'az') sorted.sort((a, b) => a.name.localeCompare(b.name));
+      else if (sidebarPrefs.sort === 'za') sorted.sort((a, b) => b.name.localeCompare(a.name));
+
+      const displayBuckets = sorted.slice(0, MAX_SIDEBAR_BUCKETS);
+      const showCode = sidebarPrefs.display === 'code';
+      let html = displayBuckets.map(b => {
+        const label = showCode ? b.name : formatPermission(b.name);
+        return `<a href="#" class="nav-item" data-bucket="${sanitize(b.name)}" onclick="showBucket('${sanitize(b.name)}')" title="${sanitize(b.name)}">${sanitize(label)}</a>`;
+      }).join('');
 
       if (buckets.length > MAX_SIDEBAR_BUCKETS) {
         const remaining = buckets.length - MAX_SIDEBAR_BUCKETS;
@@ -2084,6 +2236,7 @@
     }
 
     function showBucket(bucket, pushState = true) {
+      if (document.getElementById('optionsModal').style.display === 'flex') closeOptionsModal();
       currentBucket = bucket;
       if (pushState) {
         currentPage = 1;
@@ -2123,6 +2276,18 @@
         webhookBuckets = new Set(whResult.data || []);
       }
 
+      // Fetch error counts for webhook-enabled buckets
+      const webhookErrorBuckets = new Set();
+      if (webhookBuckets.size > 0) {
+        const errorChecks = await Promise.all(
+          [...webhookBuckets].map(async name => {
+            const r = await apiRequest(`/api/admin/buckets/${encodeURIComponent(name)}/webhook/errors`);
+            return { name, hasErrors: r.ok && r.data && r.data.length > 0 };
+          })
+        );
+        errorChecks.forEach(c => { if (c.hasErrors) webhookErrorBuckets.add(c.name); });
+      }
+
       const body = document.getElementById('overviewBody');
 
       if (buckets.length === 0) {
@@ -2135,15 +2300,24 @@
           <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong></td>
           <td>${sanitize(b.totalEmails ?? 'N/A')}</td>
           <td>${(b.permissions || []).map(p => `<span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')"><span class="status-badge">${sanitize(formatPermission(p))}</span><span class="tooltip">${sanitize(p)}</span></span>`).join(' ') || 'None'}</td>
-          <td>
+          <td class="col-actions">
             <div class="row-actions">
-              ${webhookBuckets.has(b.name) ? `<span class="tooltip-wrapper">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--muted-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                </svg>
-                <span class="tooltip tooltip-above">Webhook configured</span>
-              </span>` : ''}
+              <span class="row-status-icons">
+                ${webhookErrorBuckets.has(b.name) ? `<span class="tooltip-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--destructive))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                  <span class="tooltip tooltip-above">Webhook delivery errors</span>
+                </span>` : ''}
+                ${webhookBuckets.has(b.name) ? `<span class="tooltip-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--muted-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                  <span class="tooltip tooltip-left">Webhook configured</span>
+                </span>` : ''}
+              </span>
               <span class="tooltip-wrapper">
                 <button class="btn-actions" onclick="toggleOverviewMenu(event, ${idx})">:</button>
                 <span class="tooltip tooltip-above tooltip-right">Actions</span>
@@ -2957,6 +3131,9 @@
     document.addEventListener('click', closeAllMenus);
 
     // ========== WEBHOOK ERRORS ==========
+    let webhookErrorsCache = [];
+    let activeErrorDetail = null;
+
     async function loadWebhookErrors(bucket) {
       const trigger = document.getElementById('webhookErrorsTrigger');
       const dropdown = document.getElementById('webhookErrorsDropdown');
@@ -2965,21 +3142,93 @@
 
       const errorsResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/webhook/errors`);
       const errors = errorsResult.ok && errorsResult.data ? errorsResult.data : [];
+      webhookErrorsCache = errors;
 
       if (errors.length === 0) {
         trigger.classList.remove('has-errors');
-        dropdown.innerHTML = `<div class="error-header" style="padding-bottom:0.8rem;">Notifications</div><div class="error-item" style="text-align:center;color:hsl(var(--muted-foreground));padding:1rem 0.875rem">Nothing here to report!</div>`;
+        dropdown.innerHTML = `<div class="error-header" style="padding-bottom:0.8rem;">Notifications</div><div class="error-item" style="text-align:center;color:hsl(var(--muted-foreground));padding:1rem 0.875rem;cursor:default">Nothing here to report!</div>`;
         return;
       }
 
       trigger.classList.add('has-errors');
-      dropdown.innerHTML = `<div class="error-header">Recent Delivery Errors</div>` +
-        errors.map(e => {
-          const time = new Date(e.occurredAt).toLocaleString();
+      dropdown.innerHTML = `<div class="error-header"><span>Recent Delivery Errors</span><button class="clear-all-btn" onclick="event.stopPropagation();clearAllWebhookErrors()">Clear All</button></div>` +
+        errors.map((e, i) => {
+          const time = formatDate(e.occurredAt);
           const msg = e.errorMessage.length > 120 ? e.errorMessage.substring(0, 120) + '...' : e.errorMessage;
           const badge = e.statusCode ? `<span class="error-status">${e.statusCode}</span>` : '';
-          return `<div class="error-item"><div class="error-time">${sanitize(time)}</div><div class="error-msg">${sanitize(msg)}${badge}</div></div>`;
+          return `<div class="error-item" onclick="event.stopPropagation();showErrorDetailModal(${i})"><div class="error-time">${sanitize(time)}</div><div class="error-msg">${sanitize(msg)}${badge}</div></div>`;
         }).join('');
+    }
+
+    function showErrorDetailModal(index) {
+      const error = webhookErrorsCache[index];
+      if (!error) return;
+      activeErrorDetail = error;
+      document.getElementById('errorDetailTime').textContent = new Date(error.occurredAt).toLocaleString();
+      const badgeEl = document.getElementById('errorDetailBadge');
+      badgeEl.innerHTML = error.statusCode ? `<span class="error-status">${error.statusCode}</span>` : '';
+
+      // Request info
+      const reqEl = document.getElementById('errorDetailRequest');
+      const parts = [];
+      if (error.requestMethod && error.requestUrl) {
+        parts.push(`${sanitize(error.requestMethod)} ${sanitize(error.requestUrl)}`);
+      }
+      if (error.attemptCount > 0) {
+        parts.push(`${error.attemptCount} attempt${error.attemptCount !== 1 ? 's' : ''}`);
+      }
+      reqEl.innerHTML = parts.length ? parts.join(' &middot; ') : '';
+
+      document.getElementById('errorDetailMessage').textContent = error.errorMessage;
+
+      // Stack trace
+      const stackWrap = document.getElementById('errorDetailStackWrap');
+      if (error.stackTrace) {
+        document.getElementById('errorDetailStack').textContent = error.stackTrace;
+        stackWrap.style.display = 'block';
+      } else {
+        stackWrap.style.display = 'none';
+      }
+
+      document.getElementById('errorDetailModal').style.display = 'flex';
+      document.getElementById('webhookErrorsDropdown').classList.remove('open');
+    }
+
+    function closeErrorDetailModal() {
+      document.getElementById('errorDetailModal').style.display = 'none';
+      activeErrorDetail = null;
+    }
+
+    function copyErrorMessage() {
+      if (!activeErrorDetail) return;
+      const e = activeErrorDetail;
+      let text = e.errorMessage;
+      const meta = [];
+      if (e.requestMethod && e.requestUrl) meta.push(`Request: ${e.requestMethod} ${e.requestUrl}`);
+      if (e.statusCode) meta.push(`Status: ${e.statusCode}`);
+      if (e.attemptCount > 0) meta.push(`Attempts: ${e.attemptCount}`);
+      meta.push(`Time: ${new Date(e.occurredAt).toLocaleString()}`);
+      if (meta.length) text = meta.join('\n') + '\n\n' + text;
+      if (e.stackTrace) text += '\n\nStack Trace:\n' + e.stackTrace;
+      navigator.clipboard.writeText(text).then(() => {
+        notify('success', 'Copied to clipboard');
+      });
+    }
+
+    async function removeWebhookError() {
+      if (!activeErrorDetail) return;
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/errors/${activeErrorDetail.id}`, { method: 'DELETE' });
+      if (result.ok) {
+        closeErrorDetailModal();
+        await loadWebhookErrors(currentBucket);
+      }
+    }
+
+    async function clearAllWebhookErrors() {
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/errors`, { method: 'DELETE' });
+      if (result.ok) {
+        await loadWebhookErrors(currentBucket);
+      }
     }
 
     function toggleWebhookErrors(event) {
@@ -3165,6 +3414,74 @@
         const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
         window.open(url, '_blank');
       }
+    }
+
+    // ========== SSE WEBHOOK ERROR NOTIFICATIONS ==========
+    let sseAbortController = null;
+    let sseReconnectDelay = 1000;
+
+    function connectSSE() {
+      if (sseAbortController) sseAbortController.abort();
+      sseAbortController = new AbortController();
+
+      fetch(`${API_BASE}/api/admin/events`, {
+        headers: { 'X-Api-Key': apiKey },
+        signal: sseAbortController.signal
+      }).then(response => {
+        if (!response.ok) throw new Error(`SSE failed: ${response.status}`);
+        sseReconnectDelay = 1000;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        function read() {
+          reader.read().then(({ done, value }) => {
+            if (done) { scheduleReconnect(); return; }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            let eventType = '';
+            let data = '';
+            for (const line of lines) {
+              if (line.startsWith('event: ')) { eventType = line.slice(7).trim(); }
+              else if (line.startsWith('data: ')) { data = line.slice(6); }
+              else if (line === '' && eventType && data) {
+                handleSSEEvent(eventType, data);
+                eventType = '';
+                data = '';
+              }
+            }
+            read();
+          }).catch(err => {
+            if (err.name !== 'AbortError') scheduleReconnect();
+          });
+        }
+        read();
+      }).catch(err => {
+        if (err.name !== 'AbortError') scheduleReconnect();
+      });
+    }
+
+    function scheduleReconnect() {
+      if (!apiKey) return;
+      setTimeout(() => { if (apiKey) connectSSE(); }, sseReconnectDelay);
+      sseReconnectDelay = Math.min(sseReconnectDelay * 2, 30000);
+    }
+
+    function handleSSEEvent(type, data) {
+      if (type !== 'webhook-error') return;
+      try {
+        const evt = JSON.parse(data);
+        notify('warning', 'Webhook Error', `${evt.bucket}: ${evt.errorMessage}`);
+        if (currentBucket && evt.bucket === currentBucket) {
+          loadWebhookErrors(currentBucket);
+        }
+        loadOverview();
+      } catch {}
+    }
+
+    function disconnectSSE() {
+      if (sseAbortController) { sseAbortController.abort(); sseAbortController = null; }
     }
 
     // ========== START ==========

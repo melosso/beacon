@@ -114,6 +114,7 @@ try
     builder.Services.AddScoped<IConsentService, ConsentService>();
     builder.Services.AddScoped<ITokenUsageRepository, TokenUsageRepository>();
     builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
+    builder.Services.AddSingleton<IAdminNotificationService, AdminNotificationService>();
     builder.Services.AddSingleton<IWebhookDeliveryQueue, WebhookDeliveryQueue>();
     builder.Services.AddScoped<IWebhookService, WebhookService>();
     builder.Services.AddHostedService<Beacon.Api.WebhookDeliveryService>();
@@ -330,6 +331,23 @@ try
                 )
                 """);
             db.Database.ExecuteSqlRaw("CREATE INDEX IX_WebhookDeliveryErrors_Bucket ON WebhookDeliveryErrors (Bucket)");
+        }
+
+        // Add new diagnostic columns to WebhookDeliveryErrors if they don't exist
+        if (errorsTableExists)
+        {
+            var columns = db.Database.SqlQueryRaw<string>(
+                "SELECT name AS Value FROM pragma_table_info('WebhookDeliveryErrors')")
+                .AsEnumerable().ToHashSet();
+
+            if (!columns.Contains("RequestUrl"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN RequestUrl TEXT");
+            if (!columns.Contains("RequestMethod"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN RequestMethod TEXT");
+            if (!columns.Contains("AttemptCount"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN AttemptCount INTEGER NOT NULL DEFAULT 0");
+            if (!columns.Contains("StackTrace"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN StackTrace TEXT");
         }
     }
 

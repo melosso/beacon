@@ -22,17 +22,20 @@ public sealed class WebhookDeliveryService : BackgroundService
     private readonly IWebhookDeliveryQueue _queue;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IAdminNotificationService _notifications;
     private readonly ILogger<WebhookDeliveryService> _logger;
 
     public WebhookDeliveryService(
         IWebhookDeliveryQueue queue,
         IHttpClientFactory httpClientFactory,
         IServiceScopeFactory scopeFactory,
+        IAdminNotificationService notifications,
         ILogger<WebhookDeliveryService> logger)
     {
         _queue = queue;
         _httpClientFactory = httpClientFactory;
         _scopeFactory = scopeFactory;
+        _notifications = notifications;
         _logger = logger;
     }
 
@@ -67,7 +70,10 @@ public sealed class WebhookDeliveryService : BackgroundService
                     _logger.LogWarning(
                         "Webhook delivery blocked for bucket {Bucket}: URL {Url} resolves to a private/reserved address",
                         message.Bucket, message.Url);
-                    await PersistErrorAsync(message.Bucket, "URL resolves to a private/reserved address (SSRF blocked)", 0);
+                    var ssrfError = "URL resolves to a private/reserved address (SSRF blocked)";
+                    await PersistErrorAsync(message.Bucket, ssrfError, 0,
+                        message.Url, message.Method, attempt + 1, null);
+                    await PublishErrorNotificationAsync(message.Bucket, ssrfError, 0);
                     return; // Don't retry SSRF blocks
                 }
 
@@ -107,10 +113,13 @@ public sealed class WebhookDeliveryService : BackgroundService
             errorMessage = $"HTTP {statusCode}: {httpEx.Message}";
         }
 
-        await PersistErrorAsync(message.Bucket, errorMessage, statusCode);
+        await PersistErrorAsync(message.Bucket, errorMessage, statusCode,
+            message.Url, message.Method, MaxRetries + 1, lastException?.ToString());
+        await PublishErrorNotificationAsync(message.Bucket, errorMessage, statusCode);
     }
 
-    private async Task PersistErrorAsync(string bucket, string errorMessage, int statusCode)
+    private async Task PersistErrorAsync(string bucket, string errorMessage, int statusCode,
+        string? requestUrl, string? requestMethod, int attemptCount, string? stackTrace)
     {
         try
         {
@@ -123,7 +132,11 @@ public sealed class WebhookDeliveryService : BackgroundService
                 Bucket = bucket,
                 ErrorMessage = errorMessage,
                 StatusCode = statusCode,
-                OccurredAt = DateTime.UtcNow
+                OccurredAt = DateTime.UtcNow,
+                RequestUrl = requestUrl,
+                RequestMethod = requestMethod,
+                AttemptCount = attemptCount,
+                StackTrace = stackTrace
             });
 
             await repository.PruneErrorsAsync();
@@ -131,6 +144,18 @@ public sealed class WebhookDeliveryService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to persist webhook delivery error for bucket {Bucket}", bucket);
+        }
+    }
+
+    private async Task PublishErrorNotificationAsync(string bucket, string errorMessage, int statusCode)
+    {
+        try
+        {
+            await _notifications.PublishAsync(new WebhookErrorNotification(bucket, errorMessage, statusCode, DateTime.UtcNow));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish webhook error notification for bucket {Bucket}", bucket);
         }
     }
 
