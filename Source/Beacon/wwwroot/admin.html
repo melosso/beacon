@@ -207,6 +207,9 @@
       color: hsl(var(--foreground));
       text-decoration: none;
       display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .nav-item:hover { background-color: hsl(var(--muted)); }
@@ -265,7 +268,13 @@
       padding-right: 0.5rem;
     }
 
-    .btn-plus {
+    .nav-label-actions {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .btn-plus, .btn-sidebar {
       background: transparent;
       border: none;
       color: hsl(var(--muted-foreground));
@@ -276,8 +285,12 @@
       border-radius: 4px;
     }
 
-    .btn-plus:hover {
+    .btn-plus:hover, .btn-sidebar:hover {
       background-color: hsl(var(--muted));
+      color: hsl(var(--foreground));
+    }
+
+    .btn-sidebar.active {
       color: hsl(var(--foreground));
     }
 
@@ -345,7 +358,126 @@
     .status-badge.opted-in { background: hsl(142 76% 90%); color: hsl(var(--success)); }
     .status-badge.opted-out { background: hsl(0 84% 95%); color: hsl(var(--destructive)); }
 
-    .bucket-actions { display: flex; gap: 0.75rem; }
+    .bucket-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+    .webhook-errors-trigger {
+      position: relative;
+      background: transparent;
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      cursor: pointer;
+      padding: 0;
+      width: 2.25rem;
+      height: 2.25rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: hsl(var(--muted-foreground));
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .webhook-errors-trigger:hover {
+      color: hsl(var(--foreground));
+      border-color: hsl(var(--foreground));
+    }
+    .webhook-errors-trigger.has-errors { color: hsl(var(--destructive)); border-color: hsl(var(--destructive)); }
+    .webhook-errors-trigger.has-errors::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 7px;
+      height: 7px;
+      background: hsl(var(--destructive));
+      border-radius: 50%;
+    }
+
+    .webhook-errors-dropdown {
+      position: fixed;
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 320px;
+      max-width: 420px;
+      z-index: 1000;
+      display: none;
+      padding: 0.5rem 0;
+    }
+    .webhook-errors-dropdown.open { display: block; }
+    .webhook-errors-dropdown .error-item {
+      padding: 0.5rem 0.875rem;
+      border-bottom: 1px solid hsl(var(--border));
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .webhook-errors-dropdown .error-item:hover { background: hsl(var(--muted)); }
+    .webhook-errors-dropdown .error-item:last-child { border-bottom: none; }
+    .webhook-errors-dropdown .error-time {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.7rem;
+      margin-bottom: 0.2rem;
+    }
+    .webhook-errors-dropdown .error-msg {
+      color: hsl(var(--foreground));
+      word-break: break-word;
+    }
+    .webhook-errors-dropdown .error-status {
+      display: inline-block;
+      background: hsl(var(--destructive));
+      color: white;
+      font-size: 0.65rem;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      margin-left: 0.4rem;
+      font-weight: 600;
+    }
+    .webhook-errors-dropdown .error-header {
+      padding: 0.5rem 0.875rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: hsl(var(--muted-foreground));
+      border-bottom: 1px solid hsl(var(--border));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .webhook-errors-dropdown .error-header .clear-all-btn {
+      font-size: 0.65rem;
+      color: hsl(var(--destructive));
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      transition: background 0.15s;
+    }
+    .webhook-errors-dropdown .error-header .clear-all-btn:hover {
+      background: hsl(0 84% 95%);
+    }
+    .error-detail-message {
+      background: hsl(var(--muted));
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      padding: 0.875rem;
+      font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      user-select: text;
+    }
+    .error-detail-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+    }
 
     .btn {
       height: 2.25rem;
@@ -833,6 +965,106 @@
     .modal-actions .tooltip-wrapper { flex: 1; }
     .modal-actions .btn { flex: 1; justify-content: center; width: 100%; }
 
+    /* Options modal */
+    .options-modal {
+      width: 680px;
+      max-width: 95vw;
+    }
+
+    .options-section {
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      margin-bottom: 0.75rem;
+    }
+
+    .options-section:last-of-type { margin-bottom: 0; }
+
+    .options-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      width: 100%;
+      padding: 0.875rem 1rem;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid transparent;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: hsl(var(--foreground));
+      text-align: left;
+      transition: background 0.15s ease;
+    }
+
+    .options-section-header:hover { background: hsl(var(--muted)); }
+
+    .options-section-header.expanded {
+      border-bottom-color: hsl(var(--border));
+    }
+
+    .options-section-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .options-section-label { flex: 1; }
+
+    .options-section-badge {
+      font-size: 0.7rem;
+      font-weight: 500;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      background: hsl(var(--muted));
+      color: hsl(var(--muted-foreground));
+    }
+
+    .options-section-badge.active {
+      background: hsl(142 76% 36% / 0.15);
+      color: hsl(var(--success));
+    }
+
+    .options-chevron {
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .options-section-header.expanded .options-chevron {
+      transform: rotate(180deg);
+    }
+
+    .options-section-body {
+      display: none;
+      padding: 1.25rem 1rem;
+    }
+
+    .options-section-body.open { display: block; }
+
+    .options-section-desc {
+      font-size: 0.813rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .options-field-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .options-field-row .input-auth { flex: 1; }
+
+    .options-close {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid hsl(var(--border));
+    }
+
     /* Empty state */
     .empty-state {
       display: flex;
@@ -862,7 +1094,20 @@
     /* Row Actions Dropdown */
     .row-actions {
       position: relative;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .col-actions {
+      white-space: nowrap;
+    }
+    .row-status-icons {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.4rem;
+      width: 2rem;
     }
 
     .btn-actions {
@@ -966,6 +1211,11 @@
       left: auto;
       right: 0;
     }
+
+    .tooltip-wrapper .tooltip.tooltip-left {
+      left: 0;
+      right: auto;
+    }
   </style>
 </head>
 <body>
@@ -1000,12 +1250,26 @@
     <div class="nav-group">
       <div class="nav-label-container">
         <div class="nav-label select-none">Buckets</div>
-        <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
+        <div class="nav-label-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn-sidebar" id="btnSort" onclick="cycleSidebarSort()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="btnSortIcon"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h4"/></svg>
+            </button>
+            <span class="tooltip tooltip-above tooltip-right" id="btnSortTooltip">Sort buckets</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn-sidebar" id="btnDisplayMode" onclick="toggleSidebarDisplay()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </button>
+            <span class="tooltip tooltip-above tooltip-right" id="btnDisplayTooltip">Show code names</span>
+          </span>
+          <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="submenu" id="bucketSubmenu">
@@ -1054,7 +1318,7 @@
       <section class="header-container">
         <div>
           <h1>Overview</h1>
-          <span class="status-badge">Admin Panel</span>
+          <span class="status-badge">Buckets</span>
         </div>
         <div class="bucket-actions">
           <span class="tooltip-wrapper">
@@ -1064,14 +1328,14 @@
         </div>
       </section>
       <div class="table-wrapper">
-        <div class="scroll-area">
+        <div class="scroll-area" style="overflow-x:hidden">
           <table>
             <thead>
               <tr>
                 <th>Bucket</th>
                 <th>Records</th>
                 <th>Permissions</th>
-                <th style="width:50px"></th>
+                <th class="col-actions"></th>
               </tr>
             </thead>
             <tbody id="overviewBody"></tbody>
@@ -1091,9 +1355,23 @@
           <span class="status-badge select-none">Read-Only</span>
         </div>
         <div class="bucket-actions">
+          <span class="tooltip-wrapper" id="webhookErrorsContainer">
+            <button class="webhook-errors-trigger" id="webhookErrorsTrigger" onclick="toggleWebhookErrors(event)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+            <span class="tooltip">Notifications</span>
+          </span>
+          <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadBucket(currentBucket)">Refresh</button>
             <span class="tooltip">Reload bucket data</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="showOptionsModal()">Options</button>
+            <span class="tooltip">Bucket settings</span>
           </span>
           <span class="tooltip-wrapper">
             <button class="btn btn-destructive" onclick="initiateRemoval()">Remove Bucket</button>
@@ -1262,6 +1540,117 @@
     </div>
   </div>
 
+  <!-- Bucket Options Modal -->
+  <div class="modal-backdrop" id="optionsModal">
+    <div class="modal options-modal">
+      <h3>Options</h3>
+      <p>Manage settings and integrations for this bucket.</p>
+
+      <!-- Basic Section -->
+      <div class="options-section">
+        <button type="button" class="options-section-header expanded" onclick="toggleOptionsSection(this)">
+          <svg class="options-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="options-section-label">General</span>
+          <svg class="options-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="options-section-body open">
+          <p class="options-section-desc select-none">Basic bucket identification. The bucket ID is used across all API calls and cannot be changed.</p>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="optionsBucketId">Bucket ID</label>
+            <div class="options-field-row">
+              <input type="text" id="optionsBucketId" class="input-auth" readonly style="font-family:monospace;cursor:default;color:hsl(var(--muted-foreground));margin-bottom:0;text-align:left;text-transform:none;user-select:none" disabled>
+              <button type="button" class="btn btn-outline" style="flex-shrink:0" onclick="navigator.clipboard.writeText(document.getElementById('optionsBucketId').value);notify('success','Copied','Bucket ID copied to clipboard')">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Webhook Section -->
+      <div class="options-section">
+        <button type="button" class="options-section-header" onclick="toggleOptionsSection(this)">
+          <svg class="options-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span class="options-section-label">Webhook</span>
+          <span class="options-section-badge" id="webhookStatusBadge">Not configured</span>
+          <svg class="options-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="options-section-body">
+          <p class="options-section-desc select-none">Push consent state changes to an external service in real-time instead of polling. Beacon will send an HTTP request with a signed payload whenever a consent record is created or updated in this bucket.</p>
+
+          <div class="form-group">
+            <label for="webhookUrl">Endpoint URL</label>
+            <input type="url" id="webhookUrl" placeholder="https://your-service.com/webhook" class="input-auth" required>
+          </div>
+
+          <div style="display:flex;gap:0.75rem;align-items:flex-start">
+            <div class="form-group" style="flex:0 0 140px;margin-bottom:0">
+              <label for="webhookMethod" style="margin-bottom:16px;">Method</label>
+              <select id="webhookMethod" class="input-auth">
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="GET">GET</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;margin-bottom:0">
+              <label>Headers</label>
+              <div class="custom-fields-list" id="webhookHeadersGrid"></div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+                <input type="text" id="newHeaderKey" placeholder="Name" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addWebhookHeader()}">
+                <input type="text" id="newHeaderValue" placeholder="Value" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addWebhookHeader()}">
+                <button type="button" class="btn btn-outline" onclick="addWebhookHeader()">Add</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.375rem">
+              <label for="webhookBody" style="margin:0;">Body Template:</label>
+              <div style="position:relative">
+                <button type="button" class="btn btn-outline" style="font-size:0.75rem;padding:0.25rem 0.5rem;margin-top:8px;" onclick="event.stopPropagation();toggleWebhookTemplateMenu(this)">Reset to default</button>
+                <div class="dropdown-menu" id="webhookTemplateMenu">
+                  <button class="dropdown-item" onclick="resetWebhookBodyTemplate();closeWebhookTemplateMenu()">Default template</button>
+                </div>
+              </div>
+            </div>
+            <textarea id="webhookBody" class="input-auth" rows="8" style="font-family:monospace;font-size:0.813rem;tab-size:2;line-height:1.5"></textarea>
+            <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.125rem">
+              <p style="width:100%;margin:0">
+                <span style="font-size:0.75rem;color:hsl(var(--muted-foreground));line-height:1.8;margin-right:0.125rem">Insert:</span>
+              </p>
+              <button type="button" class="btn btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;font-family:monospace" onclick="insertWebhookVar('bucket')">bucket</button>
+              <button type="button" class="btn btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;font-family:monospace" onclick="insertWebhookVar('email')">email</button>
+              <button type="button" class="btn btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;font-family:monospace" onclick="insertWebhookVar('emailHash')">emailHash</button>
+              <button type="button" class="btn btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;font-family:monospace" onclick="insertWebhookVar('permissions')">permissions</button>
+              <button type="button" class="btn btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;font-family:monospace" onclick="insertWebhookVar('timestamp')">timestamp</button>
+              <button type="button" class="btn btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;font-family:monospace" onclick="insertWebhookVar('customFields')">customFields</button>
+            </div>
+          </div>
+
+          <div id="webhookSecretSection" style="display:none;margin-bottom:1rem;padding:0.875rem;background:hsl(var(--muted));border-radius:var(--radius)">
+            <label style="font-weight:600;margin-bottom:0.25rem;display:block;font-size:0.813rem">Signing Secret</label>
+            <p style="color:hsl(var(--muted-foreground));font-size:0.813rem;margin-bottom:0.5rem;line-height:1.5">
+              Use this to verify the <code style="font-size:0.75rem;padding:0.1rem 0.3rem;background:hsl(var(--background));border-radius:3px">X-Beacon-Signature</code> header (HMAC-SHA256). This is only shown once.
+            </p>
+            <div class="options-field-row">
+              <input type="text" id="webhookSecretValue" class="input-auth" readonly style="font-family:monospace;font-size:0.813rem;flex:1;margin-bottom:0;text-align:left;text-transform:none">
+              <button class="btn btn-outline" style="flex-shrink:0" onclick="navigator.clipboard.writeText(document.getElementById('webhookSecretValue').value);notify('success','Copied','Secret copied to clipboard')">Copy</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:0.5rem;justify-content:flex-end;padding-top:0.5rem;border-top:1px solid hsl(var(--border))">
+            <button class="btn btn-destructive" onclick="deleteWebhook()" id="deleteWebhookBtn" style="display:none">Delete Webhook</button>
+            <button class="btn btn-primary" onclick="saveWebhook()">Save Webhook</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="options-close">
+        <button class="btn btn-outline" onclick="closeOptionsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Edit Permissions Modal -->
   <div class="modal-backdrop" id="editPermissionsModal">
     <div class="modal">
@@ -1339,6 +1728,29 @@
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeDeleteRecordModal()">Cancel</button>
         <button class="btn btn-confirm active" onclick="confirmDeleteRecord()">Remove Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Detail Modal -->
+  <div class="modal-backdrop" id="errorDetailModal" onclick="closeErrorDetailModal()">
+    <div class="modal" style="width:560px;max-width:95vw" onclick="event.stopPropagation()">
+      <h3>Error Details</h3>
+      <div class="error-detail-meta">
+        <span id="errorDetailTime">-</span>
+        <span id="errorDetailBadge"></span>
+      </div>
+      <div id="errorDetailRequest" style="margin-bottom:1rem;font-size:0.8rem;color:hsl(var(--muted-foreground))"></div>
+      <label style="display:block;font-size:0.75rem;font-weight:600;color:hsl(var(--muted-foreground));margin-bottom:0.35rem">Error Message</label>
+      <div class="error-detail-message" id="errorDetailMessage">-</div>
+      <div id="errorDetailStackWrap" style="display:none">
+        <label style="display:block;font-size:0.75rem;font-weight:600;color:hsl(var(--muted-foreground));margin-bottom:0.35rem">Stack Trace</label>
+        <div class="error-detail-message" id="errorDetailStack" style="font-size:0.7rem;max-height:200px;color:hsl(var(--muted-foreground))"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeErrorDetailModal()">Close</button>
+        <button class="btn btn-outline" onclick="copyErrorMessage()">Copy</button>
+        <button class="btn btn-destructive" onclick="removeWebhookError()">Remove</button>
       </div>
     </div>
   </div>
@@ -1459,6 +1871,7 @@
         renderBucketsSidebar();
         renderPermissionsGrid();
         showView('overview');
+        connectSSE();
         // Notify on successful login
         notify('success', 'Authenticated', 'Mainframe access granted.');
       } else {
@@ -1484,6 +1897,7 @@
     }
 
     function logout() {
+      disconnectSSE();
       localStorage.removeItem('beacon_api_key');
       apiKey = '';
       location.reload();
@@ -1508,12 +1922,14 @@
       renderBucketsSidebar();
       renderPermissionsGrid();
       restoreViewFromUrl();
+      connectSSE();
     }
 
     function restoreViewFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const view = params.get('view');
       const bucket = params.get('bucket');
+      const modal = params.get('modal');
 
       if (view === 'bucket' && bucket) {
         sortBy = params.get('sort') || 'lastchanged';
@@ -1523,6 +1939,7 @@
         searchQuery = params.get('q') || '';
         searchType = params.get('qtype') || 'id';
         showBucket(bucket, false);
+        if (modal === 'options') showOptionsModal(false);
       } else if (view === 'tokens') {
         showView('tokens', false);
       } else {
@@ -1540,17 +1957,58 @@
       }
     }
 
+    // Sidebar preferences (persisted in localStorage)
+    const sidebarPrefs = JSON.parse(localStorage.getItem('beacon_sidebar_prefs') || '{}');
+    if (!sidebarPrefs.sort) sidebarPrefs.sort = 'default';
+    if (!sidebarPrefs.display) sidebarPrefs.display = 'description';
+
+    function saveSidebarPrefs() {
+      localStorage.setItem('beacon_sidebar_prefs', JSON.stringify(sidebarPrefs));
+    }
+
+    function cycleSidebarSort() {
+      const cycle = { default: 'az', az: 'za', za: 'default' };
+      sidebarPrefs.sort = cycle[sidebarPrefs.sort] || 'az';
+      saveSidebarPrefs();
+      renderBucketsSidebar();
+    }
+
+    function toggleSidebarDisplay() {
+      sidebarPrefs.display = sidebarPrefs.display === 'description' ? 'code' : 'description';
+      saveSidebarPrefs();
+      renderBucketsSidebar();
+    }
+
+    function updateSidebarButtons() {
+      const btn = document.getElementById('btnSort');
+      const icon = document.getElementById('btnSortIcon');
+      btn.classList.toggle('active', sidebarPrefs.sort !== 'default');
+      document.getElementById('btnSortTooltip').textContent =
+        sidebarPrefs.sort === 'az' ? 'Sorted A\u2013Z' : sidebarPrefs.sort === 'za' ? 'Sorted Z\u2013A' : 'Sort buckets';
+      icon.style.transform = sidebarPrefs.sort === 'za' ? 'scaleY(-1)' : '';
+      document.getElementById('btnDisplayMode').classList.toggle('active', sidebarPrefs.display === 'code');
+      document.getElementById('btnDisplayTooltip').textContent =
+        sidebarPrefs.display === 'code' ? 'Show descriptions' : 'Show code names';
+    }
+
     function renderBucketsSidebar() {
       const container = document.getElementById('bucketsList');
+      updateSidebarButtons();
       if (buckets.length === 0) {
         container.innerHTML = '<div class="nav-item" style="opacity:0.5">No buckets yet</div>';
         return;
       }
 
-      const displayBuckets = buckets.slice(0, MAX_SIDEBAR_BUCKETS);
-      let html = displayBuckets.map(b =>
-        `<a href="#" class="nav-item" data-bucket="${sanitize(b.name)}" onclick="showBucket('${sanitize(b.name)}')" title="${sanitize(b.name)}">${sanitize(formatPermission(b.name))}</a>`
-      ).join('');
+      let sorted = [...buckets];
+      if (sidebarPrefs.sort === 'az') sorted.sort((a, b) => a.name.localeCompare(b.name));
+      else if (sidebarPrefs.sort === 'za') sorted.sort((a, b) => b.name.localeCompare(a.name));
+
+      const displayBuckets = sorted.slice(0, MAX_SIDEBAR_BUCKETS);
+      const showCode = sidebarPrefs.display === 'code';
+      let html = displayBuckets.map(b => {
+        const label = showCode ? b.name : formatPermission(b.name);
+        return `<a href="#" class="nav-item" data-bucket="${sanitize(b.name)}" onclick="showBucket('${sanitize(b.name)}')" title="${sanitize(b.name)}">${sanitize(label)}</a>`;
+      }).join('');
 
       if (buckets.length > MAX_SIDEBAR_BUCKETS) {
         const remaining = buckets.length - MAX_SIDEBAR_BUCKETS;
@@ -1778,6 +2236,7 @@
     }
 
     function showBucket(bucket, pushState = true) {
+      if (document.getElementById('optionsModal').style.display === 'flex') closeOptionsModal();
       currentBucket = bucket;
       if (pushState) {
         currentPage = 1;
@@ -1801,12 +2260,32 @@
     }
 
     // ========== OVERVIEW ==========
+    let webhookBuckets = new Set();
+
     async function loadOverview(refresh = false) {
       if (refresh) {
         const result = await apiRequest('/api/admin/buckets');
         if (!result.ok) return;
         buckets = result.data || [];
         renderBucketsSidebar();
+      }
+
+      // Fetch which buckets have webhooks configured
+      const whResult = await apiRequest('/api/admin/webhooks/buckets');
+      if (whResult.ok) {
+        webhookBuckets = new Set(whResult.data || []);
+      }
+
+      // Fetch error counts for webhook-enabled buckets
+      const webhookErrorBuckets = new Set();
+      if (webhookBuckets.size > 0) {
+        const errorChecks = await Promise.all(
+          [...webhookBuckets].map(async name => {
+            const r = await apiRequest(`/api/admin/buckets/${encodeURIComponent(name)}/webhook/errors`);
+            return { name, hasErrors: r.ok && r.data && r.data.length > 0 };
+          })
+        );
+        errorChecks.forEach(c => { if (c.hasErrors) webhookErrorBuckets.add(c.name); });
       }
 
       const body = document.getElementById('overviewBody');
@@ -1821,8 +2300,24 @@
           <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong></td>
           <td>${sanitize(b.totalEmails ?? 'N/A')}</td>
           <td>${(b.permissions || []).map(p => `<span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')"><span class="status-badge">${sanitize(formatPermission(p))}</span><span class="tooltip">${sanitize(p)}</span></span>`).join(' ') || 'None'}</td>
-          <td>
+          <td class="col-actions">
             <div class="row-actions">
+              <span class="row-status-icons">
+                ${webhookErrorBuckets.has(b.name) ? `<span class="tooltip-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--destructive))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                  <span class="tooltip tooltip-above">Webhook delivery errors</span>
+                </span>` : ''}
+                ${webhookBuckets.has(b.name) ? `<span class="tooltip-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--muted-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                  <span class="tooltip tooltip-left">Webhook configured</span>
+                </span>` : ''}
+              </span>
               <span class="tooltip-wrapper">
                 <button class="btn-actions" onclick="toggleOverviewMenu(event, ${idx})">:</button>
                 <span class="tooltip tooltip-above tooltip-right">Actions</span>
@@ -1875,6 +2370,9 @@
 
       const details = detailsResult.data;
       currentBucketPermissions = details.permissions || [];
+
+      // Fetch webhook errors for this bucket
+      loadWebhookErrors(bucket);
 
       const emailSortClass = sortBy === 'email' ? (sortDir === 'asc' ? 'asc' : 'desc') : '';
       const dateSortClass = sortBy === 'lastchanged' ? (sortDir === 'asc' ? 'asc' : 'desc') : '';
@@ -2343,6 +2841,254 @@
       bucketToRemove = '';
     }
 
+    // ========== WEBHOOK CONFIGURATION ==========
+    const WEBHOOK_DEFAULT_BODY = JSON.stringify({
+      bucket: '{{bucket}}',
+      emailHash: '{{emailHash}}',
+      permissions: '{{permissions}}',
+      timestamp: '{{timestamp}}'
+    }, null, 2).replace('"{{permissions}}"', '{{permissions}}');
+
+    let webhookHeaders = {};
+
+    function insertWebhookVar(name) {
+      const ta = document.getElementById('webhookBody');
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const text = ta.value;
+      const varText = `{{${name}}}`;
+      ta.value = text.substring(0, start) + varText + text.substring(end);
+      ta.selectionStart = ta.selectionEnd = start + varText.length;
+      ta.focus();
+    }
+
+    function resetWebhookBodyTemplate() {
+      document.getElementById('webhookBody').value = WEBHOOK_DEFAULT_BODY;
+    }
+
+    function toggleWebhookTemplateMenu(trigger) {
+      const menu = document.getElementById('webhookTemplateMenu');
+      const isOpen = menu.classList.contains('open');
+      closeAllMenus();
+      if (!isOpen) {
+        menu.classList.add('open');
+        const rect = trigger.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + 4}px`;
+        menu.style.left = `${rect.right - menu.offsetWidth}px`;
+        openMenuId = 'webhookTemplateMenu';
+      }
+    }
+
+    function closeWebhookTemplateMenu() {
+      document.getElementById('webhookTemplateMenu')?.classList.remove('open');
+      if (openMenuId === 'webhookTemplateMenu') openMenuId = null;
+    }
+
+    function formatBodyTemplate(template) {
+      if (!template) return null;
+      try {
+        return JSON.stringify(JSON.parse(template), null, 2);
+      } catch {
+        return template;
+      }
+    }
+
+    function toggleOptionsSection(header) {
+      header.classList.toggle('expanded');
+      const body = header.nextElementSibling;
+      body.classList.toggle('open');
+    }
+
+    function setWebhookBadge(configured) {
+      const badge = document.getElementById('webhookStatusBadge');
+      if (configured) {
+        badge.textContent = 'Active';
+        badge.classList.add('active');
+      } else {
+        badge.textContent = 'Not configured';
+        badge.classList.remove('active');
+      }
+    }
+
+    async function showOptionsModal(pushState = true) {
+      if (!currentBucket) return;
+
+      // Set bucket ID in basic section
+      document.getElementById('optionsBucketId').value = currentBucket;
+
+      // Reset webhook fields
+      webhookHeaders = {};
+      document.getElementById('webhookUrl').value = '';
+      document.getElementById('webhookMethod').value = 'POST';
+      document.getElementById('webhookBody').value = WEBHOOK_DEFAULT_BODY;
+      document.getElementById('webhookHeadersGrid').innerHTML = '';
+      document.getElementById('deleteWebhookBtn').style.display = 'none';
+      document.getElementById('webhookSecretSection').style.display = 'none';
+      document.getElementById('webhookSecretValue').value = '';
+      setWebhookBadge(false);
+
+      // Expand basic section, collapse webhook by default
+      const sections = document.querySelectorAll('#optionsModal .options-section-header');
+      sections.forEach((h, i) => {
+        const body = h.nextElementSibling;
+        if (i === 0) {
+          h.classList.add('expanded');
+          body.classList.add('open');
+        } else {
+          h.classList.remove('expanded');
+          body.classList.remove('open');
+        }
+      });
+
+      // Load existing webhook config if exists
+      try {
+        const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`);
+        if (result.ok && result.data?.configured) {
+          const config = result.data;
+          document.getElementById('webhookUrl').value = config.url || '';
+          document.getElementById('webhookMethod').value = config.method || 'POST';
+          document.getElementById('webhookBody').value = formatBodyTemplate(config.bodyTemplate) || WEBHOOK_DEFAULT_BODY;
+          webhookHeaders = config.headers || {};
+          renderWebhookHeaders();
+          document.getElementById('deleteWebhookBtn').style.display = 'block';
+          setWebhookBadge(true);
+
+          // Auto-expand webhook section if configured
+          sections[1]?.classList.add('expanded');
+          sections[1]?.nextElementSibling?.classList.add('open');
+        }
+      } catch (err) {
+        // No webhook configured
+      }
+
+      document.getElementById('optionsModal').style.display = 'flex';
+
+      // Update URL to include modal state
+      if (pushState) {
+        const url = new URL(window.location);
+        url.searchParams.set('modal', 'options');
+        history.pushState(null, '', url);
+      }
+    }
+
+    function closeOptionsModal() {
+      document.getElementById('optionsModal').style.display = 'none';
+      webhookHeaders = {};
+
+      // Remove modal param from URL
+      const url = new URL(window.location);
+      url.searchParams.delete('modal');
+      history.replaceState(null, '', url);
+    }
+
+    function addWebhookHeader() {
+      const keyInput = document.getElementById('newHeaderKey');
+      const valueInput = document.getElementById('newHeaderValue');
+      const key = keyInput.value.trim();
+      const value = valueInput.value.trim();
+
+      if (!key || !value) return;
+
+      webhookHeaders[key] = value;
+      renderWebhookHeaders();
+      
+      keyInput.value = '';
+      valueInput.value = '';
+    }
+
+    function removeWebhookHeader(key) {
+      delete webhookHeaders[key];
+      renderWebhookHeaders();
+    }
+
+    function renderWebhookHeaders() {
+      const grid = document.getElementById('webhookHeadersGrid');
+      const entries = Object.entries(webhookHeaders);
+      
+      if (entries.length === 0) {
+        grid.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem">No headers configured</div>';
+        return;
+      }
+
+      grid.innerHTML = entries.map(([key, value]) => `
+        <div class="custom-field-row">
+          <div class="custom-field-key">${sanitize(key)}</div>
+          <div class="custom-field-value">${sanitize(value)}</div>
+          <button type="button" class="btn-icon-small" onclick="removeWebhookHeader('${sanitize(key)}')" title="Remove">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function saveWebhook() {
+      const url = document.getElementById('webhookUrl').value.trim();
+      const method = document.getElementById('webhookMethod').value;
+      const bodyTemplate = document.getElementById('webhookBody').value.trim();
+
+      if (!url) {
+        notify('error', 'Validation Error', 'Webhook URL is required');
+        return;
+      }
+
+      const payload = {
+        url,
+        method,
+        headers: Object.keys(webhookHeaders).length > 0 ? webhookHeaders : null,
+        bodyTemplate: bodyTemplate || null
+      };
+
+      try {
+        const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`, {
+          method: 'POST',
+          body: payload
+        });
+
+        if (result.ok) {
+          if (result.data?.signingSecret) {
+            document.getElementById('webhookSecretValue').value = result.data.signingSecret;
+            document.getElementById('webhookSecretSection').style.display = 'block';
+            document.getElementById('deleteWebhookBtn').style.display = 'block';
+            setWebhookBadge(true);
+            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret below — it will not be shown again.');
+          } else {
+            setWebhookBadge(true);
+            notify('success', 'Webhook Saved', 'Webhook configuration updated successfully');
+            closeOptionsModal();
+          }
+        } else {
+          notify('error', 'Save Failed', result.data?.error || 'Failed to save webhook configuration');
+        }
+      } catch (err) {
+        notify('error', 'Save Failed', 'An error occurred while saving webhook configuration');
+      }
+    }
+
+    async function deleteWebhook() {
+      if (!confirm('Are you sure you want to delete this webhook configuration?')) {
+        return;
+      }
+
+      try {
+        const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`, {
+          method: 'DELETE'
+        });
+
+        if (result.ok) {
+          notify('success', 'Webhook Deleted', 'Webhook configuration removed successfully');
+          setWebhookBadge(false);
+          closeOptionsModal();
+        } else {
+          notify('error', 'Delete Failed', 'Failed to delete webhook configuration');
+        }
+      } catch (err) {
+        notify('error', 'Delete Failed', 'An error occurred while deleting webhook configuration');
+      }
+    }
+
     // ========== ROW ACTIONS DROPDOWN ==========
     let openMenuId = null;
 
@@ -2379,9 +3125,127 @@
         document.getElementById(openMenuId)?.classList.remove('open');
         openMenuId = null;
       }
+      document.getElementById('webhookErrorsDropdown')?.classList.remove('open');
     }
 
     document.addEventListener('click', closeAllMenus);
+
+    // ========== WEBHOOK ERRORS ==========
+    let webhookErrorsCache = [];
+    let activeErrorDetail = null;
+
+    async function loadWebhookErrors(bucket) {
+      const trigger = document.getElementById('webhookErrorsTrigger');
+      const dropdown = document.getElementById('webhookErrorsDropdown');
+
+      trigger.classList.remove('has-errors');
+
+      const errorsResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/webhook/errors`);
+      const errors = errorsResult.ok && errorsResult.data ? errorsResult.data : [];
+      webhookErrorsCache = errors;
+
+      if (errors.length === 0) {
+        trigger.classList.remove('has-errors');
+        dropdown.innerHTML = `<div class="error-header" style="padding-bottom:0.8rem;">Notifications</div><div class="error-item" style="text-align:center;color:hsl(var(--muted-foreground));padding:1rem 0.875rem;cursor:default">Nothing here to report!</div>`;
+        return;
+      }
+
+      trigger.classList.add('has-errors');
+      dropdown.innerHTML = `<div class="error-header"><span>Recent Delivery Errors</span><button class="clear-all-btn" onclick="event.stopPropagation();clearAllWebhookErrors()">Clear All</button></div>` +
+        errors.map((e, i) => {
+          const time = formatDate(e.occurredAt);
+          const msg = e.errorMessage.length > 120 ? e.errorMessage.substring(0, 120) + '...' : e.errorMessage;
+          const badge = e.statusCode ? `<span class="error-status">${e.statusCode}</span>` : '';
+          return `<div class="error-item" onclick="event.stopPropagation();showErrorDetailModal(${i})"><div class="error-time">${sanitize(time)}</div><div class="error-msg">${sanitize(msg)}${badge}</div></div>`;
+        }).join('');
+    }
+
+    function showErrorDetailModal(index) {
+      const error = webhookErrorsCache[index];
+      if (!error) return;
+      activeErrorDetail = error;
+      document.getElementById('errorDetailTime').textContent = new Date(error.occurredAt).toLocaleString();
+      const badgeEl = document.getElementById('errorDetailBadge');
+      badgeEl.innerHTML = error.statusCode ? `<span class="error-status">${error.statusCode}</span>` : '';
+
+      // Request info
+      const reqEl = document.getElementById('errorDetailRequest');
+      const parts = [];
+      if (error.requestMethod && error.requestUrl) {
+        parts.push(`${sanitize(error.requestMethod)} ${sanitize(error.requestUrl)}`);
+      }
+      if (error.attemptCount > 0) {
+        parts.push(`${error.attemptCount} attempt${error.attemptCount !== 1 ? 's' : ''}`);
+      }
+      reqEl.innerHTML = parts.length ? parts.join(' &middot; ') : '';
+
+      document.getElementById('errorDetailMessage').textContent = error.errorMessage;
+
+      // Stack trace
+      const stackWrap = document.getElementById('errorDetailStackWrap');
+      if (error.stackTrace) {
+        document.getElementById('errorDetailStack').textContent = error.stackTrace;
+        stackWrap.style.display = 'block';
+      } else {
+        stackWrap.style.display = 'none';
+      }
+
+      document.getElementById('errorDetailModal').style.display = 'flex';
+      document.getElementById('webhookErrorsDropdown').classList.remove('open');
+    }
+
+    function closeErrorDetailModal() {
+      document.getElementById('errorDetailModal').style.display = 'none';
+      activeErrorDetail = null;
+    }
+
+    function copyErrorMessage() {
+      if (!activeErrorDetail) return;
+      const e = activeErrorDetail;
+      let text = e.errorMessage;
+      const meta = [];
+      if (e.requestMethod && e.requestUrl) meta.push(`Request: ${e.requestMethod} ${e.requestUrl}`);
+      if (e.statusCode) meta.push(`Status: ${e.statusCode}`);
+      if (e.attemptCount > 0) meta.push(`Attempts: ${e.attemptCount}`);
+      meta.push(`Time: ${new Date(e.occurredAt).toLocaleString()}`);
+      if (meta.length) text = meta.join('\n') + '\n\n' + text;
+      if (e.stackTrace) text += '\n\nStack Trace:\n' + e.stackTrace;
+      navigator.clipboard.writeText(text).then(() => {
+        notify('success', 'Copied to clipboard');
+      });
+    }
+
+    async function removeWebhookError() {
+      if (!activeErrorDetail) return;
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/errors/${activeErrorDetail.id}`, { method: 'DELETE' });
+      if (result.ok) {
+        closeErrorDetailModal();
+        await loadWebhookErrors(currentBucket);
+      }
+    }
+
+    async function clearAllWebhookErrors() {
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/errors`, { method: 'DELETE' });
+      if (result.ok) {
+        await loadWebhookErrors(currentBucket);
+      }
+    }
+
+    function toggleWebhookErrors(event) {
+      event.stopPropagation();
+      const dropdown = document.getElementById('webhookErrorsDropdown');
+      const trigger = document.getElementById('webhookErrorsTrigger');
+      const isOpen = dropdown.classList.contains('open');
+
+      closeAllMenus();
+
+      if (!isOpen) {
+        dropdown.classList.add('open');
+        const rect = trigger.getBoundingClientRect();
+        dropdown.style.top = `${rect.bottom + 4}px`;
+        dropdown.style.left = `${Math.max(0, rect.right - dropdown.offsetWidth)}px`;
+      }
+    }
 
     // ========== EDIT PERMISSIONS MODAL ==========
     let editingRecord = null;
@@ -2491,36 +3355,26 @@
         return;
       }
 
-      const updates = [];
+      const permissions = {};
       document.querySelectorAll('#editPermissionsGrid .permission-row').forEach(row => {
         const perm = row.dataset.perm;
         const inBtn = row.querySelector('.opted-in');
-        const status = inBtn.classList.contains('active') ? 'OptedIn' : 'OptedOut';
-        updates.push({ permission: perm, status });
+        permissions[perm] = inBtn.classList.contains('active') ? 'OptedIn' : 'OptedOut';
       });
 
       const customFields = Object.keys(editCustomFields).length > 0 ? editCustomFields : undefined;
+      const bucket = editingBucket || currentBucket;
 
-      let allSuccess = true;
-      for (const update of updates) {
-        const result = await apiRequest('/api/consent/override', {
-          method: 'POST',
-          body: {
-            bucket: editingBucket || currentBucket,
-            email: editingRecord.email,
-            permission: update.permission,
-            status: update.status,
-            customFields
-          }
-        });
-
-        if (!result.ok) {
-          allSuccess = false;
-          break;
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/override`, {
+        method: 'POST',
+        body: {
+          email: editingRecord.email,
+          permissions,
+          customFields
         }
-      }
+      });
 
-      if (allSuccess) {
+      if (result.ok) {
         notify('success', 'Permissions Updated', 'Consent preferences have been saved');
         closeEditPermissionsModal();
         if (currentBucket) loadBucket(currentBucket);
@@ -2562,8 +3416,83 @@
       }
     }
 
+    // ========== SSE WEBHOOK ERROR NOTIFICATIONS ==========
+    let sseAbortController = null;
+    let sseReconnectDelay = 1000;
+
+    function connectSSE() {
+      if (sseAbortController) sseAbortController.abort();
+      sseAbortController = new AbortController();
+
+      fetch(`${API_BASE}/api/admin/events`, {
+        headers: { 'X-Api-Key': apiKey },
+        signal: sseAbortController.signal
+      }).then(response => {
+        if (!response.ok) throw new Error(`SSE failed: ${response.status}`);
+        sseReconnectDelay = 1000;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        function read() {
+          reader.read().then(({ done, value }) => {
+            if (done) { scheduleReconnect(); return; }
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            let eventType = '';
+            let data = '';
+            for (const line of lines) {
+              if (line.startsWith('event: ')) { eventType = line.slice(7).trim(); }
+              else if (line.startsWith('data: ')) { data = line.slice(6); }
+              else if (line === '' && eventType && data) {
+                handleSSEEvent(eventType, data);
+                eventType = '';
+                data = '';
+              }
+            }
+            read();
+          }).catch(err => {
+            if (err.name !== 'AbortError') scheduleReconnect();
+          });
+        }
+        read();
+      }).catch(err => {
+        if (err.name !== 'AbortError') scheduleReconnect();
+      });
+    }
+
+    function scheduleReconnect() {
+      if (!apiKey) return;
+      setTimeout(() => { if (apiKey) connectSSE(); }, sseReconnectDelay);
+      sseReconnectDelay = Math.min(sseReconnectDelay * 2, 30000);
+    }
+
+    function handleSSEEvent(type, data) {
+      if (type !== 'webhook-error') return;
+      try {
+        const evt = JSON.parse(data);
+        notify('warning', 'Webhook Error', `${evt.bucket}: ${evt.errorMessage}`);
+        if (currentBucket && evt.bucket === currentBucket) {
+          loadWebhookErrors(currentBucket);
+        }
+        loadOverview();
+      } catch {}
+    }
+
+    function disconnectSSE() {
+      if (sseAbortController) { sseAbortController.abort(); sseAbortController = null; }
+    }
+
     // ========== START ==========
-    window.addEventListener('popstate', () => { if (apiKey) restoreViewFromUrl(); });
+    window.addEventListener('popstate', () => {
+      if (!apiKey) return;
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has('modal')) {
+        document.getElementById('optionsModal').style.display = 'none';
+      }
+      restoreViewFromUrl();
+    });
     init();
   </script>
   <script>

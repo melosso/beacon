@@ -11,6 +11,7 @@ public interface IConsentService
     /// <summary>
     /// Ensures a consent record exists. Creates with the specified status if not found,
     /// but does not update existing records (preserves user preferences).
+    /// Returns true if a new record was created, false if it already existed.
     /// </summary>
-    Task EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null);
+    Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null);
 }

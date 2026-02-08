@@ -11,7 +11,10 @@ public sealed class ConsentService : IConsentService
     private readonly EmailHasher _emailHasher;
     private readonly Encryptor _encryptor;
 
-    public ConsentService(IConsentRepository repository, EmailHasher emailHasher, Encryptor encryptor)
+    public ConsentService(
+        IConsentRepository repository,
+        EmailHasher emailHasher,
+        Encryptor encryptor)
     {
         _repository = repository;
         _emailHasher = emailHasher;
@@ -79,7 +82,7 @@ public sealed class ConsentService : IConsentService
         await _repository.UpsertAsync(record);
     }
 
-    public async Task EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null)
+    public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -90,7 +93,7 @@ public sealed class ConsentService : IConsentService
         var existing = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
         if (existing is not null)
         {
-            return;
+            return false;
         }
 
         // Record doesn't exist, create it
@@ -109,6 +112,7 @@ public sealed class ConsentService : IConsentService
         };
 
         await _repository.UpsertAsync(record);
+        return true;
     }
 
     private static string ComputeTokenHash(string token)

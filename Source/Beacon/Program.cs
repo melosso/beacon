@@ -113,6 +113,13 @@ try
     builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
     builder.Services.AddScoped<IConsentService, ConsentService>();
     builder.Services.AddScoped<ITokenUsageRepository, TokenUsageRepository>();
+    builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
+    builder.Services.AddSingleton<IAdminNotificationService, AdminNotificationService>();
+    builder.Services.AddSingleton<IWebhookDeliveryQueue, WebhookDeliveryQueue>();
+    builder.Services.AddScoped<IWebhookService, WebhookService>();
+    builder.Services.AddHostedService<Beacon.Api.WebhookDeliveryService>();
+
+    builder.Services.AddHttpClient();
 
     builder.Services.AddAuthentication(options =>
         {
@@ -268,6 +275,79 @@ try
         if (!columnExists)
         {
             db.Database.ExecuteSqlRaw("ALTER TABLE ConsentRecords ADD COLUMN CustomFields TEXT NULL");
+        }
+
+        // Create WebhookConfigs table if it doesn't exist (EnsureCreated doesn't add new tables to existing databases)
+        var webhookTableExists = db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='WebhookConfigs'")
+            .AsEnumerable().FirstOrDefault() > 0;
+
+        if (!webhookTableExists)
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE WebhookConfigs (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Bucket TEXT NOT NULL,
+                    EncryptedUrl TEXT NOT NULL,
+                    EncryptedMethod TEXT NOT NULL,
+                    EncryptedHeaders TEXT NULL,
+                    EncryptedSecret TEXT NULL,
+                    BodyTemplate TEXT NULL,
+                    IsEnabled INTEGER NOT NULL DEFAULT 1,
+                    CreatedAt TEXT NOT NULL,
+                    LastTriggeredAt TEXT NULL,
+                    TriggerCount INTEGER NOT NULL DEFAULT 0
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_WebhookConfigs_Bucket ON WebhookConfigs (Bucket)");
+        }
+        else
+        {
+            // Add EncryptedSecret column to existing WebhookConfigs tables
+            var secretColumnExists = db.Database.SqlQueryRaw<int>(
+                "SELECT COUNT(*) AS Value FROM pragma_table_info('WebhookConfigs') WHERE name='EncryptedSecret'")
+                .AsEnumerable().FirstOrDefault() > 0;
+
+            if (!secretColumnExists)
+            {
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookConfigs ADD COLUMN EncryptedSecret TEXT NULL");
+            }
+        }
+
+        // Create WebhookDeliveryErrors table if it doesn't exist
+        var errorsTableExists = db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='WebhookDeliveryErrors'")
+            .AsEnumerable().FirstOrDefault() > 0;
+
+        if (!errorsTableExists)
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE WebhookDeliveryErrors (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Bucket TEXT NOT NULL,
+                    ErrorMessage TEXT NOT NULL,
+                    StatusCode INTEGER NOT NULL DEFAULT 0,
+                    OccurredAt TEXT NOT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_WebhookDeliveryErrors_Bucket ON WebhookDeliveryErrors (Bucket)");
+        }
+
+        // Add new diagnostic columns to WebhookDeliveryErrors if they don't exist
+        if (errorsTableExists)
+        {
+            var columns = db.Database.SqlQueryRaw<string>(
+                "SELECT name AS Value FROM pragma_table_info('WebhookDeliveryErrors')")
+                .AsEnumerable().ToHashSet();
+
+            if (!columns.Contains("RequestUrl"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN RequestUrl TEXT");
+            if (!columns.Contains("RequestMethod"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN RequestMethod TEXT");
+            if (!columns.Contains("AttemptCount"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN AttemptCount INTEGER NOT NULL DEFAULT 0");
+            if (!columns.Contains("StackTrace"))
+                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN StackTrace TEXT");
         }
     }
 

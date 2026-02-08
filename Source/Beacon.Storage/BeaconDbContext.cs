@@ -11,6 +11,8 @@ public class BeaconDbContext : DbContext
 
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<UsedToken> UsedTokens => Set<UsedToken>();
+    public DbSet<WebhookConfig> WebhookConfigs => Set<WebhookConfig>();
+    public DbSet<WebhookDeliveryError> WebhookDeliveryErrors => Set<WebhookDeliveryError>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +45,46 @@ public class BeaconDbContext : DbContext
                 .HasMaxLength(64);
 
             entity.HasIndex(e => e.ExpiresAt);
+        });
+
+        modelBuilder.Entity<WebhookConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.EncryptedUrl)
+                .IsRequired();
+
+            entity.Property(e => e.EncryptedMethod)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.EncryptedSecret);
+
+            entity.HasIndex(e => e.Bucket)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<WebhookDeliveryError>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.ErrorMessage)
+                .IsRequired();
+
+            entity.Property(e => e.RequestUrl);
+            entity.Property(e => e.RequestMethod).HasMaxLength(10);
+            entity.Property(e => e.AttemptCount);
+            entity.Property(e => e.StackTrace);
+
+            entity.HasIndex(e => e.Bucket);
         });
     }
 }

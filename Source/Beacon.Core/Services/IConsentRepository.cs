@@ -15,6 +15,7 @@ public interface IConsentRepository
     Task<int> DeleteBucketAsync(string bucket);
     Task<int> DeleteRecordAsync(string bucket, string emailHash);
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
+    Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);
 }
 
 public sealed class BucketInfo

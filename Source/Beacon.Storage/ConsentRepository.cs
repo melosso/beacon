@@ -197,6 +197,13 @@ public sealed class ConsentRepository : IConsentRepository
             .AnyAsync(r => r.Bucket == bucket && r.EmailHash == emailHash);
     }
 
+    public async Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash)
+    {
+        return await _context.ConsentRecords
+            .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
+            .ToListAsync();
+    }
+
     private static Dictionary<string, string>? DeserializeCustomFields(string? json)
     {
         if (string.IsNullOrEmpty(json)) return null;

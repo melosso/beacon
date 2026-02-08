@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Beacon.Core.Models;
+using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Core.Validation;
 using Beacon.Tokens;
@@ -96,6 +97,9 @@ public static class ConsentEndpoints
         [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
         [FromServices] IConsentService consentService,
+        [FromServices] IConsentRepository consentRepository,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] EmailHasher emailHasher,
         [FromServices] ITokenUsageRepository tokenUsageRepository)
     {
         if (!await antiforgery.IsRequestValidAsync(context))
@@ -104,7 +108,7 @@ public static class ConsentEndpoints
         }
 
         var result = validator.Validate(token);
-        
+
         var lang = result.Payload?.Language ?? "en";
 
         if (result.IsExpired)
@@ -142,6 +146,10 @@ public static class ConsentEndpoints
                 validPermissions,
                 token,
                 ConsentSource.Url);
+
+            // Fire one webhook with full permission snapshot
+            await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
+                result.Payload.Bucket, result.Payload.Email, null);
 
             // Only mark token as used if replay is not allowed
             if (!result.Payload.AllowReplay)
@@ -182,6 +190,10 @@ public static class ConsentEndpoints
             }
         }
 
+        // Fire one webhook with full permission snapshot
+        await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
+            result.Payload.Bucket, result.Payload.Email, null);
+
         // Only mark token as used if replay is not allowed
         if (!result.Payload.AllowReplay)
         {
@@ -189,6 +201,47 @@ public static class ConsentEndpoints
             await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
         }
         return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn]), "text/html");
+    }
+
+    private static async Task TriggerWebhookSafe(
+        IWebhookService webhookService,
+        IConsentRepository repository,
+        EmailHasher emailHasher,
+        string bucket,
+        string email,
+        string? customFieldsJson)
+    {
+        try
+        {
+            var normalizedBucket = bucket.Trim().ToLowerInvariant();
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            var emailHash = emailHasher.Hash(normalizedEmail);
+
+            // Fetch full permission snapshot for this email
+            var records = await repository.GetByEmailAsync(normalizedBucket, emailHash);
+            var permissions = records.Select(r => new PermissionState
+            {
+                Permission = r.Permission,
+                Status = r.Status
+            }).ToList();
+
+            if (permissions.Count == 0) return;
+
+            var data = new WebhookTriggerData
+            {
+                Bucket = normalizedBucket,
+                Email = normalizedEmail,
+                EmailHash = emailHash,
+                Permissions = permissions,
+                CustomFields = customFieldsJson
+            };
+
+            await webhookService.TriggerWebhookAsync(normalizedBucket, data);
+        }
+        catch
+        {
+            // Silently ignore webhook failures to prevent disrupt
+        }
     }
 
     private static async Task<IResult> CheckConsent(
