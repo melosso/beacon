@@ -753,18 +753,25 @@ public static class AdminEndpoints
 
         var cancellationToken = context.RequestAborted;
 
-        await foreach (var notification in notifications.SubscribeAsync(cancellationToken))
+        try
         {
-            var json = JsonSerializer.Serialize(new
+            await foreach (var notification in notifications.SubscribeAsync(cancellationToken))
             {
-                bucket = notification.Bucket,
-                errorMessage = notification.ErrorMessage,
-                statusCode = notification.StatusCode,
-                occurredAt = notification.OccurredAt
-            });
+                var json = JsonSerializer.Serialize(new
+                {
+                    bucket = notification.Bucket,
+                    errorMessage = notification.ErrorMessage,
+                    statusCode = notification.StatusCode,
+                    occurredAt = notification.OccurredAt
+                });
 
-            await context.Response.WriteAsync($"event: webhook-error\ndata: {json}\n\n", cancellationToken);
-            await context.Response.Body.FlushAsync(cancellationToken);
+                await context.Response.WriteAsync($"event: webhook-error\ndata: {json}\n\n", cancellationToken);
+                await context.Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Client disconnected, I think that's expected for SSE connections
         }
     }
 

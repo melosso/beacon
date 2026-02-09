@@ -120,7 +120,7 @@
       position: fixed;
       inset: 0;
       background: hsl(var(--background));
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 200;
@@ -161,6 +161,21 @@
       margin-bottom: 1rem;
       display: none;
     }
+
+    .auth-box .btn .spinner {
+      display: none;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    .auth-box .btn.is-loading .spinner { display: inline-block; }
+    .auth-box .btn.is-loading .btn-label { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Sidebar */
     aside {
@@ -724,7 +739,8 @@
 
     .pagination-settings { display: flex; align-items: center; gap: 1.5rem; }
     .page-size-selector { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
-    select.page-size-input { background: transparent; border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); border-radius: 4px; padding: 0.25rem; outline: none; }
+    select.page-size-input { background: hsl(var(--background)); border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); border-radius: 4px; padding: 0.25rem; outline: none; }
+    select.page-size-input option { background: hsl(var(--background)); color: hsl(var(--foreground)); }
     .pagination-info { font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
 
     /* Token Modal */
@@ -1230,7 +1246,7 @@
       <p>Enter the sequence and power up the admin mainframe. In other words: enter your API-key.</p>
       <input type="password" id="apiKeyInput" placeholder="X-Api-Key" onkeydown="if(event.key==='Enter')authenticate()">
       <div class="error" id="authError">Invalid API key</div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="authenticate()">Sign In</button>
+      <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center" onclick="authenticate()"><span class="btn-label">Sign In</span><span class="spinner"></span></button>
     </div>
   </div>
 
@@ -1263,12 +1279,15 @@
             </button>
             <span class="tooltip tooltip-above tooltip-right" id="btnDisplayTooltip">Show code names</span>
           </span>
-          <button class="btn-plus" onclick="toggleBucketSubmenu()" title="Bucket Actions">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
+          <span class="tooltip-wrapper">
+            <button class="btn-plus" onclick="toggleBucketSubmenu()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <span class="tooltip tooltip-above tooltip-right">Bucket Actions</span>
+          </span>
         </div>
       </div>
 
@@ -1294,21 +1313,27 @@
     <div class="sidebar-footer">
       <button class="btn-logout" style="flex: 1;" onclick="logout()">Log Out</button>
       
-      <a href="/openapi" target="_blank" class="github-link" title="OpenAPI Documentation">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
-        </svg>
-      </a>
+      <span class="tooltip-wrapper">
+        <a href="/openapi" target="_blank" class="github-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </a>
+        <span class="tooltip tooltip-above tooltip-right">OpenAPI Documentation</span>
+      </span>
 
-      <a href="https://github.com/melosso/beacon" target="_blank" class="github-link" title="GitHub Repository">
-        <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
-        </svg>
-      </a>
+      <span class="tooltip-wrapper">
+        <a href="https://github.com/melosso/beacon" target="_blank" class="github-link">
+          <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+        </a>
+        <span class="tooltip tooltip-above tooltip-right">GitHub Repository</span>
+      </span>
     </div>
   </aside>
 
@@ -1317,13 +1342,13 @@
     <div id="view-overview" class="view">
       <section class="header-container">
         <div>
-          <h1>Overview</h1>
+          <h1 class="select-none">Overview</h1>
           <span class="status-badge">Buckets</span>
         </div>
         <div class="bucket-actions">
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadOverview(true)">Refresh</button>
-            <span class="tooltip tooltip-right">Reload overview data</span>
+            <span class="tooltip tooltip-right">Reload overview</span>
           </span>
         </div>
       </section>
@@ -1350,7 +1375,7 @@
         <div>
           <h1 class="tooltip-wrapper" style="display:block; cursor:pointer;" onclick="copyBucketName()">
             <span id="bucketTitle">-</span>
-            <span class="tooltip" id="bucketTooltip">example-bucket-name</span>
+            <span class="tooltip select-none" id="bucketTooltip">example-bucket-name</span>
           </h1>
           <span class="status-badge select-none">Read-Only</span>
         </div>
@@ -1758,13 +1783,17 @@
   <script src="/admin/config.js"></script>
   <script>
     const MAX_SIDEBAR_BUCKETS = 10;
-    let apiKey = localStorage.getItem('beacon_api_key') || '';
+    let authToken = '';
+    let tokenExpiresAt = null;
+    let lastActivity = Date.now();
+    let refreshInterval = null;
     let currentBucket = '';
     let currentPage = 1;
     let pageSize = 10;
     let totalRecords = 0;
-    let sortBy = 'lastchanged';
-    let sortDir = 'desc';
+    const _sortPrefs = JSON.parse(localStorage.getItem('beacon_sort_prefs') || '{}');
+    let sortBy = _sortPrefs.sortBy || 'lastchanged';
+    let sortDir = _sortPrefs.sortDir || 'desc';
     let searchQuery = '';
     let searchType = 'id';
     let buckets = [];
@@ -1811,7 +1840,7 @@
       const config = {
         ...options,
         headers: {
-          'X-Api-Key': apiKey,
+          'Authorization': `Bearer ${authToken}`,
           ...options.headers
         }
       };
@@ -1856,38 +1885,56 @@
     async function authenticate() {
       const key = document.getElementById('apiKeyInput').value.trim();
       if (!key) {
-        // Optional: Add a notification for empty input
         notify('warning', 'Input Required', 'Please enter an API key.');
         return;
       }
 
-      apiKey = key;
-      const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
+      const btn = document.getElementById('signInBtn');
+      btn.classList.add('is-loading');
+      btn.disabled = true;
 
-      if (result.ok) {
-        localStorage.setItem('beacon_api_key', apiKey);
-        document.getElementById('authOverlay').style.display = 'none';
-        buckets = result.data || [];
-        renderBucketsSidebar();
-        renderPermissionsGrid();
-        showView('overview');
-        connectSSE();
-        // Notify on successful login
-        notify('success', 'Authenticated', 'Mainframe access granted.');
-      } else {
-        // Clear the invalid key
-        apiKey = '';
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: key })
+        });
 
-        // Show error UI
-        document.getElementById('authError').style.display = 'block';
-        document.getElementById('apiKeyInput').value = '';
+        if (!res.ok) {
+          document.getElementById('authError').style.display = 'block';
+          document.getElementById('apiKeyInput').value = '';
+          notify('error', 'Authentication Failed', 'Invalid API key.');
+          return;
+        }
 
-        // Toast notification
-        notify('error', 'Authentication Failed', 'Invalid API key.');
+        const data = await res.json();
+        authToken = data.token;
+        tokenExpiresAt = new Date(data.expiresAt);
+        sessionStorage.setItem('beacon_jwt', authToken);
+        sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);
+        startTokenRefresh();
+
+        // Load initial data
+        const bucketsResult = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
+        if (bucketsResult.ok) {
+          document.getElementById('authOverlay').style.display = 'none';
+          buckets = bucketsResult.data || [];
+          renderBucketsSidebar();
+          renderPermissionsGrid();
+          showView('overview');
+          connectSSE();
+          notify('success', 'Authenticated', 'Mainframe access granted.');
+        }
+      } catch (e) {
+        notify('error', 'Network Error', 'Could not connect to server.');
+      } finally {
+        btn.classList.remove('is-loading');
+        btn.disabled = false;
       }
     }
 
     async function testAuth() {
+      if (!authToken) return false;
       const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
       if (result.ok) {
         buckets = result.data || [];
@@ -1898,31 +1945,81 @@
 
     function logout() {
       disconnectSSE();
-      localStorage.removeItem('beacon_api_key');
-      apiKey = '';
+      if (refreshInterval) clearInterval(refreshInterval);
+      authToken = '';
+      tokenExpiresAt = null;
+      sessionStorage.removeItem('beacon_jwt');
+      sessionStorage.removeItem('beacon_jwt_exp');
       location.reload();
+    }
+
+    function startTokenRefresh() {
+      if (refreshInterval) clearInterval(refreshInterval);
+      refreshInterval = setInterval(async () => {
+        if (!authToken || !tokenExpiresAt) return;
+        const now = Date.now();
+        const expiresIn = tokenExpiresAt.getTime() - now;
+        const wasActiveRecently = (now - lastActivity) < 10 * 60 * 1000; // 10 minutes
+        const expiresSoon = expiresIn < 15 * 60 * 1000; // 15 minutes
+
+        if (wasActiveRecently && expiresSoon) {
+          try {
+            const res = await fetch(`${API_BASE}/api/admin/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              authToken = data.token;
+              tokenExpiresAt = new Date(data.expiresAt);
+              sessionStorage.setItem('beacon_jwt', authToken);
+              sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);
+            } else if (res.status === 401) {
+              notify('error', 'Session Expired', 'Please log in again.');
+              logout();
+            }
+          } catch { /* network error, will retry next interval */ }
+        }
+      }, 5 * 60 * 1000); // every 5 minutes
     }
 
     // ========== INIT ==========
     async function init() {
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
 
-      if (!apiKey) {
-        document.getElementById('authOverlay').style.display = 'flex';
-        return;
+      // Track user activity for token refresh
+      ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt =>
+        document.addEventListener(evt, () => { lastActivity = Date.now(); }, { passive: true })
+      );
+
+      // Restore session from sessionStorage
+      const savedToken = sessionStorage.getItem('beacon_jwt');
+      const savedExp = sessionStorage.getItem('beacon_jwt_exp');
+      if (savedToken && savedExp) {
+        const exp = new Date(savedExp);
+        if (exp > new Date()) {
+          authToken = savedToken;
+          tokenExpiresAt = exp;
+          startTokenRefresh();
+
+          const valid = await testAuth();
+          if (valid) {
+            document.getElementById('authOverlay').style.display = 'none';
+            renderBucketsSidebar();
+            renderPermissionsGrid();
+            restoreViewFromUrl();
+            connectSSE();
+            return;
+          }
+        }
+        // Token expired or invalid — clean up
+        sessionStorage.removeItem('beacon_jwt');
+        sessionStorage.removeItem('beacon_jwt_exp');
+        authToken = '';
+        tokenExpiresAt = null;
       }
 
-      const valid = await testAuth();
-      if (!valid) {
-        document.getElementById('authOverlay').style.display = 'flex';
-        return;
-      }
-
-      document.getElementById('authOverlay').style.display = 'none';
-      renderBucketsSidebar();
-      renderPermissionsGrid();
-      restoreViewFromUrl();
-      connectSSE();
+      document.getElementById('authOverlay').style.display = 'flex';
     }
 
     function restoreViewFromUrl() {
@@ -1932,8 +2029,8 @@
       const modal = params.get('modal');
 
       if (view === 'bucket' && bucket) {
-        sortBy = params.get('sort') || 'lastchanged';
-        sortDir = params.get('dir') || 'desc';
+        sortBy = params.get('sort') || sortBy;
+        sortDir = params.get('dir') || sortDir;
         currentPage = parseInt(params.get('page')) || 1;
         pageSize = parseInt(params.get('size')) || 10;
         searchQuery = params.get('q') || '';
@@ -2240,8 +2337,6 @@
       currentBucket = bucket;
       if (pushState) {
         currentPage = 1;
-        sortBy = 'lastchanged';
-        sortDir = 'desc';
         searchQuery = '';
         searchType = 'id';
       }
@@ -2298,7 +2393,7 @@
       body.innerHTML = buckets.map((b, idx) => `
         <tr>
           <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong></td>
-          <td>${sanitize(b.totalEmails ?? 'N/A')}</td>
+          <td>${b.totalEmails != null ? Number(b.totalEmails).toLocaleString() : 'N/A'}</td>
           <td>${(b.permissions || []).map(p => `<span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')"><span class="status-badge">${sanitize(formatPermission(p))}</span><span class="tooltip">${sanitize(p)}</span></span>`).join(' ') || 'None'}</td>
           <td class="col-actions">
             <div class="row-actions">
@@ -2308,14 +2403,14 @@
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                   </svg>
-                  <span class="tooltip tooltip-above">Webhook delivery errors</span>
+                  <span class="tooltip tooltip-above tooltip-right">Webhook delivery errors</span>
                 </span>` : ''}
                 ${webhookBuckets.has(b.name) ? `<span class="tooltip-wrapper">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--muted-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                   </svg>
-                  <span class="tooltip tooltip-left">Webhook configured</span>
+                  <span class="tooltip tooltip-above tooltip-right">Webhook configured</span>
                 </span>` : ''}
               </span>
               <span class="tooltip-wrapper">
@@ -2425,7 +2520,7 @@
         body.innerHTML = data.records.map((r, idx) => {
           const permCells = currentBucketPermissions.map(p => {
             const isOptedIn = r.permissions && r.permissions[p];
-            return `<td><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label></td>`;
+            return `<td><span class="tooltip-wrapper"><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label><span class="tooltip">${isOptedIn ? 'Opted-in' : 'Opted-out'}</span></span></td>`;
           }).join('');
 
           const emailId = r.emailHash ? sanitize(r.emailHash.substring(0, 12)) : '';
@@ -2470,7 +2565,7 @@
       const start = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1;
       const end = Math.min(currentPage * pageSize, totalRecords);
 
-      document.getElementById('paginationInfo').textContent = `Showing ${start} to ${end} of ${totalRecords} entries`;
+      document.getElementById('paginationInfo').textContent = `Showing ${start.toLocaleString()} to ${end.toLocaleString()} of ${totalRecords.toLocaleString()} entries`;
       document.getElementById('prevBtn').disabled = currentPage === 1;
       document.getElementById('nextBtn').disabled = currentPage >= totalPages;
     }
@@ -2493,6 +2588,7 @@
         sortBy = column;
         sortDir = column === 'lastchanged' ? 'desc' : 'asc';
       }
+      localStorage.setItem('beacon_sort_prefs', JSON.stringify({ sortBy, sortDir }));
       currentPage = 1;
       if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
@@ -2566,7 +2662,7 @@
       dropdown.innerHTML = matches.slice(0, 10).map((b, idx) => `
         <div class="autocomplete-item" data-index="${idx}" onclick="selectBucket('${sanitize(b.name)}')" onmouseenter="highlightAutocomplete(${idx})">
           <div class="bucket-name">${sanitize(b.name)}</div>
-          <div class="bucket-info">${sanitize(b.totalEmails || 0)} records · ${(b.permissions || []).length} permissions</div>
+          <div class="bucket-info">${Number(b.totalEmails || 0).toLocaleString()} records · ${(b.permissions || []).length} permissions</div>
         </div>
       `).join('');
 
@@ -3425,7 +3521,7 @@
       sseAbortController = new AbortController();
 
       fetch(`${API_BASE}/api/admin/events`, {
-        headers: { 'X-Api-Key': apiKey },
+        headers: { 'Authorization': `Bearer ${authToken}` },
         signal: sseAbortController.signal
       }).then(response => {
         if (!response.ok) throw new Error(`SSE failed: ${response.status}`);
@@ -3463,8 +3559,8 @@
     }
 
     function scheduleReconnect() {
-      if (!apiKey) return;
-      setTimeout(() => { if (apiKey) connectSSE(); }, sseReconnectDelay);
+      if (!authToken) return;
+      setTimeout(() => { if (authToken) connectSSE(); }, sseReconnectDelay);
       sseReconnectDelay = Math.min(sseReconnectDelay * 2, 30000);
     }
 
@@ -3486,7 +3582,7 @@
 
     // ========== START ==========
     window.addEventListener('popstate', () => {
-      if (!apiKey) return;
+      if (!authToken) return;
       const params = new URLSearchParams(window.location.search);
       if (!params.has('modal')) {
         document.getElementById('optionsModal').style.display = 'none';
