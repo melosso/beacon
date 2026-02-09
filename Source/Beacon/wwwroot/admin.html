@@ -1324,7 +1324,7 @@
         <div class="bucket-actions">
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadOverview(true)">Refresh</button>
-            <span class="tooltip tooltip-right">Reload overview data</span>
+            <span class="tooltip tooltip-right">Reload overview</span>
           </span>
         </div>
       </section>
@@ -1767,8 +1767,9 @@
     let currentPage = 1;
     let pageSize = 10;
     let totalRecords = 0;
-    let sortBy = 'lastchanged';
-    let sortDir = 'desc';
+    const _sortPrefs = JSON.parse(localStorage.getItem('beacon_sort_prefs') || '{}');
+    let sortBy = _sortPrefs.sortBy || 'lastchanged';
+    let sortDir = _sortPrefs.sortDir || 'desc';
     let searchQuery = '';
     let searchType = 'id';
     let buckets = [];
@@ -1997,8 +1998,8 @@
       const modal = params.get('modal');
 
       if (view === 'bucket' && bucket) {
-        sortBy = params.get('sort') || 'lastchanged';
-        sortDir = params.get('dir') || 'desc';
+        sortBy = params.get('sort') || sortBy;
+        sortDir = params.get('dir') || sortDir;
         currentPage = parseInt(params.get('page')) || 1;
         pageSize = parseInt(params.get('size')) || 10;
         searchQuery = params.get('q') || '';
@@ -2488,7 +2489,7 @@
         body.innerHTML = data.records.map((r, idx) => {
           const permCells = currentBucketPermissions.map(p => {
             const isOptedIn = r.permissions && r.permissions[p];
-            return `<td><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label></td>`;
+            return `<td><span class="tooltip-wrapper"><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label><span class="tooltip">${isOptedIn ? 'Opted-in' : 'Opted-out'}</span></span></td>`;
           }).join('');
 
           const emailId = r.emailHash ? sanitize(r.emailHash.substring(0, 12)) : '';
@@ -2556,6 +2557,7 @@
         sortBy = column;
         sortDir = column === 'lastchanged' ? 'desc' : 'asc';
       }
+      localStorage.setItem('beacon_sort_prefs', JSON.stringify({ sortBy, sortDir }));
       currentPage = 1;
       if (currentBucket) { syncBucketUrl(true); loadBucket(currentBucket); }
     }
