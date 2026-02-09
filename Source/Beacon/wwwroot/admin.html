@@ -724,7 +724,8 @@
 
     .pagination-settings { display: flex; align-items: center; gap: 1.5rem; }
     .page-size-selector { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
-    select.page-size-input { background: transparent; border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); border-radius: 4px; padding: 0.25rem; outline: none; }
+    select.page-size-input { background: hsl(var(--background)); border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); border-radius: 4px; padding: 0.25rem; outline: none; }
+    select.page-size-input option { background: hsl(var(--background)); color: hsl(var(--foreground)); }
     .pagination-info { font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
 
     /* Token Modal */
@@ -1317,7 +1318,7 @@
     <div id="view-overview" class="view">
       <section class="header-container">
         <div>
-          <h1>Overview</h1>
+          <h1 class="select-none">Overview</h1>
           <span class="status-badge">Buckets</span>
         </div>
         <div class="bucket-actions">
@@ -1350,7 +1351,7 @@
         <div>
           <h1 class="tooltip-wrapper" style="display:block; cursor:pointer;" onclick="copyBucketName()">
             <span id="bucketTitle">-</span>
-            <span class="tooltip" id="bucketTooltip">example-bucket-name</span>
+            <span class="tooltip select-none" id="bucketTooltip">example-bucket-name</span>
           </h1>
           <span class="status-badge select-none">Read-Only</span>
         </div>
@@ -1758,7 +1759,10 @@
   <script src="/admin/config.js"></script>
   <script>
     const MAX_SIDEBAR_BUCKETS = 10;
-    let apiKey = localStorage.getItem('beacon_api_key') || '';
+    let authToken = '';
+    let tokenExpiresAt = null;
+    let lastActivity = Date.now();
+    let refreshInterval = null;
     let currentBucket = '';
     let currentPage = 1;
     let pageSize = 10;
@@ -1811,7 +1815,7 @@
       const config = {
         ...options,
         headers: {
-          'X-Api-Key': apiKey,
+          'Authorization': `Bearer ${authToken}`,
           ...options.headers
         }
       };
@@ -1856,38 +1860,49 @@
     async function authenticate() {
       const key = document.getElementById('apiKeyInput').value.trim();
       if (!key) {
-        // Optional: Add a notification for empty input
         notify('warning', 'Input Required', 'Please enter an API key.');
         return;
       }
 
-      apiKey = key;
-      const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: key })
+        });
 
-      if (result.ok) {
-        localStorage.setItem('beacon_api_key', apiKey);
-        document.getElementById('authOverlay').style.display = 'none';
-        buckets = result.data || [];
-        renderBucketsSidebar();
-        renderPermissionsGrid();
-        showView('overview');
-        connectSSE();
-        // Notify on successful login
-        notify('success', 'Authenticated', 'Mainframe access granted.');
-      } else {
-        // Clear the invalid key
-        apiKey = '';
+        if (!res.ok) {
+          document.getElementById('authError').style.display = 'block';
+          document.getElementById('apiKeyInput').value = '';
+          notify('error', 'Authentication Failed', 'Invalid API key.');
+          return;
+        }
 
-        // Show error UI
-        document.getElementById('authError').style.display = 'block';
-        document.getElementById('apiKeyInput').value = '';
+        const data = await res.json();
+        authToken = data.token;
+        tokenExpiresAt = new Date(data.expiresAt);
+        sessionStorage.setItem('beacon_jwt', authToken);
+        sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);
+        startTokenRefresh();
 
-        // Toast notification
-        notify('error', 'Authentication Failed', 'Invalid API key.');
+        // Load initial data
+        const bucketsResult = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
+        if (bucketsResult.ok) {
+          document.getElementById('authOverlay').style.display = 'none';
+          buckets = bucketsResult.data || [];
+          renderBucketsSidebar();
+          renderPermissionsGrid();
+          showView('overview');
+          connectSSE();
+          notify('success', 'Authenticated', 'Mainframe access granted.');
+        }
+      } catch (e) {
+        notify('error', 'Network Error', 'Could not connect to server.');
       }
     }
 
     async function testAuth() {
+      if (!authToken) return false;
       const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
       if (result.ok) {
         buckets = result.data || [];
@@ -1898,31 +1913,81 @@
 
     function logout() {
       disconnectSSE();
-      localStorage.removeItem('beacon_api_key');
-      apiKey = '';
+      if (refreshInterval) clearInterval(refreshInterval);
+      authToken = '';
+      tokenExpiresAt = null;
+      sessionStorage.removeItem('beacon_jwt');
+      sessionStorage.removeItem('beacon_jwt_exp');
       location.reload();
+    }
+
+    function startTokenRefresh() {
+      if (refreshInterval) clearInterval(refreshInterval);
+      refreshInterval = setInterval(async () => {
+        if (!authToken || !tokenExpiresAt) return;
+        const now = Date.now();
+        const expiresIn = tokenExpiresAt.getTime() - now;
+        const wasActiveRecently = (now - lastActivity) < 10 * 60 * 1000; // 10 minutes
+        const expiresSoon = expiresIn < 15 * 60 * 1000; // 15 minutes
+
+        if (wasActiveRecently && expiresSoon) {
+          try {
+            const res = await fetch(`${API_BASE}/api/admin/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              authToken = data.token;
+              tokenExpiresAt = new Date(data.expiresAt);
+              sessionStorage.setItem('beacon_jwt', authToken);
+              sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);
+            } else if (res.status === 401) {
+              notify('error', 'Session Expired', 'Please log in again.');
+              logout();
+            }
+          } catch { /* network error, will retry next interval */ }
+        }
+      }, 5 * 60 * 1000); // every 5 minutes
     }
 
     // ========== INIT ==========
     async function init() {
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
 
-      if (!apiKey) {
-        document.getElementById('authOverlay').style.display = 'flex';
-        return;
+      // Track user activity for token refresh
+      ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt =>
+        document.addEventListener(evt, () => { lastActivity = Date.now(); }, { passive: true })
+      );
+
+      // Restore session from sessionStorage
+      const savedToken = sessionStorage.getItem('beacon_jwt');
+      const savedExp = sessionStorage.getItem('beacon_jwt_exp');
+      if (savedToken && savedExp) {
+        const exp = new Date(savedExp);
+        if (exp > new Date()) {
+          authToken = savedToken;
+          tokenExpiresAt = exp;
+          startTokenRefresh();
+
+          const valid = await testAuth();
+          if (valid) {
+            document.getElementById('authOverlay').style.display = 'none';
+            renderBucketsSidebar();
+            renderPermissionsGrid();
+            restoreViewFromUrl();
+            connectSSE();
+            return;
+          }
+        }
+        // Token expired or invalid — clean up
+        sessionStorage.removeItem('beacon_jwt');
+        sessionStorage.removeItem('beacon_jwt_exp');
+        authToken = '';
+        tokenExpiresAt = null;
       }
 
-      const valid = await testAuth();
-      if (!valid) {
-        document.getElementById('authOverlay').style.display = 'flex';
-        return;
-      }
-
-      document.getElementById('authOverlay').style.display = 'none';
-      renderBucketsSidebar();
-      renderPermissionsGrid();
-      restoreViewFromUrl();
-      connectSSE();
+      document.getElementById('authOverlay').style.display = 'flex';
     }
 
     function restoreViewFromUrl() {
@@ -2240,8 +2305,6 @@
       currentBucket = bucket;
       if (pushState) {
         currentPage = 1;
-        sortBy = 'lastchanged';
-        sortDir = 'desc';
         searchQuery = '';
         searchType = 'id';
       }
@@ -3425,7 +3488,7 @@
       sseAbortController = new AbortController();
 
       fetch(`${API_BASE}/api/admin/events`, {
-        headers: { 'X-Api-Key': apiKey },
+        headers: { 'Authorization': `Bearer ${authToken}` },
         signal: sseAbortController.signal
       }).then(response => {
         if (!response.ok) throw new Error(`SSE failed: ${response.status}`);
@@ -3463,8 +3526,8 @@
     }
 
     function scheduleReconnect() {
-      if (!apiKey) return;
-      setTimeout(() => { if (apiKey) connectSSE(); }, sseReconnectDelay);
+      if (!authToken) return;
+      setTimeout(() => { if (authToken) connectSSE(); }, sseReconnectDelay);
       sseReconnectDelay = Math.min(sseReconnectDelay * 2, 30000);
     }
 
@@ -3486,7 +3549,7 @@
 
     // ========== START ==========
     window.addEventListener('popstate', () => {
-      if (!apiKey) return;
+      if (!authToken) return;
       const params = new URLSearchParams(window.location.search);
       if (!params.has('modal')) {
         document.getElementById('optionsModal').style.display = 'none';

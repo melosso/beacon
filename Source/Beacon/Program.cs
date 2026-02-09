@@ -123,13 +123,27 @@ try
 
     builder.Services.AddAuthentication(options =>
         {
-            options.DefaultAuthenticateScheme = ApiKeyAuthExtensions.SchemeName;
-            options.DefaultChallengeScheme = ApiKeyAuthExtensions.SchemeName;
-            options.DefaultForbidScheme = ApiKeyAuthExtensions.SchemeName;
+            options.DefaultAuthenticateScheme = "CompositeScheme";
+            options.DefaultChallengeScheme = "CompositeScheme";
+            options.DefaultForbidScheme = "CompositeScheme";
         })
         .AddApiKeyAuth(options =>
         {
             options.AdminApiKey = adminApiKey;
+        })
+        .AddJwtAuth(options =>
+        {
+            options.SigningKey = Convert.FromBase64String(normalizedSigningKey);
+        })
+        .AddPolicyScheme("CompositeScheme", "API Key or JWT", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                var authHeader = context.Request.Headers.Authorization.ToString();
+                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    return JwtAuthExtensions.SchemeName;
+                return ApiKeyAuthExtensions.SchemeName;
+            };
         });
 
     builder.Services.AddAntiforgery();
@@ -369,17 +383,17 @@ try
     }
 
     app.UseHostRouting();
+    app.UseStaticFiles();
     app.UseAuthentication();
     app.UseAuthorization();
 
     app.UseAntiforgery();
 
-    app.UseStaticFiles();
-
     // Endpoint Mapping
     app.MapOpenApi(); // Maps /openapi/v1.json
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
+    app.MapAuthEndpoints();
 
     // Health check endpoint
     app.MapGet("/health", async (BeaconDbContext db) =>
