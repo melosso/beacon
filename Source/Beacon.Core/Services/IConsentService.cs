@@ -13,5 +13,5 @@ public interface IConsentService
     /// but does not update existing records (preserves user preferences).
     /// Returns true if a new record was created, false if it already existed.
     /// </summary>
-    Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null);
+    Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? ipAddress = null, string? consentText = null);
 }

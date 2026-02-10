@@ -149,6 +149,31 @@ public static partial class InputValidator
         return ValidationResult.Ok();
     }
 
+    public static ValidationResult ValidatePrivacyPolicyUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return ValidationResult.Ok();
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+            return ValidationResult.Fail("Privacy policy URL must be a valid absolute URL");
+
+        if (uri.Scheme != "https")
+            return ValidationResult.Fail("Privacy policy URL must use HTTPS");
+
+        return ValidationResult.Ok();
+    }
+
+    public static ValidationResult ValidateConsentText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return ValidationResult.Ok();
+
+        if (text.Trim().Length > 500)
+            return ValidationResult.Fail("Consent text is too long (max 500 characters)");
+
+        return ValidationResult.Ok();
+    }
+
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 

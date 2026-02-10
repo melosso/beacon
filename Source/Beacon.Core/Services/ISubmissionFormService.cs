@@ -10,5 +10,5 @@ public interface ISubmissionFormService
     Task UpdateFormAsync(SubmissionForm form);
     Task DeleteFormAsync(Guid id);
     bool ValidateOrigin(SubmissionForm form, string? origin);
-    Task SubscribeAsync(SubmissionForm form, string email);
+    Task SubscribeAsync(SubmissionForm form, string email, string? ipAddress = null, string? consentText = null);
 }

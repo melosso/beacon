@@ -19,4 +19,8 @@ public sealed class SubmissionForm
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public int SubmissionCount { get; set; } = 0;
+    public bool ConsentRequired { get; set; } = true;
+    public string? ConsentText { get; set; }
+    public string? PrivacyPolicyUrl { get; set; }
+    public string? CustomFields { get; set; } // JSON: {"key":"value", ...}
 }

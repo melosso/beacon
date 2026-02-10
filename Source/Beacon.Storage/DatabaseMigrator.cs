@@ -38,6 +38,8 @@ public static class DatabaseMigrator
     private static void MigrateConsentRecords(BeaconDbContext db)
     {
         AddColumnIfMissing(db, "ConsentRecords", "CustomFields", "TEXT NULL");
+        AddColumnIfMissing(db, "ConsentRecords", "IpAddress", "TEXT NULL");
+        AddColumnIfMissing(db, "ConsentRecords", "ConsentText", "TEXT NULL");
     }
 
     private static void MigrateWebhookConfigs(BeaconDbContext db)
@@ -117,7 +119,11 @@ public static class DatabaseMigrator
                     RedirectError TEXT NULL,
                     CreatedAt TEXT NOT NULL,
                     UpdatedAt TEXT NULL,
-                    SubmissionCount INTEGER NOT NULL DEFAULT 0
+                    SubmissionCount INTEGER NOT NULL DEFAULT 0,
+                    ConsentRequired INTEGER NOT NULL DEFAULT 1,
+                    ConsentText TEXT NULL,
+                    PrivacyPolicyUrl TEXT NULL,
+                    CustomFields TEXT NULL
                 )
                 """);
         }
@@ -126,6 +132,10 @@ public static class DatabaseMigrator
             AddColumnIfMissing(db, "NewsletterForms", "Language", "TEXT NOT NULL DEFAULT 'en'");
             AddColumnIfMissing(db, "NewsletterForms", "RedirectSuccess", "TEXT NULL");
             AddColumnIfMissing(db, "NewsletterForms", "RedirectError", "TEXT NULL");
+            AddColumnIfMissing(db, "NewsletterForms", "ConsentRequired", "INTEGER NOT NULL DEFAULT 1");
+            AddColumnIfMissing(db, "NewsletterForms", "ConsentText", "TEXT NULL");
+            AddColumnIfMissing(db, "NewsletterForms", "PrivacyPolicyUrl", "TEXT NULL");
+            AddColumnIfMissing(db, "NewsletterForms", "CustomFields", "TEXT NULL");
         }
     }
 }

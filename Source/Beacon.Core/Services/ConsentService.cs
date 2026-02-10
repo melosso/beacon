@@ -82,7 +82,7 @@ public sealed class ConsentService : IConsentService
         await _repository.UpsertAsync(record);
     }
 
-    public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null)
+    public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? ipAddress = null, string? consentText = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -108,7 +108,9 @@ public sealed class ConsentService : IConsentService
             Status = status,
             Source = ConsentSource.Admin,
             ChangedAt = DateTime.UtcNow,
-            CustomFields = customFieldsJson
+            CustomFields = customFieldsJson,
+            IpAddress = ipAddress,
+            ConsentText = consentText
         };
 
         await _repository.UpsertAsync(record);

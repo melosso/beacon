@@ -383,9 +383,10 @@
         <!-- Step indicators -->
         <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem" id="nlStepIndicators">
           <span class="status-badge select-none" id="nlStep1Indicator" style="opacity:1;cursor: pointer;">1. Basic Info</span>
-          <span class="status-badge select-none" id="nlStep2Indicator" style="opacity:0.4;cursor: pointer;">2. Origins</span>
+          <span class="status-badge select-none" id="nlStep2Indicator" style="opacity:0.4;cursor: pointer;">2. Form Details</span>
           <span class="status-badge select-none" id="nlStep3Indicator" style="opacity:0.4;cursor: pointer;">3. Appearance</span>
-          <span class="status-badge select-none" id="nlStep4Indicator" style="opacity:0.4;display:none;cursor: pointer;">4. Embed Code</span>
+          <span class="status-badge select-none" id="nlStep4Indicator" style="opacity:0.4;cursor: pointer;">4. Custom Fields</span>
+          <span class="status-badge select-none" id="nlStep5Indicator" style="opacity:0.4;display:none;cursor: pointer;">5. Embed Code</span>
         </div>
 
         <!-- Step 1: Basic Info -->
@@ -448,15 +449,39 @@
               <button type="button" class="btn btn-outline" onclick="addSubmissionOrigin()">Add</button>
             </div>
           </div>
-          <div class="form-group" style="margin-top:1.25rem">
-            <label title="After a successful form POST submission, redirect the user to this URL. Leave empty to return JSON instead.">Redirect on Success</label>
-            <input type="url" id="nlRedirectSuccess" placeholder="https://yoursite.com/thank-you">
+          <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-weight:600;margin-bottom:0.75rem">Consent</p>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Require consent checkbox</div>
+                <div class="checkbox-toggle-desc">When enabled, subscribers must check a consent box before submitting</div>
+              </div>
+              <input type="checkbox" id="nlConsentRequired" checked>
+              <span class="toggle-track"></span>
+            </label>
+            <div class="form-group">
+              <label style="margin-top:0.75rem">Consent Text</label>
+              <input type="text" id="nlConsentText" placeholder="I agree to receive emails and understand I can unsubscribe at any time." maxlength="500">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Custom consent checkbox label. Leave empty for default text.</p>
+            </div>
+            <div class="form-group">
+              <label>Privacy Policy URL</label>
+              <input type="url" id="nlPrivacyPolicyUrl" placeholder="https://yoursite.com/privacy">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Link displayed below the form. Must use HTTPS.</p>
+            </div>
           </div>
-          <div class="form-group">
-            <label title="After a failed form POST submission, redirect the user to this URL with an ?error= query parameter. Leave empty to return JSON instead.">Redirect on Error</label>
-            <input type="url" id="nlRedirectError" placeholder="https://yoursite.com/error">
+          <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-weight:600;margin-bottom:0.75rem">Form Completion</p>
+            <div class="form-group">
+              <label title="After a successful form POST submission, redirect the user to this URL. Leave empty to return JSON instead.">Redirect on Success</label>
+              <input type="url" id="nlRedirectSuccess" placeholder="https://yoursite.com/thank-you">
+            </div>
+            <div class="form-group">
+              <label title="After a failed form POST submission, redirect the user to this URL with an ?error= query parameter. Leave empty to return JSON instead.">Redirect on Error</label>
+              <input type="url" id="nlRedirectError" placeholder="https://yoursite.com/error">
+            </div>
+            <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Used by the HTML Form POST embed method. When set, the snippet won't need hidden redirect fields.</p>
           </div>
-          <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Used by the HTML Form POST embed method. When set, the snippet won't need hidden redirect fields.</p>
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="submissionWizardNext(1)">Back</button>
             <button class="btn btn-primary" onclick="submissionWizardNext(3)">Next</button>
@@ -501,12 +526,34 @@
           </div>
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="submissionWizardNext(2)">Back</button>
+            <button class="btn btn-primary" onclick="submissionWizardNext(4)">Next</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Custom Fields -->
+        <div id="nlStep4" style="display:none">
+          <p style="margin-bottom:1rem;color:hsl(var(--muted-foreground))">Define key-value pairs that will be stored on every consent record created by this form. Values can be static text or dynamic variables resolved per submission.</p>
+          <div class="form-group">
+            <label>Custom Fields</label>
+            <div id="nlCustomFieldsList" class="custom-fields-list"></div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+              <input type="text" id="nlFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
+              <input type="text" id="nlFieldValue" placeholder="Value or {{uuid}}" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
+              <button type="button" class="btn btn-outline" onclick="addCustomField('nl')">Add</button>
+            </div>
+            <div style="margin-top:0.75rem">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">Variables (resolved per submission):</p>
+              <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{uuid}}')"><code>{{uuid}}</code> &mdash; Random UUIDv4</button>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="submissionWizardNext(3)">Back</button>
             <button class="btn btn-primary" id="nlSaveBtn" onclick="saveSubmissionForm()">Create Form</button>
           </div>
         </div>
 
-        <!-- Step 4: Embed Code (after save) -->
-        <div id="nlStep4" style="display:none">
+        <!-- Step 5: Embed Code (after save) -->
+        <div id="nlStep5" style="display:none">
           <div id="nlApiTokenDisplay" style="display:none;margin-bottom:1.5rem">
             <h3 style="margin-bottom:0.5rem">API Token (shown once)</h3>
             <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem">Save this token securely. It will not be shown again.</p>
@@ -527,6 +574,7 @@
             <button class="embed-tab active" onclick="switchEmbedTab('iframe')">iframe</button>
             <button class="embed-tab" onclick="switchEmbedTab('js')">JavaScript</button>
             <button class="embed-tab" onclick="switchEmbedTab('form')">HTML Form</button>
+            <button class="embed-tab" onclick="switchEmbedTab('api')">API</button>
           </div>
           <div class="embed-tab-panel active" id="embedPanel-iframe">
             <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Paste this into your website HTML. The form is fully self-contained.</p>
@@ -560,6 +608,13 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               Preview
             </button>
+          </div>
+          <div class="embed-tab-panel" id="embedPanel-api">
+            <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Use <code>fetch</code> for full control over UI and behavior. Returns JSON.</p>
+            <span class="tooltip-wrapper">
+              <div class="token-output" id="nlApiCode" onclick="copyEmbedCode('api')" style="display:block;cursor:pointer;white-space:pre-wrap"></div>
+              <span class="tooltip tooltip-above">Click to copy</span>
+            </span>
           </div>
           <div class="modal-actions" style="margin-top:1.5rem">
             <button class="btn btn-primary" onclick="showView('submissions')">Done</button>
@@ -1327,20 +1382,23 @@
 
     function addCustomField(context) {
       const isEdit = context === 'edit';
-      const keyInput = document.getElementById(isEdit ? 'editFieldKey' : 'newFieldKey');
-      const valueInput = document.getElementById(isEdit ? 'editFieldValue' : 'newFieldValue');
+      const isNl = context === 'nl';
+      const keyInput = document.getElementById(isNl ? 'nlFieldKey' : (isEdit ? 'editFieldKey' : 'newFieldKey'));
+      const valueInput = document.getElementById(isNl ? 'nlFieldValue' : (isEdit ? 'editFieldValue' : 'newFieldValue'));
       const key = keyInput.value.trim();
       const value = valueInput.value.trim();
 
       if (!key) { notify('warning', 'Missing Key', 'Please enter a field key'); return; }
 
-      const fields = isEdit ? editCustomFields : tokenCustomFields;
+      const fields = isNl ? nlCustomFields : (isEdit ? editCustomFields : tokenCustomFields);
       fields[key] = value;
       keyInput.value = '';
       valueInput.value = '';
       keyInput.focus();
 
-      if (isEdit) {
+      if (isNl) {
+        renderNlCustomFieldsList();
+      } else if (isEdit) {
         renderEditCustomFieldsList();
       } else {
         renderCustomFieldsGrid();
@@ -1350,10 +1408,13 @@
 
     function removeCustomField(key, context) {
       const isEdit = context === 'edit';
-      const fields = isEdit ? editCustomFields : tokenCustomFields;
+      const isNl = context === 'nl';
+      const fields = isNl ? nlCustomFields : (isEdit ? editCustomFields : tokenCustomFields);
       delete fields[key];
 
-      if (isEdit) {
+      if (isNl) {
+        renderNlCustomFieldsList();
+      } else if (isEdit) {
         renderEditCustomFieldsList();
       } else {
         renderCustomFieldsGrid();
@@ -1406,6 +1467,27 @@
           <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'edit')" title="Remove">&times;</button>
         </div>
       `).join('');
+    }
+
+    function insertNlFieldVariable(variable) {
+      document.getElementById('nlFieldValue').value = variable;
+      document.getElementById('nlFieldKey').focus();
+    }
+
+    function renderNlCustomFieldsList() {
+      const entries = Object.entries(nlCustomFields);
+      const list = document.getElementById('nlCustomFieldsList');
+      list.innerHTML = entries.map(([k, v]) => {
+        const isVariable = /^\{\{.+\}\}$/.test(v);
+        const displayValue = isVariable
+          ? `<code style="font-size:0.8rem;background:hsl(var(--muted));padding:1px 6px;border-radius:4px">${sanitize(v)}</code>`
+          : sanitize(v);
+        return `<div class="custom-field-row">
+          <span class="custom-field-key">${sanitize(k)}</span>
+          <span class="custom-field-value">${displayValue}</span>
+          <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'nl')" title="Remove">&times;</button>
+        </div>`;
+      }).join('');
     }
 
     // ========== VIEWS ==========
@@ -2733,6 +2815,7 @@
     let nlOrigins = [];
     let nlEditId = null;
     let nlCurrentFormId = null;
+    let nlCustomFields = {};
 
     function toggleNlMenu(event, idx) {
       event.stopPropagation();
@@ -2798,6 +2881,11 @@
       document.getElementById('nlRedirectError').value = '';
       document.getElementById('nlLanguage').value = 'en';
       document.getElementById('nlIsEnabled').checked = true;
+      document.getElementById('nlConsentRequired').checked = true;
+      document.getElementById('nlConsentText').value = '';
+      document.getElementById('nlPrivacyPolicyUrl').value = '';
+      nlCustomFields = {};
+      document.getElementById('nlCustomFieldsList').innerHTML = '';
       document.getElementById('nlApiTokenDisplay').style.display = 'none';
 
       if (editData) {
@@ -2814,6 +2902,11 @@
         document.getElementById('nlRedirectError').value = editData.redirectError || '';
         document.getElementById('nlLanguage').value = editData.language || 'en';
         document.getElementById('nlIsEnabled').checked = editData.isEnabled !== false;
+        document.getElementById('nlConsentRequired').checked = editData.consentRequired !== false;
+        document.getElementById('nlConsentText').value = editData.consentText || '';
+        document.getElementById('nlPrivacyPolicyUrl').value = editData.privacyPolicyUrl || '';
+        nlCustomFields = { ...(editData.customFields || {}) };
+        renderNlCustomFieldsList();
         if (editData.formConfig) {
           const c = editData.formConfig;
           if (c.title) document.getElementById('nlTitle').value = c.title;
@@ -2836,11 +2929,11 @@
     }
 
     function submissionWizardShowStep(step) {
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         document.getElementById(`nlStep${i}`).style.display = i === step ? '' : 'none';
         const ind = document.getElementById(`nlStep${i}Indicator`);
         ind.style.opacity = i === step ? '1' : (i < step ? '0.6' : '0.4');
-        if (i === 4) ind.style.display = step === 4 ? '' : 'none';
+        if (i === 5) ind.style.display = step === 5 ? '' : 'none';
       }
     }
 
@@ -2952,6 +3045,10 @@
         redirectError: document.getElementById('nlRedirectError').value.trim() || null,
         language: document.getElementById('nlLanguage').value,
         isEnabled: document.getElementById('nlIsEnabled').checked,
+        consentRequired: document.getElementById('nlConsentRequired').checked,
+        consentText: document.getElementById('nlConsentText').value.trim() || null,
+        privacyPolicyUrl: document.getElementById('nlPrivacyPolicyUrl').value.trim() || null,
+        customFields: Object.keys(nlCustomFields).length > 0 ? nlCustomFields : null,
         formConfig: {
           title: document.getElementById('nlTitle').value.trim() || null,
           description: document.getElementById('nlDescription').value.trim() || null,
@@ -2992,13 +3089,14 @@
       document.getElementById('nlJsCode').textContent =
         `<div id="beacon-nl-${formId}"></div>\n<script src="${apiBase}/api/submission/${formId}/embed.js"><\/script>`;
       document.getElementById('nlFormCode').textContent = buildFormPostSnippet(apiBase, formId);
+      document.getElementById('nlApiCode').textContent = buildApiSnippet(apiBase, formId);
 
       if (result.data.apiToken) {
         document.getElementById('nlApiTokenDisplay').style.display = '';
         document.getElementById('nlApiToken').textContent = result.data.apiToken;
       }
 
-      submissionWizardShowStep(4);
+      submissionWizardShowStep(5);
     }
 
     async function editSubmissionForm(id, pushState = true) {
@@ -3020,7 +3118,7 @@
       document.getElementById('nlIntroTitle').textContent = 'Share Form';
       document.getElementById('nlIntroDesc').textContent = 'Use the embed code snippets below to add this submission form to your website, or share the direct link to the form itself.';
       document.getElementById('nlApiTokenDisplay').style.display = 'none';
-      submissionWizardShowStep(4);
+      submissionWizardShowStep(5);
 
       const apiBase = typeof PUBLIC_URL !== 'undefined' && PUBLIC_URL ? PUBLIC_URL : API_BASE;
 
@@ -3029,6 +3127,10 @@
       if (result.ok) {
         document.getElementById('nlRedirectSuccess').value = result.data.redirectSuccess || '';
         document.getElementById('nlRedirectError').value = result.data.redirectError || '';
+        document.getElementById('nlConsentRequired').checked = result.data.consentRequired !== false;
+        document.getElementById('nlConsentText').value = result.data.consentText || '';
+        document.getElementById('nlPrivacyPolicyUrl').value = result.data.privacyPolicyUrl || '';
+        nlCustomFields = { ...(result.data.customFields || {}) };
       }
 
       document.getElementById('nlIframeCode').textContent =
@@ -3036,6 +3138,7 @@
       document.getElementById('nlJsCode').textContent =
         `<div id="beacon-nl-${id}"></div>\n<script src="${apiBase}/api/submission/${id}/embed.js"><\/script>`;
       document.getElementById('nlFormCode').textContent = buildFormPostSnippet(apiBase, id);
+      document.getElementById('nlApiCode').textContent = buildApiSnippet(apiBase, id);
     }
 
     let submissionToRemove = null;
@@ -3109,7 +3212,7 @@
     }
 
     function copyEmbedCode(type) {
-      const ids = { iframe: 'nlIframeCode', js: 'nlJsCode', form: 'nlFormCode' };
+      const ids = { iframe: 'nlIframeCode', js: 'nlJsCode', form: 'nlFormCode', api: 'nlApiCode' };
       const el = document.getElementById(ids[type] || ids.iframe);
       navigator.clipboard.writeText(el.textContent);
       notify('success', 'Copied', 'Embed code copied to clipboard');
@@ -3118,13 +3221,58 @@
     function buildFormPostSnippet(apiBase, formId) {
       const rs = document.getElementById('nlRedirectSuccess').value.trim();
       const re = document.getElementById('nlRedirectError').value.trim();
+      const consentRequired = document.getElementById('nlConsentRequired').checked;
+      const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+      const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
       const hiddenFields = (rs || re) ? '' :
         `\n  <input type="hidden" name="redirect_success" value="https://yoursite.com/thank-you" />` +
         `\n  <input type="hidden" name="redirect_error" value="https://yoursite.com/error" />`;
+      const consentField = consentRequired ?
+        `\n  <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:0.85rem;line-height:1.4">` +
+        `\n    <input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0" />` +
+        `\n    <span>${consentText}</span>` +
+        `\n  </label>` : '';
+      const privacyField = privacyUrl ?
+        `\n  <p style="margin-top:6px;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>` : '';
       return `<form method="POST" action="${apiBase}/api/submission/${formId}/subscribe">
-  <input type="email" name="email" placeholder="you@example.com" required />${hiddenFields}
+  <input type="email" name="email" placeholder="you@example.com" required />${hiddenFields}${consentField}${privacyField}
   <button type="submit">Subscribe</button>
 </form>`;
+    }
+
+    function buildApiSnippet(apiBase, formId) {
+      const consentRequired = document.getElementById('nlConsentRequired').checked;
+      const url = `${apiBase}/api/submission/${formId}/subscribe`;
+      const bodyFields = [`  email: 'user@example.com'`];
+      if (consentRequired) bodyFields.push(`  consent: 'true'`);
+      const bodyStr = bodyFields.join(',\n');
+      return `// POST ${url}
+// Content-Type: application/json
+//
+// Request body:
+// {
+${bodyFields.map(f => '//   ' + f.trim()).join('\n')}
+// }
+//
+// Success (200): { "message": "Thanks for subscribing!" }
+// Error (400):   { "error": "..." }${consentRequired ? '\n// Error (400):   { "error": "Consent is required to subscribe" }' : ''}
+
+fetch('${url}', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+${bodyStr}
+  })
+})
+.then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+.then(({ ok, data }) => {
+  if (ok) {
+    console.log(data.message);
+  } else {
+    console.error(data.error);
+  }
+})
+.catch(() => console.error('Network error'));`;
     }
 
     function copyNlApiToken() {
@@ -3171,6 +3319,15 @@ h1{font-size:1rem;color:#888;margin-bottom:1rem;font-weight:500}
 </div></body></html>`;
       } else if (mode === 'form') {
         const actionUrl = `${apiBase}/api/submission/${nlCurrentFormId}/subscribe`;
+        const consentRequired = document.getElementById('nlConsentRequired').checked;
+        const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+        const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
+        const consentHtml = consentRequired
+          ? `\n  <label style="display:flex;align-items:flex-start;gap:8px;margin:0.75rem 0;font-size:0.85rem;line-height:1.4"><input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0" /><span>${consentText}</span></label>`
+          : '';
+        const privacyHtml = privacyUrl
+          ? `\n  <p style="margin-bottom:0.75rem;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>`
+          : '';
         html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Submission Form Test (HTML Form POST)</title>
@@ -3185,7 +3342,7 @@ button[type="submit"]:hover{background:#3730a3}</style></head>
 <form method="POST" action="${actionUrl}">
   <input type="email" name="email" placeholder="you@example.com" required />
   <input type="hidden" name="redirect_success" value="about:blank#success" />
-  <input type="hidden" name="redirect_error" value="about:blank#error" />
+  <input type="hidden" name="redirect_error" value="about:blank#error" />${consentHtml}${privacyHtml}
   <button type="submit">Subscribe</button>
 </form>
 </div></body></html>`;

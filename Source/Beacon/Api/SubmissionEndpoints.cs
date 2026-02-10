@@ -79,6 +79,10 @@ public static class SubmissionEndpoints
             f.Language,
             f.RedirectSuccess,
             f.RedirectError,
+            f.ConsentRequired,
+            f.ConsentText,
+            f.PrivacyPolicyUrl,
+            customFields = DeserializeCustomFields(f.CustomFields),
             f.CreatedAt,
             f.UpdatedAt,
             f.SubmissionCount
@@ -108,6 +112,10 @@ public static class SubmissionEndpoints
             form.Language,
             form.RedirectSuccess,
             form.RedirectError,
+            form.ConsentRequired,
+            form.ConsentText,
+            form.PrivacyPolicyUrl,
+            customFields = DeserializeCustomFields(form.CustomFields),
             form.CreatedAt,
             form.UpdatedAt,
             form.SubmissionCount
@@ -150,6 +158,15 @@ public static class SubmissionEndpoints
                 return Results.BadRequest(new { error = $"Invalid origin '{origin}': {originValidation.Error}" });
         }
 
+        // Validate GDPR fields
+        var consentTextValidation = InputValidator.ValidateConsentText(request.ConsentText);
+        if (!consentTextValidation.IsValid)
+            return Results.BadRequest(new { error = consentTextValidation.Error });
+
+        var privacyUrlValidation = InputValidator.ValidatePrivacyPolicyUrl(request.PrivacyPolicyUrl);
+        if (!privacyUrlValidation.IsValid)
+            return Results.BadRequest(new { error = privacyUrlValidation.Error });
+
         var form = new SubmissionForm
         {
             Name = request.Name.Trim(),
@@ -164,7 +181,11 @@ public static class SubmissionEndpoints
             Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language.Trim(),
             RedirectSuccess = string.IsNullOrWhiteSpace(request.RedirectSuccess) ? null : request.RedirectSuccess.Trim(),
             RedirectError = string.IsNullOrWhiteSpace(request.RedirectError) ? null : request.RedirectError.Trim(),
-            IsEnabled = request.IsEnabled
+            IsEnabled = request.IsEnabled,
+            ConsentRequired = request.ConsentRequired,
+            ConsentText = string.IsNullOrWhiteSpace(request.ConsentText) ? null : request.ConsentText.Trim(),
+            PrivacyPolicyUrl = string.IsNullOrWhiteSpace(request.PrivacyPolicyUrl) ? null : request.PrivacyPolicyUrl.Trim(),
+            CustomFields = request.CustomFields is { Count: > 0 } ? JsonSerializer.Serialize(request.CustomFields) : null
         };
 
         var (created, plaintextToken) = await service.CreateFormAsync(form);
@@ -259,6 +280,28 @@ public static class SubmissionEndpoints
         if (request.RedirectError != null)
             existing.RedirectError = string.IsNullOrWhiteSpace(request.RedirectError) ? null : request.RedirectError.Trim();
 
+        if (request.ConsentRequired.HasValue)
+            existing.ConsentRequired = request.ConsentRequired.Value;
+
+        if (request.ConsentText != null)
+        {
+            var consentTextValidation = InputValidator.ValidateConsentText(request.ConsentText);
+            if (!consentTextValidation.IsValid)
+                return Results.BadRequest(new { error = consentTextValidation.Error });
+            existing.ConsentText = string.IsNullOrWhiteSpace(request.ConsentText) ? null : request.ConsentText.Trim();
+        }
+
+        if (request.PrivacyPolicyUrl != null)
+        {
+            var privacyUrlValidation = InputValidator.ValidatePrivacyPolicyUrl(request.PrivacyPolicyUrl);
+            if (!privacyUrlValidation.IsValid)
+                return Results.BadRequest(new { error = privacyUrlValidation.Error });
+            existing.PrivacyPolicyUrl = string.IsNullOrWhiteSpace(request.PrivacyPolicyUrl) ? null : request.PrivacyPolicyUrl.Trim();
+        }
+
+        if (request.CustomFields != null)
+            existing.CustomFields = request.CustomFields.Count > 0 ? JsonSerializer.Serialize(request.CustomFields) : null;
+
         await service.UpdateFormAsync(existing);
 
         return Results.Ok(new
@@ -276,6 +319,10 @@ public static class SubmissionEndpoints
             existing.Language,
             existing.RedirectSuccess,
             existing.RedirectError,
+            existing.ConsentRequired,
+            existing.ConsentText,
+            existing.PrivacyPolicyUrl,
+            customFields = DeserializeCustomFields(existing.CustomFields),
             existing.CreatedAt,
             existing.UpdatedAt,
             existing.SubmissionCount
@@ -317,6 +364,20 @@ public static class SubmissionEndpoints
         var honeypotHtml = form.HoneypotEnabled
             ? """<div style="position:absolute;left:-9999px;top:-9999px;" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>"""
             : "";
+
+        var defaultConsentText = "I agree to receive emails and understand I can unsubscribe at any time.";
+        var consentHtml = "";
+        if (form.ConsentRequired)
+        {
+            var consentLabel = WebUtility.HtmlEncode(form.ConsentText ?? defaultConsentText);
+            consentHtml = $"""<div class="consent-row"><input type="checkbox" id="consentCb" name="consent" value="true" required /><label for="consentCb">{consentLabel}</label></div>""";
+        }
+
+        var privacyHtml = "";
+        if (!string.IsNullOrWhiteSpace(form.PrivacyPolicyUrl))
+        {
+            privacyHtml = $"""<div class="privacy-link"><a href="{WebUtility.HtmlEncode(form.PrivacyPolicyUrl)}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></div>""";
+        }
 
         var html = $$"""
             <!DOCTYPE html>
@@ -362,6 +423,12 @@ public static class SubmissionEndpoints
                 .message { margin-top: 12px; font-size: 0.9rem; }
                 .message.success { color: #16a34a; }
                 .message.error { color: #dc2626; }
+                .consent-row { margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
+                .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+                .consent-row label { line-height: 1.4; }
+                .consent-row a { color: inherit; text-decoration: underline; }
+                .privacy-link { margin-top: 6px; font-size: 0.8rem; opacity: 0.65; }
+                .privacy-link a { color: inherit; text-decoration: underline; }
               </style>
             </head>
             <body>
@@ -374,6 +441,8 @@ public static class SubmissionEndpoints
                     <input type="email" name="email" placeholder="you@example.com" required />
                     <button type="submit">{{WebUtility.HtmlEncode(config.ButtonText ?? "Subscribe")}}</button>
                   </div>
+                  {{consentHtml}}
+                  {{privacyHtml}}
                 </form>
                 <div id="msg" class="message"></div>
               </div>
@@ -391,6 +460,8 @@ public static class SubmissionEndpoints
                     const body = { email: fd.get('email') };
                     const hp = fd.get('website');
                     if (hp) body.website = hp;
+                    const cb = form.querySelector('input[name="consent"]');
+                    if (cb) body.consent = cb.checked ? 'true' : 'false';
                     const res = await fetch('/api/submission/{{formIdStr}}/subscribe', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -436,6 +507,21 @@ public static class SubmissionEndpoints
             ? "const hpDiv=document.createElement('div');hpDiv.style.cssText='position:absolute;left:-9999px;top:-9999px;';hpDiv.setAttribute('aria-hidden','true');const hpInput=document.createElement('input');hpInput.type='text';hpInput.name='website';hpInput.tabIndex=-1;hpInput.autocomplete='off';hpDiv.appendChild(hpInput);f.appendChild(hpDiv);"
             : "";
 
+        var jsDefaultConsentText = "I agree to receive emails and understand I can unsubscribe at any time.";
+        var consentJs = "";
+        if (form.ConsentRequired)
+        {
+            var escapedConsentText = JsonSerializer.Serialize(form.ConsentText ?? jsDefaultConsentText).Trim('"');
+            consentJs = $"var cRow=document.createElement('div');cRow.className='consent-row';var cCb=document.createElement('input');cCb.type='checkbox';cCb.name='consent';cCb.id='consentCb';cCb.value='true';cCb.required=true;var cLbl=document.createElement('label');cLbl.setAttribute('for','consentCb');cLbl.textContent=\"{escapedConsentText}\";cRow.appendChild(cCb);cRow.appendChild(cLbl);f.appendChild(cRow);";
+        }
+
+        var privacyJs = "";
+        if (!string.IsNullOrWhiteSpace(form.PrivacyPolicyUrl))
+        {
+            var escapedUrl = JsonSerializer.Serialize(form.PrivacyPolicyUrl).Trim('"');
+            privacyJs = $"var pDiv=document.createElement('div');pDiv.className='privacy-link';var pA=document.createElement('a');pA.href=\"{escapedUrl}\";pA.target='_blank';pA.rel='noopener noreferrer';pA.textContent='Privacy Policy';pDiv.appendChild(pA);f.appendChild(pDiv);";
+        }
+
         var js = $$"""
             (function(){
               var cfg = {{configJson}};
@@ -459,6 +545,12 @@ public static class SubmissionEndpoints
                 .message { margin-top: 12px; font-size: 0.9rem; }
                 .message.success { color: #16a34a; }
                 .message.error { color: #dc2626; }
+                .consent-row { margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
+                .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+                .consent-row label { line-height: 1.4; }
+                .consent-row a { color: inherit; text-decoration: underline; }
+                .privacy-link { margin-top: 6px; font-size: 0.8rem; opacity: 0.65; }
+                .privacy-link a { color: inherit; text-decoration: underline; }
               `;
               shadow.appendChild(style);
               var wrapper = document.createElement('div');
@@ -475,6 +567,8 @@ public static class SubmissionEndpoints
               btn.type = 'submit'; btn.textContent = cfg.buttonText || 'Subscribe';
               row.appendChild(input); row.appendChild(btn);
               f.appendChild(row);
+              {{consentJs}}
+              {{privacyJs}}
               wrapper.appendChild(f);
               var msg = document.createElement('div');
               msg.className = 'message';
@@ -489,6 +583,8 @@ public static class SubmissionEndpoints
                   var body = { email: input.value };
                   var hp = f.querySelector('input[name="website"]');
                   if (hp && hp.value) body.website = hp.value;
+                  var ccb = f.querySelector('input[name="consent"]');
+                  if (ccb) body.consent = ccb.checked ? 'true' : 'false';
                   var res = await fetch(baseUrl + '/api/submission/{{formIdStr}}/subscribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -529,6 +625,7 @@ public static class SubmissionEndpoints
         // Parse request body (JSON or form-encoded)
         string? email = null;
         string? website = null;
+        string? consent = null;
         string? redirectSuccess = null;
         string? redirectError = null;
         var contentType = context.Request.ContentType ?? "";
@@ -539,6 +636,7 @@ public static class SubmissionEndpoints
             var formData = await context.Request.ReadFormAsync();
             email = formData["email"].FirstOrDefault();
             website = formData["website"].FirstOrDefault();
+            consent = formData["consent"].FirstOrDefault();
             redirectSuccess = formData["redirect_success"].FirstOrDefault();
             redirectError = formData["redirect_error"].FirstOrDefault();
         }
@@ -547,6 +645,7 @@ public static class SubmissionEndpoints
             var request = await context.Request.ReadFromJsonAsync<SubmissionSubscribeRequest>();
             email = request?.Email;
             website = request?.Website;
+            consent = request?.Consent;
         }
 
         // Fall back to form-level redirect URLs if not provided in the POST body
@@ -571,6 +670,8 @@ public static class SubmissionEndpoints
             Serilog.Log.Warning("Blocked subscription attempt for form {FormId} from disallowed origin: {Origin}", form.Id, origin);
             if (isFormPost && IsValidRedirectUrl(redirectError))
                 return Results.Redirect(AppendQuery(redirectError!, "error", "origin_not_allowed"));
+            if (isFormPost)
+                return FormPostHtmlResult(form, "Origin not allowed.", true);
             return Results.Json(new { error = "Origin not allowed" }, statusCode: 403);
         }
 
@@ -588,6 +689,8 @@ public static class SubmissionEndpoints
         {
             if (isFormPost && IsValidRedirectUrl(redirectError))
                 return Results.Redirect(AppendQuery(redirectError!, "error", "rate_limited"));
+            if (isFormPost)
+                return FormPostHtmlResult(form, "Too many requests. Please try again later.", true);
             return Results.Json(new { error = "Too many requests. Please try again later." }, statusCode: 429);
         }
 
@@ -597,7 +700,25 @@ public static class SubmissionEndpoints
             // Bot detected, return success silently
             if (isFormPost && IsValidRedirectUrl(redirectSuccess))
                 return Results.Redirect(redirectSuccess!);
+            var hpConfig = DeserializeFormConfig(form.FormConfig);
+            if (isFormPost)
+                return FormPostHtmlResult(form, hpConfig?.SuccessMessage ?? "Thanks for subscribing!", false);
             return Results.Ok(new { message = "Thanks for subscribing!" });
+        }
+
+        // Consent validation
+        if (form.ConsentRequired)
+        {
+            var consentGiven = string.Equals(consent, "true", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(consent, "on", StringComparison.OrdinalIgnoreCase);
+            if (!consentGiven)
+            {
+                if (isFormPost && IsValidRedirectUrl(redirectError))
+                    return Results.Redirect(AppendQuery(redirectError!, "error", "consent_required"));
+                if (isFormPost)
+                    return FormPostHtmlResult(form, "Consent is required to subscribe.", true);
+                return Results.BadRequest(new { error = "Consent is required to subscribe" });
+            }
         }
 
         // Email validation
@@ -606,17 +727,72 @@ public static class SubmissionEndpoints
         {
             if (isFormPost && IsValidRedirectUrl(redirectError))
                 return Results.Redirect(AppendQuery(redirectError!, "error", "invalid_email"));
+            if (isFormPost)
+                return FormPostHtmlResult(form, emailValidation.Error!, true);
             return Results.BadRequest(new { error = emailValidation.Error });
         }
 
         // Subscribe
-        await service.SubscribeAsync(form, email!);
+        var subscriberIp = SubmissionRateLimiter.GetClientIp(context);
+        var effectiveConsentText = form.ConsentText ?? "I agree to receive emails and understand I can unsubscribe at any time.";
+        await service.SubscribeAsync(form, email!, subscriberIp, form.ConsentRequired ? effectiveConsentText : null);
 
         if (isFormPost && IsValidRedirectUrl(redirectSuccess))
             return Results.Redirect(redirectSuccess!);
 
         var config = DeserializeFormConfig(form.FormConfig);
-        return Results.Ok(new { message = config?.SuccessMessage ?? "Thanks for subscribing!" });
+        var successMessage = config?.SuccessMessage ?? "Thanks for subscribing!";
+        if (isFormPost)
+            return FormPostHtmlResult(form, successMessage, false);
+        return Results.Ok(new { message = successMessage });
+    }
+
+    private static IResult FormPostHtmlResult(SubmissionForm form, string message, bool isError)
+    {
+        var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
+        var bg = WebUtility.HtmlEncode(config.BackgroundColor ?? "#ffffff");
+        var text = WebUtility.HtmlEncode(config.TextColor ?? "#111111");
+        var primary = WebUtility.HtmlEncode(config.PrimaryColor ?? "#2563eb");
+        var radius = WebUtility.HtmlEncode(config.BorderRadius ?? "8px");
+        var color = isError ? "#dc2626" : "#16a34a";
+        var encodedMsg = WebUtility.HtmlEncode(message);
+
+        var html = $$"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>{{WebUtility.HtmlEncode(isError ? "Error" : "Success")}}</title>
+              <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                  background: {{bg}}; color: {{text}};
+                  display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem;
+                }
+                .card { max-width: 480px; width: 100%; text-align: center; }
+                .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+                .message { font-size: 1.1rem; line-height: 1.5; color: {{color}}; margin-bottom: 1.5rem; }
+                a {
+                  display: inline-block; padding: 10px 24px;
+                  background: {{primary}}; color: #fff; text-decoration: none;
+                  border-radius: {{radius}}; font-size: 0.95rem; font-weight: 500;
+                }
+                a:hover { opacity: 0.9; }
+              </style>
+            </head>
+            <body>
+              <div class="card">
+                <div class="icon">{{(isError ? "&#9888;" : "&#10003;")}}</div>
+                <p class="message">{{encodedMsg}}</p>
+                <a href="javascript:history.back()">&#8592; Go back</a>
+              </div>
+            </body>
+            </html>
+            """;
+
+        return Results.Content(html, "text/html");
     }
 
     private static bool IsValidRedirectUrl(string? url)
@@ -669,6 +845,13 @@ public static class SubmissionEndpoints
         try { return JsonSerializer.Deserialize<FormConfigDto>(json); }
         catch { return null; }
     }
+
+    private static Dictionary<string, string>? DeserializeCustomFields(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try { return JsonSerializer.Deserialize<Dictionary<string, string>>(json); }
+        catch { return null; }
+    }
 }
 
 // DTOs
@@ -699,6 +882,10 @@ public sealed class CreateSubmissionFormRequest
     public bool IsEnabled { get; set; } = true;
     public string? RedirectSuccess { get; set; }
     public string? RedirectError { get; set; }
+    public bool ConsentRequired { get; set; } = true;
+    public string? ConsentText { get; set; }
+    public string? PrivacyPolicyUrl { get; set; }
+    public Dictionary<string, string>? CustomFields { get; set; }
 }
 
 public sealed class UpdateSubmissionFormRequest
@@ -715,10 +902,15 @@ public sealed class UpdateSubmissionFormRequest
     public bool? IsEnabled { get; set; }
     public string? RedirectSuccess { get; set; }
     public string? RedirectError { get; set; }
+    public bool? ConsentRequired { get; set; }
+    public string? ConsentText { get; set; }
+    public string? PrivacyPolicyUrl { get; set; }
+    public Dictionary<string, string>? CustomFields { get; set; }
 }
 
 public sealed class SubmissionSubscribeRequest
 {
     public string Email { get; set; } = string.Empty;
     public string? Website { get; set; } // Honeypot field
+    public string? Consent { get; set; }
 }

@@ -87,7 +87,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         }
     }
 
-    public async Task SubscribeAsync(SubmissionForm form, string email)
+    public async Task SubscribeAsync(SubmissionForm form, string email, string? ipAddress = null, string? consentText = null)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
@@ -96,13 +96,18 @@ public sealed class SubmissionFormService : ISubmissionFormService
         var permissions = form.Permission
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+        var resolvedCustomFields = ResolveCustomFieldVariables(form.CustomFields);
+
         foreach (var permission in permissions)
         {
             await _consentService.EnsureAsync(
                 normalizedBucket,
                 normalizedEmail,
                 permission,
-                ConsentStatus.OptedIn);
+                ConsentStatus.OptedIn,
+                customFieldsJson: resolvedCustomFields,
+                ipAddress: ipAddress,
+                consentText: consentText);
         }
 
         // Increment submission count
@@ -135,6 +140,35 @@ public sealed class SubmissionFormService : ISubmissionFormService
         catch (Exception ex)
         {
             Logger.Error(ex, "Failed to trigger webhook for submission in bucket {Bucket}", form.Bucket);
+        }
+    }
+
+    private static string? ResolveCustomFieldVariables(string? customFieldsJson)
+    {
+        if (string.IsNullOrEmpty(customFieldsJson))
+            return null;
+
+        try
+        {
+            var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(customFieldsJson);
+            if (fields is null || fields.Count == 0)
+                return null;
+
+            var resolved = false;
+            foreach (var key in fields.Keys.ToList())
+            {
+                if (string.Equals(fields[key], "{{uuid}}", StringComparison.OrdinalIgnoreCase))
+                {
+                    fields[key] = Guid.NewGuid().ToString();
+                    resolved = true;
+                }
+            }
+
+            return resolved ? JsonSerializer.Serialize(fields) : customFieldsJson;
+        }
+        catch
+        {
+            return customFieldsJson;
         }
     }
 }

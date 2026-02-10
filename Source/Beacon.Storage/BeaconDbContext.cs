@@ -32,6 +32,11 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.TokenHash)
                 .HasMaxLength(64);
 
+            entity.Property(e => e.IpAddress)
+                .HasMaxLength(45);
+
+            entity.Property(e => e.ConsentText);
+
             entity.HasIndex(e => new { e.Bucket, e.EmailHash, e.Permission })
                 .IsUnique();
 
@@ -110,6 +115,12 @@ public class BeaconDbContext : DbContext
 
             entity.Property(e => e.EncryptedApiToken)
                 .IsRequired();
+
+            entity.Property(e => e.ConsentText)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.PrivacyPolicyUrl)
+                .HasMaxLength(2000);
         });
     }
 }
