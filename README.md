@@ -19,6 +19,7 @@ Beacon manages email permission states via logical groupings called Buckets. For
 - **Token-based opt-out**: Secure HMAC-signed URLs that validate without database lookups
 - **Multi-database support**: SQLite (default), SQL Server, PostgreSQL, MySQL
 - **Admin panel**: Web UI for managing buckets and viewing consent records
+- **Form builder**: Create campaign and newsletter signup forms
 - **Granular permissions**: Set multiple permission states in a single API call
 - **Security first**: Encrypted data at rest, hashed emails, rate limiting
 

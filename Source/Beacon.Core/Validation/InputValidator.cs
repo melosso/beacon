@@ -109,6 +109,46 @@ public static partial class InputValidator
         return ValidationResult.Ok();
     }
 
+    public static ValidationResult ValidateOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return ValidationResult.Fail("Origin is required");
+        }
+
+        if (!Uri.TryCreate(origin.Trim(), UriKind.Absolute, out var uri))
+        {
+            return ValidationResult.Fail("Origin must be a valid absolute URL");
+        }
+
+        if (uri.Scheme != "http" && uri.Scheme != "https")
+        {
+            return ValidationResult.Fail("Origin must use http or https");
+        }
+
+        if (uri.AbsolutePath != "/" || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            return ValidationResult.Fail("Origin must not contain a path, query, or fragment");
+        }
+
+        return ValidationResult.Ok();
+    }
+
+    public static ValidationResult ValidateSubmissionName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return ValidationResult.Fail("Name is required");
+        }
+
+        if (name.Trim().Length > 200)
+        {
+            return ValidationResult.Fail("Name is too long (max 200 characters)");
+        }
+
+        return ValidationResult.Ok();
+    }
+
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 
