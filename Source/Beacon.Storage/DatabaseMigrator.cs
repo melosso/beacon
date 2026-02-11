@@ -117,6 +117,9 @@ public static class DatabaseMigrator
                     IsEnabled INTEGER NOT NULL DEFAULT 1,
                     RedirectSuccess TEXT NULL,
                     RedirectError TEXT NULL,
+                    RedirectFormPost INTEGER NOT NULL DEFAULT 1,
+                    RedirectJsEmbed INTEGER NOT NULL DEFAULT 0,
+                    DisableRedirects INTEGER NOT NULL DEFAULT 0,
                     CreatedAt TEXT NOT NULL,
                     UpdatedAt TEXT NULL,
                     SubmissionCount INTEGER NOT NULL DEFAULT 0,
@@ -136,6 +139,9 @@ public static class DatabaseMigrator
             AddColumnIfMissing(db, "NewsletterForms", "ConsentText", "TEXT NULL");
             AddColumnIfMissing(db, "NewsletterForms", "PrivacyPolicyUrl", "TEXT NULL");
             AddColumnIfMissing(db, "NewsletterForms", "CustomFields", "TEXT NULL");
+            AddColumnIfMissing(db, "NewsletterForms", "RedirectJsEmbed", "INTEGER NOT NULL DEFAULT 0");
+            AddColumnIfMissing(db, "NewsletterForms", "RedirectFormPost", "INTEGER NOT NULL DEFAULT 1");
+            AddColumnIfMissing(db, "NewsletterForms", "DisableRedirects", "INTEGER NOT NULL DEFAULT 0");
         }
     }
 }

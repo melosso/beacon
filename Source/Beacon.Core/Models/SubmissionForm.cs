@@ -14,6 +14,9 @@ public sealed class SubmissionForm
     public bool DoubleOptIn { get; set; } = false;
     public string? RedirectSuccess { get; set; }
     public string? RedirectError { get; set; }
+    public bool RedirectFormPost { get; set; } = true;
+    public bool RedirectJsEmbed { get; set; } = false;
+    public bool DisableRedirects { get; set; } = false;
     public string Language { get; set; } = "en";
     public bool IsEnabled { get; set; } = true;
     public DateTime CreatedAt { get; set; }

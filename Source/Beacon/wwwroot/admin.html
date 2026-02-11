@@ -480,7 +480,30 @@
               <label title="After a failed form POST submission, redirect the user to this URL with an ?error= query parameter. Leave empty to return JSON instead.">Redirect on Error</label>
               <input type="url" id="nlRedirectError" placeholder="https://yoursite.com/error">
             </div>
-            <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Used by the HTML Form POST embed method. When set, the snippet won't need hidden redirect fields.</p>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Redirect HTML form submissions</div>
+                <div class="checkbox-toggle-desc">Turn this on to send users to the URLs above after they submit the form. Turn it off to show a built-in success or error page instead.</div>
+              </div>
+              <input type="checkbox" id="nlRedirectFormPost" checked>
+              <span class="toggle-track"></span>
+            </label>
+            <label class="checkbox-toggle" style="margin-top:0.5rem">
+              <div>
+                <div class="checkbox-toggle-label">Redirect JavaScript and iframe embeds</div>
+                <div class="checkbox-toggle-desc">Turn this on to send users to the URLs above after they subscribe via a JS or iframe embed. Turn it off to show an inline message instead.</div>
+              </div>
+              <input type="checkbox" id="nlRedirectJsEmbed">
+              <span class="toggle-track"></span>
+            </label>
+            <label class="checkbox-toggle" style="margin-top:0.5rem">
+              <div>
+                <div class="checkbox-toggle-label">Disable all redirects</div>
+                <div class="checkbox-toggle-desc">Turn this on to ignore all redirect settings above. HTML forms will show a built-in result page and JS/iframe embeds will show an inline message instead.</div>
+              </div>
+              <input type="checkbox" id="nlDisableRedirects" onchange="toggleRedirectFields()">
+              <span class="toggle-track"></span>
+            </label>
           </div>
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="submissionWizardNext(1)">Back</button>
@@ -538,12 +561,21 @@
             <div id="nlCustomFieldsList" class="custom-fields-list"></div>
             <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
               <input type="text" id="nlFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
-              <input type="text" id="nlFieldValue" placeholder="Value or {{uuid}}" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
+              <input type="text" id="nlFieldValue" placeholder="Value or variable" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
               <button type="button" class="btn btn-outline" onclick="addCustomField('nl')">Add</button>
             </div>
             <div style="margin-top:0.75rem">
               <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">Variables (resolved per submission):</p>
-              <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{uuid}}')"><code>{{uuid}}</code> &mdash; Random UUIDv4</button>
+              <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{uuid}}')"><code>{{uuid}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{timestamp}}')"><code>{{timestamp}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{date}}')"><code>{{date}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{source}}')"><code>{{source}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{form_id}}')"><code>{{form_id}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{form_name}}')"><code>{{form_name}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{ip_hash}}')"><code>{{ip_hash}}</code></button>
+              </div>
+              <p style="font-size:0.75rem;color:hsl(var(--muted-foreground));margin-top:0.4rem"><code>{{date}}</code> supports timezones: <code>{{date:Europe/Amsterdam}}</code></p>
             </div>
           </div>
           <div class="modal-actions">
@@ -620,6 +652,16 @@
             <button class="btn btn-primary" onclick="showView('submissions')">Done</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="view-submission-preview" class="view" style="overflow:hidden">
+      <div style="display:flex;align-items:center;gap:0.75rem;padding:1rem 1.5rem;border-bottom:1px solid hsl(var(--border));flex-shrink:0">
+        <button class="btn btn-outline" onclick="showEmbedCode(previewFormId)" style="padding:0.4rem 0.75rem;font-size:0.85rem">&larr; Back</button>
+        <span style="font-size:0.9rem;font-weight:500" id="previewTitle" class="select-none">Preview Mode</span>
+        <span id="previewBadge" style="margin-left:auto;font-size:0.75rem;padding:2px 8px;border-radius:4px;border:1px solid hsl(var(--border));color:hsl(var(--muted-foreground))"></span>
+      </div>
+      <div id="previewContent" style="flex:1;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:2rem;background-color:hsl(var(--background))">
       </div>
     </div>
   </main>
@@ -1196,6 +1238,15 @@
         } else {
           showView('submissions', false);
         }
+      } else if (view === 'submission-preview') {
+        const nlId = params.get('id');
+        const mode = params.get('mode') || 'iframe';
+        if (nlId) {
+          nlCurrentFormId = nlId;
+          showPreview(nlId, mode);
+        } else {
+          showView('submissions', false);
+        }
       } else {
         showView('overview', false);
       }
@@ -1527,7 +1578,7 @@
 
       document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
       // Highlight submission nav when in create/edit
-      if (view === 'submission-create' || view === 'submission-edit' || view === 'submission-embed') {
+      if (view === 'submission-create' || view === 'submission-edit' || view === 'submission-embed' || view === 'submission-preview') {
         document.querySelector('.nav-item[data-view="submissions"]')?.classList.add('active');
       }
 
@@ -2877,6 +2928,22 @@
       `).join('');
     }
 
+    function toggleRedirectFields() {
+      const disabled = document.getElementById('nlDisableRedirects').checked;
+      document.getElementById('nlRedirectSuccess').disabled = disabled;
+      document.getElementById('nlRedirectError').disabled = disabled;
+      document.getElementById('nlRedirectFormPost').disabled = disabled;
+      document.getElementById('nlRedirectJsEmbed').disabled = disabled;
+      const ids = ['nlRedirectSuccess', 'nlRedirectError', 'nlRedirectFormPost', 'nlRedirectJsEmbed'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        const wrapper = el.closest('.form-group') || el.closest('.checkbox-toggle');
+        if (wrapper) { wrapper.style.opacity = disabled ? '0.45' : ''; wrapper.style.pointerEvents = disabled ? 'none' : ''; }
+        const track = el.closest('.checkbox-toggle')?.querySelector('.toggle-track');
+        if (track) track.style.filter = disabled ? 'saturate(0)' : '';
+      });
+    }
+
     function initSubmissionWizard(editData) {
       nlOrigins = [];
       nlEditId = null;
@@ -2895,6 +2962,10 @@
       document.getElementById('nlBorderRadius').value = '8px';
       document.getElementById('nlRedirectSuccess').value = '';
       document.getElementById('nlRedirectError').value = '';
+      document.getElementById('nlRedirectFormPost').checked = true;
+      document.getElementById('nlRedirectJsEmbed').checked = false;
+      document.getElementById('nlDisableRedirects').checked = false;
+      toggleRedirectFields();
       document.getElementById('nlLanguage').value = 'en';
       document.getElementById('nlIsEnabled').checked = true;
       document.getElementById('nlConsentRequired').checked = true;
@@ -2916,6 +2987,10 @@
         nlOrigins = [...(editData.allowedOrigins || [])];
         document.getElementById('nlRedirectSuccess').value = editData.redirectSuccess || '';
         document.getElementById('nlRedirectError').value = editData.redirectError || '';
+        document.getElementById('nlRedirectFormPost').checked = editData.redirectFormPost !== false;
+        document.getElementById('nlRedirectJsEmbed').checked = !!editData.redirectJsEmbed;
+        document.getElementById('nlDisableRedirects').checked = !!editData.disableRedirects;
+        toggleRedirectFields();
         document.getElementById('nlLanguage').value = editData.language || 'en';
         document.getElementById('nlIsEnabled').checked = editData.isEnabled !== false;
         document.getElementById('nlConsentRequired').checked = editData.consentRequired !== false;
@@ -3059,6 +3134,9 @@
         allowedOrigins: nlOrigins,
         redirectSuccess: document.getElementById('nlRedirectSuccess').value.trim() || null,
         redirectError: document.getElementById('nlRedirectError').value.trim() || null,
+        redirectFormPost: document.getElementById('nlRedirectFormPost').checked,
+        redirectJsEmbed: document.getElementById('nlRedirectJsEmbed').checked,
+        disableRedirects: document.getElementById('nlDisableRedirects').checked,
         language: document.getElementById('nlLanguage').value,
         isEnabled: document.getElementById('nlIsEnabled').checked,
         consentRequired: document.getElementById('nlConsentRequired').checked,
@@ -3076,6 +3154,11 @@
           borderRadius: document.getElementById('nlBorderRadius').value.trim() || '8px'
         }
       };
+
+      if (!data.disableRedirects && (data.redirectFormPost || data.redirectJsEmbed) && !data.redirectSuccess && !data.redirectError) {
+        notify('warning', 'Missing URLs', 'Redirect is enabled but no redirect URLs are configured. Add a success or error URL, or disable redirects.');
+        return;
+      }
 
       let result;
       if (nlEditId) {
@@ -3101,7 +3184,7 @@
 
       // Show embed code
       document.getElementById('nlIframeCode').textContent =
-        `<iframe src="${apiBase}/api/submission/${formId}/embed" style="border:none;width:100%;max-width:480px;height:220px;" loading="lazy" title="Submission form"></iframe>`;
+        `<iframe src="${apiBase}/api/submission/${formId}/embed" style="border:none;width:100%;max-width:480px;min-height:235px;" loading="lazy" title="Submission form"></iframe>`;
       document.getElementById('nlJsCode').textContent =
         `<div id="beacon-nl-${formId}"></div>\n<script src="${apiBase}/api/submission/${formId}/embed.js"><\/script>`;
       document.getElementById('nlFormCode').textContent = buildFormPostSnippet(apiBase, formId);
@@ -3143,6 +3226,10 @@
       if (result.ok) {
         document.getElementById('nlRedirectSuccess').value = result.data.redirectSuccess || '';
         document.getElementById('nlRedirectError').value = result.data.redirectError || '';
+        document.getElementById('nlRedirectFormPost').checked = result.data.redirectFormPost !== false;
+        document.getElementById('nlRedirectJsEmbed').checked = !!result.data.redirectJsEmbed;
+        document.getElementById('nlDisableRedirects').checked = !!result.data.disableRedirects;
+        toggleRedirectFields();
         document.getElementById('nlConsentRequired').checked = result.data.consentRequired !== false;
         document.getElementById('nlConsentText').value = result.data.consentText || '';
         document.getElementById('nlPrivacyPolicyUrl').value = result.data.privacyPolicyUrl || '';
@@ -3150,7 +3237,7 @@
       }
 
       document.getElementById('nlIframeCode').textContent =
-        `<iframe src="${apiBase}/api/submission/${id}/embed" style="border:none;width:100%;max-width:480px;height:220px;" loading="lazy" title="Submission form"></iframe>`;
+        `<iframe src="${apiBase}/api/submission/${id}/embed" style="border:none;width:100%;max-width:480px;min-height:235px;" loading="lazy" title="Submission form"></iframe>`;
       document.getElementById('nlJsCode').textContent =
         `<div id="beacon-nl-${id}"></div>\n<script src="${apiBase}/api/submission/${id}/embed.js"><\/script>`;
       document.getElementById('nlFormCode').textContent = buildFormPostSnippet(apiBase, id);
@@ -3240,7 +3327,8 @@
       const consentRequired = document.getElementById('nlConsentRequired').checked;
       const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
       const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
-      const hiddenFields = (rs || re) ? '' :
+      const disableRedirects = document.getElementById('nlDisableRedirects').checked;
+      const hiddenFields = (disableRedirects || rs || re) ? '' :
         `\n  <input type="hidden" name="redirect_success" value="https://yoursite.com/thank-you" />` +
         `\n  <input type="hidden" name="redirect_error" value="https://yoursite.com/error" />`;
       const consentField = consentRequired ?
@@ -3310,67 +3398,112 @@ ${bodyStr}
       notify('success', 'Downloaded', `Saved as token_${stamp}.txt`);
     }
 
+    var previewFormId = null;
+
     function testSubmissionForm(mode) {
       if (!nlCurrentFormId) return;
+      previewFormId = nlCurrentFormId;
+      showPreview(nlCurrentFormId, mode);
+    }
+
+    function showPreview(id, mode) {
+      previewFormId = id;
       const apiBase = typeof PUBLIC_URL !== 'undefined' && PUBLIC_URL ? PUBLIC_URL : API_BASE;
+      const badge = document.getElementById('previewBadge');
+      const container = document.getElementById('previewContent');
+      const labels = { iframe: 'iframe', js: 'JavaScript', form: 'HTML Form', api: 'API' };
+      badge.textContent = labels[mode] || mode;
+      container.innerHTML = '';
 
       if (mode === 'iframe') {
-        window.open(`${apiBase}/api/submission/${nlCurrentFormId}/embed`, '_blank');
-        return;
-      }
-
-      let html;
-      if (mode === 'js') {
-        const scriptUrl = `${apiBase}/api/submission/${nlCurrentFormId}/embed.js`;
-        html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Submission Form Test (JavaScript)</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
-.container{background:#fff;border-radius:12px;padding:2rem;box-shadow:0 1px 3px rgba(0,0,0,.1);width:100%;max-width:560px}
-h1{font-size:1rem;color:#888;margin-bottom:1rem;font-weight:500}
-.badge{display:inline-block;font-size:.75rem;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:4px;margin-bottom:1rem}</style></head>
-<body><div class="container"><span class="badge">JS embed</span><h1>Submission Form Preview</h1>
-<div id="beacon-nl-${nlCurrentFormId}"></div>
-<script src="${scriptUrl}"><\/script>
-</div></body></html>`;
+        const iframe = document.createElement('iframe');
+        iframe.src = `${apiBase}/api/submission/${id}/embed`;
+        iframe.style.cssText = 'border:none;width:100%;max-width:480px;min-height:235px;border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.08)';
+        iframe.onload = function() {
+          try { const h = iframe.contentDocument.documentElement.scrollHeight; if (h) iframe.style.height = h + 'px'; }
+          catch(e) { /* cross-origin, keep min-height */ }
+        };
+        container.appendChild(iframe);
+      } else if (mode === 'js') {
+        const wrapper = document.createElement('div');
+        wrapper.id = `beacon-nl-${id}`;
+        const card = buildPreviewCard(wrapper);
+        container.appendChild(card);
+        const script = document.createElement('script');
+        script.src = `${apiBase}/api/submission/${id}/embed.js`;
+        card.appendChild(script);
       } else if (mode === 'form') {
-        const actionUrl = `${apiBase}/api/submission/${nlCurrentFormId}/subscribe`;
-        const consentRequired = document.getElementById('nlConsentRequired').checked;
-        const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
-        const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
-        const consentHtml = consentRequired
-          ? `\n  <label style="display:flex;align-items:flex-start;gap:8px;margin:0.75rem 0;font-size:0.85rem;line-height:1.4"><input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0" /><span>${consentText}</span></label>`
-          : '';
-        const privacyHtml = privacyUrl
-          ? `\n  <p style="margin-bottom:0.75rem;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>`
-          : '';
-        html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Submission Form Test (HTML Form POST)</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem}
-.container{background:#fff;border-radius:12px;padding:2rem;box-shadow:0 1px 3px rgba(0,0,0,.1);width:100%;max-width:560px}
-h1{font-size:1rem;color:#888;margin-bottom:1rem;font-weight:500}
-.badge{display:inline-block;font-size:.75rem;background:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:4px;margin-bottom:1rem}
-input[type="email"]{width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;margin-bottom:0.75rem}
-button[type="submit"]{background:#4338ca;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:6px;font-size:0.9rem;cursor:pointer}
-button[type="submit"]:hover{background:#3730a3}</style></head>
-<body><div class="container"><span class="badge">HTML Form POST</span><h1>Submission Form Preview</h1>
-<form method="POST" action="${actionUrl}">
-  <input type="email" name="email" placeholder="you@example.com" required />
-  <input type="hidden" name="redirect_success" value="about:blank#success" />
-  <input type="hidden" name="redirect_error" value="about:blank#error" />${consentHtml}${privacyHtml}
-  <button type="submit">Subscribe</button>
-</form>
-</div></body></html>`;
+        const actionUrl = `${apiBase}/api/submission/${id}/subscribe`;
+        const consentRequired = document.getElementById('nlConsentRequired')?.checked;
+        const consentText = document.getElementById('nlConsentText')?.value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+        const privacyUrl = document.getElementById('nlPrivacyPolicyUrl')?.value.trim();
+        const disableRedirects = document.getElementById('nlDisableRedirects')?.checked;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = actionUrl;
+        if (!disableRedirects) form.target = '_self';
+        form.innerHTML = `
+          <input type="email" name="email" placeholder="you@example.com" required style="width:100%;padding:0.5rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);font-size:0.9rem;margin-bottom:0.75rem;background:hsl(var(--background));color:hsl(var(--foreground))">
+          ${!disableRedirects ? '<input type="hidden" name="redirect_success" value="about:blank#success"><input type="hidden" name="redirect_error" value="about:blank#error">' : ''}
+          ${consentRequired ? `<label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 0.75rem;font-size:0.85rem;line-height:1.4;color:hsl(var(--foreground))"><input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0"><span>${consentText}</span></label>` : ''}
+          ${privacyUrl ? `<p style="margin-bottom:0.75rem;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_self" rel="noopener noreferrer" style="color:hsl(var(--foreground))">Privacy Policy</a></p>` : ''}
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">Subscribe</button>
+        `;
+        if (disableRedirects) {
+          const msg = document.createElement('div');
+          msg.style.cssText = 'margin-top:0.75rem;font-size:0.9rem;min-height:1.4em';
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button');
+            btn.disabled = true;
+            msg.textContent = ''; msg.style.color = '';
+            try {
+              const body = { email: form.querySelector('input[name="email"]').value };
+              const cb = form.querySelector('input[name="consent"]');
+              if (cb) body.consent = cb.checked ? 'true' : 'false';
+              const res = await fetch(actionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(body)
+              });
+              const data = await res.json();
+              if (res.ok) {
+                msg.textContent = data.message || 'Success';
+                msg.style.color = '#16a34a';
+                form.reset();
+              } else {
+                msg.textContent = data.error || 'Something went wrong.';
+                msg.style.color = '#dc2626';
+              }
+            } catch {
+              msg.textContent = 'Network error. Please try again.';
+              msg.style.color = '#dc2626';
+            }
+            btn.disabled = false;
+          });
+          form.appendChild(msg);
+        }
+        const card = buildPreviewCard(form);
+        container.appendChild(card);
+      } else if (mode === 'api') {
+        const subscribeUrl = `${apiBase}/api/submission/${id}/subscribe`;
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'background:hsl(var(--muted));color:hsl(var(--foreground));padding:1rem;border-radius:var(--radius);font-size:0.8rem;overflow-x:auto;line-height:1.6;margin:0;white-space:pre-wrap;word-break:break-all';
+        pre.textContent = `fetch('${subscribeUrl}', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ email: 'user@example.com' })\n})\n.then(r => r.json())\n.then(data => console.log(data));`;
+        const card = buildPreviewCard(pre);
+        container.appendChild(card);
       }
 
-      const tab = window.open('', '_blank');
-      if (tab) {
-        tab.document.write(html);
-        tab.document.close();
-      } else {
-        notify('error', 'Blocked', 'Pop-up was blocked. Please allow pop-ups for this site.');
-      }
+      showView('submission-preview', false);
+      updateUrl({ view: 'submission-preview', id, mode });
+    }
+
+    function buildPreviewCard(content) {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:hsl(var(--background));border:1px solid hsl(var(--border));border-radius:var(--radius);padding:1.5rem;width:100%;max-width:520px;box-shadow:0 1px 3px rgba(0,0,0,.08)';
+      card.appendChild(content);
+      return card;
     }
 
     init();

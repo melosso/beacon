@@ -396,6 +396,188 @@ public class SubmissionFormServiceTests
         Assert.True(Guid.TryParse(fields["subscriber_id"], out _));
     }
 
+    [Fact]
+    public async Task SubscribeAsync_ResolvesTimestampCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "signed_at", "{{timestamp}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.True(fields!.ContainsKey("signed_at"));
+        Assert.True(DateTime.TryParse(fields["signed_at"], out _));
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesDateCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "signup_date", "{{date}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", fields!["signup_date"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesDateWithTimezoneCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "signup_date", "{{date:Europe/Berlin}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", fields!["signup_date"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesDateWithInvalidTimezoneFallsBackToUtc()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "signup_date", "{{date:Invalid/Zone}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", fields!["signup_date"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesSourceCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "referrer", "{{source}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com", origin: "https://blog.example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Equal("https://blog.example.com", fields!["referrer"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesFormIdCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "fid", "{{form_id}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Equal(form.Id.ToString(), fields!["fid"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesFormNameCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm("My Landing Page");
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "form", "{{form_name}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Equal("My Landing Page", fields!["form"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesIpHashCustomField()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "client", "{{ip_hash}}" } });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com", ipAddress: "192.168.1.1");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.Equal(64, fields!["client"].Length); // SHA256 hex = 64 chars
+        Assert.Matches(@"^[0-9a-f]{64}$", fields["client"]);
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_ResolvesMultipleVariables()
+    {
+        var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.Permission = "newsletter";
+        form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            { "id", "{{uuid}}" },
+            { "when", "{{timestamp}}" },
+            { "from", "{{source}}" },
+            { "static_val", "keep-this" }
+        });
+        await formRepo.CreateAsync(form);
+
+        await service.SubscribeAsync(form, "user@example.com", origin: "https://example.com");
+
+        var emailHash = emailHasher.Hash("user@example.com");
+        var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
+        Assert.NotNull(fields);
+        Assert.True(Guid.TryParse(fields!["id"], out _));
+        Assert.True(DateTime.TryParse(fields["when"], out _));
+        Assert.Equal("https://example.com", fields["from"]);
+        Assert.Equal("keep-this", fields["static_val"]);
+    }
+
     // --- IsRedirectAllowedForForm (tested via static helper in SubmissionEndpoints) ---
 
     [Fact]
@@ -435,6 +617,18 @@ public class SubmissionFormServiceTests
     }
 
     // --- Helpers ---
+
+    private (SubmissionFormService service, InMemorySubmissionFormRepository formRepo, InMemoryConsentRepository consentRepo, EmailHasher emailHasher) CreateFullService()
+    {
+        var formRepo = new InMemorySubmissionFormRepository();
+        var consentRepo = new InMemoryConsentRepository();
+        var webhookService = new InMemoryWebhookService();
+        var emailHasher = new EmailHasher(TestPepper);
+        var encryptor = new Encryptor(TestEncryptionKey);
+        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
+        return (service, formRepo, consentRepo, emailHasher);
+    }
 
     private static SubmissionForm CreateTestForm(string name = "Test Form")
     {
