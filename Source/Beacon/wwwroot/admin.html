@@ -1082,7 +1082,7 @@
         // Load initial data
         const bucketsResult = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
         if (bucketsResult.ok) {
-          document.getElementById('authOverlay').style.display = 'none';
+          document.getElementById('authOverlay').style.setProperty('display', 'none', 'important');
           buckets = bucketsResult.data || [];
           renderBucketsSidebar();
           renderPermissionsGrid();
@@ -1154,14 +1154,14 @@
     async function init() {
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
 
-      // Track user activity for token refresh
+      // Track user activity
       ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt =>
         document.addEventListener(evt, () => { lastActivity = Date.now(); }, { passive: true })
       );
 
-      // Restore session from sessionStorage
       const savedToken = sessionStorage.getItem('beacon_jwt');
       const savedExp = sessionStorage.getItem('beacon_jwt_exp');
+
       if (savedToken && savedExp) {
         const exp = new Date(savedExp);
         if (exp > new Date()) {
@@ -1169,38 +1169,34 @@
           tokenExpiresAt = exp;
           startTokenRefresh();
 
-          // Restore cached buckets immediately to prevent pop-in
+          // Restore cached buckets for speed
           try {
             const cached = sessionStorage.getItem('beacon_buckets');
-            if (cached) {
-              buckets = JSON.parse(cached);
-            }
+            if (cached) { buckets = JSON.parse(cached); }
           } catch {}
 
-          document.getElementById('authOverlay').style.display = 'none';
-          renderBucketsSidebar();
-          renderPermissionsGrid();
-          restoreViewFromUrl();
-
+          // Verify the token with the server
           const valid = await testAuth();
           if (valid) {
-            // Re-render with fresh data from testAuth
+            // ONLY hide the overlay once we are 100% sure we are authenticated
+            document.getElementById('authOverlay').style.setProperty('display', 'none', 'important');
             renderBucketsSidebar();
             renderPermissionsGrid();
+            restoreViewFromUrl();
             connectSSE();
-            return;
+            return; // Exit early; we are logged in.
           }
         }
-        // Token expired or invalid — clean up
+        
+        // Cleanup if token was invalid or expired
         sessionStorage.removeItem('beacon_jwt');
         sessionStorage.removeItem('beacon_jwt_exp');
         sessionStorage.removeItem('beacon_buckets');
         authToken = '';
-        tokenExpiresAt = null;
-        buckets = [];
       }
 
-      document.getElementById('authOverlay').style.display = 'flex';
+      // If we reach here, we are NOT authenticated. 
+      document.getElementById('authOverlay').style.setProperty('display', 'flex', 'important');
     }
 
     function restoreViewFromUrl() {

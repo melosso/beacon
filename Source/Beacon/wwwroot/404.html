@@ -134,33 +134,37 @@
       color: var(--fg);
       text-decoration: underline;
     }
+
+    .select-none {
+      user-select: none;
+    }
   </style>
 </head>
 <body>
   <main>
     <section class="card">
-      <div class="error-header">
+      <div class="error-header select-none">
         <span class="status-code">404</span>
         <h1>Not Found</h1>
       </div>
 
-      <p>The requested resource could not be found on this server.</p>
+      <p class="select-none">The requested resource could not be found on this server.</p>
 
       <div class="dev-info">
         <div class="dev-line">
-          <span class="label">Code:</span>
+          <span class="label select-none">Code:</span>
           <span class="value"><code>NOT_FOUND</code></span>
         </div>
         <div class="dev-line">
-          <span class="label">Timestamp:</span>
+          <span class="label select-none">Timestamp:</span>
           <span class="value"><code id="ts">Loading...</code></span>
         </div>
       </div>
 
-      <p>Didn't expect this? Please let us know.</p>
+      <p class="select-none">Didn't expect this? Please let us know.</p>
 
       <div class="footer">
-        <a href="/" class="back-link">Return to Home</a>
+        <a href="/" class="back-link select-none">Return to Home</a>
       </div>
     </section>
   </main>

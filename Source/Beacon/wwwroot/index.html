@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="robots" content="noindex,nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>401: UNAUTHORIZED</title>
+  <title>421: MISDIRECTED_REQUEST</title>
   <meta name="color-scheme" content="light dark" />
   <style>
     :root {
@@ -135,33 +135,37 @@
       color: var(--fg);
       text-decoration: underline;
     }
+    
+    .select-none {
+      user-select: none;
+    }
   </style>
 </head>
 <body>
   <main>
     <section class="card">
-      <div class="error-header">
-        <span class="status-code">401</span>
-        <h1>Unauthorized</h1>
+      <div class="error-header select-none">
+        <span class="status-code">421</span>
+        <h1>Misdirected Request</h1>
       </div>
 
-      <p>You don't have permissions to access the requested resource.</p>
+      <p class="select-none">The server was not able to produce a response.</p>
 
       <div class="dev-info">
         <div class="dev-line">
-          <span class="label">Code:</span>
-          <span class="value"><code>UNAUTHORIZED</code></span>
+          <span class="label select-none">Code:</span>
+          <span class="value"><code>MISDIRECTED_REQUEST</code></span>
         </div>
         <div class="dev-line">
-          <span class="label">Timestamp:</span>
+          <span class="label select-none">Timestamp:</span>
           <span class="value"><code id="ts">Loading...</code></span>
         </div>
       </div>
 
-      <p>Didn't expect this? Please let us know.</p>
+      <p class="select-none">Didn't expect this? Please let us know.</p>
 
       <div class="footer">
-        <a href="javascript:history.back()" class="back-link">Go Back</a>
+        <a href="javascript:history.back()" class="back-link select-none">Go Back</a>
       </div>
     </section>
   </main>
