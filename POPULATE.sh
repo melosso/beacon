@@ -7,7 +7,7 @@ API_URL="http://localhost:5000/api/tokens/generate"
 API_KEY="INSECURE-CHANGE-ME-api-key"
 
 MIN_EMAILS_PER_BUCKET=5
-MAX_EMAILS_PER_BUCKET=600
+MAX_EMAILS_PER_BUCKET=300
 
 DOMAINS=(
   "unternehmen.eu"
@@ -50,6 +50,8 @@ BUCKETS=(
   "gdpr_mandatory_notifications_eu"
   "privacy_policy_updates_eu"
   "terms_of_service_changes_eu"
+  "newsletter_nl"
+  "newsletter_de"
 )
 
 # ======================================
@@ -85,7 +87,7 @@ generate_email_permissions() {
 # Processing
 # ======================================
 
-echo "Initialization: Generating ${#BUCKETS[@]} European buckets..."
+echo "Initialization: Generating ${#BUCKETS[@]} buckets..."
 
 for BUCKET_NAME in "${BUCKETS[@]}"; do
 
@@ -125,4 +127,80 @@ EOF
     echo "--------------------------------------"
 done
 
+# ======================================
+# Submission Forms
+# ======================================
+
+ADMIN_URL="http://localhost:5001/api/admin/submissions"
+SUBSCRIBE_BASE="http://localhost:5000/api/submission"
+
+echo "Creating submission forms..."
+
+# Create newsletter_nl form
+NL_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
+    -H "X-Api-Key: $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "Dutch Newsletter",
+        "bucket": "newsletter_nl",
+        "permission": "Newsletter",
+        "allowedOrigins": ["http://localhost:5000", "http://localhost:5001", "http://localhost:8070"],
+        "language": "nl",
+        "isEnabled": true,
+        "formConfig": {
+            "title": "Schrijf je in voor de nieuwsbrief",
+            "description": "Ontvang updates in je inbox.",
+            "buttonText": "Inschrijven",
+            "successMessage": "Bedankt voor je inschrijving!"
+        }
+    }')
+
+NL_FORM_ID=$(echo "$NL_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+echo "Created newsletter_nl form: $NL_FORM_ID"
+
+# Create newsletter_de form
+DE_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
+    -H "X-Api-Key: $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "German Newsletter",
+        "bucket": "newsletter_de",
+        "permission": "Newsletter",
+        "allowedOrigins": ["http://localhost:5000", "http://localhost:5001", "http://localhost:8070"],
+        "language": "de",
+        "isEnabled": true,
+        "formConfig": {
+            "title": "Newsletter abonnieren",
+            "description": "Erhalten Sie Updates direkt in Ihr Postfach.",
+            "buttonText": "Abonnieren",
+            "successMessage": "Vielen Dank für Ihre Anmeldung!"
+        }
+    }')
+
+DE_FORM_ID=$(echo "$DE_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+echo "Created newsletter_de form: $DE_FORM_ID"
+
+# Subscribe 2 emails to newsletter_nl
+if [[ -n "$NL_FORM_ID" ]]; then
+    echo "Subscribing 2 emails to newsletter_nl..."
+    for email in "jan.devries@organisatie.nl" "sophie.bakker@organisatie.nl"; do
+        curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$NL_FORM_ID/subscribe" \
+            -H "Content-Type: application/json" \
+            -H "Origin: http://localhost:8070" \
+            -d "{\"email\": \"$email\"}"
+    done
+fi
+
+# Subscribe 3 emails to newsletter_de
+if [[ -n "$DE_FORM_ID" ]]; then
+    echo "Subscribing 3 emails to newsletter_de..."
+    for email in "hans.mueller@firma.de" "anna.schmidt@firma.de" "lukas.weber@unternehmen.eu"; do
+        curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$DE_FORM_ID/subscribe" \
+            -H "Content-Type: application/json" \
+            -H "Origin: http://localhost:8070" \
+            -d "{\"email\": \"$email\"}"
+    done
+fi
+
+echo "--------------------------------------"
 echo "Operation complete."

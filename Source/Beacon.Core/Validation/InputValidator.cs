@@ -109,11 +109,132 @@ public static partial class InputValidator
         return ValidationResult.Ok();
     }
 
+    public static ValidationResult ValidateOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return ValidationResult.Fail("Origin is required");
+        }
+
+        if (!Uri.TryCreate(origin.Trim(), UriKind.Absolute, out var uri))
+        {
+            return ValidationResult.Fail("Origin must be a valid absolute URL");
+        }
+
+        if (uri.Scheme != "http" && uri.Scheme != "https")
+        {
+            return ValidationResult.Fail("Origin must use http or https");
+        }
+
+        if (uri.AbsolutePath != "/" || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            return ValidationResult.Fail("Origin must not contain a path, query, or fragment");
+        }
+
+        return ValidationResult.Ok();
+    }
+
+    public static ValidationResult ValidateSubmissionName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return ValidationResult.Fail("Name is required");
+        }
+
+        if (name.Trim().Length > 200)
+        {
+            return ValidationResult.Fail("Name is too long (max 200 characters)");
+        }
+
+        return ValidationResult.Ok();
+    }
+
+    public static ValidationResult ValidatePrivacyPolicyUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return ValidationResult.Ok();
+
+        if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+            return ValidationResult.Fail("Privacy policy URL must be a valid absolute URL");
+
+        if (uri.Scheme != "https")
+            return ValidationResult.Fail("Privacy policy URL must use HTTPS");
+
+        return ValidationResult.Ok();
+    }
+
+    public static ValidationResult ValidateConsentText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return ValidationResult.Ok();
+
+        if (text.Trim().Length > 500)
+            return ValidationResult.Fail("Consent text is too long (max 500 characters)");
+
+        return ValidationResult.Ok();
+    }
+
+    private static readonly HashSet<string> AllowedCssColorNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "transparent", "currentcolor",
+        "black", "white", "red", "green", "blue", "yellow", "orange", "purple",
+        "pink", "gray", "grey", "brown", "cyan", "magenta", "lime", "navy",
+        "teal", "aqua", "maroon", "olive", "silver", "fuchsia",
+        "indigo", "violet", "coral", "salmon", "tomato", "gold",
+        "crimson", "darkblue", "darkgreen", "darkred", "lightblue", "lightgreen",
+        "lightgray", "lightgrey", "darkgray", "darkgrey", "whitesmoke", "aliceblue",
+        "inherit", "initial", "unset"
+    };
+
+    public static ValidationResult ValidateCssColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return ValidationResult.Ok();
+
+        var trimmed = value.Trim();
+
+        // Hex colors: #rgb, #rgba, #rrggbb, #rrggbbaa
+        if (HexColorPattern().IsMatch(trimmed))
+            return ValidationResult.Ok();
+
+        // Named colors
+        if (AllowedCssColorNames.Contains(trimmed))
+            return ValidationResult.Ok();
+
+        // rgb() / rgba() with only digits, commas, spaces, dots, percent
+        if (RgbFunctionPattern().IsMatch(trimmed))
+            return ValidationResult.Ok();
+
+        return ValidationResult.Fail("Invalid CSS color value");
+    }
+
+    public static ValidationResult ValidateCssBorderRadius(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return ValidationResult.Ok();
+
+        var trimmed = value.Trim();
+
+        if (BorderRadiusPattern().IsMatch(trimmed))
+            return ValidationResult.Ok();
+
+        return ValidationResult.Fail("Invalid CSS border-radius value");
+    }
+
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex PermissionPattern();
+
+    [GeneratedRegex(@"^#[0-9a-fA-F]{3,8}$")]
+    private static partial Regex HexColorPattern();
+
+    [GeneratedRegex(@"^rgba?\(\s*[\d\s,.%]+\s*\)$")]
+    private static partial Regex RgbFunctionPattern();
+
+    [GeneratedRegex(@"^\d+(\.\d+)?(px|rem|em|%)$")]
+    private static partial Regex BorderRadiusPattern();
 }
 
 public sealed class ValidationResult

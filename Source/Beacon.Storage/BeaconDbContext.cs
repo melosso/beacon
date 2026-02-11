@@ -13,6 +13,7 @@ public class BeaconDbContext : DbContext
     public DbSet<UsedToken> UsedTokens => Set<UsedToken>();
     public DbSet<WebhookConfig> WebhookConfigs => Set<WebhookConfig>();
     public DbSet<WebhookDeliveryError> WebhookDeliveryErrors => Set<WebhookDeliveryError>();
+    public DbSet<SubmissionForm> SubmissionForms => Set<SubmissionForm>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,11 @@ public class BeaconDbContext : DbContext
 
             entity.Property(e => e.TokenHash)
                 .HasMaxLength(64);
+
+            entity.Property(e => e.IpAddress)
+                .HasMaxLength(45);
+
+            entity.Property(e => e.ConsentText);
 
             entity.HasIndex(e => new { e.Bucket, e.EmailHash, e.Permission })
                 .IsUnique();
@@ -85,6 +91,36 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.StackTrace);
 
             entity.HasIndex(e => e.Bucket);
+        });
+
+        modelBuilder.Entity<SubmissionForm>(entity =>
+        {
+            entity.ToTable("NewsletterForms"); // Keep existing table name for backward compatibility
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.Permission)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.AllowedOrigins)
+                .IsRequired();
+
+            entity.Property(e => e.EncryptedApiToken)
+                .IsRequired();
+
+            entity.Property(e => e.ConsentText)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.PrivacyPolicyUrl)
+                .HasMaxLength(2000);
         });
     }
 }

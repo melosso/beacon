@@ -3,1236 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link href="/css/site.css" rel="stylesheet" />
   <title>Beacon</title>
-  <style>
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 240 10% 3.9%;
-      --muted: 240 4.8% 95.9%;
-      --muted-foreground: 240 3.8% 46.1%;
-      --border: 240 5.9% 90%;
-      --primary: 240 5.9% 10%;
-      --primary-foreground: 0 0% 98%;
-      --success: 142 76% 36%;
-      --destructive: 0 84.2% 60.2%;
-      --warning: 38 92% 50%;
-      --radius: 0.5rem;
-      --sidebar-width: 260px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --background: 240 10% 3.9%;
-        --foreground: 0 0% 98%;
-        --muted: 240 3.7% 15.9%;
-        --muted-foreground: 240 5% 64.9%;
-        --border: 240 3.7% 15.9%;
-        --primary: 0 0% 98%;
-        --primary-foreground: 240 5.9% 10%;
-      }
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
-      background-color: hsl(var(--background));
-      color: hsl(var(--foreground));
-      display: flex;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-    }
-    
-    .select-none { user-select: none; }
-
-    /* Toast Notifications */
-    .toast-container {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      z-index: 300;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      pointer-events: none;
-    }
-
-    .toast {
-      background: hsl(var(--background));
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      padding: 0.875rem 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-width: 280px;
-      max-width: 400px;
-      pointer-events: auto;
-      animation: slideIn 0.2s ease-out;
-    }
-
-    @keyframes slideIn {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-
-    .toast.hiding {
-      animation: slideOut 0.2s ease-in forwards;
-    }
-
-    @keyframes slideOut {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(100%); opacity: 0; }
-    }
-
-    .toast-icon {
-      width: 20px;
-      height: 20px;
-      flex-shrink: 0;
-    }
-
-    .toast.success { border-left: 3px solid hsl(var(--success)); }
-    .toast.success .toast-icon { color: hsl(var(--success)); }
-    .toast.error { border-left: 3px solid hsl(var(--destructive)); }
-    .toast.error .toast-icon { color: hsl(var(--destructive)); }
-    .toast.warning { border-left: 3px solid hsl(var(--warning)); }
-    .toast.warning .toast-icon { color: hsl(var(--warning)); }
-
-    .toast-content {
-      flex: 1;
-      font-size: 0.875rem;
-    }
-
-    .toast-title {
-      font-weight: 600;
-      margin-bottom: 0.125rem;
-    }
-
-    .toast-message {
-      color: hsl(var(--muted-foreground));
-    }
-
-    /* Auth overlay */
-    .auth-overlay {
-      position: fixed;
-      inset: 0;
-      background: hsl(var(--background));
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-    }
-
-    .auth-box {
-      width: 360px;
-      padding: 2rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-    }
-
-    .auth-box h2 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .auth-box p {
-      font-size: 0.875rem;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 1.5rem;
-    }
-
-    .auth-box input {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      background: transparent;
-      color: inherit;
-      margin-bottom: 1rem;
-      font-family: monospace;
-    }
-
-    .auth-box .error {
-      color: hsl(var(--destructive));
-      font-size: 0.875rem;
-      margin-bottom: 1rem;
-      display: none;
-    }
-
-    .auth-box .btn .spinner {
-      display: none;
-      width: 1rem;
-      height: 1rem;
-      border: 2px solid transparent;
-      border-top-color: currentColor;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-
-    .auth-box .btn.is-loading .spinner { display: inline-block; }
-    .auth-box .btn.is-loading .btn-label { display: none; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Sidebar */
-    aside {
-      width: var(--sidebar-width);
-      min-width: var(--sidebar-width);
-      border-right: 1px solid hsl(var(--border));
-      display: flex;
-      flex-direction: column;
-      padding: 1.5rem 1rem;
-      height: 100%;
-      overflow-y: auto;
-      position: relative;
-      z-index: 20;
-    }
-
-    .brand {
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      padding: 0 0.75rem;
-      margin-bottom: 2.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .nav-group { margin-bottom: 1.5rem; }
-    .nav-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: hsl(var(--muted-foreground));
-      padding: 0 0.75rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .nav-item {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.875rem;
-      border-radius: var(--radius);
-      cursor: pointer;
-      margin-bottom: 2px;
-      transition: background 0.2s;
-      color: hsl(var(--foreground));
-      text-decoration: none;
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .nav-item:hover { background-color: hsl(var(--muted)); }
-    .nav-item.active { background-color: hsl(var(--muted)); font-weight: 600; }
-
-    .nav-item.show-more {
-      color: hsl(var(--muted-foreground));
-      font-size: 0.75rem;
-      font-weight: 500;
-      letter-spacing: 0.01em;
-      padding: 0.375rem 0.75rem;
-      margin-top: 0.25rem;
-      border-radius: calc(var(--radius) - 2px);
-      background: transparent;
-      border: 1px dashed hsl(var(--border));
-      text-align: center;
-    }
-
-    .nav-item.show-more:hover {
-      color: hsl(var(--foreground));
-      background: hsl(var(--muted));
-      border-style: solid;
-    }
-
-    /* Sidebar Footer and GitHub Icon */
-    .sidebar-footer {
-      margin-top: auto;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding-top: 1rem;
-    }
-
-    .github-link {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: hsl(var(--muted-foreground));
-      transition: color 0.2s;
-    }
-
-    .github-link:hover {
-      color: hsl(var(--foreground));
-    }
-
-    .github-icon {
-      width: 16px;
-      height: 16px;
-    }
-
-    /* Buckets Header and Submenu */
-    .nav-label-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-right: 0.5rem;
-    }
-
-    .nav-label-actions {
-      display: flex;
-      align-items: center;
-      gap: 1px;
-    }
-
-    .btn-plus, .btn-sidebar {
-      background: transparent;
-      border: none;
-      color: hsl(var(--muted-foreground));
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      padding: 2px;
-      border-radius: 4px;
-    }
-
-    .btn-plus:hover, .btn-sidebar:hover {
-      background-color: hsl(var(--muted));
-      color: hsl(var(--foreground));
-    }
-
-    .btn-sidebar.active {
-      color: hsl(var(--foreground));
-    }
-
-    .submenu {
-      display: none;
-      margin-bottom: 0.5rem;
-      border-left: 1px solid hsl(var(--border));
-      margin-left: 0.75rem;
-      padding-left: 0.25rem;
-    }
-
-    .submenu.open {
-      display: block;
-    }
-
-    .nav-item.unavailable {
-      opacity: 0.4;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-
-    .btn-logout {
-      border: 1px solid hsl(var(--border));
-      background: transparent;
-      color: hsl(var(--foreground));
-      font-weight: 600;
-      padding: 0.6rem;
-      border-radius: var(--radius);
-      cursor: pointer;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-    }
-
-    /* Main Container */
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 2rem 3rem;
-      height: 100%;
-      overflow: hidden;
-    }
-
-    .header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 2rem;
-      flex-shrink: 0;
-    }
-
-    h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
-
-    .status-badge {
-      display: inline-flex;
-      background: hsl(var(--muted));
-      color: hsl(var(--muted-foreground));
-      font-size: 0.75rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      margin-top: 0.5rem;
-      font-weight: 500;
-    }
-
-    .status-badge.opted-in { background: hsl(142 76% 90%); color: hsl(var(--success)); }
-    .status-badge.opted-out { background: hsl(0 84% 95%); color: hsl(var(--destructive)); }
-
-    .bucket-actions { display: flex; gap: 0.75rem; align-items: center; }
-
-    .webhook-errors-trigger {
-      position: relative;
-      background: transparent;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      cursor: pointer;
-      padding: 0;
-      width: 2.25rem;
-      height: 2.25rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: hsl(var(--muted-foreground));
-      transition: color 0.2s, border-color 0.2s;
-    }
-    .webhook-errors-trigger:hover {
-      color: hsl(var(--foreground));
-      border-color: hsl(var(--foreground));
-    }
-    .webhook-errors-trigger.has-errors { color: hsl(var(--destructive)); border-color: hsl(var(--destructive)); }
-    .webhook-errors-trigger.has-errors::after {
-      content: '';
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      width: 7px;
-      height: 7px;
-      background: hsl(var(--destructive));
-      border-radius: 50%;
-    }
-
-    .webhook-errors-dropdown {
-      position: fixed;
-      background: hsl(var(--background));
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      min-width: 320px;
-      max-width: 420px;
-      z-index: 1000;
-      display: none;
-      padding: 0.5rem 0;
-    }
-    .webhook-errors-dropdown.open { display: block; }
-    .webhook-errors-dropdown .error-item {
-      padding: 0.5rem 0.875rem;
-      border-bottom: 1px solid hsl(var(--border));
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .webhook-errors-dropdown .error-item:hover { background: hsl(var(--muted)); }
-    .webhook-errors-dropdown .error-item:last-child { border-bottom: none; }
-    .webhook-errors-dropdown .error-time {
-      color: hsl(var(--muted-foreground));
-      font-size: 0.7rem;
-      margin-bottom: 0.2rem;
-    }
-    .webhook-errors-dropdown .error-msg {
-      color: hsl(var(--foreground));
-      word-break: break-word;
-    }
-    .webhook-errors-dropdown .error-status {
-      display: inline-block;
-      background: hsl(var(--destructive));
-      color: white;
-      font-size: 0.65rem;
-      padding: 0.1rem 0.35rem;
-      border-radius: 3px;
-      margin-left: 0.4rem;
-      font-weight: 600;
-    }
-    .webhook-errors-dropdown .error-header {
-      padding: 0.5rem 0.875rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: hsl(var(--muted-foreground));
-      border-bottom: 1px solid hsl(var(--border));
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .webhook-errors-dropdown .error-header .clear-all-btn {
-      font-size: 0.65rem;
-      color: hsl(var(--destructive));
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-weight: 600;
-      padding: 0.1rem 0.3rem;
-      border-radius: 3px;
-      transition: background 0.15s;
-    }
-    .webhook-errors-dropdown .error-header .clear-all-btn:hover {
-      background: hsl(0 84% 95%);
-    }
-    .error-detail-message {
-      background: hsl(var(--muted));
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      padding: 0.875rem;
-      font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
-      font-size: 0.8rem;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 300px;
-      overflow-y: auto;
-      margin-bottom: 1rem;
-      user-select: text;
-    }
-    .error-detail-meta {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      margin-bottom: 1.5rem;
-      font-size: 0.8rem;
-      color: hsl(var(--muted-foreground));
-    }
-
-    .btn {
-      height: 2.25rem;
-      padding: 0 0.875rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      border-radius: var(--radius);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      transition: opacity 0.2s;
-      gap: 0.5rem;
-    }
-
-    .btn-outline { border: 1px solid hsl(var(--border)); background: transparent; color: hsl(var(--foreground)); }
-    .btn-outline:hover:not(:disabled) { background: hsl(var(--muted)); }
-    .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary { border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-    .btn-destructive { border: 1px solid hsl(var(--destructive)); background: transparent; color: hsl(var(--destructive)); }
-    .btn-destructive:hover { background: hsl(var(--destructive)); color: white; }
-    .btn-icon { background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); transition: background 0.15s; }
-    .btn-icon:hover { background: hsl(var(--muted)); }
-
-    /* Table */
-    .table-wrapper {
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .scroll-area {
-      flex: 1;
-      overflow: auto;
-      background: hsl(var(--background));
-    }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    thead { position: sticky; top: 0; background: hsl(var(--background)); z-index: 50; box-shadow: inset 0 -1px 0 hsl(var(--border)); }
-    th { text-align: left; padding: 0.875rem 1rem; color: hsl(var(--muted-foreground)); font-weight: 500; white-space: nowrap; }
-    .sortable { cursor: pointer; user-select: none; }
-    .sortable:hover { color: hsl(var(--foreground)); }
-    .sortable .sort-icon { display: inline-block; margin-left: 0.25rem; opacity: 0.3; }
-    .sortable.asc .sort-icon, .sortable.desc .sort-icon { opacity: 1; }
-    .sortable.desc .sort-icon { transform: rotate(180deg); }
-
-    .column-search { position: relative; display: inline-flex; align-items: center; gap: 0.5rem; }
-    .column-search .search-trigger { background: none; border: none; cursor: pointer; padding: 0.25rem; border-radius: var(--radius); color: hsl(var(--muted-foreground)); transition: all 0.15s; }
-    .column-search .search-trigger:hover, .column-search .search-trigger.active { color: hsl(var(--foreground)); background: hsl(var(--muted)); }
-    .column-search .search-trigger.has-search { color: hsl(var(--primary)); }
-    .search-popover { position: absolute; top: 100%; left: 0; margin-top: 0.5rem; background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-radius: var(--radius); padding: 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 50; min-width: 280px; display: none; }
-    .search-popover.open { display: block; animation: popoverIn 0.15s ease-out; }
-    @keyframes popoverIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-    .search-popover label { display: block; font-size: 0.75rem; color: hsl(var(--muted-foreground)); margin-bottom: 0.25rem; font-weight: 500; }
-    .search-popover input { width: 100%; padding: 0.5rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius); font-size: 0.875rem; margin-bottom: 0.5rem; background: hsl(var(--background)); color: hsl(var(--foreground)); }
-    .search-popover input:focus { outline: none; border-color: hsl(var(--foreground)); }
-    .search-popover .search-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-    .search-popover .search-type-toggle { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
-    .search-popover .search-type-btn { flex: 1; padding: 0.375rem 0.5rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); color: hsl(var(--foreground)); border-radius: var(--radius); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
-    .search-popover .search-type-btn:hover { background: hsl(var(--muted)); }
-    .search-popover .search-type-btn.active { background: hsl(var(--foreground)); color: hsl(var(--background)); border-color: hsl(var(--foreground)); }
-    td { padding: 1rem; border-bottom: 1px solid hsl(var(--border)); }
-    tr:last-child td { border-bottom: none; }
-
-    .email-hash {
-      font-family: monospace;
-      font-size: 0.8rem;
-      color: hsl(var(--muted-foreground));
-    }
-
-    .email-text {
-      font-size: 0.875rem;
-    }
-
-    /* Toggle switch */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: hsl(var(--muted));
-      transition: 0.2s;
-      border-radius: 24px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: hsl(var(--background));
-      transition: 0.2s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider {
-      background-color: hsl(var(--success));
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(20px);
-    }
-
-    .switch.disabled {
-      opacity: 0.6;
-      pointer-events: none;
-    }
-
-    /* Checkbox toggle for forms */
-    .form-group label.checkbox-toggle,
-    .checkbox-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.75rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-bottom: 0;
-    }
-
-    .checkbox-toggle:hover {
-      background: hsl(var(--muted));
-    }
-
-    .checkbox-toggle-label {
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-
-    .checkbox-toggle-desc {
-      font-size: 0.75rem;
-      color: hsl(var(--muted-foreground));
-      margin-top: 0.125rem;
-    }
-
-    .checkbox-toggle input {
-      display: none;
-    }
-
-    .checkbox-toggle .toggle-track {
-      width: 36px;
-      height: 20px;
-      background: hsl(var(--muted));
-      border-radius: 10px;
-      position: relative;
-      transition: background 0.2s;
-      flex-shrink: 0;
-    }
-
-    .checkbox-toggle .toggle-track::after {
-      content: "";
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      background: hsl(var(--background));
-      border-radius: 50%;
-      top: 2px;
-      left: 2px;
-      transition: transform 0.2s;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
-
-    .checkbox-toggle input:checked + .toggle-track {
-      background: hsl(var(--success));
-    }
-
-    .checkbox-toggle input:checked + .toggle-track::after {
-      transform: translateX(16px);
-    }
-
-    /* Security Modal */
-    .passphrase-box {
-      background: hsl(var(--muted));
-      color: hsl(var(--foreground));
-      font-family: monospace;
-      padding: 1rem;
-      border-radius: var(--radius);
-      text-align: center;
-      margin: 1.5rem 0;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-    }
-
-    .input-auth {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      background: transparent;
-      color: inherit;
-      margin-bottom: 1.5rem;
-      outline: none;
-      text-align: center;
-      font-family: monospace;
-      text-transform: uppercase;
-    }
-
-    .btn-confirm {
-      background: hsl(var(--destructive));
-      color: white;
-      border: none;
-      opacity: 0.3;
-      pointer-events: none;
-      font-weight: 600;
-    }
-
-    .btn-confirm.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    /* Pagination */
-    .pagination-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem;
-      border-top: 1px solid hsl(var(--border));
-      background: hsl(var(--background));
-      flex-shrink: 0;
-    }
-
-    .pagination-settings { display: flex; align-items: center; gap: 1.5rem; }
-    .page-size-selector { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
-    select.page-size-input { background: hsl(var(--background)); border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); border-radius: 4px; padding: 0.25rem; outline: none; }
-    select.page-size-input option { background: hsl(var(--background)); color: hsl(var(--foreground)); }
-    .pagination-info { font-size: 0.875rem; color: hsl(var(--muted-foreground)); }
-
-    /* Token Modal */
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(4px);
-      z-index: 100;
-    }
-
-    .modal-backdrop-secondary {
-      position: fixed;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(2px);
-      z-index: 100;
-    }
-
-    .modal {
-      background: hsl(var(--background));
-      border: 1px solid hsl(var(--border));
-      width: 480px;
-      border-radius: var(--radius);
-      padding: 2rem;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .modal h3 {
-      font-size: 1.25rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .modal p {
-      font-size: 0.875rem;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 1.5rem;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-    }
-
-    .required {
-      color: hsl(var(--destructive));
-      cursor: help;
-    }
-
-    .form-group input, .form-group select {
-      width: 100%;
-      padding: 0.625rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      background: hsl(var(--background));
-      color: hsl(var(--foreground));
-    }
-
-    .form-group select option {
-      background: hsl(var(--background));
-      color: hsl(var(--foreground));
-    }
-
-    /* Autocomplete dropdown */
-    .autocomplete-wrapper {
-      position: relative;
-    }
-
-    .autocomplete-dropdown {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: hsl(var(--background));
-      border: 1px solid hsl(var(--border));
-      border-top: none;
-      border-radius: 0 0 var(--radius) var(--radius);
-      max-height: 200px;
-      overflow-y: auto;
-      z-index: 50;
-      display: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .autocomplete-dropdown.open {
-      display: block;
-    }
-
-    .autocomplete-item {
-      padding: 0.625rem;
-      cursor: pointer;
-      font-size: 0.875rem;
-      border-bottom: 1px solid hsl(var(--border));
-    }
-
-    .autocomplete-item:last-child {
-      border-bottom: none;
-    }
-
-    .autocomplete-item:hover,
-    .autocomplete-item.selected {
-      background: hsl(var(--muted));
-    }
-
-    .autocomplete-item .bucket-name {
-      font-weight: 500;
-    }
-
-    .autocomplete-item .bucket-info {
-      font-size: 0.75rem;
-      color: hsl(var(--muted-foreground));
-      margin-top: 0.125rem;
-    }
-
-    .permissions-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-
-    .permission-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid hsl(var(--border));
-    }
-
-    .permission-row:last-child { border-bottom: none; }
-
-    .permission-name {
-      flex: 1;
-      font-size: 0.875rem;
-    }
-
-    .permission-toggle {
-      display: flex;
-      gap: 0.25rem;
-      background: hsl(var(--muted));
-      border-radius: var(--radius);
-      padding: 2px;
-    }
-
-    .permission-toggle button {
-      padding: 0.25rem 0.75rem;
-      border: none;
-      background: transparent;
-      color: hsl(var(--muted-foreground));
-      font-size: 0.75rem;
-      font-weight: 500;
-      border-radius: calc(var(--radius) - 2px);
-      cursor: pointer;
-    }
-
-    .permission-toggle button.active {
-      background: hsl(var(--background));
-      color: hsl(var(--foreground));
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .permission-toggle button.opted-in.active { color: hsl(var(--success)); }
-    .permission-toggle button.opted-out.active { color: hsl(var(--destructive)); }
-    .permission-toggle button.skip.active { color: hsl(var(--muted-foreground)); }
-
-    .btn-remove {
-      background: transparent;
-      border: none;
-      color: hsl(var(--muted-foreground));
-      font-size: 1.25rem;
-      cursor: pointer;
-      padding: 0 0.5rem;
-      line-height: 1;
-    }
-    .btn-remove:hover { color: hsl(var(--destructive)); }
-
-    .custom-fields-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-
-    .custom-field-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid hsl(var(--border));
-    }
-
-    .custom-field-row:last-child { border-bottom: none; }
-
-    .custom-field-key {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: hsl(var(--muted-foreground));
-      min-width: 80px;
-    }
-
-    .custom-field-value {
-      flex: 1;
-      font-size: 0.875rem;
-      word-break: break-word;
-    }
-
-    .token-output {
-      background: hsl(var(--muted));
-      padding: 1rem;
-      border-radius: var(--radius);
-      font-family: monospace;
-      font-size: 0.8rem;
-      word-break: break-all;
-      margin: 1rem 0;
-      display: none;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 0.75rem;
-      margin-top: 1.5rem;
-    }
-
-    .modal-actions .tooltip-wrapper { flex: 1; }
-    .modal-actions .btn { flex: 1; justify-content: center; width: 100%; }
-
-    /* Options modal */
-    .options-modal {
-      width: 680px;
-      max-width: 95vw;
-    }
-
-    .options-section {
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      margin-bottom: 0.75rem;
-    }
-
-    .options-section:last-of-type { margin-bottom: 0; }
-
-    .options-section-header {
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
-      width: 100%;
-      padding: 0.875rem 1rem;
-      background: transparent;
-      border: none;
-      border-bottom: 1px solid transparent;
-      cursor: pointer;
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: hsl(var(--foreground));
-      text-align: left;
-      transition: background 0.15s ease;
-    }
-
-    .options-section-header:hover { background: hsl(var(--muted)); }
-
-    .options-section-header.expanded {
-      border-bottom-color: hsl(var(--border));
-    }
-
-    .options-section-icon {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-      color: hsl(var(--muted-foreground));
-    }
-
-    .options-section-label { flex: 1; }
-
-    .options-section-badge {
-      font-size: 0.7rem;
-      font-weight: 500;
-      padding: 0.125rem 0.5rem;
-      border-radius: 9999px;
-      background: hsl(var(--muted));
-      color: hsl(var(--muted-foreground));
-    }
-
-    .options-section-badge.active {
-      background: hsl(142 76% 36% / 0.15);
-      color: hsl(var(--success));
-    }
-
-    .options-chevron {
-      transition: transform 0.2s ease;
-      flex-shrink: 0;
-      color: hsl(var(--muted-foreground));
-    }
-
-    .options-section-header.expanded .options-chevron {
-      transform: rotate(180deg);
-    }
-
-    .options-section-body {
-      display: none;
-      padding: 1.25rem 1rem;
-    }
-
-    .options-section-body.open { display: block; }
-
-    .options-section-desc {
-      font-size: 0.813rem;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 1rem;
-      line-height: 1.5;
-    }
-
-    .options-field-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .options-field-row .input-auth { flex: 1; }
-
-    .options-close {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 1.25rem;
-      padding-top: 1rem;
-      border-top: 1px solid hsl(var(--border));
-    }
-
-    /* Empty state */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: hsl(var(--muted-foreground));
-    }
-
-    .empty-state svg {
-      width: 48px;
-      height: 48px;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-
-    /* Loading */
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: hsl(var(--muted-foreground));
-    }
-
-    /* Row Actions Dropdown */
-    .row-actions {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .col-actions {
-      white-space: nowrap;
-    }
-    .row-status-icons {
-      display: inline-flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 0.4rem;
-      width: 2rem;
-    }
-
-    .btn-actions {
-      background: transparent;
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      padding: 0.25rem 0.5rem;
-      cursor: pointer;
-      font-size: 1rem;
-      line-height: 1;
-      color: hsl(var(--muted-foreground));
-    }
-
-    .btn-actions:hover {
-      background: hsl(var(--muted));
-      color: hsl(var(--foreground));
-    }
-
-    .dropdown-menu {
-      position: fixed;
-      background: hsl(var(--background));
-      border: 1px solid hsl(var(--border));
-      border-radius: var(--radius);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      min-width: 180px;
-      z-index: 1000;
-      display: none;
-    }
-
-    .dropdown-menu.open { display: block; }
-
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      width: 100%;
-      padding: 0.625rem 0.875rem;
-      text-align: left;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 0.875rem;
-      color: hsl(var(--foreground));
-      white-space: nowrap;
-    }
-
-    .dropdown-item:hover { background: hsl(var(--muted)); }
-    .dropdown-item + .dropdown-item { border-top: 1px solid hsl(var(--border)); }
-
-    /* View containers */
-    .view {
-      display: none;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .view.active {
-      display: flex;
-    }
-
-    /* Tooltip */
-    .tooltip-wrapper {
-      position: relative;
-      display: inline-block;
-    }
-
-    .tooltip-wrapper .tooltip {
-      visibility: hidden;
-      opacity: 0;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      margin-top: 0.5rem;
-      background: hsl(var(--foreground));
-      color: hsl(var(--background));
-      font-size: 0.75rem;
-      font-weight: 400;
-      font-family: monospace;
-      padding: 0.375rem 0.625rem;
-      border-radius: calc(var(--radius) - 2px);
-      white-space: nowrap;
-      z-index: 50;
-      transition: opacity 0.15s, visibility 0.15s;
-      pointer-events: none;
-    }
-
-    .tooltip-wrapper:hover .tooltip {
-      visibility: visible;
-      opacity: 1;
-    }
-
-    .tooltip-wrapper .tooltip.tooltip-above {
-      top: auto;
-      bottom: 100%;
-      margin-top: 0;
-      margin-bottom: 0.5rem;
-    }
-
-    .tooltip-wrapper .tooltip.tooltip-right {
-      left: auto;
-      right: 0;
-    }
-
-    .tooltip-wrapper .tooltip.tooltip-left {
-      left: 0;
-      right: auto;
-    }
-  </style>
 </head>
 <body>
 
@@ -1280,7 +53,7 @@
             <span class="tooltip tooltip-above tooltip-right" id="btnDisplayTooltip">Show code names</span>
           </span>
           <span class="tooltip-wrapper">
-            <button class="btn-plus" onclick="toggleBucketSubmenu()">
+            <button class="btn-plus" onclick="toggleBucketSubmenu(event)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -1310,6 +83,36 @@
       <div id="bucketsList"></div>
     </div>
 
+    <div class="nav-group select-none">
+      <div class="nav-label-container">
+        <div class="nav-label">Modules</div>
+        <div class="nav-label-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn-plus" onclick="toggleModulesSubmenu(event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <span class="tooltip tooltip-above tooltip-right">Module Actions</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="submenu" id="modulesSubmenu">
+        <a href="#" class="nav-item" data-view="submission-create" onclick="showView('submission-create')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+          </svg>
+          New submission form
+        </a>
+      </div>
+
+      <a href="#" class="nav-item" data-view="submissions" onclick="showView('submissions')">
+        Submission Forms
+      </a>
+    </div>
+
     <div class="sidebar-footer">
       <button class="btn-logout" style="flex: 1;" onclick="logout()">Log Out</button>
       
@@ -1332,7 +135,7 @@
             <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
           </svg>
         </a>
-        <span class="tooltip tooltip-above tooltip-right">GitHub Repository</span>
+        <span class="tooltip tooltip-above tooltip-right">View on GitHub</span>
       </span>
     </div>
   </aside>
@@ -1392,7 +195,7 @@
           <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadBucket(currentBucket)">Refresh</button>
-            <span class="tooltip">Reload bucket data</span>
+            <span class="tooltip">Reload overview</span>
           </span>
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="showOptionsModal()">Options</button>
@@ -1523,6 +326,344 @@
         </div>
       </div>
     </div>
+
+    <!-- Submission List View -->
+    <div id="view-submissions" class="view">
+      <section class="header-container">
+        <div>
+          <h1 class="select-none">Submission Forms</h1>
+          <span class="status-badge select-none">Configuration</span>
+        </div>
+        <div class="bucket-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="loadSubmissionForms()">Refresh</button>
+            <span class="tooltip tooltip-right">Reload overview</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="showView('submission-create')">Create Form</button>
+            <span class="tooltip tooltip-right">Create a new submission form</span>
+          </span>
+        </div>
+      </section>
+      <div class="table-wrapper">
+        <div class="scroll-area" style="overflow-x:hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Bucket</th>
+                <th>Permissions</th>
+                <th>Origins</th>
+                <th>Submissions</th>
+                <th>Status</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="submissionBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submission Create/Edit View -->
+    <div id="view-submission-create" class="view" style="overflow-y:auto">
+      <section class="header-container" style="flex-shrink:0">
+        <div>
+          <h1 id="submissionWizardTitle" class="select-none">Create Submission Form</h1>
+          <span class="status-badge select-none">Configuration</span>
+        </div>
+      </section>
+      <div class="modal" style="box-shadow:none;border:1px solid hsl(var(--border));margin-bottom:2rem">
+        <div id="nlCreateIntro">
+          <h3 id="nlIntroTitle">Create Form</h3>
+          <p id="nlIntroDesc">
+            You're about to create a new consent form. This form can be safely embedded on an external website and will submit permission states directly to Beacon.
+          </p>
+        </div>
+        <!-- Step indicators -->
+        <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem" id="nlStepIndicators">
+          <span class="status-badge select-none" id="nlStep1Indicator" style="opacity:1;cursor: pointer;">1. Basic Info</span>
+          <span class="status-badge select-none" id="nlStep2Indicator" style="opacity:0.4;cursor: pointer;">2. Form Details</span>
+          <span class="status-badge select-none" id="nlStep3Indicator" style="opacity:0.4;cursor: pointer;">3. Appearance</span>
+          <span class="status-badge select-none" id="nlStep4Indicator" style="opacity:0.4;cursor: pointer;">4. Custom Fields</span>
+          <span class="status-badge select-none" id="nlStep5Indicator" style="opacity:0.4;display:none;cursor: pointer;">5. Embed Code</span>
+        </div>
+
+        <!-- Step 1: Basic Info -->
+        <div id="nlStep1">
+          <div class="form-group">
+            <label>Form Name <span class="required" title="Required field">*</span></label>
+            <input type="text" id="nlName" placeholder="e.g., Main Signup Form">
+          </div>
+          <div class="form-group">
+            <label>Bucket <span class="required" title="Required field">*</span></label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="nlBucket" placeholder="e.g., newsletter" autocomplete="off" oninput="showNlBucketSuggestions()" onfocus="showNlBucketSuggestions()">
+              <div class="autocomplete-dropdown" id="nlBucketAutocomplete"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label title="Use commas to grant multiple permissions, e.g. newsletter, updates">
+              Permission <span class="required" title="Required field">*</span>
+            </label>
+            <div class="autocomplete-wrapper">
+              <input type="search" id="nlPermission" placeholder="e.g., email-marketing" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other" oninput="showNlPermissionSuggestions()" onfocus="showNlPermissionSuggestions()">
+              <div class="autocomplete-dropdown" id="nlPermissionAutocomplete"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Language</label>
+            <select id="nlLanguage">
+              <option value="en" selected>English</option>
+              <option value="de">Deutsch</option>
+              <option value="fr">Français</option>
+              <option value="nl">Nederlands</option>
+              <option value="pl">Polski</option>
+              <option value="es">Español</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Form enabled</div>
+                <div class="checkbox-toggle-desc">When disabled, the form will reject all submissions</div>
+              </div>
+              <input type="checkbox" id="nlIsEnabled" checked>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="showView('submissions')">Cancel</button>
+            <button class="btn btn-primary" onclick="submissionWizardNext(2)">Next</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Allowed Origins -->
+        <div id="nlStep2" style="display:none">
+          <p style="margin-bottom:1rem;color:hsl(var(--muted-foreground))">Specify which website origins are allowed to embed and submit this form. Use the full origin (e.g., <code>https://example.com</code>).</p>
+          <div class="form-group">
+            <label>Allowed Origins <span class="required" title="Required field">*</span></label>
+            <div id="nlOriginsList"></div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+              <input type="text" id="nlNewOrigin" placeholder="https://example.com" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addSubmissionOrigin()}">
+              <button type="button" class="btn btn-outline" onclick="addSubmissionOrigin()">Add</button>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-weight:600;margin-bottom:0.75rem">Consent</p>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Require consent checkbox</div>
+                <div class="checkbox-toggle-desc">When enabled, subscribers must check a consent box before submitting</div>
+              </div>
+              <input type="checkbox" id="nlConsentRequired" checked>
+              <span class="toggle-track"></span>
+            </label>
+            <div class="form-group">
+              <label style="margin-top:0.75rem">Consent Text</label>
+              <input type="text" id="nlConsentText" placeholder="I agree to receive emails and understand I can unsubscribe at any time." maxlength="500">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Custom consent checkbox label. Leave empty for default text.</p>
+            </div>
+            <div class="form-group">
+              <label>Privacy Policy URL</label>
+              <input type="url" id="nlPrivacyPolicyUrl" placeholder="https://yoursite.com/privacy">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Link displayed below the form. Must use HTTPS.</p>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-weight:600;margin-bottom:0.75rem">Form Completion</p>
+            <div class="form-group">
+              <label title="After a successful form POST submission, redirect the user to this URL. Leave empty to return JSON instead.">Redirect on Success</label>
+              <input type="url" id="nlRedirectSuccess" placeholder="https://yoursite.com/thank-you">
+            </div>
+            <div class="form-group">
+              <label title="After a failed form POST submission, redirect the user to this URL with an ?error= query parameter. Leave empty to return JSON instead.">Redirect on Error</label>
+              <input type="url" id="nlRedirectError" placeholder="https://yoursite.com/error">
+            </div>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Redirect HTML form submissions</div>
+                <div class="checkbox-toggle-desc">Turn this on to send users to the URLs above after they submit the form. Turn it off to show a built-in success or error page instead.</div>
+              </div>
+              <input type="checkbox" id="nlRedirectFormPost" checked>
+              <span class="toggle-track"></span>
+            </label>
+            <label class="checkbox-toggle" style="margin-top:0.5rem">
+              <div>
+                <div class="checkbox-toggle-label">Redirect JavaScript and iframe embeds</div>
+                <div class="checkbox-toggle-desc">Turn this on to send users to the URLs above after they subscribe via a JS or iframe embed. Turn it off to show an inline message instead.</div>
+              </div>
+              <input type="checkbox" id="nlRedirectJsEmbed">
+              <span class="toggle-track"></span>
+            </label>
+            <label class="checkbox-toggle" style="margin-top:0.5rem">
+              <div>
+                <div class="checkbox-toggle-label">Disable all redirects</div>
+                <div class="checkbox-toggle-desc">Turn this on to ignore all redirect settings above. HTML forms will show a built-in result page and JS/iframe embeds will show an inline message instead.</div>
+              </div>
+              <input type="checkbox" id="nlDisableRedirects" onchange="toggleRedirectFields()">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="submissionWizardNext(1)">Back</button>
+            <button class="btn btn-primary" onclick="submissionWizardNext(3)">Next</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Appearance -->
+        <div id="nlStep3" style="display:none">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="nlTitle" placeholder="Subscribe to our newsletter" value="Subscribe to our newsletter">
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="nlDescription" placeholder="Get updates delivered to your inbox." value="Get updates delivered to your inbox.">
+          </div>
+          <div class="form-group">
+            <label>Button Text</label>
+            <input type="text" id="nlButtonText" placeholder="Subscribe" value="Subscribe">
+          </div>
+          <div class="form-group">
+            <label>Success Message</label>
+            <input type="text" id="nlSuccessMessage" placeholder="Thanks for subscribing!" value="Thanks for subscribing!">
+          </div>
+          <div style="display:flex;gap:1rem">
+            <div class="form-group" style="flex:1">
+              <label>Primary Color</label>
+              <input type="color" id="nlPrimaryColor" value="#2563eb" style="height:38px;padding:4px">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Background</label>
+              <input type="color" id="nlBgColor" value="#ffffff" style="height:38px;padding:4px">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Text Color</label>
+              <input type="color" id="nlTextColor" value="#111111" style="height:38px;padding:4px">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Border Radius</label>
+            <input type="text" id="nlBorderRadius" placeholder="8px" value="8px">
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="submissionWizardNext(2)">Back</button>
+            <button class="btn btn-primary" onclick="submissionWizardNext(4)">Next</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Custom Fields -->
+        <div id="nlStep4" style="display:none">
+          <p style="margin-bottom:1rem;color:hsl(var(--muted-foreground))">Define key-value pairs that will be stored on every consent record created by this form. Values can be static text or dynamic variables resolved per submission.</p>
+          <div class="form-group">
+            <label>Custom Fields</label>
+            <div id="nlCustomFieldsList" class="custom-fields-list"></div>
+            <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+              <input type="text" id="nlFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
+              <input type="text" id="nlFieldValue" placeholder="Value or variable" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('nl')}">
+              <button type="button" class="btn btn-outline" onclick="addCustomField('nl')">Add</button>
+            </div>
+            <div style="margin-top:0.75rem">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">Variables (resolved per submission):</p>
+              <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{uuid}}')"><code>{{uuid}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{timestamp}}')"><code>{{timestamp}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{date}}')"><code>{{date}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{source}}')"><code>{{source}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{form_id}}')"><code>{{form_id}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{form_name}}')"><code>{{form_name}}</code></button>
+                <button type="button" class="btn btn-outline" style="font-size:0.8rem;padding:4px 10px" onclick="insertNlFieldVariable('{{ip_hash}}')"><code>{{ip_hash}}</code></button>
+              </div>
+              <p style="font-size:0.75rem;color:hsl(var(--muted-foreground));margin-top:0.4rem"><code>{{date}}</code> supports timezones: <code>{{date:Europe/Amsterdam}}</code></p>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="submissionWizardNext(3)">Back</button>
+            <button class="btn btn-primary" id="nlSaveBtn" onclick="saveSubmissionForm()">Create Form</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Embed Code (after save) -->
+        <div id="nlStep5" style="display:none">
+          <div id="nlApiTokenDisplay" style="display:none;margin-bottom:1.5rem">
+            <h3 style="margin-bottom:0.5rem">API Token (shown once)</h3>
+            <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem">Save this token securely. It will not be shown again.</p>
+            <div style="display:flex;gap:0.5rem;align-items:stretch">
+              <span class="tooltip-wrapper" style="flex:1;min-width:0">
+                <div class="token-output" id="nlApiToken" onclick="copyNlApiToken()" style="display:block;cursor:pointer;margin:0"></div>
+                <span class="tooltip tooltip-above">Click to copy</span>
+              </span>
+              <span class="tooltip-wrapper">
+                <button class="btn btn-outline" onclick="downloadNlApiToken()" style="height:100%;white-space:nowrap">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+                <span class="tooltip tooltip-above tooltip-right">Download as .txt</span>
+              </span>
+            </div>
+          </div>
+          <div class="embed-tabs" id="embedTabs">
+            <button class="embed-tab active" onclick="switchEmbedTab('js')">JavaScript</button>
+            <button class="embed-tab" onclick="switchEmbedTab('form')">HTML Form</button>
+            <button class="embed-tab" onclick="switchEmbedTab('api')">API</button>
+            <button class="embed-tab" onclick="switchEmbedTab('iframe')">iframe</button>
+          </div>
+          <div class="embed-tab-panel" id="embedPanel-iframe">
+            <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Paste this into your website HTML. The form is fully self-contained.</p>
+            <span class="tooltip-wrapper">
+              <div class="token-output" id="nlIframeCode" onclick="copyEmbedCode('iframe')" style="display:block;cursor:pointer"></div>
+              <span class="tooltip tooltip-above">Click to copy</span>
+            </span>
+            <button class="btn btn-outline" onclick="testSubmissionForm('iframe')" style="margin-top:0.75rem;width:100%">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Preview
+            </button>
+          </div>
+          <div class="embed-tab-panel active" id="embedPanel-js">
+            <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Renders inline using Shadow DOM for style isolation.</p>
+            <span class="tooltip-wrapper">
+              <div class="token-output" id="nlJsCode" onclick="copyEmbedCode('js')" style="display:block;cursor:pointer"></div>
+              <span class="tooltip tooltip-above">Click to copy</span>
+            </span>
+            <button class="btn btn-outline" onclick="testSubmissionForm('js')" style="margin-top:0.75rem;width:100%">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Preview
+            </button>
+          </div>
+          <div class="embed-tab-panel" id="embedPanel-form">
+            <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">A standard <code>&lt;form&gt;</code> that submits via POST. Style it yourself.</p>
+            <span class="tooltip-wrapper">
+              <div class="token-output" id="nlFormCode" onclick="copyEmbedCode('form')" style="display:block;cursor:pointer;white-space:pre-wrap"></div>
+              <span class="tooltip tooltip-above">Click to copy</span>
+            </span>
+            <button class="btn btn-outline" onclick="testSubmissionForm('form')" style="margin-top:0.75rem;width:100%">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Preview
+            </button>
+          </div>
+          <div class="embed-tab-panel" id="embedPanel-api">
+            <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Use <code>fetch</code> for full control over UI and behavior. Returns JSON.</p>
+            <span class="tooltip-wrapper">
+              <div class="token-output" id="nlApiCode" onclick="copyEmbedCode('api')" style="display:block;cursor:pointer;white-space:pre-wrap"></div>
+              <span class="tooltip tooltip-above">Click to copy</span>
+            </span>
+          </div>
+          <div class="modal-actions" style="margin-top:1.5rem">
+            <button class="btn btn-primary" onclick="showView('submissions')">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-submission-preview" class="view" style="overflow:hidden">
+      <div style="display:flex;align-items:center;gap:0.75rem;padding:1rem 1.5rem;border-bottom:1px solid hsl(var(--border));flex-shrink:0">
+        <button class="btn btn-outline" onclick="showEmbedCode(previewFormId)" style="padding:0.4rem 0.75rem;font-size:0.85rem">&larr; Back</button>
+        <span style="font-size:0.9rem;font-weight:500" id="previewTitle" class="select-none">Preview Mode</span>
+        <span id="previewBadge" style="margin-left:auto;font-size:0.75rem;padding:2px 8px;border-radius:4px;border:1px solid hsl(var(--border));color:hsl(var(--muted-foreground))"></span>
+      </div>
+      <div id="previewContent" style="flex:1;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:2rem;background-color:hsl(var(--background))">
+      </div>
+    </div>
   </main>
 
   <!-- Custom Fields Modal -->
@@ -1547,7 +688,7 @@
   <!-- Remove Bucket Security Modal -->
   <div class="modal-backdrop" id="removeModal">
     <div class="modal">
-      <h3 style="margin-bottom:1.5rem;">Remove Bucket</h3>
+      <h3 class="select-none" style="margin-bottom:1.5rem;">Remove Bucket</h3>
       <p>This action will permanently delete all consent records in this bucket. This cannot be undone.</p>
       <p style="font-weight:500;margin-bottom:0.5rem">Type the following passphrase to confirm:</p>
       <div class="passphrase-box select-none" id="passphraseDisplay">-</div>
@@ -1559,6 +700,27 @@
         </span>
         <span class="tooltip-wrapper">
           <button class="btn btn-confirm" id="confirmRemoveBtn" onclick="confirmRemoval()">Remove Bucket</button>
+          <span class="tooltip tooltip-above">There is no way back!</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submission Form Remove Modal -->
+  <div class="modal-backdrop" id="submissionRemoveModal">
+    <div class="modal">
+      <h3 class="select-none"style="margin-bottom:1.5rem;">Remove Form</h3>
+      <p>This action will permanently delete this submission form. Existing consent records in the bucket will not be affected. This cannot be undone.</p>
+      <p style="font-weight:500;margin-bottom:0.5rem">Type the following passphrase to confirm:</p>
+      <div class="passphrase-box select-none" id="submissionPassphraseDisplay">-</div>
+      <input type="text" class="input-auth" id="submissionPassphraseInput" placeholder="Enter the passphrase" oninput="verifySubmissionPassphrase()">
+      <div class="modal-actions">
+        <span class="tooltip-wrapper">
+          <button class="btn btn-outline" onclick="closeSubmissionRemoveModal()">Cancel</button>
+          <span class="tooltip tooltip-above">Close without removing</span>
+        </span>
+        <span class="tooltip-wrapper">
+          <button class="btn btn-confirm" id="confirmSubmissionRemoveBtn" onclick="confirmSubmissionRemoval()">Remove Form</button>
           <span class="tooltip tooltip-above">There is no way back!</span>
         </span>
       </div>
@@ -1876,7 +1038,10 @@
 
         return { ok: true, status: res.status, data };
       } catch (e) {
-        notify('error', 'Network Error', 'Could not connect to server.');
+        const msg = e instanceof TypeError
+          ? 'Could not connect to server. The server may be down or returned an error. Check the server logs.'
+          : (e.message || 'An unexpected error occurred.');
+        notify('error', 'Request Failed', msg);
         return { ok: false, status: 0, data: null };
       }
     }
@@ -1938,6 +1103,7 @@
       const result = await apiRequest('/api/admin/buckets', { skipAuthRedirect: true });
       if (result.ok) {
         buckets = result.data || [];
+        try { sessionStorage.setItem('beacon_buckets', JSON.stringify(buckets)); } catch {}
         return true;
       }
       return false;
@@ -1950,6 +1116,7 @@
       tokenExpiresAt = null;
       sessionStorage.removeItem('beacon_jwt');
       sessionStorage.removeItem('beacon_jwt_exp');
+      sessionStorage.removeItem('beacon_buckets');
       location.reload();
     }
 
@@ -2002,12 +1169,24 @@
           tokenExpiresAt = exp;
           startTokenRefresh();
 
+          // Restore cached buckets immediately to prevent pop-in
+          try {
+            const cached = sessionStorage.getItem('beacon_buckets');
+            if (cached) {
+              buckets = JSON.parse(cached);
+            }
+          } catch {}
+
+          document.getElementById('authOverlay').style.display = 'none';
+          renderBucketsSidebar();
+          renderPermissionsGrid();
+          restoreViewFromUrl();
+
           const valid = await testAuth();
           if (valid) {
-            document.getElementById('authOverlay').style.display = 'none';
+            // Re-render with fresh data from testAuth
             renderBucketsSidebar();
             renderPermissionsGrid();
-            restoreViewFromUrl();
             connectSSE();
             return;
           }
@@ -2015,8 +1194,10 @@
         // Token expired or invalid — clean up
         sessionStorage.removeItem('beacon_jwt');
         sessionStorage.removeItem('beacon_jwt_exp');
+        sessionStorage.removeItem('beacon_buckets');
         authToken = '';
         tokenExpiresAt = null;
+        buckets = [];
       }
 
       document.getElementById('authOverlay').style.display = 'flex';
@@ -2039,6 +1220,33 @@
         if (modal === 'options') showOptionsModal(false);
       } else if (view === 'tokens') {
         showView('tokens', false);
+      } else if (view === 'submissions') {
+        showView('submissions', false);
+      } else if (view === 'submission-create') {
+        showView('submission-create', false);
+      } else if (view === 'submission-edit') {
+        const nlId = params.get('id');
+        if (nlId) {
+          editSubmissionForm(nlId, false);
+        } else {
+          showView('submissions', false);
+        }
+      } else if (view === 'submission-embed') {
+        const nlId = params.get('id');
+        if (nlId) {
+          showEmbedCode(nlId);
+        } else {
+          showView('submissions', false);
+        }
+      } else if (view === 'submission-preview') {
+        const nlId = params.get('id');
+        const mode = params.get('mode') || 'iframe';
+        if (nlId) {
+          nlCurrentFormId = nlId;
+          showPreview(nlId, mode);
+        } else {
+          showView('submissions', false);
+        }
       } else {
         showView('overview', false);
       }
@@ -2046,9 +1254,21 @@
 
     // ========== LOAD BUCKETS ==========
     async function loadBuckets() {
+      // Restore cached buckets immediately to prevent pop-in
+      if (buckets.length === 0) {
+        try {
+          const cached = sessionStorage.getItem('beacon_buckets');
+          if (cached) {
+            buckets = JSON.parse(cached);
+            renderBucketsSidebar();
+            renderPermissionsGrid();
+          }
+        } catch {}
+      }
       const result = await apiRequest('/api/admin/buckets');
       if (result.ok) {
         buckets = result.data || [];
+        try { sessionStorage.setItem('beacon_buckets', JSON.stringify(buckets)); } catch {}
         renderBucketsSidebar();
         renderPermissionsGrid();
       }
@@ -2213,20 +1433,23 @@
 
     function addCustomField(context) {
       const isEdit = context === 'edit';
-      const keyInput = document.getElementById(isEdit ? 'editFieldKey' : 'newFieldKey');
-      const valueInput = document.getElementById(isEdit ? 'editFieldValue' : 'newFieldValue');
+      const isNl = context === 'nl';
+      const keyInput = document.getElementById(isNl ? 'nlFieldKey' : (isEdit ? 'editFieldKey' : 'newFieldKey'));
+      const valueInput = document.getElementById(isNl ? 'nlFieldValue' : (isEdit ? 'editFieldValue' : 'newFieldValue'));
       const key = keyInput.value.trim();
       const value = valueInput.value.trim();
 
       if (!key) { notify('warning', 'Missing Key', 'Please enter a field key'); return; }
 
-      const fields = isEdit ? editCustomFields : tokenCustomFields;
+      const fields = isNl ? nlCustomFields : (isEdit ? editCustomFields : tokenCustomFields);
       fields[key] = value;
       keyInput.value = '';
       valueInput.value = '';
       keyInput.focus();
 
-      if (isEdit) {
+      if (isNl) {
+        renderNlCustomFieldsList();
+      } else if (isEdit) {
         renderEditCustomFieldsList();
       } else {
         renderCustomFieldsGrid();
@@ -2236,10 +1459,13 @@
 
     function removeCustomField(key, context) {
       const isEdit = context === 'edit';
-      const fields = isEdit ? editCustomFields : tokenCustomFields;
+      const isNl = context === 'nl';
+      const fields = isNl ? nlCustomFields : (isEdit ? editCustomFields : tokenCustomFields);
       delete fields[key];
 
-      if (isEdit) {
+      if (isNl) {
+        renderNlCustomFieldsList();
+      } else if (isEdit) {
         renderEditCustomFieldsList();
       } else {
         renderCustomFieldsGrid();
@@ -2294,10 +1520,32 @@
       `).join('');
     }
 
+    function insertNlFieldVariable(variable) {
+      document.getElementById('nlFieldValue').value = variable;
+      document.getElementById('nlFieldKey').focus();
+    }
+
+    function renderNlCustomFieldsList() {
+      const entries = Object.entries(nlCustomFields);
+      const list = document.getElementById('nlCustomFieldsList');
+      list.innerHTML = entries.map(([k, v]) => {
+        const isVariable = /^\{\{.+\}\}$/.test(v);
+        const displayValue = isVariable
+          ? `<code style="font-size:0.8rem;background:hsl(var(--muted));padding:1px 6px;border-radius:4px">${sanitize(v)}</code>`
+          : sanitize(v);
+        return `<div class="custom-field-row">
+          <span class="custom-field-key">${sanitize(k)}</span>
+          <span class="custom-field-value">${displayValue}</span>
+          <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'nl')" title="Remove">&times;</button>
+        </div>`;
+      }).join('');
+    }
+
     // ========== VIEWS ==========
     function updateUrl(params, replace = false) {
       const url = new URL(window.location);
       url.search = '';
+      url.hash = '';
       for (const [key, value] of Object.entries(params)) {
         if (value) url.searchParams.set(key, value);
       }
@@ -2323,13 +1571,21 @@
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-      const viewEl = document.getElementById(`view-${view}`);
+      // submission-edit reuses the create view DOM
+      const viewId = view === 'submission-edit' ? 'view-submission-create' : `view-${view}`;
+      const viewEl = document.getElementById(viewId);
       if (viewEl) viewEl.classList.add('active');
 
       document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
+      // Highlight submission nav when in create/edit
+      if (view === 'submission-create' || view === 'submission-edit' || view === 'submission-embed' || view === 'submission-preview') {
+        document.querySelector('.nav-item[data-view="submissions"]')?.classList.add('active');
+      }
 
       if (pushState) updateUrl({ view });
       if (view === 'overview') loadOverview();
+      if (view === 'submissions') loadSubmissionForms();
+      if (view === 'submission-create') initSubmissionWizard();
     }
 
     function showBucket(bucket, pushState = true) {
@@ -2666,6 +1922,7 @@
         </div>
       `).join('');
 
+      positionDropdown(input, dropdown);
       dropdown.classList.add('open');
     }
 
@@ -3216,15 +2473,26 @@
       }
     }
 
+    function positionDropdown(input, dropdown) {
+      const rect = input.getBoundingClientRect();
+      dropdown.style.top = rect.bottom + 'px';
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.width = rect.width + 'px';
+    }
+
     function closeAllMenus() {
       if (openMenuId) {
         document.getElementById(openMenuId)?.classList.remove('open');
         openMenuId = null;
       }
       document.getElementById('webhookErrorsDropdown')?.classList.remove('open');
+      document.querySelectorAll('.autocomplete-dropdown').forEach(d => { d.style.display = 'none'; d.classList.remove('open'); });
     }
 
-    document.addEventListener('click', closeAllMenus);
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.autocomplete-wrapper')) return;
+      closeAllMenus();
+    });
 
     // ========== WEBHOOK ERRORS ==========
     let webhookErrorsCache = [];
@@ -3391,10 +2659,31 @@
       editingBucket = '';
     }
 
-    function toggleBucketSubmenu() {
+    function toggleBucketSubmenu(e) {
+      if (e) e.stopPropagation();
       const submenu = document.getElementById('bucketSubmenu');
-      submenu.classList.toggle('open');
+      const wasOpen = submenu.classList.contains('open');
+      closeAllSubmenus();
+      if (!wasOpen) submenu.classList.add('open');
     }
+
+    function toggleModulesSubmenu(e) {
+      if (e) e.stopPropagation();
+      const submenu = document.getElementById('modulesSubmenu');
+      const wasOpen = submenu.classList.contains('open');
+      closeAllSubmenus();
+      if (!wasOpen) submenu.classList.add('open');
+    }
+
+    function closeAllSubmenus() {
+      document.querySelectorAll('.submenu.open').forEach(el => el.classList.remove('open'));
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.submenu, .btn-plus')) {
+        closeAllSubmenus();
+      }
+    });
 
     function showPermissionsConfirmModal() {
       if (!editingRecord || !editingRecord.email) {
@@ -3589,6 +2878,634 @@
       }
       restoreViewFromUrl();
     });
+    // ========== SUBMISSION FORMS ==========
+    let nlOrigins = [];
+    let nlEditId = null;
+    let nlCurrentFormId = null;
+    let nlCustomFields = {};
+
+    function toggleNlMenu(event, idx) {
+      event.stopPropagation();
+      toggleMenu(`nlMenu-${idx}`, event.currentTarget);
+    }
+
+    async function loadSubmissionForms() {
+      const result = await apiRequest('/api/admin/submissions');
+      if (!result.ok) return;
+      const forms = result.data || [];
+      const body = document.getElementById('submissionBody');
+      if (forms.length === 0) {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No submission forms yet. Create one to get started.</td></tr>';
+        return;
+      }
+      body.innerHTML = forms.map((f, idx) => `
+        <tr>
+          <td><strong>${sanitize(f.name)}</strong></td>
+          <td><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="showBucket('${sanitize(f.bucket)}')"><code style="font-size:0.8rem">${sanitize(f.bucket)}</code><span class="tooltip">${sanitize(f.bucket)}</span></span></td>
+          <td><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(f.permission)}')"><span class="status-badge">${sanitize(formatPermission(f.permission))}</span><span class="tooltip">${sanitize(f.permission)}</span></span></td>
+          <td>${(f.allowedOrigins || []).length}</td>
+          <td>${f.submissionCount}</td>
+          <td>
+            <label class="checkbox-toggle" style="margin:0;border:none">
+              <input type="checkbox" ${f.isEnabled ? 'checked' : ''} onchange="toggleSubmissionEnabled('${f.id}', this.checked)">
+              <span class="toggle-track"></span>
+            </label>
+          </td>
+          <td class="col-actions">
+            <div class="row-actions">
+              <span class="tooltip-wrapper">
+                <button class="btn-actions" onclick="toggleNlMenu(event, ${idx})">:</button>
+                <span class="tooltip tooltip-above tooltip-right">Actions</span>
+              </span>
+              <div class="dropdown-menu" id="nlMenu-${idx}">
+                <button class="dropdown-item" onclick="editSubmissionForm('${f.id}')">Settings</button>
+                <button class="dropdown-item" onclick="showEmbedCode('${f.id}')">View & Share <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line></svg></button>
+                <button class="dropdown-item" onclick="deleteSubmissionForm('${f.id}', '${sanitize(f.name)}')">Remove Form <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function toggleRedirectFields() {
+      const disabled = document.getElementById('nlDisableRedirects').checked;
+      document.getElementById('nlRedirectSuccess').disabled = disabled;
+      document.getElementById('nlRedirectError').disabled = disabled;
+      document.getElementById('nlRedirectFormPost').disabled = disabled;
+      document.getElementById('nlRedirectJsEmbed').disabled = disabled;
+      const ids = ['nlRedirectSuccess', 'nlRedirectError', 'nlRedirectFormPost', 'nlRedirectJsEmbed'];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        const wrapper = el.closest('.form-group') || el.closest('.checkbox-toggle');
+        if (wrapper) { wrapper.style.opacity = disabled ? '0.45' : ''; wrapper.style.pointerEvents = disabled ? 'none' : ''; }
+        const track = el.closest('.checkbox-toggle')?.querySelector('.toggle-track');
+        if (track) track.style.filter = disabled ? 'saturate(0)' : '';
+      });
+    }
+
+    function initSubmissionWizard(editData) {
+      nlOrigins = [];
+      nlEditId = null;
+
+      // Reset all fields to defaults
+      document.getElementById('nlName').value = '';
+      document.getElementById('nlBucket').value = '';
+      document.getElementById('nlPermission').value = '';
+      document.getElementById('nlTitle').value = 'Subscribe to our newsletter';
+      document.getElementById('nlDescription').value = 'Get updates delivered to your inbox.';
+      document.getElementById('nlButtonText').value = 'Subscribe';
+      document.getElementById('nlSuccessMessage').value = 'Thanks for subscribing!';
+      document.getElementById('nlPrimaryColor').value = '#2563eb';
+      document.getElementById('nlBgColor').value = '#ffffff';
+      document.getElementById('nlTextColor').value = '#111111';
+      document.getElementById('nlBorderRadius').value = '8px';
+      document.getElementById('nlRedirectSuccess').value = '';
+      document.getElementById('nlRedirectError').value = '';
+      document.getElementById('nlRedirectFormPost').checked = true;
+      document.getElementById('nlRedirectJsEmbed').checked = false;
+      document.getElementById('nlDisableRedirects').checked = false;
+      toggleRedirectFields();
+      document.getElementById('nlLanguage').value = 'en';
+      document.getElementById('nlIsEnabled').checked = true;
+      document.getElementById('nlConsentRequired').checked = true;
+      document.getElementById('nlConsentText').value = '';
+      document.getElementById('nlPrivacyPolicyUrl').value = '';
+      nlCustomFields = {};
+      document.getElementById('nlCustomFieldsList').innerHTML = '';
+      document.getElementById('nlApiTokenDisplay').style.display = 'none';
+
+      if (editData) {
+        nlEditId = editData.id;
+        document.getElementById('submissionWizardTitle').textContent = 'Edit Submission Form';
+        document.getElementById('nlIntroTitle').textContent = 'Edit Form';
+        document.getElementById('nlIntroDesc').textContent = 'Update the settings for this submission form. Changes take effect immediately for new submissions.';
+        document.getElementById('nlSaveBtn').textContent = 'Save Changes';
+        document.getElementById('nlName').value = editData.name || '';
+        document.getElementById('nlBucket').value = editData.bucket || '';
+        document.getElementById('nlPermission').value = editData.permission || '';
+        nlOrigins = [...(editData.allowedOrigins || [])];
+        document.getElementById('nlRedirectSuccess').value = editData.redirectSuccess || '';
+        document.getElementById('nlRedirectError').value = editData.redirectError || '';
+        document.getElementById('nlRedirectFormPost').checked = editData.redirectFormPost !== false;
+        document.getElementById('nlRedirectJsEmbed').checked = !!editData.redirectJsEmbed;
+        document.getElementById('nlDisableRedirects').checked = !!editData.disableRedirects;
+        toggleRedirectFields();
+        document.getElementById('nlLanguage').value = editData.language || 'en';
+        document.getElementById('nlIsEnabled').checked = editData.isEnabled !== false;
+        document.getElementById('nlConsentRequired').checked = editData.consentRequired !== false;
+        document.getElementById('nlConsentText').value = editData.consentText || '';
+        document.getElementById('nlPrivacyPolicyUrl').value = editData.privacyPolicyUrl || '';
+        nlCustomFields = { ...(editData.customFields || {}) };
+        renderNlCustomFieldsList();
+        if (editData.formConfig) {
+          const c = editData.formConfig;
+          if (c.title) document.getElementById('nlTitle').value = c.title;
+          if (c.description) document.getElementById('nlDescription').value = c.description;
+          if (c.buttonText) document.getElementById('nlButtonText').value = c.buttonText;
+          if (c.successMessage) document.getElementById('nlSuccessMessage').value = c.successMessage;
+          if (c.primaryColor) document.getElementById('nlPrimaryColor').value = c.primaryColor;
+          if (c.backgroundColor) document.getElementById('nlBgColor').value = c.backgroundColor;
+          if (c.textColor) document.getElementById('nlTextColor').value = c.textColor;
+          if (c.borderRadius) document.getElementById('nlBorderRadius').value = c.borderRadius;
+        }
+      } else {
+        document.getElementById('submissionWizardTitle').textContent = 'Create Submission Form';
+        document.getElementById('nlIntroTitle').textContent = 'Create Form';
+        document.getElementById('nlIntroDesc').textContent = "You're about to create a new submission form. This form can be safely embedded on an external website and will submit permission states directly to Beacon.";
+        document.getElementById('nlSaveBtn').textContent = 'Create Form';
+      }
+      renderNlOrigins();
+      submissionWizardShowStep(1);
+    }
+
+    function submissionWizardShowStep(step) {
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById(`nlStep${i}`).style.display = i === step ? '' : 'none';
+        const ind = document.getElementById(`nlStep${i}Indicator`);
+        ind.style.opacity = i === step ? '1' : (i < step ? '0.6' : '0.4');
+        if (i === 5) ind.style.display = step === 5 ? '' : 'none';
+      }
+    }
+
+    function submissionWizardNext(step) {
+      if (step === 2) {
+        const name = document.getElementById('nlName').value.trim();
+        const bucket = document.getElementById('nlBucket').value.trim();
+        const permission = document.getElementById('nlPermission').value.trim();
+        if (!name) { notify('warning', 'Missing Field', 'Please enter a form name'); return; }
+        if (!bucket) { notify('warning', 'Missing Field', 'Please enter a bucket name'); return; }
+        if (!permission) { notify('warning', 'Missing Field', 'Please enter at least one permission'); return; }
+      }
+      if (step === 3) {
+        if (nlOrigins.length === 0) { notify('warning', 'Missing Field', 'Please add at least one allowed origin'); return; }
+      }
+      submissionWizardShowStep(step);
+    }
+
+    function addSubmissionOrigin() {
+      const input = document.getElementById('nlNewOrigin');
+      const origin = input.value.trim().replace(/\/$/, '');
+      if (!origin) return;
+      try {
+        const url = new URL(origin);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          notify('warning', 'Invalid Origin', 'Origin must use http or https'); return;
+        }
+        if (url.pathname !== '/' || url.search || url.hash) {
+          notify('warning', 'Invalid Origin', 'Origin must not contain a path, query, or fragment'); return;
+        }
+        const clean = `${url.protocol}//${url.host}`;
+        if (nlOrigins.includes(clean)) {
+          notify('warning', 'Duplicate', 'This origin has already been added'); return;
+        }
+        nlOrigins.push(clean);
+        input.value = '';
+        renderNlOrigins();
+      } catch {
+        notify('warning', 'Invalid Origin', 'Please enter a valid URL (e.g. https://example.com)');
+      }
+    }
+
+    function removeSubmissionOrigin(i) {
+      nlOrigins.splice(i, 1);
+      renderNlOrigins();
+    }
+
+    function renderNlOrigins() {
+      const container = document.getElementById('nlOriginsList');
+      if (nlOrigins.length === 0) {
+        container.innerHTML = '<p style="color:hsl(var(--muted-foreground));font-size:0.9rem">No origins added yet.</p>';
+        return;
+      }
+      container.innerHTML = nlOrigins.map((o, i) => `
+        <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid hsl(var(--border))">
+          <code style="flex:1;font-size:0.85rem">${sanitize(o)}</code>
+          <button type="button" class="btn-remove" onclick="removeSubmissionOrigin(${i})" title="Remove">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    function showNlBucketSuggestions() {
+      const input = document.getElementById('nlBucket');
+      const dropdown = document.getElementById('nlBucketAutocomplete');
+      const query = input.value.toLowerCase();
+      const matches = buckets.filter(b => b.name.toLowerCase().includes(query));
+      if (matches.length === 0 || (matches.length === 1 && matches[0].name.toLowerCase() === query)) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      dropdown.innerHTML = matches.map(b =>
+        `<div class="autocomplete-item" onclick="document.getElementById('nlBucket').value='${sanitize(b.name)}';document.getElementById('nlBucketAutocomplete').style.display='none'">${sanitize(b.name)}</div>`
+      ).join('');
+      positionDropdown(input, dropdown);
+      dropdown.style.display = 'block';
+    }
+
+    function showNlPermissionSuggestions() {
+      const input = document.getElementById('nlPermission');
+      const dropdown = document.getElementById('nlPermissionAutocomplete');
+      const raw = input.value;
+      const parts = raw.split(',');
+      const currentPart = parts[parts.length - 1].trim().toLowerCase();
+      const alreadySelected = new Set(parts.slice(0, -1).map(s => s.trim().toLowerCase()));
+      const allPerms = new Set();
+      buckets.forEach(b => (b.permissions || []).forEach(p => allPerms.add(p)));
+      const permList = [...allPerms].sort();
+      const matches = permList.filter(p => !alreadySelected.has(p.toLowerCase()) && p.toLowerCase().includes(currentPart));
+      if (matches.length === 0 || (matches.length === 1 && matches[0].toLowerCase() === currentPart)) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      dropdown.innerHTML = matches.map(p => {
+        const prefix = parts.slice(0, -1).map(s => s.trim()).filter(Boolean).join(', ');
+        const newVal = prefix ? `${prefix}, ${p}` : p;
+        return `<div class="autocomplete-item" onclick="document.getElementById('nlPermission').value='${sanitize(newVal)}';document.getElementById('nlPermissionAutocomplete').style.display='none'">${sanitize(formatPermission(p))} <span style="opacity:0.5;font-size:0.8em">${sanitize(p)}</span></div>`;
+      }).join('');
+      positionDropdown(input, dropdown);
+      dropdown.style.display = 'block';
+    }
+
+    async function saveSubmissionForm() {
+      const data = {
+        name: document.getElementById('nlName').value.trim(),
+        bucket: document.getElementById('nlBucket').value.trim(),
+        permission: document.getElementById('nlPermission').value.trim(),
+        allowedOrigins: nlOrigins,
+        redirectSuccess: document.getElementById('nlRedirectSuccess').value.trim() || null,
+        redirectError: document.getElementById('nlRedirectError').value.trim() || null,
+        redirectFormPost: document.getElementById('nlRedirectFormPost').checked,
+        redirectJsEmbed: document.getElementById('nlRedirectJsEmbed').checked,
+        disableRedirects: document.getElementById('nlDisableRedirects').checked,
+        language: document.getElementById('nlLanguage').value,
+        isEnabled: document.getElementById('nlIsEnabled').checked,
+        consentRequired: document.getElementById('nlConsentRequired').checked,
+        consentText: document.getElementById('nlConsentText').value.trim() || null,
+        privacyPolicyUrl: document.getElementById('nlPrivacyPolicyUrl').value.trim() || null,
+        customFields: Object.keys(nlCustomFields).length > 0 ? nlCustomFields : null,
+        formConfig: {
+          title: document.getElementById('nlTitle').value.trim() || null,
+          description: document.getElementById('nlDescription').value.trim() || null,
+          buttonText: document.getElementById('nlButtonText').value.trim() || null,
+          successMessage: document.getElementById('nlSuccessMessage').value.trim() || null,
+          primaryColor: document.getElementById('nlPrimaryColor').value,
+          backgroundColor: document.getElementById('nlBgColor').value,
+          textColor: document.getElementById('nlTextColor').value,
+          borderRadius: document.getElementById('nlBorderRadius').value.trim() || '8px'
+        }
+      };
+
+      if (!data.disableRedirects && (data.redirectFormPost || data.redirectJsEmbed) && !data.redirectSuccess && !data.redirectError) {
+        notify('warning', 'Missing URLs', 'Redirect is enabled but no redirect URLs are configured. Add a success or error URL, or disable redirects.');
+        return;
+      }
+
+      let result;
+      if (nlEditId) {
+        result = await apiRequest(`/api/admin/submissions/${nlEditId}`, {
+          method: 'PUT',
+          body: data
+        });
+      } else {
+        result = await apiRequest('/api/admin/submissions', {
+          method: 'POST',
+          body: data
+        });
+      }
+
+      if (!result.ok) {
+        notify('error', 'Save Failed', result.data?.error || 'Failed to save form');
+        return;
+      }
+
+      const formId = result.data.id;
+      nlCurrentFormId = formId;
+      const apiBase = typeof PUBLIC_URL !== 'undefined' && PUBLIC_URL ? PUBLIC_URL : API_BASE;
+
+      // Show embed code
+      document.getElementById('nlIframeCode').textContent =
+        `<iframe src="${apiBase}/api/submission/${formId}/embed" style="border:none;width:100%;max-width:480px;min-height:235px;" loading="lazy" title="Submission form"></iframe>`;
+      document.getElementById('nlJsCode').textContent =
+        `<div id="beacon-nl-${formId}"></div>\n<script src="${apiBase}/api/submission/${formId}/embed.js"><\/script>`;
+      document.getElementById('nlFormCode').textContent = buildFormPostSnippet(apiBase, formId);
+      document.getElementById('nlApiCode').textContent = buildApiSnippet(apiBase, formId);
+
+      if (result.data.apiToken) {
+        document.getElementById('nlApiTokenDisplay').style.display = '';
+        document.getElementById('nlApiToken').textContent = result.data.apiToken;
+      }
+
+      submissionWizardShowStep(5);
+    }
+
+    async function editSubmissionForm(id, pushState = true) {
+      const result = await apiRequest(`/api/admin/submissions/${id}`);
+      if (!result.ok) return;
+      showView('submission-edit', false);
+      if (pushState) updateUrl({ view: 'submission-edit', id });
+      initSubmissionWizard(result.data);
+    }
+
+    async function showEmbedCode(id) {
+      nlEditId = id;
+      nlCurrentFormId = id;
+      showView('submission-edit', false);
+      updateUrl({ view: 'submission-embed', id });
+
+      // Set title immediately so it never flashes "Edit" or "Create"
+      document.getElementById('submissionWizardTitle').textContent = 'View & Share';
+      document.getElementById('nlIntroTitle').textContent = 'Share Form';
+      document.getElementById('nlIntroDesc').textContent = 'Use the embed code snippets below to add this submission form to your website, or share the direct link to the form itself.';
+      document.getElementById('nlApiTokenDisplay').style.display = 'none';
+      submissionWizardShowStep(5);
+
+      const apiBase = typeof PUBLIC_URL !== 'undefined' && PUBLIC_URL ? PUBLIC_URL : API_BASE;
+
+      // Fetch form data so redirect fields are available for the snippet
+      const result = await apiRequest(`/api/admin/submissions/${id}`);
+      if (result.ok) {
+        document.getElementById('nlRedirectSuccess').value = result.data.redirectSuccess || '';
+        document.getElementById('nlRedirectError').value = result.data.redirectError || '';
+        document.getElementById('nlRedirectFormPost').checked = result.data.redirectFormPost !== false;
+        document.getElementById('nlRedirectJsEmbed').checked = !!result.data.redirectJsEmbed;
+        document.getElementById('nlDisableRedirects').checked = !!result.data.disableRedirects;
+        toggleRedirectFields();
+        document.getElementById('nlConsentRequired').checked = result.data.consentRequired !== false;
+        document.getElementById('nlConsentText').value = result.data.consentText || '';
+        document.getElementById('nlPrivacyPolicyUrl').value = result.data.privacyPolicyUrl || '';
+        nlCustomFields = { ...(result.data.customFields || {}) };
+      }
+
+      document.getElementById('nlIframeCode').textContent =
+        `<iframe src="${apiBase}/api/submission/${id}/embed" style="border:none;width:100%;max-width:480px;min-height:235px;" loading="lazy" title="Submission form"></iframe>`;
+      document.getElementById('nlJsCode').textContent =
+        `<div id="beacon-nl-${id}"></div>\n<script src="${apiBase}/api/submission/${id}/embed.js"><\/script>`;
+      document.getElementById('nlFormCode').textContent = buildFormPostSnippet(apiBase, id);
+      document.getElementById('nlApiCode').textContent = buildApiSnippet(apiBase, id);
+    }
+
+    let submissionToRemove = null;
+    let submissionPassphrase = '';
+
+    function deleteSubmissionForm(id, name) {
+      submissionToRemove = { id, name };
+      const lexicon = [
+        'PHOTON', 'CHIRP', 'JITTER', 'PARITY', 'LUMEN',
+        'GOSSIP', 'LATENCY', 'QUORUM', 'UPSTREAM', 'PACKET',
+        'PULSAR', 'QUASAR', 'ENTROPY', 'NONCE', 'CIPHER',
+        'MANTISSA', 'MODULO', 'KERNEL', 'SOCKET', 'BINARY',
+        'REEF', 'PORT', 'DOCK', 'VOYAGE', 'CROWNEST',
+        'AHOY', 'BILGE', 'SCALLYWAG', 'CUTLASS', 'STARBOARD',
+        'PORT', 'KEELHAUL', 'LANDLUBBER', 'SEADOG', 'YOHOHO',
+        'BRIG', 'CAPSTAN', 'GALLEON', 'JOLLYROGER', 'MAROONED',
+        'PLUNDER', 'RIGGING', 'SWASHBUCKLE', 'ANCHOR', 'DEADRECKON'
+      ];
+      const code = [];
+      for (let i = 0; i < 3; i++) {
+        code.push(lexicon[Math.floor(Math.random() * lexicon.length)]);
+      }
+      submissionPassphrase = code.join(' ');
+      document.getElementById('submissionPassphraseDisplay').textContent = submissionPassphrase;
+      document.getElementById('submissionPassphraseInput').value = '';
+      document.getElementById('confirmSubmissionRemoveBtn').classList.remove('active');
+      document.getElementById('submissionRemoveModal').style.display = 'flex';
+      closeAllMenus();
+    }
+
+    function verifySubmissionPassphrase() {
+      const input = document.getElementById('submissionPassphraseInput').value.toUpperCase().trim();
+      const btn = document.getElementById('confirmSubmissionRemoveBtn');
+      if (input === submissionPassphrase) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    }
+
+    async function confirmSubmissionRemoval() {
+      if (!submissionToRemove) return;
+      const input = document.getElementById('submissionPassphraseInput').value.toUpperCase().trim();
+      if (input !== submissionPassphrase) return;
+      const result = await apiRequest(`/api/admin/submissions/${submissionToRemove.id}`, { method: 'DELETE' });
+      if (result.ok) {
+        notify('success', 'Form Removed', `Successfully deleted submission form "${submissionToRemove.name}"`);
+        closeSubmissionRemoveModal();
+        loadSubmissionForms();
+      }
+    }
+
+    function closeSubmissionRemoveModal() {
+      document.getElementById('submissionRemoveModal').style.display = 'none';
+      submissionPassphrase = '';
+      submissionToRemove = null;
+    }
+
+    async function toggleSubmissionEnabled(id, enabled) {
+      await apiRequest(`/api/admin/submissions/${id}`, {
+        method: 'PUT',
+        body: { isEnabled: enabled }
+      });
+    }
+
+    function switchEmbedTab(tab) {
+      document.querySelectorAll('#embedTabs .embed-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.embed-tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`#embedTabs .embed-tab[onclick*="'${tab}'"]`).classList.add('active');
+      document.getElementById(`embedPanel-${tab}`).classList.add('active');
+    }
+
+    function copyEmbedCode(type) {
+      const ids = { iframe: 'nlIframeCode', js: 'nlJsCode', form: 'nlFormCode', api: 'nlApiCode' };
+      const el = document.getElementById(ids[type] || ids.iframe);
+      navigator.clipboard.writeText(el.textContent);
+      notify('success', 'Copied', 'Embed code copied to clipboard');
+    }
+
+    function buildFormPostSnippet(apiBase, formId) {
+      const rs = document.getElementById('nlRedirectSuccess').value.trim();
+      const re = document.getElementById('nlRedirectError').value.trim();
+      const consentRequired = document.getElementById('nlConsentRequired').checked;
+      const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+      const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
+      const disableRedirects = document.getElementById('nlDisableRedirects').checked;
+      const hiddenFields = (disableRedirects || rs || re) ? '' :
+        `\n  <input type="hidden" name="redirect_success" value="https://yoursite.com/thank-you" />` +
+        `\n  <input type="hidden" name="redirect_error" value="https://yoursite.com/error" />`;
+      const consentField = consentRequired ?
+        `\n  <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:0.85rem;line-height:1.4">` +
+        `\n    <input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0" />` +
+        `\n    <span>${consentText}</span>` +
+        `\n  </label>` : '';
+      const privacyField = privacyUrl ?
+        `\n  <p style="margin-top:6px;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>` : '';
+      return `<form method="POST" action="${apiBase}/api/submission/${formId}/subscribe">
+  <input type="email" name="email" placeholder="you@example.com" required />${hiddenFields}${consentField}${privacyField}
+  <button type="submit">Subscribe</button>
+</form>`;
+    }
+
+    function buildApiSnippet(apiBase, formId) {
+      const consentRequired = document.getElementById('nlConsentRequired').checked;
+      const url = `${apiBase}/api/submission/${formId}/subscribe`;
+      const bodyFields = [`  email: 'user@example.com'`];
+      if (consentRequired) bodyFields.push(`  consent: 'true'`);
+      const bodyStr = bodyFields.join(',\n');
+      return `// POST ${url}
+// Content-Type: application/json
+//
+// Request body:
+// {
+${bodyFields.map(f => '//   ' + f.trim()).join('\n')}
+// }
+//
+// Success (200): { "message": "Thanks for subscribing!" }
+// Error (400):   { "error": "..." }${consentRequired ? '\n// Error (400):   { "error": "Consent is required to subscribe" }' : ''}
+
+fetch('${url}', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+${bodyStr}
+  })
+})
+.then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+.then(({ ok, data }) => {
+  if (ok) {
+    console.log(data.message);
+  } else {
+    console.error(data.error);
+  }
+})
+.catch(() => console.error('Network error'));`;
+    }
+
+    function copyNlApiToken() {
+      navigator.clipboard.writeText(document.getElementById('nlApiToken').textContent);
+      notify('success', 'Copied', 'API token copied to clipboard');
+    }
+
+    function downloadNlApiToken() {
+      const token = document.getElementById('nlApiToken').textContent;
+      if (!token) return;
+      const d = new Date();
+      const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+      const blob = new Blob([token], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `token_${stamp}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      notify('success', 'Downloaded', `Saved as token_${stamp}.txt`);
+    }
+
+    var previewFormId = null;
+
+    function testSubmissionForm(mode) {
+      if (!nlCurrentFormId) return;
+      previewFormId = nlCurrentFormId;
+      showPreview(nlCurrentFormId, mode);
+    }
+
+    function showPreview(id, mode) {
+      previewFormId = id;
+      const apiBase = typeof PUBLIC_URL !== 'undefined' && PUBLIC_URL ? PUBLIC_URL : API_BASE;
+      const badge = document.getElementById('previewBadge');
+      const container = document.getElementById('previewContent');
+      const labels = { iframe: 'iframe', js: 'JavaScript', form: 'HTML Form', api: 'API' };
+      badge.textContent = labels[mode] || mode;
+      container.innerHTML = '';
+
+      if (mode === 'iframe') {
+        const iframe = document.createElement('iframe');
+        iframe.src = `${apiBase}/api/submission/${id}/embed`;
+        iframe.style.cssText = 'border:none;width:100%;max-width:480px;min-height:235px;border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.08)';
+        iframe.onload = function() {
+          try { const h = iframe.contentDocument.documentElement.scrollHeight; if (h) iframe.style.height = h + 'px'; }
+          catch(e) { /* cross-origin, keep min-height */ }
+        };
+        container.appendChild(iframe);
+      } else if (mode === 'js') {
+        const wrapper = document.createElement('div');
+        wrapper.id = `beacon-nl-${id}`;
+        const card = buildPreviewCard(wrapper);
+        container.appendChild(card);
+        const script = document.createElement('script');
+        script.src = `${apiBase}/api/submission/${id}/embed.js`;
+        card.appendChild(script);
+      } else if (mode === 'form') {
+        const actionUrl = `${apiBase}/api/submission/${id}/subscribe`;
+        const consentRequired = document.getElementById('nlConsentRequired')?.checked;
+        const consentText = document.getElementById('nlConsentText')?.value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+        const privacyUrl = document.getElementById('nlPrivacyPolicyUrl')?.value.trim();
+        const disableRedirects = document.getElementById('nlDisableRedirects')?.checked;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = actionUrl;
+        if (!disableRedirects) form.target = '_self';
+        form.innerHTML = `
+          <input type="email" name="email" placeholder="you@example.com" required style="width:100%;padding:0.5rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);font-size:0.9rem;margin-bottom:0.75rem;background:hsl(var(--background));color:hsl(var(--foreground))">
+          ${!disableRedirects ? '<input type="hidden" name="redirect_success" value="about:blank#success"><input type="hidden" name="redirect_error" value="about:blank#error">' : ''}
+          ${consentRequired ? `<label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 0.75rem;font-size:0.85rem;line-height:1.4;color:hsl(var(--foreground))"><input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0"><span>${consentText}</span></label>` : ''}
+          ${privacyUrl ? `<p style="margin-bottom:0.75rem;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_self" rel="noopener noreferrer" style="color:hsl(var(--foreground))">Privacy Policy</a></p>` : ''}
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">Subscribe</button>
+        `;
+        if (disableRedirects) {
+          const msg = document.createElement('div');
+          msg.style.cssText = 'margin-top:0.75rem;font-size:0.9rem;min-height:1.4em';
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button');
+            btn.disabled = true;
+            msg.textContent = ''; msg.style.color = '';
+            try {
+              const body = { email: form.querySelector('input[name="email"]').value };
+              const cb = form.querySelector('input[name="consent"]');
+              if (cb) body.consent = cb.checked ? 'true' : 'false';
+              const res = await fetch(actionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(body)
+              });
+              const data = await res.json();
+              if (res.ok) {
+                msg.textContent = data.message || 'Success';
+                msg.style.color = '#16a34a';
+                form.reset();
+              } else {
+                msg.textContent = data.error || 'Something went wrong.';
+                msg.style.color = '#dc2626';
+              }
+            } catch {
+              msg.textContent = 'Network error. Please try again.';
+              msg.style.color = '#dc2626';
+            }
+            btn.disabled = false;
+          });
+          form.appendChild(msg);
+        }
+        const card = buildPreviewCard(form);
+        container.appendChild(card);
+      } else if (mode === 'api') {
+        const subscribeUrl = `${apiBase}/api/submission/${id}/subscribe`;
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'background:hsl(var(--muted));color:hsl(var(--foreground));padding:1rem;border-radius:var(--radius);font-size:0.8rem;overflow-x:auto;line-height:1.6;margin:0;white-space:pre-wrap;word-break:break-all';
+        pre.textContent = `fetch('${subscribeUrl}', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ email: 'user@example.com' })\n})\n.then(r => r.json())\n.then(data => console.log(data));`;
+        const card = buildPreviewCard(pre);
+        container.appendChild(card);
+      }
+
+      showView('submission-preview', false);
+      updateUrl({ view: 'submission-preview', id, mode });
+    }
+
+    function buildPreviewCard(content) {
+      const card = document.createElement('div');
+      card.style.cssText = 'background:hsl(var(--background));border:1px solid hsl(var(--border));border-radius:var(--radius);padding:1.5rem;width:100%;max-width:520px;box-shadow:0 1px 3px rgba(0,0,0,.08)';
+      card.appendChild(content);
+      return card;
+    }
+
     init();
   </script>
   <script>

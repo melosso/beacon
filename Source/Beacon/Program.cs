@@ -119,6 +119,10 @@ try
     builder.Services.AddScoped<IWebhookService, WebhookService>();
     builder.Services.AddHostedService<Beacon.Api.WebhookDeliveryService>();
 
+    builder.Services.AddScoped<ISubmissionFormRepository, SubmissionFormRepository>();
+    builder.Services.AddScoped<ISubmissionFormService, SubmissionFormService>();
+    builder.Services.AddSingleton<SubmissionRateLimiter>();
+
     builder.Services.AddHttpClient();
 
     builder.Services.AddAuthentication(options =>
@@ -253,6 +257,14 @@ try
                   .AllowAnyMethod()
                   .AllowAnyHeader();
         });
+
+        // Permissive policy for public submission endpoints (it'll validate origins by checking the submission form's allowed origins)
+        options.AddPolicy("PublicSubmission", policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
     });
 
     // Forwarded Headers configuration (for reverse proxy)
@@ -279,94 +291,19 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
-        db.Database.EnsureCreated();
-
-        // Add CustomFields column to existing databases (EnsureCreated doesn't alter existing tables)
-        var columnExists = db.Database.SqlQueryRaw<int>(
-            "SELECT COUNT(*) AS Value FROM pragma_table_info('ConsentRecords') WHERE name='CustomFields'")
-            .AsEnumerable().FirstOrDefault() > 0;
-
-        if (!columnExists)
-        {
-            db.Database.ExecuteSqlRaw("ALTER TABLE ConsentRecords ADD COLUMN CustomFields TEXT NULL");
-        }
-
-        // Create WebhookConfigs table if it doesn't exist (EnsureCreated doesn't add new tables to existing databases)
-        var webhookTableExists = db.Database.SqlQueryRaw<int>(
-            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='WebhookConfigs'")
-            .AsEnumerable().FirstOrDefault() > 0;
-
-        if (!webhookTableExists)
-        {
-            db.Database.ExecuteSqlRaw("""
-                CREATE TABLE WebhookConfigs (
-                    Id TEXT NOT NULL PRIMARY KEY,
-                    Bucket TEXT NOT NULL,
-                    EncryptedUrl TEXT NOT NULL,
-                    EncryptedMethod TEXT NOT NULL,
-                    EncryptedHeaders TEXT NULL,
-                    EncryptedSecret TEXT NULL,
-                    BodyTemplate TEXT NULL,
-                    IsEnabled INTEGER NOT NULL DEFAULT 1,
-                    CreatedAt TEXT NOT NULL,
-                    LastTriggeredAt TEXT NULL,
-                    TriggerCount INTEGER NOT NULL DEFAULT 0
-                )
-                """);
-            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_WebhookConfigs_Bucket ON WebhookConfigs (Bucket)");
-        }
-        else
-        {
-            // Add EncryptedSecret column to existing WebhookConfigs tables
-            var secretColumnExists = db.Database.SqlQueryRaw<int>(
-                "SELECT COUNT(*) AS Value FROM pragma_table_info('WebhookConfigs') WHERE name='EncryptedSecret'")
-                .AsEnumerable().FirstOrDefault() > 0;
-
-            if (!secretColumnExists)
-            {
-                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookConfigs ADD COLUMN EncryptedSecret TEXT NULL");
-            }
-        }
-
-        // Create WebhookDeliveryErrors table if it doesn't exist
-        var errorsTableExists = db.Database.SqlQueryRaw<int>(
-            "SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='WebhookDeliveryErrors'")
-            .AsEnumerable().FirstOrDefault() > 0;
-
-        if (!errorsTableExists)
-        {
-            db.Database.ExecuteSqlRaw("""
-                CREATE TABLE WebhookDeliveryErrors (
-                    Id TEXT NOT NULL PRIMARY KEY,
-                    Bucket TEXT NOT NULL,
-                    ErrorMessage TEXT NOT NULL,
-                    StatusCode INTEGER NOT NULL DEFAULT 0,
-                    OccurredAt TEXT NOT NULL
-                )
-                """);
-            db.Database.ExecuteSqlRaw("CREATE INDEX IX_WebhookDeliveryErrors_Bucket ON WebhookDeliveryErrors (Bucket)");
-        }
-
-        // Add new diagnostic columns to WebhookDeliveryErrors if they don't exist
-        if (errorsTableExists)
-        {
-            var columns = db.Database.SqlQueryRaw<string>(
-                "SELECT name AS Value FROM pragma_table_info('WebhookDeliveryErrors')")
-                .AsEnumerable().ToHashSet();
-
-            if (!columns.Contains("RequestUrl"))
-                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN RequestUrl TEXT");
-            if (!columns.Contains("RequestMethod"))
-                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN RequestMethod TEXT");
-            if (!columns.Contains("AttemptCount"))
-                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN AttemptCount INTEGER NOT NULL DEFAULT 0");
-            if (!columns.Contains("StackTrace"))
-                db.Database.ExecuteSqlRaw("ALTER TABLE WebhookDeliveryErrors ADD COLUMN StackTrace TEXT");
-        }
+        DatabaseMigrator.Initialize(db);
     }
 
     // Add Serilog request logging
     app.UseSerilogRequestLogging();
+
+    // Exception handler runs before CORS so error responses still get CORS headers
+    app.UseExceptionHandler(error => error.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new { error = "An internal server error occurred." });
+    }));
 
     app.UseCors("Default");
 
@@ -394,6 +331,7 @@ try
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
     app.MapAuthEndpoints();
+    app.MapSubmissionEndpoints();
 
     // Health check endpoint
     app.MapGet("/health", async (BeaconDbContext db) =>
@@ -454,6 +392,49 @@ try
         await context.Response.SendFileAsync(
             Path.Combine(app.Environment.WebRootPath, "openapi.html"));
     }).ExcludeFromDescription();
+
+    app.MapGet("/favicon.ico", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "favicon.ico");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "image/x-icon";
+            await context.Response.SendFileAsync(path);
+        }
+        else
+        {
+            context.Response.StatusCode = 404;
+        }
+    });
+
+    // include   <link href="/css/site.css" rel="stylesheet" />
+    app.MapGet("/css/site.css", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "css", "site.css");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "text/css";
+            await context.Response.SendFileAsync(path);
+        }   
+        else
+        {
+            context.Response.StatusCode = 404;
+        }
+    });
+
+    app.MapGet("/robots.txt", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "robots.txt");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "text/plain";
+            await context.Response.SendFileAsync(path);
+        }
+        else
+        {
+            context.Response.StatusCode = 404;
+        }
+    });
 
     app.MapGet("/", async context =>
     {

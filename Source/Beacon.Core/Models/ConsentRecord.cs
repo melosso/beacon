@@ -18,4 +18,7 @@ public sealed class ConsentRecord
     /// returned when fetching bucket records.
     /// </summary>
     public string? CustomFields { get; set; }
+
+    public string? IpAddress { get; set; }
+    public string? ConsentText { get; set; }
 }
