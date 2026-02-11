@@ -174,11 +174,67 @@ public static partial class InputValidator
         return ValidationResult.Ok();
     }
 
+    private static readonly HashSet<string> AllowedCssColorNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "transparent", "currentcolor",
+        "black", "white", "red", "green", "blue", "yellow", "orange", "purple",
+        "pink", "gray", "grey", "brown", "cyan", "magenta", "lime", "navy",
+        "teal", "aqua", "maroon", "olive", "silver", "fuchsia",
+        "indigo", "violet", "coral", "salmon", "tomato", "gold",
+        "crimson", "darkblue", "darkgreen", "darkred", "lightblue", "lightgreen",
+        "lightgray", "lightgrey", "darkgray", "darkgrey", "whitesmoke", "aliceblue",
+        "inherit", "initial", "unset"
+    };
+
+    public static ValidationResult ValidateCssColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return ValidationResult.Ok();
+
+        var trimmed = value.Trim();
+
+        // Hex colors: #rgb, #rgba, #rrggbb, #rrggbbaa
+        if (HexColorPattern().IsMatch(trimmed))
+            return ValidationResult.Ok();
+
+        // Named colors
+        if (AllowedCssColorNames.Contains(trimmed))
+            return ValidationResult.Ok();
+
+        // rgb() / rgba() with only digits, commas, spaces, dots, percent
+        if (RgbFunctionPattern().IsMatch(trimmed))
+            return ValidationResult.Ok();
+
+        return ValidationResult.Fail("Invalid CSS color value");
+    }
+
+    public static ValidationResult ValidateCssBorderRadius(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return ValidationResult.Ok();
+
+        var trimmed = value.Trim();
+
+        if (BorderRadiusPattern().IsMatch(trimmed))
+            return ValidationResult.Ok();
+
+        return ValidationResult.Fail("Invalid CSS border-radius value");
+    }
+
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex PermissionPattern();
+
+    [GeneratedRegex(@"^#[0-9a-fA-F]{3,8}$")]
+    private static partial Regex HexColorPattern();
+
+    [GeneratedRegex(@"^rgba?\(\s*[\d\s,.%]+\s*\)$")]
+    private static partial Regex RgbFunctionPattern();
+
+    [GeneratedRegex(@"^\d+(\.\d+)?(px|rem|em|%)$")]
+    private static partial Regex BorderRadiusPattern();
 }
 
 public sealed class ValidationResult

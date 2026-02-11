@@ -53,7 +53,7 @@
             <span class="tooltip tooltip-above tooltip-right" id="btnDisplayTooltip">Show code names</span>
           </span>
           <span class="tooltip-wrapper">
-            <button class="btn-plus" onclick="toggleBucketSubmenu()">
+            <button class="btn-plus" onclick="toggleBucketSubmenu(event)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -88,7 +88,7 @@
         <div class="nav-label">Modules</div>
         <div class="nav-label-actions">
           <span class="tooltip-wrapper">
-            <button class="btn-plus" onclick="toggleModulesSubmenu()">
+            <button class="btn-plus" onclick="toggleModulesSubmenu(event)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -571,12 +571,12 @@
             </div>
           </div>
           <div class="embed-tabs" id="embedTabs">
-            <button class="embed-tab active" onclick="switchEmbedTab('iframe')">iframe</button>
-            <button class="embed-tab" onclick="switchEmbedTab('js')">JavaScript</button>
+            <button class="embed-tab active" onclick="switchEmbedTab('js')">JavaScript</button>
             <button class="embed-tab" onclick="switchEmbedTab('form')">HTML Form</button>
             <button class="embed-tab" onclick="switchEmbedTab('api')">API</button>
+            <button class="embed-tab" onclick="switchEmbedTab('iframe')">iframe</button>
           </div>
-          <div class="embed-tab-panel active" id="embedPanel-iframe">
+          <div class="embed-tab-panel" id="embedPanel-iframe">
             <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Paste this into your website HTML. The form is fully self-contained.</p>
             <span class="tooltip-wrapper">
               <div class="token-output" id="nlIframeCode" onclick="copyEmbedCode('iframe')" style="display:block;cursor:pointer"></div>
@@ -587,7 +587,7 @@
               Preview
             </button>
           </div>
-          <div class="embed-tab-panel" id="embedPanel-js">
+          <div class="embed-tab-panel active" id="embedPanel-js">
             <p style="color:hsl(var(--muted-foreground));margin-bottom:0.5rem;font-size:0.85rem">Renders inline using Shadow DOM for style isolation.</p>
             <span class="tooltip-wrapper">
               <div class="token-output" id="nlJsCode" onclick="copyEmbedCode('js')" style="display:block;cursor:pointer"></div>
@@ -2608,15 +2608,31 @@
       editingBucket = '';
     }
 
-    function toggleBucketSubmenu() {
+    function toggleBucketSubmenu(e) {
+      if (e) e.stopPropagation();
       const submenu = document.getElementById('bucketSubmenu');
-      submenu.classList.toggle('open');
+      const wasOpen = submenu.classList.contains('open');
+      closeAllSubmenus();
+      if (!wasOpen) submenu.classList.add('open');
     }
 
-    function toggleModulesSubmenu() {
+    function toggleModulesSubmenu(e) {
+      if (e) e.stopPropagation();
       const submenu = document.getElementById('modulesSubmenu');
-      submenu.classList.toggle('open');
+      const wasOpen = submenu.classList.contains('open');
+      closeAllSubmenus();
+      if (!wasOpen) submenu.classList.add('open');
     }
+
+    function closeAllSubmenus() {
+      document.querySelectorAll('.submenu.open').forEach(el => el.classList.remove('open'));
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.submenu, .btn-plus')) {
+        closeAllSubmenus();
+      }
+    });
 
     function showPermissionsConfirmModal() {
       if (!editingRecord || !editingRecord.email) {

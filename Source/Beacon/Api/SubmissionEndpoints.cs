@@ -14,6 +14,8 @@ public static class SubmissionEndpoints
 {
     public static void MapSubmissionEndpoints(this IEndpointRouteBuilder routes)
     {
+        const string SubmissionTag = "Integration";
+
         // Admin endpoints (require authorization)
         routes.MapGet("/api/admin/submissions", GetAllForms)
             .RequireAuthorization()
@@ -35,7 +37,7 @@ public static class SubmissionEndpoints
             .RequireAuthorization()
             .ExcludeFromDescription();
 
-        // Public endpoints (no auth, origin-validated by the handler)
+        // Public endpoints (public, but we'll handle the origin-validation in the handler)
         routes.MapGet("/api/submission/{id:guid}/embed", GetEmbedPage)
             .AllowAnonymous()
             .RequireCors("PublicSubmission")
@@ -50,7 +52,10 @@ public static class SubmissionEndpoints
             .AllowAnonymous()
             .RequireCors("PublicSubmission")
             .DisableAntiforgery()
-            .ExcludeFromDescription();
+            .WithTags(SubmissionTag)
+            .WithName("Subscribe")
+            .WithDescription("Endpoint for handling subscription form submissions. Accepts email and optional website and consent fields.");
+
 
         routes.MapMethods("/api/submission/{id:guid}/subscribe", ["OPTIONS"], HandleCorsPreflightSubscribe)
             .AllowAnonymous()
@@ -59,7 +64,6 @@ public static class SubmissionEndpoints
     }
 
     // Admin endpoints
-
     private static async Task<IResult> GetAllForms(
         [FromServices] ISubmissionFormService service)
     {
@@ -167,6 +171,26 @@ public static class SubmissionEndpoints
         if (!privacyUrlValidation.IsValid)
             return Results.BadRequest(new { error = privacyUrlValidation.Error });
 
+        // Validate FormConfig CSS fields
+        if (request.FormConfig != null)
+        {
+            var primaryColorValidation = InputValidator.ValidateCssColor(request.FormConfig.PrimaryColor);
+            if (!primaryColorValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid primary color: {primaryColorValidation.Error}" });
+
+            var bgColorValidation = InputValidator.ValidateCssColor(request.FormConfig.BackgroundColor);
+            if (!bgColorValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid background color: {bgColorValidation.Error}" });
+
+            var textColorValidation = InputValidator.ValidateCssColor(request.FormConfig.TextColor);
+            if (!textColorValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid text color: {textColorValidation.Error}" });
+
+            var borderRadiusValidation = InputValidator.ValidateCssBorderRadius(request.FormConfig.BorderRadius);
+            if (!borderRadiusValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid border radius: {borderRadiusValidation.Error}" });
+        }
+
         var form = new SubmissionForm
         {
             Name = request.Name.Trim(),
@@ -256,6 +280,22 @@ public static class SubmissionEndpoints
 
         if (request.FormConfig != null)
         {
+            var primaryColorValidation = InputValidator.ValidateCssColor(request.FormConfig.PrimaryColor);
+            if (!primaryColorValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid primary color: {primaryColorValidation.Error}" });
+
+            var bgColorValidation = InputValidator.ValidateCssColor(request.FormConfig.BackgroundColor);
+            if (!bgColorValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid background color: {bgColorValidation.Error}" });
+
+            var textColorValidation = InputValidator.ValidateCssColor(request.FormConfig.TextColor);
+            if (!textColorValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid text color: {textColorValidation.Error}" });
+
+            var borderRadiusValidation = InputValidator.ValidateCssBorderRadius(request.FormConfig.BorderRadius);
+            if (!borderRadiusValidation.IsValid)
+                return Results.BadRequest(new { error = $"Invalid border radius: {borderRadiusValidation.Error}" });
+
             existing.FormConfig = JsonSerializer.Serialize(request.FormConfig);
         }
 
@@ -648,9 +688,14 @@ public static class SubmissionEndpoints
             consent = request?.Consent;
         }
 
-        // Fall back to form-level redirect URLs if not provided in the POST body
+        // Validate POST-supplied redirects against allowed origins; fall back to form-level redirects
         if (isFormPost)
         {
+            if (redirectSuccess != null && !IsRedirectAllowedForForm(form, redirectSuccess))
+                redirectSuccess = null;
+            if (redirectError != null && !IsRedirectAllowedForForm(form, redirectError))
+                redirectError = null;
+
             redirectSuccess ??= form.RedirectSuccess;
             redirectError ??= form.RedirectError;
         }
@@ -801,6 +846,30 @@ public static class SubmissionEndpoints
             return false;
         return Uri.TryCreate(url, UriKind.Absolute, out var uri)
                && (uri.Scheme == "http" || uri.Scheme == "https");
+    }
+
+    internal static bool IsRedirectAllowedForForm(SubmissionForm form, string? url)
+    {
+        if (!IsValidRedirectUrl(url))
+            return false;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        var redirectOrigin = $"{uri.Scheme}://{uri.Authority}".TrimEnd('/').ToLowerInvariant();
+
+        try
+        {
+            var allowedOrigins = System.Text.Json.JsonSerializer.Deserialize<List<string>>(form.AllowedOrigins);
+            if (allowedOrigins == null || allowedOrigins.Count == 0)
+                return false;
+
+            return allowedOrigins.Any(o => o.TrimEnd('/').ToLowerInvariant() == redirectOrigin);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string AppendQuery(string url, string key, string value)
