@@ -55,6 +55,14 @@ public static class AdminEndpoints
             .RequireAuthorization()
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/buckets/{bucket}/archive", ArchiveBucket)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/buckets/{bucket}/unarchive", UnarchiveBucket)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
         routes.MapDelete("/api/admin/buckets/{bucket}", DeleteBucket)
             .RequireAuthorization()
             .ExcludeFromDescription();
@@ -114,6 +122,7 @@ public static class AdminEndpoints
         [FromServices] IConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
+        [FromServices] IBucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
         [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
@@ -122,6 +131,11 @@ public static class AdminEndpoints
         if (!bucketValidation.IsValid)
         {
             return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (await bucketRepository.IsArchivedAsync(request.Bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
         }
 
         var emailValidation = InputValidator.ValidateEmail(request.Email);
@@ -187,6 +201,7 @@ public static class AdminEndpoints
         [FromServices] IConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
+        [FromServices] IBucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
         [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
@@ -195,6 +210,11 @@ public static class AdminEndpoints
         if (!bucketValidation.IsValid)
         {
             return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (await bucketRepository.IsArchivedAsync(bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
         }
 
         var emailValidation = InputValidator.ValidateEmail(request.Email);
@@ -263,6 +283,7 @@ public static class AdminEndpoints
         [FromServices] IConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
+        [FromServices] IBucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
         [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
@@ -271,6 +292,11 @@ public static class AdminEndpoints
         if (!bucketValidation.IsValid)
         {
             return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (await bucketRepository.IsArchivedAsync(request.Bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
         }
 
         var emailValidation = InputValidator.ValidateEmail(request.Email);
@@ -372,15 +398,29 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> GetBuckets(
-        [FromServices] IConsentRepository repository)
+        [FromServices] IConsentRepository repository,
+        [FromServices] IBucketRepository bucketRepository)
     {
         var buckets = await repository.GetBucketsAsync();
-        return Results.Ok(buckets);
+        var result = new List<object>();
+        foreach (var b in buckets)
+        {
+            var isArchived = await bucketRepository.IsArchivedAsync(b.Name);
+            result.Add(new
+            {
+                name = b.Name,
+                totalEmails = b.TotalEmails,
+                permissions = b.Permissions,
+                isArchived
+            });
+        }
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> GetBucketDetails(
         string bucket,
-        [FromServices] IConsentRepository repository)
+        [FromServices] IConsentRepository repository,
+        [FromServices] IBucketRepository bucketRepository)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -390,7 +430,14 @@ public static class AdminEndpoints
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
         var details = await repository.GetBucketDetailsAsync(normalizedBucket);
-        return Results.Ok(details);
+        var isArchived = await bucketRepository.IsArchivedAsync(normalizedBucket);
+        return Results.Ok(new
+        {
+            name = details.Name,
+            permissions = details.Permissions,
+            stats = details.Stats,
+            isArchived
+        });
     }
 
     private static async Task<IResult> GetBucketRecords(
@@ -544,6 +591,50 @@ public static class AdminEndpoints
         return Results.Ok(new { message = "Permission deleted", recordsDeleted = deleted });
     }
 
+    private static async Task<IResult> ArchiveBucket(
+        string bucket,
+        [FromServices] IBucketRepository bucketRepository,
+        ILogger<Program> logger)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+
+        logger.LogInformation(
+            "Bucket archived: bucket={Bucket}, timestamp={Timestamp}",
+            normalizedBucket,
+            DateTime.UtcNow);
+
+        await bucketRepository.ArchiveAsync(normalizedBucket);
+        return Results.Ok(new { success = true });
+    }
+
+    private static async Task<IResult> UnarchiveBucket(
+        string bucket,
+        [FromServices] IBucketRepository bucketRepository,
+        ILogger<Program> logger)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+
+        logger.LogInformation(
+            "Bucket unarchived: bucket={Bucket}, timestamp={Timestamp}",
+            normalizedBucket,
+            DateTime.UtcNow);
+
+        await bucketRepository.UnarchiveAsync(normalizedBucket);
+        return Results.Ok(new { success = true });
+    }
+
     private static async Task<IResult> CheckEmailExists(
         string bucket,
         [FromBody] CheckEmailRequest request,
@@ -649,12 +740,18 @@ public static class AdminEndpoints
     private static async Task<IResult> SaveWebhookConfig(
         string bucket,
         [FromBody] WebhookConfigRequest request,
-        [FromServices] IWebhookService webhookService)
+        [FromServices] IWebhookService webhookService,
+        [FromServices] IBucketRepository bucketRepository)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
         {
             return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (await bucketRepository.IsArchivedAsync(bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
         }
 
         if (string.IsNullOrWhiteSpace(request.Url))
@@ -702,12 +799,18 @@ public static class AdminEndpoints
 
     private static async Task<IResult> DeleteWebhookConfig(
         string bucket,
-        [FromServices] IWebhookService webhookService)
+        [FromServices] IWebhookService webhookService,
+        [FromServices] IBucketRepository bucketRepository)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
         {
             return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (await bucketRepository.IsArchivedAsync(bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
         }
 
         await webhookService.DeleteWebhookConfigAsync(bucket.Trim().ToLowerInvariant());

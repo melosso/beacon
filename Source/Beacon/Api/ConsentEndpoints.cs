@@ -99,6 +99,7 @@ public static class ConsentEndpoints
         [FromServices] IConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
+        [FromServices] IBucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
         [FromServices] ITokenUsageRepository tokenUsageRepository,
         [FromServices] IAdminNotificationService notifications)
@@ -130,6 +131,11 @@ public static class ConsentEndpoints
             {
                 return Results.Content(GetStatusPage("already_processed", lang), "text/html");
             }
+        }
+
+        if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Content(GetStatusPage("invalid", lang), "text/html");
         }
 
         var form = await context.Request.ReadFormAsync();

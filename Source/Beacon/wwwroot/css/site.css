@@ -613,6 +613,15 @@ input:checked + .slider:before {
     pointer-events: none;
 }
 
+.switch.archived input:checked + .slider {
+    filter: saturate(0);
+}
+
+.switch.archived {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 /* Checkbox toggle for forms */
 .form-group label.checkbox-toggle,
 .checkbox-toggle {

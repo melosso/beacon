@@ -12,6 +12,7 @@ public static class DatabaseMigrator
         MigrateWebhookConfigs(db);
         MigrateWebhookDeliveryErrors(db);
         MigrateSubmissionForms(db);
+        MigrateArchivedBuckets(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -94,6 +95,19 @@ public static class DatabaseMigrator
             AddColumnIfMissing(db, "WebhookDeliveryErrors", "RequestMethod", "TEXT");
             AddColumnIfMissing(db, "WebhookDeliveryErrors", "AttemptCount", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfMissing(db, "WebhookDeliveryErrors", "StackTrace", "TEXT");
+        }
+    }
+
+    private static void MigrateArchivedBuckets(BeaconDbContext db)
+    {
+        if (!TableExists(db, "ArchivedBuckets"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE ArchivedBuckets (
+                    Bucket TEXT NOT NULL PRIMARY KEY,
+                    ArchivedAt TEXT NOT NULL
+                )
+                """);
         }
     }
 

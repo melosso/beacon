@@ -110,6 +110,7 @@ try
     builder.Services.AddSingleton<IEncryptionService>(encryptionService);
     builder.Services.AddSingleton(new EmailHasher(pepper));
 
+    builder.Services.AddScoped<IBucketRepository, BucketRepository>();
     builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
     builder.Services.AddScoped<IConsentService, ConsentService>();
     builder.Services.AddScoped<ITokenUsageRepository, TokenUsageRepository>();

@@ -704,6 +704,7 @@ public static class SubmissionEndpoints
         Guid id,
         HttpContext context,
         [FromServices] ISubmissionFormService service,
+        [FromServices] IBucketRepository bucketRepository,
         [FromServices] SubmissionRateLimiter rateLimiter,
         [FromServices] IAdminNotificationService notifications)
     {
@@ -711,6 +712,9 @@ public static class SubmissionEndpoints
         var form = await service.GetFormAsync(id);
         if (form == null || !form.IsEnabled)
             return Results.NotFound(new { error = "Form not found or disabled" });
+
+        if (await bucketRepository.IsArchivedAsync(form.Bucket.Trim().ToLowerInvariant()))
+            return Results.Conflict(new { error = "Bucket is archived" });
 
         // Parse request body (JSON or form-encoded)
         string? email = null;

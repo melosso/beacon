@@ -14,6 +14,7 @@ public class BeaconDbContext : DbContext
     public DbSet<WebhookConfig> WebhookConfigs => Set<WebhookConfig>();
     public DbSet<WebhookDeliveryError> WebhookDeliveryErrors => Set<WebhookDeliveryError>();
     public DbSet<SubmissionForm> SubmissionForms => Set<SubmissionForm>();
+    public DbSet<ArchivedBucket> ArchivedBuckets => Set<ArchivedBucket>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -91,6 +92,15 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.StackTrace);
 
             entity.HasIndex(e => e.Bucket);
+        });
+
+        modelBuilder.Entity<ArchivedBucket>(entity =>
+        {
+            entity.HasKey(e => e.Bucket);
+
+            entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>

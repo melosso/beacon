@@ -180,7 +180,7 @@
             <span id="bucketTitle">-</span>
             <span class="tooltip select-none" id="bucketTooltip">example-bucket-name</span>
           </h1>
-          <span class="status-badge select-none">Read-Only</span>
+          <span class="status-badge select-none" id="readOnlyBadge">Read-Only</span>
         </div>
         <div class="bucket-actions">
           <span class="tooltip-wrapper" id="webhookErrorsContainer">
@@ -727,6 +727,45 @@
     </div>
   </div>
 
+  <!-- Archive Bucket Modal -->
+  <div class="modal-backdrop" id="archiveModal" style="display:none">
+    <div class="modal">
+      <h3 class="select-none" style="margin-bottom:1.5rem;">Archive Bucket</h3>
+      <p>
+        Archiving <strong id="archiveBucketName">-</strong> will prevent new submissions, (user) consent updates, and token generation.  
+        Existing records will remain available for viewing.
+      </p>      
+      <p>
+        Anyone with an active token for this bucket will <strong>no longer</strong> be able to submit or update consent. 
+      <p>
+        Are you sure you want to archive this bucket? You can unarchive it later if needed.
+      </p>
+      <div class="modal-actions">
+        <span class="tooltip-wrapper">
+          <button class="btn btn-outline" onclick="closeArchiveModal()">Cancel</button>
+          <span class="tooltip tooltip-above">Close without archiving</span>
+        </span>
+        <span class="tooltip-wrapper">
+          <button class="btn btn-primary" id="confirmArchiveBtn" onclick="confirmArchive()">Archive Bucket</button>
+          <span class="tooltip tooltip-above">Bucket will become read-only</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unarchive Bucket Modal -->
+  <div class="modal-backdrop" id="unarchiveModal" style="display:none">
+    <div class="modal">
+      <h3 class="select-none" style="margin-bottom:1.5rem;">Unarchive Bucket</h3>
+      <p>Unarchiving <strong id="unarchiveBucketName">-</strong> will re-enable submissions, consent updates, and token generation for this bucket.</p>
+      <p>Are you sure you want to unarchive this bucket?</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeUnarchiveModal()">Cancel</button>
+        <button class="btn btn-primary" id="confirmUnarchiveBtn" onclick="confirmUnarchive()">Unarchive Bucket</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Permission Remove Modal -->
   <div class="modal-backdrop" id="permissionRemoveModal">
     <div class="modal">
@@ -751,7 +790,16 @@
   <!-- Bucket Options Modal -->
   <div class="modal-backdrop" id="optionsModal">
     <div class="modal options-modal">
-      <h3>Options</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0">Options</h3>
+        <button class="btn-icon" id="optionsArchiveBtn" onclick="toggleArchiveFromOptions()" title="Archive Bucket" style="color:hsl(var(--muted-foreground));padding:0.25rem">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="21 8 21 21 3 21 3 8"></polyline>
+            <rect x="1" y="3" width="22" height="5"></rect>
+            <line x1="10" y1="12" x2="14" y2="12"></line>
+          </svg>
+        </button>
+      </div>
       <p>Manage settings and integrations for this bucket.</p>
 
       <!-- Basic Section -->
@@ -994,6 +1042,7 @@
     let lastActivity = Date.now();
     let refreshInterval = null;
     let currentBucket = '';
+    let currentBucketArchived = false;
     let currentPage = 1;
     let pageSize = 10;
     let totalRecords = 0;
@@ -1688,7 +1737,7 @@
 
       body.innerHTML = buckets.map((b, idx) => `
         <tr>
-          <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong></td>
+          <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong>${b.isArchived ? ' <span class="status-badge" style="background:hsl(var(--muted));color:hsl(var(--muted-foreground));font-size:0.7rem">Archived</span>' : ''}</td>
           <td>${b.totalEmails != null ? Number(b.totalEmails).toLocaleString() : 'N/A'}</td>
           <td>${(b.permissions || []).map(p => `<span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')"><span class="status-badge">${sanitize(formatPermission(p))}</span><span class="tooltip">${sanitize(p)}</span></span>`).join(' ') || 'None'}</td>
           <td class="col-actions">
@@ -1715,6 +1764,7 @@
               </span>
               <div class="dropdown-menu" id="overviewMenu-${idx}">
                 <button class="dropdown-item" onclick="showBucket('${sanitize(b.name)}')">View Records</button>
+                <button class="dropdown-item" onclick="${b.isArchived ? `showUnarchiveModal('${sanitize(b.name)}')` : `showArchiveModal('${sanitize(b.name)}')`}">${b.isArchived ? 'Unarchive Bucket' : 'Archive Bucket'}</button>
                 <button class="dropdown-item" onclick="initiateBucketRemoval('${sanitize(b.name)}')">Remove Bucket</button>
               </div>
             </div>
@@ -1761,6 +1811,17 @@
 
       const details = detailsResult.data;
       currentBucketPermissions = details.permissions || [];
+      currentBucketArchived = details.isArchived || false;
+      const badge = document.getElementById('readOnlyBadge');
+      if (currentBucketArchived) {
+        badge.textContent = 'This bucket is archived';
+        badge.style.background = 'hsl(var(--muted))';
+        badge.style.color = 'hsl(var(--muted-foreground))';
+      } else {
+        badge.textContent = 'Read-Only';
+        badge.style.background = '';
+        badge.style.color = '';
+      }
 
       // Fetch webhook errors for this bucket
       loadWebhookErrors(bucket);
@@ -1814,9 +1875,10 @@
         body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 3}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
       } else {
         body.innerHTML = data.records.map((r, idx) => {
+          const switchClass = currentBucketArchived ? 'switch disabled archived' : 'switch disabled';
           const permCells = currentBucketPermissions.map(p => {
             const isOptedIn = r.permissions && r.permissions[p];
-            return `<td><span class="tooltip-wrapper"><label class="switch disabled"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label><span class="tooltip">${isOptedIn ? 'Opted-in' : 'Opted-out'}</span></span></td>`;
+            return `<td><span class="tooltip-wrapper"><label class="${switchClass}"><input type="checkbox" ${isOptedIn ? 'checked' : ''} disabled><span class="slider"></span></label><span class="tooltip">${isOptedIn ? 'Opted-in' : 'Opted-out'}</span></span></td>`;
           }).join('');
 
           const emailId = r.emailHash ? sanitize(r.emailHash.substring(0, 12)) : '';
@@ -1837,10 +1899,10 @@
               ${permCells}
               <td>${sanitize(formatDate(r.lastChanged))}</td>
               <td>
-                <div class="row-actions">
+                <div class="row-actions"${currentBucketArchived ? ' style="opacity:0.4;pointer-events:none"' : ''}>
                   <span class="tooltip-wrapper">
-                    <button class="btn-actions" onclick="toggleRowMenu(event, ${idx})">:</button>
-                    <span class="tooltip tooltip-above tooltip-right">Actions</span>
+                    <button class="btn-actions" onclick="toggleRowMenu(event, ${idx})"${currentBucketArchived ? ' disabled' : ''}>:</button>
+                    <span class="tooltip tooltip-above tooltip-right">${currentBucketArchived ? 'Actions disabled (archived)' : 'Actions'}</span>
                   </span>
                   <div class="dropdown-menu" id="rowMenu-${idx}">
                     <button class="dropdown-item" onclick="openEditPermissions('${recordData}')">Edit Permissions</button>
@@ -2166,6 +2228,84 @@
     let generatedPassphrase = '';
     let bucketToRemove = '';
 
+    // ========== ARCHIVE ==========
+    let archiveTargetBucket = '';
+
+    function showArchiveModal(bucket) {
+      archiveTargetBucket = bucket;
+      document.getElementById('archiveBucketName').textContent = bucket;
+      document.getElementById('archiveModal').style.display = 'flex';
+      closeAllMenus();
+    }
+
+    function closeArchiveModal() {
+      document.getElementById('archiveModal').style.display = 'none';
+      archiveTargetBucket = '';
+    }
+
+    async function confirmArchive() {
+      if (!archiveTargetBucket) return;
+      const bucket = archiveTargetBucket;
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/archive`, { method: 'POST' });
+      closeArchiveModal();
+      if (result.ok) {
+        notify('success', 'Archived', `Bucket "${bucket}" has been archived`);
+        if (currentBucket === bucket) {
+          currentBucketArchived = true;
+          const badge = document.getElementById('readOnlyBadge');
+          badge.textContent = 'This bucket is archived';
+          badge.style.background = 'hsl(var(--muted))';
+          badge.style.color = 'hsl(var(--muted-foreground))';
+          loadBucket(currentBucket);
+        }
+        await loadOverview(true);
+      } else {
+        notify('error', 'Error', result.data?.error || 'Failed to archive bucket');
+      }
+    }
+
+    function showUnarchiveModal(bucket) {
+      archiveTargetBucket = bucket;
+      document.getElementById('unarchiveBucketName').textContent = bucket;
+      document.getElementById('unarchiveModal').style.display = 'flex';
+      closeAllMenus();
+    }
+
+    function closeUnarchiveModal() {
+      document.getElementById('unarchiveModal').style.display = 'none';
+      archiveTargetBucket = '';
+    }
+
+    async function confirmUnarchive() {
+      if (!archiveTargetBucket) return;
+      const bucket = archiveTargetBucket;
+      const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/unarchive`, { method: 'POST' });
+      closeUnarchiveModal();
+      if (result.ok) {
+        notify('success', 'Unarchived', `Bucket "${bucket}" has been unarchived`);
+        if (currentBucket === bucket) {
+          currentBucketArchived = false;
+          const badge = document.getElementById('readOnlyBadge');
+          badge.textContent = 'Read-Only';
+          badge.style.background = '';
+          badge.style.color = '';
+          loadBucket(currentBucket);
+        }
+        await loadOverview(true);
+      } else {
+        notify('error', 'Error', result.data?.error || 'Failed to unarchive bucket');
+      }
+    }
+
+    function toggleArchiveFromOptions() {
+      closeOptionsModal();
+      if (currentBucketArchived) {
+        showUnarchiveModal(currentBucket);
+      } else {
+        showArchiveModal(currentBucket);
+      }
+    }
+
     function initiateRemoval() {
       if (!currentBucket) return;
       bucketToRemove = currentBucket;
@@ -2437,6 +2577,11 @@
 
       // Set bucket ID in basic section
       document.getElementById('optionsBucketId').value = currentBucket;
+
+      // Update archive button state
+      const archiveBtn = document.getElementById('optionsArchiveBtn');
+      archiveBtn.title = currentBucketArchived ? 'Unarchive Bucket' : 'Archive Bucket';
+      archiveBtn.style.color = currentBucketArchived ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))';
 
       // Load bucket permissions
       loadBucketPerms();
