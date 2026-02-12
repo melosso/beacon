@@ -120,7 +120,7 @@ public class WebhookTests
 
         await service.TriggerWebhookAsync(TestBucket, CreateTriggerData());
 
-        // Queue should be empty — nothing enqueued
+        // Queue should be empty
         var queue = GetQueue(service);
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
         var items = new List<WebhookDeliveryMessage>();

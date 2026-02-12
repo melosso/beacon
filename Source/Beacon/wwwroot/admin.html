@@ -398,9 +398,13 @@
           <div class="form-group">
             <label>Bucket <span class="required" title="Required field">*</span></label>
             <div class="autocomplete-wrapper">
-              <input type="text" id="nlBucket" placeholder="e.g., newsletter" autocomplete="off" oninput="showNlBucketSuggestions()" onfocus="showNlBucketSuggestions()">
+              <input type="text" id="nlBucket" placeholder="e.g., newsletter" autocomplete="off" oninput="showNlBucketSuggestions();checkNlBucketArchived()" onfocus="showNlBucketSuggestions()">
               <div class="autocomplete-dropdown" id="nlBucketAutocomplete"></div>
             </div>
+            <p id="nlBucketArchivedWarning" style="display:none;color:hsl(var(--destructive));font-size:0.8rem;margin:0.375rem 0 0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              This bucket is archived, submissions will be rejected.
+            </p>
           </div>
           <div class="form-group">
             <label title="Use commas to grant multiple permissions, e.g. newsletter, updates">
@@ -1748,7 +1752,7 @@
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                   </svg>
-                  <span class="tooltip tooltip-above tooltip-right">Webhook delivery errors</span>
+                  <span class="tooltip tooltip-above tooltip-right">Errors have occurred. Action required!</span>
                 </span>` : ''}
                 ${webhookBuckets.has(b.name) ? `<span class="tooltip-wrapper">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--muted-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
@@ -2211,7 +2215,7 @@
 
     function formatDate(dateStr) {
       if (!dateStr) return 'N/A';
-      // Server stores UTC but may serialize without Z suffix — ensure UTC parsing
+      // Server stores UTC but may serialize without Z suffix to ensure UTC parsing
       if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) dateStr += 'Z';
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return 'N/A';
@@ -2725,7 +2729,7 @@
             document.getElementById('webhookSecretSection').style.display = 'block';
             document.getElementById('deleteWebhookBtn').style.display = 'block';
             setWebhookBadge(true);
-            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret below — it will not be shown again.');
+            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret below, since it will not be shown again!');
           } else {
             setWebhookBadge(true);
             notify('success', 'Webhook Saved', 'Webhook configuration updated successfully');
@@ -3271,6 +3275,16 @@
           </td>
           <td class="col-actions">
             <div class="row-actions">
+              <span class="row-status-icons">
+                ${buckets.some(b => b.name === f.bucket && b.isArchived) ? `<span class="tooltip-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--destructive))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  <span class="tooltip tooltip-above tooltip-right">Bucket is archived, submissions will be rejected</span>
+                </span>` : ''}
+              </span>
               <span class="tooltip-wrapper">
                 <button class="btn-actions" onclick="toggleNlMenu(event, ${idx})">:</button>
                 <span class="tooltip tooltip-above tooltip-right">Actions</span>
@@ -3332,6 +3346,7 @@
       nlCustomFields = {};
       document.getElementById('nlCustomFieldsList').innerHTML = '';
       document.getElementById('nlApiTokenDisplay').style.display = 'none';
+      document.getElementById('nlBucketArchivedWarning').style.display = 'none';
 
       if (editData) {
         nlEditId = editData.id;
@@ -3341,6 +3356,7 @@
         document.getElementById('nlSaveBtn').textContent = 'Save Changes';
         document.getElementById('nlName').value = editData.name || '';
         document.getElementById('nlBucket').value = editData.bucket || '';
+        checkNlBucketArchived();
         document.getElementById('nlPermission').value = editData.permission || '';
         nlOrigins = [...(editData.allowedOrigins || [])];
         document.getElementById('nlRedirectSuccess').value = editData.redirectSuccess || '';
@@ -3454,10 +3470,16 @@
         return;
       }
       dropdown.innerHTML = matches.map(b =>
-        `<div class="autocomplete-item" onclick="document.getElementById('nlBucket').value='${sanitize(b.name)}';document.getElementById('nlBucketAutocomplete').style.display='none'">${sanitize(b.name)}</div>`
+        `<div class="autocomplete-item" onclick="document.getElementById('nlBucket').value='${sanitize(b.name)}';document.getElementById('nlBucketAutocomplete').style.display='none';checkNlBucketArchived()">${sanitize(b.name)}</div>`
       ).join('');
       positionDropdown(input, dropdown);
       dropdown.style.display = 'block';
+    }
+
+    function checkNlBucketArchived() {
+      const bucket = document.getElementById('nlBucket').value.trim().toLowerCase();
+      const isArchived = buckets.some(b => b.name === bucket && b.isArchived);
+      document.getElementById('nlBucketArchivedWarning').style.display = isArchived ? '' : 'none';
     }
 
     function showNlPermissionSuggestions() {
@@ -3554,6 +3576,12 @@
       }
 
       submissionWizardShowStep(5);
+
+      // Warn if the form's bucket is archived
+      const savedBucket = data.bucket;
+      if (buckets.some(b => b.name === savedBucket && b.isArchived)) {
+        notify('warning', 'Bucket Archived', `The bucket "${savedBucket}" is archived, submissions to this form will be rejected until the bucket is unarchived.`);
+      }
     }
 
     async function editSubmissionForm(id, pushState = true) {
