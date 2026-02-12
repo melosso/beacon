@@ -357,7 +357,7 @@ public class SubmissionFormServiceTests
         var statusBefore = await consentService.CheckAsync("test-bucket", "user@example.com", "newsletter");
         Assert.Equal(ConsentStatus.OptedOut, statusBefore);
 
-        // Re-submit via form — user is explicitly opting in again
+        // Re-submit via form, user is explicitly opting in again
         await service.SubscribeAsync(form, "user@example.com");
 
         var statusAfter = await consentService.CheckAsync("test-bucket", "user@example.com", "newsletter");

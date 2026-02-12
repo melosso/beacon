@@ -185,7 +185,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         if (string.Equals(variable, "{{timestamp}}", StringComparison.OrdinalIgnoreCase))
             return now.ToString("o"); // ISO 8601 UTC
 
-        // {{date}} — UTC date, {{date:timezone}} — date in specified IANA timezone
+        // {{date}} - UTC date, {{date:timezone}} - date in specified IANA timezone
         if (variable.StartsWith("{{date", StringComparison.OrdinalIgnoreCase) && variable.EndsWith("}}"))
         {
             var inner = variable[2..^2]; // "date" or "date:Europe/Berlin"
