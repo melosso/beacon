@@ -37,7 +37,10 @@ public class HostRoutingMiddleware
     private readonly string? _notFoundHtml;
 
     // Admin-only paths that should never be accessible from API host
-    private static readonly string[] AdminPaths = ["/admin", "/openapi"];
+    private static readonly string[] AdminPaths = ["/admin"];
+
+    // API-only paths that should never be accessible from Admin host
+    private static readonly string[] ApiPaths = ["/openapi"];
 
     public HostRoutingMiddleware(
         RequestDelegate next,
@@ -97,9 +100,19 @@ public class HostRoutingMiddleware
             path.Equals(p, StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
 
-        // Admin host - allow everything
+        // Check if this is an API-only path
+        var isApiPath = ApiPaths.Any(p =>
+            path.Equals(p, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
+
+        // Admin host - block API-only paths
         if (_options.AdminHosts.Contains(host))
         {
+            if (isApiPath)
+            {
+                _logger.LogWarning("Blocked API path {Path} access from Admin host {Host}", path, host);
+                return false;
+            }
             return true;
         }
 
@@ -136,9 +149,18 @@ public class HostRoutingMiddleware
             path.Equals(p, StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
 
-        // Admin port - allow everything
+        // Check if this is an API-only path
+        var isApiPath = ApiPaths.Any(p =>
+            path.Equals(p, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase));
+
+        // Admin port - block API-only paths
         if (port == _options.AdminPort)
         {
+            if (isApiPath)
+            {
+                return false;
+            }
             return true;
         }
 
