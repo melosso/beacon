@@ -763,7 +763,7 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(2px);
-    z-index: 100;
+    z-index: 200;
 }
 
 .modal {

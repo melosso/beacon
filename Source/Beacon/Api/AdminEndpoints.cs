@@ -63,6 +63,10 @@ public static class AdminEndpoints
             .RequireAuthorization()
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/buckets/{bucket}/permissions", AddBucketPermission)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
         routes.MapDelete("/api/admin/buckets/{bucket}", DeleteBucket)
             .RequireAuthorization()
             .ExcludeFromDescription();
@@ -402,19 +406,28 @@ public static class AdminEndpoints
         [FromServices] IBucketRepository bucketRepository)
     {
         var buckets = await repository.GetBucketsAsync();
+        var explicitBucketNames = await bucketRepository.GetAllBucketNamesAsync();
         var result = new List<object>();
+        var seen = new HashSet<string>();
+
         foreach (var b in buckets)
         {
+            seen.Add(b.Name);
+            var explicitPerms = await bucketRepository.GetPermissionsAsync(b.Name);
+            var mergedPerms = b.Permissions.Union(explicitPerms).OrderBy(p => p).ToList();
             var isArchived = await bucketRepository.IsArchivedAsync(b.Name);
-            result.Add(new
-            {
-                name = b.Name,
-                totalEmails = b.TotalEmails,
-                permissions = b.Permissions,
-                isArchived
-            });
+            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, permissions = mergedPerms, isArchived });
         }
-        return Results.Ok(result);
+
+        // Include buckets that only exist in BucketPermissions (no consent records yet)
+        foreach (var name in explicitBucketNames.Where(n => !seen.Contains(n)))
+        {
+            var explicitPerms = await bucketRepository.GetPermissionsAsync(name);
+            var isArchived = await bucketRepository.IsArchivedAsync(name);
+            result.Add(new { name, totalEmails = 0, permissions = (IReadOnlyList<string>)explicitPerms, isArchived });
+        }
+
+        return Results.Ok(result.OrderBy(r => ((dynamic)r).name));
     }
 
     private static async Task<IResult> GetBucketDetails(
@@ -430,12 +443,19 @@ public static class AdminEndpoints
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
         var details = await repository.GetBucketDetailsAsync(normalizedBucket);
+        var explicitPerms = await bucketRepository.GetPermissionsAsync(normalizedBucket);
+        var mergedPerms = details.Permissions.Union(explicitPerms).OrderBy(p => p).ToList();
         var isArchived = await bucketRepository.IsArchivedAsync(normalizedBucket);
+
+        // Include explicit-only permissions in stats with zero counts
+        var statsDict = details.Stats.ToDictionary(s => s.Permission);
+        var mergedStats = mergedPerms.Select(p => statsDict.TryGetValue(p, out var s) ? s : new PermissionStats { Permission = p, OptedIn = 0, OptedOut = 0 }).ToList();
+
         return Results.Ok(new
         {
             name = details.Name,
-            permissions = details.Permissions,
-            stats = details.Stats,
+            permissions = mergedPerms,
+            stats = mergedStats,
             isArchived
         });
     }
@@ -507,6 +527,7 @@ public static class AdminEndpoints
     private static async Task<IResult> DeleteBucket(
         string bucket,
         [FromServices] IConsentRepository repository,
+        [FromServices] IBucketRepository bucketRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -523,6 +544,7 @@ public static class AdminEndpoints
             DateTime.UtcNow);
 
         var deleted = await repository.DeleteBucketAsync(normalizedBucket);
+        await bucketRepository.DeleteBucketAsync(normalizedBucket);
 
         return Results.Ok(new { message = "Bucket deleted", recordsDeleted = deleted });
     }
@@ -561,6 +583,7 @@ public static class AdminEndpoints
         string bucket,
         string permission,
         [FromServices] IConsentRepository repository,
+        [FromServices] IBucketRepository bucketRepository,
         [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
     {
@@ -586,6 +609,7 @@ public static class AdminEndpoints
             DateTime.UtcNow);
 
         var deleted = await repository.DeletePermissionAsync(normalizedBucket, normalizedPermission);
+        await bucketRepository.RemovePermissionAsync(normalizedBucket, normalizedPermission);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
 
         return Results.Ok(new { message = "Permission deleted", recordsDeleted = deleted });
@@ -632,6 +656,47 @@ public static class AdminEndpoints
             DateTime.UtcNow);
 
         await bucketRepository.UnarchiveAsync(normalizedBucket);
+        return Results.Ok(new { success = true });
+    }
+
+    private static async Task<IResult> AddBucketPermission(
+        string bucket,
+        [FromBody] AddPermissionRequest request,
+        [FromServices] IBucketRepository bucketRepository,
+        ILogger<Program> logger)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Permission))
+        {
+            return Results.BadRequest(new { error = "Permission name is required" });
+        }
+
+        var permissionValidation = InputValidator.ValidatePermission(request.Permission);
+        if (!permissionValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = permissionValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        var normalizedPermission = request.Permission.Trim().ToLowerInvariant();
+
+        var added = await bucketRepository.AddPermissionAsync(normalizedBucket, normalizedPermission);
+        if (!added)
+        {
+            return Results.Conflict(new { error = "Permission already exists in this bucket" });
+        }
+
+        logger.LogInformation(
+            "Permission added: bucket={Bucket}, permission={Permission}, timestamp={Timestamp}",
+            normalizedBucket,
+            normalizedPermission,
+            DateTime.UtcNow);
+
         return Results.Ok(new { success = true });
     }
 
@@ -1078,6 +1143,11 @@ public sealed class BatchOverrideRequest
     /// </summary>
     public Dictionary<string, string> Permissions { get; set; } = new();
     public Dictionary<string, string>? CustomFields { get; set; }
+}
+
+public sealed class AddPermissionRequest
+{
+    public string Permission { get; set; } = string.Empty;
 }
 
 public sealed class WebhookConfigRequest

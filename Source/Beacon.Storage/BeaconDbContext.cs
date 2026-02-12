@@ -15,6 +15,7 @@ public class BeaconDbContext : DbContext
     public DbSet<WebhookDeliveryError> WebhookDeliveryErrors => Set<WebhookDeliveryError>();
     public DbSet<SubmissionForm> SubmissionForms => Set<SubmissionForm>();
     public DbSet<ArchivedBucket> ArchivedBuckets => Set<ArchivedBucket>();
+    public DbSet<BucketPermission> BucketPermissions => Set<BucketPermission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,6 +100,19 @@ public class BeaconDbContext : DbContext
             entity.HasKey(e => e.Bucket);
 
             entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<BucketPermission>(entity =>
+        {
+            entity.HasKey(e => new { e.Bucket, e.Permission });
+
+            entity.Property(e => e.Bucket)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.Permission)
                 .HasMaxLength(100)
                 .IsRequired();
         });

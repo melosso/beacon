@@ -13,6 +13,7 @@ public static class DatabaseMigrator
         MigrateWebhookDeliveryErrors(db);
         MigrateSubmissionForms(db);
         MigrateArchivedBuckets(db);
+        MigrateBucketPermissions(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -106,6 +107,21 @@ public static class DatabaseMigrator
                 CREATE TABLE ArchivedBuckets (
                     Bucket TEXT NOT NULL PRIMARY KEY,
                     ArchivedAt TEXT NOT NULL
+                )
+                """);
+        }
+    }
+
+    private static void MigrateBucketPermissions(BeaconDbContext db)
+    {
+        if (!TableExists(db, "BucketPermissions"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE BucketPermissions (
+                    Bucket TEXT NOT NULL,
+                    Permission TEXT NOT NULL,
+                    CreatedAt TEXT NOT NULL,
+                    PRIMARY KEY (Bucket, Permission)
                 )
                 """);
         }
