@@ -50,8 +50,6 @@ BUCKETS=(
   "gdpr_mandatory_notifications_eu"
   "privacy_policy_updates_eu"
   "terms_of_service_changes_eu"
-  "newsletter_nl"
-  "newsletter_de"
 )
 
 # ======================================
@@ -187,7 +185,7 @@ if [[ -n "$NL_FORM_ID" ]]; then
         curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$NL_FORM_ID/subscribe" \
             -H "Content-Type: application/json" \
             -H "Origin: http://localhost:8070" \
-            -d "{\"email\": \"$email\"}"
+            -d "{\"email\": \"$email\", \"consent\": \"true\"}"
     done
 fi
 
@@ -198,7 +196,7 @@ if [[ -n "$DE_FORM_ID" ]]; then
         curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$DE_FORM_ID/subscribe" \
             -H "Content-Type: application/json" \
             -H "Origin: http://localhost:8070" \
-            -d "{\"email\": \"$email\"}"
+            -d "{\"email\": \"$email\", \"consent\": \"true\"}"
     done
 fi
 

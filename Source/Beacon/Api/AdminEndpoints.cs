@@ -13,8 +13,7 @@ namespace Beacon.Api;
 
 public static class AdminEndpoints
 {
-    private const string ManagementTag = "Management";
-    private const string IntegrationTag = "Integration";
+    private const string PermissionTag = "Permission Management";
 
     // The current list of supported languages as of right now
     private static readonly IReadOnlyList<string> SupportedLanguages = new List<string> { "en", "de", "fr", "nl", "pl", "es" }.AsReadOnly();
@@ -24,67 +23,53 @@ public static class AdminEndpoints
         // Integration APIs (e.g. for external systems)
         routes.MapPost("/api/consent/override", OverrideConsent)
             .WithName("OverrideConsent")
-            .WithTags(IntegrationTag)
+            .WithTags(PermissionTag)
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Override consent status for an email. Use to sync consent state from external systems.");
 
         routes.MapPost("/api/tokens/generate", GenerateToken)
             .WithName("GenerateToken")
-            .WithTags(IntegrationTag)
+            .WithTags(PermissionTag)
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Generate a preference management token for an email. Returns a URL-safe token for the /u/{token} endpoint.");
 
         routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
             .WithName("GetAllBucketRecords")
-            .WithTags(IntegrationTag)
+            .WithTags(PermissionTag)
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.");
 
-        // Management APIs (admin panel)
+        // Management APIs (admin panel - excluded from public OpenAPI docs)
         routes.MapGet("/api/admin/buckets", GetBuckets)
-            .WithName("GetBuckets")
-            .WithTags(ManagementTag)
-            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("List all buckets with email counts and available permissions.");
+            .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}", GetBucketDetails)
-            .WithName("GetBucketDetails")
-            .WithTags(ManagementTag)
-            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("Get statistics for a bucket including opt-in/opt-out counts per permission.");
+            .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/records", GetBucketRecords)
-            .WithName("GetBucketRecords")
-            .WithTags(ManagementTag)
-            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("Get paginated consent records for a bucket with sorting and search support.");
+            .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}", DeleteBucket)
-            .WithName("DeleteBucket")
-            .WithTags(ManagementTag)
-            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("Delete a bucket and all its consent records. This action is irreversible.");
+            .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/records/{emailHash}", DeleteRecord)
-            .WithName("DeleteRecord")
-            .WithTags(ManagementTag)
-            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("Delete all consent records for a specific email hash within a bucket.");
+            .ExcludeFromDescription();
+
+        routes.MapDelete("/api/admin/buckets/{bucket}/permissions/{permission}", DeletePermission)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/check-email", CheckEmailExists)
-            .WithName("CheckEmailExists")
-            .WithTags(ManagementTag)
-            .WithOpenApi()
             .RequireAuthorization()
-            .WithDescription("Check if an email address exists in a bucket.");
+            .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
             .RequireAuthorization()
@@ -130,6 +115,7 @@ public static class AdminEndpoints
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
         [FromServices] EmailHasher emailHasher,
+        [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -173,6 +159,7 @@ public static class AdminEndpoints
             await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson);
 
             await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+            await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
 
             return Results.Ok(new { message = "Consent updated" });
         }
@@ -201,6 +188,7 @@ public static class AdminEndpoints
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
         [FromServices] EmailHasher emailHasher,
+        [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -248,6 +236,7 @@ public static class AdminEndpoints
 
             // Fire one webhook with full permission snapshot
             await TriggerWebhookSafe(webhookService, consentRepository, normalizedBucket, request.Email, emailHash, customFieldsJson);
+            await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
 
             return Results.Ok(new { message = "Consent updated" });
         }
@@ -275,6 +264,7 @@ public static class AdminEndpoints
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
         [FromServices] EmailHasher emailHasher,
+        [FromServices] IAdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -347,6 +337,7 @@ public static class AdminEndpoints
             if (hasChanges)
             {
                 await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+                await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
             }
 
             var emailId = emailHash[..12];
@@ -517,6 +508,40 @@ public static class AdminEndpoints
         var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
 
         return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });
+    }
+
+    private static async Task<IResult> DeletePermission(
+        string bucket,
+        string permission,
+        [FromServices] IConsentRepository repository,
+        [FromServices] IAdminNotificationService notifications,
+        ILogger<Program> logger)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var permissionValidation = InputValidator.ValidatePermission(permission);
+        if (!permissionValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = permissionValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        var normalizedPermission = permission.Trim().ToLowerInvariant();
+
+        logger.LogInformation(
+            "Permission deletion: bucket={Bucket}, permission={Permission}, timestamp={Timestamp}",
+            normalizedBucket,
+            normalizedPermission,
+            DateTime.UtcNow);
+
+        var deleted = await repository.DeletePermissionAsync(normalizedBucket, normalizedPermission);
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
+
+        return Results.Ok(new { message = "Permission deleted", recordsDeleted = deleted });
     }
 
     private static async Task<IResult> CheckEmailExists(
@@ -755,17 +780,35 @@ public static class AdminEndpoints
 
         try
         {
-            await foreach (var notification in notifications.SubscribeAsync(cancellationToken))
+            await foreach (var notification in notifications.SubscribeAllAsync(cancellationToken))
             {
-                var json = JsonSerializer.Serialize(new
-                {
-                    bucket = notification.Bucket,
-                    errorMessage = notification.ErrorMessage,
-                    statusCode = notification.StatusCode,
-                    occurredAt = notification.OccurredAt
-                });
+                string eventType;
+                string json;
 
-                await context.Response.WriteAsync($"event: webhook-error\ndata: {json}\n\n", cancellationToken);
+                switch (notification)
+                {
+                    case WebhookErrorNotification webhook:
+                        eventType = "webhook-error";
+                        json = JsonSerializer.Serialize(new
+                        {
+                            bucket = webhook.Bucket,
+                            errorMessage = webhook.ErrorMessage,
+                            statusCode = webhook.StatusCode,
+                            occurredAt = webhook.OccurredAt
+                        });
+                        break;
+                    case ConsentUpdateNotification consentUpdate:
+                        eventType = "consent-update";
+                        json = JsonSerializer.Serialize(new
+                        {
+                            bucket = consentUpdate.Bucket
+                        });
+                        break;
+                    default:
+                        continue;
+                }
+
+                await context.Response.WriteAsync($"event: {eventType}\ndata: {json}\n\n", cancellationToken);
                 await context.Response.Body.FlushAsync(cancellationToken);
             }
         }

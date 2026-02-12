@@ -179,6 +179,18 @@ public sealed class ConsentRepository : IConsentRepository
         return records.Count;
     }
 
+    public async Task<int> DeletePermissionAsync(string bucket, string permission)
+    {
+        var records = await _context.ConsentRecords
+            .Where(r => r.Bucket == bucket && r.Permission == permission)
+            .ToListAsync();
+
+        _context.ConsentRecords.RemoveRange(records);
+        await _context.SaveChangesAsync();
+
+        return records.Count;
+    }
+
     public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
     {
         var records = await _context.ConsentRecords

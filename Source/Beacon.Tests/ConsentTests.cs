@@ -227,6 +227,21 @@ public class ConsentTests
             return Task.FromResult(keysToRemove.Count);
         }
 
+        public Task<int> DeletePermissionAsync(string bucket, string permission)
+        {
+            var keysToRemove = _records
+                .Where(kv => kv.Value.Bucket == bucket && kv.Value.Permission == permission)
+                .Select(kv => kv.Key)
+                .ToList();
+
+            foreach (var key in keysToRemove)
+            {
+                _records.Remove(key);
+            }
+
+            return Task.FromResult(keysToRemove.Count);
+        }
+
         public Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash)
         {
             var exists = _records.Values.Any(r => r.Bucket == bucket && r.EmailHash == emailHash);

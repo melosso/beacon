@@ -727,6 +727,7 @@ public class SubmissionFormServiceTests
 
         public Task<int> DeleteRecordAsync(string bucket, string emailHash) => Task.FromResult(0);
         public Task<int> DeleteBucketAsync(string bucket) => Task.FromResult(0);
+        public Task<int> DeletePermissionAsync(string bucket, string permission) => Task.FromResult(0);
         public Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash) => Task.FromResult(false);
 
         public Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash)

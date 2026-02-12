@@ -14,7 +14,7 @@ public static class SubmissionEndpoints
 {
     public static void MapSubmissionEndpoints(this IEndpointRouteBuilder routes)
     {
-        const string SubmissionTag = "Integration";
+        const string SubmissionTag = "Subscriptions";
 
         // Admin endpoints (require authorization)
         routes.MapGet("/api/admin/submissions", GetAllForms)
@@ -704,7 +704,8 @@ public static class SubmissionEndpoints
         Guid id,
         HttpContext context,
         [FromServices] ISubmissionFormService service,
-        [FromServices] SubmissionRateLimiter rateLimiter)
+        [FromServices] SubmissionRateLimiter rateLimiter,
+        [FromServices] IAdminNotificationService notifications)
     {
         // 1. Check form exists and is enabled
         var form = await service.GetFormAsync(id);
@@ -841,6 +842,7 @@ public static class SubmissionEndpoints
         var subscriberIp = SubmissionRateLimiter.GetClientIp(context);
         var effectiveConsentText = form.ConsentText ?? "I agree to receive emails and understand I can unsubscribe at any time.";
         await service.SubscribeAsync(form, email!, subscriberIp, form.ConsentRequired ? effectiveConsentText : null, origin);
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(form.Bucket));
 
         if (isFormPost && IsValidRedirectUrl(redirectSuccess))
             return Results.Redirect(redirectSuccess!);

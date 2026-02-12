@@ -13,26 +13,26 @@ namespace Beacon.Api;
 
 public static class ConsentEndpoints
 {
-    private const string PublicTag = "Public";
-    private const string IntegrationTag = "Integration";
+    private const string PermissionTag = "Permission Management";
+    private const string PermissionControlTag = "Permission Control";
 
     public static void MapConsentEndpoints(this IEndpointRouteBuilder routes)
     {
         routes.MapGet("/u/{token}", ShowPreferencePage)
             .WithName("ShowPreferencePage")
-            .WithTags(PublicTag)
+            .WithTags(PermissionControlTag)
             .WithOpenApi()
             .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.");
 
         routes.MapPost("/u/{token}", ProcessPreferenceUpdate)
             .WithName("ProcessPreferenceUpdate")
-            .WithTags(PublicTag)
+            .WithTags(PermissionControlTag)
             .WithOpenApi()
             .WithDescription("Process user preference updates from the form submission.");
 
         routes.MapPost("/api/consent/check", CheckConsent)
             .WithName("CheckConsent")
-            .WithTags(IntegrationTag)
+            .WithTags(PermissionTag)
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
@@ -100,7 +100,8 @@ public static class ConsentEndpoints
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
         [FromServices] EmailHasher emailHasher,
-        [FromServices] ITokenUsageRepository tokenUsageRepository)
+        [FromServices] ITokenUsageRepository tokenUsageRepository,
+        [FromServices] IAdminNotificationService notifications)
     {
         if (!await antiforgery.IsRequestValidAsync(context))
         {
@@ -150,6 +151,7 @@ public static class ConsentEndpoints
             // Fire one webhook with full permission snapshot
             await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                 result.Payload.Bucket, result.Payload.Email, null);
+            await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
 
             // Only mark token as used if replay is not allowed
             if (!result.Payload.AllowReplay)
@@ -193,6 +195,7 @@ public static class ConsentEndpoints
         // Fire one webhook with full permission snapshot
         await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
             result.Payload.Bucket, result.Payload.Email, null);
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
 
         // Only mark token as used if replay is not allowed
         if (!result.Payload.AllowReplay)
