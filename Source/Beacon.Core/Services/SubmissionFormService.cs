@@ -100,14 +100,12 @@ public sealed class SubmissionFormService : ISubmissionFormService
 
         foreach (var permission in permissions)
         {
-            await _consentService.EnsureAsync(
+            await _consentService.OverrideAsync(
                 normalizedBucket,
                 normalizedEmail,
                 permission,
                 ConsentStatus.OptedIn,
-                customFieldsJson: resolvedCustomFields,
-                ipAddress: ipAddress,
-                consentText: consentText);
+                customFieldsJson: resolvedCustomFields);
         }
 
         // Increment submission count

@@ -336,7 +336,7 @@ public class SubmissionFormServiceTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_DoesNotOverwriteExistingOptOut()
+    public async Task SubscribeAsync_ReOptsInAfterOptOut()
     {
         var consentRepo = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
@@ -354,13 +354,14 @@ public class SubmissionFormServiceTests
 
         // First, opt out
         await consentService.ProcessOptOutAsync("test-bucket", "user@example.com", ["newsletter"], "token123", ConsentSource.Url);
+        var statusBefore = await consentService.CheckAsync("test-bucket", "user@example.com", "newsletter");
+        Assert.Equal(ConsentStatus.OptedOut, statusBefore);
 
-        // Then try to subscribe again via form
+        // Re-submit via form — user is explicitly opting in again
         await service.SubscribeAsync(form, "user@example.com");
 
-        // EnsureAsync should not overwrite the opt-out
-        var status = await consentService.CheckAsync("test-bucket", "user@example.com", "newsletter");
-        Assert.Equal(ConsentStatus.OptedOut, status);
+        var statusAfter = await consentService.CheckAsync("test-bucket", "user@example.com", "newsletter");
+        Assert.Equal(ConsentStatus.OptedIn, statusAfter);
     }
 
     [Fact]
