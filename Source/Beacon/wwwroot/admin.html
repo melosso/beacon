@@ -2433,7 +2433,7 @@
       // Create a consent record to establish the permission in this bucket
       const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/override`, {
         method: 'POST',
-        body: JSON.stringify({ email: `placeholder+${perm}@beacon.internal`, permissions: { [perm]: 'OptedOut' } })
+        body: { email: `placeholder+${perm}@beacon.internal`, permissions: { [perm]: 'OptedOut' } }
       });
 
       if (result.ok) {
