@@ -141,18 +141,70 @@ public static class ConsentEndpoints
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
 
-        if (action == "unsubscribe_all")
+        try
         {
-            var validPermissions = result.Payload.Permissions
-                .Where(InputValidator.IsPermissionAllowed)
-                .ToArray();
+            using var transaction = await consentService.BeginTransactionAsync();
 
-            await consentService.ProcessOptOutAsync(
-                result.Payload.Bucket,
-                result.Payload.Email,
-                validPermissions,
-                token,
-                ConsentSource.Url);
+            if (action == "unsubscribe_all")
+            {
+                var validPermissions = result.Payload.Permissions
+                    .Where(InputValidator.IsPermissionAllowed)
+                    .ToArray();
+
+                await consentService.ProcessOptOutAsync(
+                    result.Payload.Bucket,
+                    result.Payload.Email,
+                    validPermissions,
+                    token,
+                    ConsentSource.Url);
+
+                await consentService.CommitTransactionAsync();
+
+                // Fire one webhook with full permission snapshot
+                await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
+                    result.Payload.Bucket, result.Payload.Email, null);
+                await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
+
+                // Only mark token as used if replay is not allowed
+                if (!result.Payload.AllowReplay)
+                {
+                    var tokenHash = ComputeTokenHash(token);
+                    await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
+                }
+                return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions), "text/html");
+            }
+
+            // Process individual toggle states
+            var optedOut = new List<string>();
+            var keptIn = new List<string>();
+
+            foreach (var permission in result.Payload.Permissions)
+            {
+                if (!InputValidator.IsPermissionAllowed(permission)) continue;
+
+                var isChecked = form.ContainsKey($"pref_{permission}");
+                if (!isChecked)
+                {
+                    await consentService.ProcessOptOutAsync(
+                        result.Payload.Bucket,
+                        result.Payload.Email,
+                        [permission],
+                        token,
+                        ConsentSource.Url);
+                    optedOut.Add(permission);
+                }
+                else
+                {
+                    await consentService.OverrideAsync(
+                        result.Payload.Bucket,
+                        result.Payload.Email,
+                        permission,
+                        ConsentStatus.OptedIn);
+                    keptIn.Add(permission);
+                }
+            }
+
+            await consentService.CommitTransactionAsync();
 
             // Fire one webhook with full permission snapshot
             await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
@@ -165,51 +217,12 @@ public static class ConsentEndpoints
                 var tokenHash = ComputeTokenHash(token);
                 await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
             }
-            return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions), "text/html");
+            return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn]), "text/html");
         }
-
-        // Process individual toggle states
-        var optedOut = new List<string>();
-        var keptIn = new List<string>();
-
-        foreach (var permission in result.Payload.Permissions)
+        catch
         {
-            if (!InputValidator.IsPermissionAllowed(permission)) continue;
-
-            var isChecked = form.ContainsKey($"pref_{permission}");
-            if (!isChecked)
-            {
-                await consentService.ProcessOptOutAsync(
-                    result.Payload.Bucket,
-                    result.Payload.Email,
-                    [permission],
-                    token,
-                    ConsentSource.Url);
-                optedOut.Add(permission);
-            }
-            else
-            {
-                await consentService.OverrideAsync(
-                    result.Payload.Bucket,
-                    result.Payload.Email,
-                    permission,
-                    ConsentStatus.OptedIn);
-                keptIn.Add(permission);
-            }
+            return Results.StatusCode(500);
         }
-
-        // Fire one webhook with full permission snapshot
-        await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
-            result.Payload.Bucket, result.Payload.Email, null);
-        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-
-        // Only mark token as used if replay is not allowed
-        if (!result.Payload.AllowReplay)
-        {
-            var tokenHash = ComputeTokenHash(token);
-            await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
-        }
-        return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn]), "text/html");
     }
 
     private static async Task TriggerWebhookSafe(

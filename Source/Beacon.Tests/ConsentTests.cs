@@ -255,5 +255,41 @@ public class ConsentTests
                 .ToList();
             return Task.FromResult<IReadOnlyList<ConsentRecord>>(records);
         }
+
+        public Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null) => throw new NotImplementedException();
+
+        public Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
+        {
+            var subs = _records.Values
+                .Where(r => r.EmailHash == emailHash)
+                .GroupBy(r => r.Bucket)
+                .Select(g => new BucketSubscription
+                {
+                    Bucket = g.Key,
+                    Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                    LastChanged = g.Max(r => r.ChangedAt)
+                })
+                .OrderBy(b => b.Bucket)
+                .ToList();
+
+            if (subs.Count == 0) return Task.FromResult<IdentityDetails?>(null);
+
+            var details = new IdentityDetails
+            {
+                EmailHash = emailHash,
+                EncryptedEmail = _records.Values.FirstOrDefault(r => r.EmailHash == emailHash && r.EncryptedEmail != null)?.EncryptedEmail,
+                Subscriptions = subs
+            };
+
+            return Task.FromResult<IdentityDetails?>(details);
+        }
+
+        public Task<IDisposable> BeginTransactionAsync() => Task.FromResult<IDisposable>(new NoOpDisposable());
+        public Task CommitTransactionAsync() => Task.CompletedTask;
+
+        private class NoOpDisposable : IDisposable
+        {
+            public void Dispose() { }
+        }
     }
 }

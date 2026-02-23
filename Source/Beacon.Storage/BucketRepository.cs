@@ -107,4 +107,17 @@ public class BucketRepository : IBucketRepository
             await _db.SaveChangesAsync();
         }
     }
+
+    public async Task<IDisposable> BeginTransactionAsync()
+    {
+        return await _db.Database.BeginTransactionAsync();
+    }
+
+    public async Task CommitTransactionAsync()
+    {
+        if (_db.Database.CurrentTransaction != null)
+        {
+            await _db.Database.CurrentTransaction.CommitAsync();
+        }
+    }
 }

@@ -17,6 +17,10 @@ public interface IConsentRepository
     Task<int> DeleteRecordAsync(string bucket, string emailHash);
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);
+    Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
+    Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
+    Task<IDisposable> BeginTransactionAsync();
+    Task CommitTransactionAsync();
 }
 
 public sealed class BucketInfo
@@ -24,6 +28,21 @@ public sealed class BucketInfo
     public required string Name { get; init; }
     public int TotalEmails { get; init; }
     public IReadOnlyList<string> Permissions { get; init; } = [];
+}
+
+public sealed class IdentityInfo
+{
+    public required string EmailHash { get; init; }
+    public string? EncryptedEmail { get; init; }
+    public int BucketCount { get; init; }
+    public DateTime LastChanged { get; init; }
+}
+
+public sealed class IdentityDetails
+{
+    public required string EmailHash { get; init; }
+    public string? EncryptedEmail { get; init; }
+    public required IReadOnlyList<BucketSubscription> Subscriptions { get; init; }
 }
 
 public sealed class BucketDetails
@@ -48,6 +67,13 @@ public sealed class EmailPermissions
     public required Dictionary<string, bool> Permissions { get; init; }
     public DateTime LastChanged { get; init; }
     public Dictionary<string, string>? CustomFields { get; init; }
+}
+
+public sealed class BucketSubscription
+{
+    public required string Bucket { get; init; }
+    public required Dictionary<string, bool> Permissions { get; init; }
+    public DateTime LastChanged { get; init; }
 }
 
 public sealed class PagedResult<T>

@@ -34,6 +34,7 @@
     <div class="nav-group select-none">
       <div class="nav-label">Navigation</div>
       <a href="#" class="nav-item" data-view="overview" onclick="showView('overview')">Overview</a>
+      <a href="#" class="nav-item" data-view="subscriptions" onclick="showView('subscriptions')">Subscriptions</a>
     </div>
 
     <div class="nav-group">
@@ -168,6 +169,58 @@
             </thead>
             <tbody id="overviewBody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscriptions View -->
+    <div id="view-subscriptions" class="view">
+      <section class="header-container">
+        <div>
+          <h1 class="select-none" id="subTitle">Subscriptions</h1>
+          <span class="status-badge select-none" id="subBadge">Global Identities</span>
+        </div>
+        <div class="bucket-actions">
+          <button class="btn btn-outline" id="subBackBtn" style="display:none" onclick="loadIdentities()">&larr; Back</button>
+          <span class="tooltip-wrapper" id="subRefreshWrapper">
+            <button class="btn btn-outline" onclick="loadIdentities()">Refresh</button>
+            <span class="tooltip tooltip-right">Reload identities</span>
+          </span>
+        </div>
+      </section>
+      
+      <div class="table-wrapper">
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr id="subscriptionsTableHead">
+                <th>Identity (ID)</th>
+                <th>Buckets</th>
+                <th>Last Changed</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="subscriptionsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-container">
+          <div class="pagination-settings">
+            <div class="page-size-selector">
+              <span>Show</span>
+              <select class="page-size-input" id="subPageSize" onchange="updateSubPageSize()">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>per page</span>
+            </div>
+            <div class="pagination-info" id="subPaginationInfo"></div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" id="subPrevBtn" onclick="changeSubPage(-1)">Previous</button>
+            <button class="btn btn-outline" id="subNextBtn" onclick="changeSubPage(1)">Next</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1081,7 +1134,10 @@
     let lastActivity = Date.now();
     let refreshInterval = null;
     let currentBucket = '';
+    let currentView = 'overview';
     let currentBucketArchived = false;
+    let currentSubscriptionQuery = '';
+    let currentSubscriptionType = 'email';
     let currentPage = 1;
     let pageSize = 10;
     let totalRecords = 0;
@@ -1352,6 +1408,19 @@
         showView('submissions', false);
       } else if (view === 'submission-create') {
         showView('submission-create', false);
+      } else if (view === 'subscriptions') {
+        subSearchQuery = params.get('q') || '';
+        subSortBy = params.get('sort') || subSortBy;
+        subSortDir = params.get('dir') || subSortDir;
+        subCurrentPage = parseInt(params.get('page')) || 1;
+        subPageSize = parseInt(params.get('size')) || 10;
+        const identity = params.get('identity');
+        if (identity) {
+          showView('subscriptions', false, true);
+          showIdentityDetails(identity, false);
+        } else {
+          showView('subscriptions', false);
+        }
       } else if (view === 'submission-edit') {
         const nlId = params.get('id');
         if (nlId) {
@@ -1728,12 +1797,27 @@
       updateUrl(params, replace);
     }
 
-    function showView(view, pushState = true) {
+    function syncSubUrl(identity = null, replace = false) {
+      const params = { view: 'subscriptions' };
+      if (identity) {
+        params.identity = identity;
+      } else {
+        if (subSortBy !== 'lastchanged') params.sort = subSortBy;
+        if (subSortDir !== 'desc') params.dir = subSortDir;
+        if (subCurrentPage > 1) params.page = String(subCurrentPage);
+        if (subPageSize !== 10) params.size = String(subPageSize);
+        if (subSearchQuery) params.q = subSearchQuery;
+      }
+      updateUrl(params, replace);
+    }
+
+    function showView(view, pushState = true, skipLoad = false) {
+      currentView = view;
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
       // submission-edit reuses the create view DOM
-      const viewId = view === 'submission-edit' ? 'view-submission-create' : `view-${view}`;
+      const viewId = (view === 'submission-edit' || view === 'submission-embed') ? 'view-submission-create' : `view-${view}`;
       const viewEl = document.getElementById(viewId);
       if (viewEl) viewEl.classList.add('active');
 
@@ -1743,11 +1827,17 @@
         document.querySelector('.nav-item[data-view="submissions"]')?.classList.add('active');
       }
 
-      if (pushState) updateUrl({ view });
+      if (pushState && view !== 'subscriptions') updateUrl({ view });
+      
+      if (skipLoad) return;
+
       if (view === 'overview') loadOverview();
       if (view === 'submissions') loadSubmissionForms();
       if (view === 'submission-create') initSubmissionWizard();
       if (view === 'new-bucket') renderNewBucketPerms();
+      if (view === 'subscriptions') {
+        loadIdentities(pushState);
+      }
     }
 
     function showBucket(bucket, pushState = true) {
@@ -1770,6 +1860,242 @@
 
       if (pushState) syncBucketUrl();
       loadBucket(bucket);
+    }
+
+    // ========== SUBSCRIPTIONS ==========
+    let subCurrentPage = 1;
+    let subPageSize = 10;
+    let subTotalRecords = 0;
+    const _subSortPrefs = JSON.parse(localStorage.getItem('beacon_sub_sort_prefs') || '{}');
+    let subSortBy = _subSortPrefs.sortBy || 'lastchanged';
+    let subSortDir = _subSortPrefs.sortDir || 'desc';
+    let subSearchQuery = '';
+
+    function updateSubPagination() {
+      const totalPages = Math.ceil(subTotalRecords / subPageSize) || 1;
+      const start = subTotalRecords === 0 ? 0 : (subCurrentPage - 1) * subPageSize + 1;
+      const end = Math.min(subCurrentPage * subPageSize, subTotalRecords);
+
+      document.getElementById('subPaginationInfo').textContent = `Showing ${start.toLocaleString()} to ${end.toLocaleString()} of ${subTotalRecords.toLocaleString()} entries`;
+      document.getElementById('subPrevBtn').disabled = subCurrentPage === 1;
+      document.getElementById('subNextBtn').disabled = subCurrentPage >= totalPages;
+    }
+
+    function updateSubPageSize() {
+      subPageSize = parseInt(document.getElementById('subPageSize').value);
+      subCurrentPage = 1;
+      loadIdentities();
+    }
+
+    function changeSubPage(delta) {
+      subCurrentPage += delta;
+      loadIdentities();
+    }
+
+    function toggleSubSort(column) {
+      if (subSortBy === column) {
+        subSortDir = subSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        subSortBy = column;
+        subSortDir = column === 'lastchanged' ? 'desc' : 'asc';
+      }
+      localStorage.setItem('beacon_sub_sort_prefs', JSON.stringify({ sortBy: subSortBy, sortDir: subSortDir }));
+      subCurrentPage = 1;
+      loadIdentities();
+    }
+
+    function toggleSubSearchPopover(event) {
+      event.stopPropagation();
+      const popover = document.getElementById('subSearchPopover');
+      const trigger = document.getElementById('subSearchTrigger');
+      popover.classList.toggle('open');
+      trigger.classList.toggle('active', popover.classList.contains('open'));
+      if (popover.classList.contains('open')) {
+        setTimeout(() => document.getElementById('subSearchInput')?.focus(), 50);
+      }
+    }
+
+    function searchIdentities() {
+      const input = document.getElementById('subSearchInput');
+      subSearchQuery = input ? input.value.trim() : '';
+      subCurrentPage = 1;
+      loadIdentities();
+      document.getElementById('subSearchPopover')?.classList.remove('open');
+      document.getElementById('subSearchTrigger')?.classList.remove('active');
+    }
+
+    function clearSubSearch() {
+      const input = document.getElementById('subSearchInput');
+      if (input) input.value = '';
+      subSearchQuery = '';
+      subCurrentPage = 1;
+      loadIdentities();
+      document.getElementById('subSearchPopover')?.classList.remove('open');
+      document.getElementById('subSearchTrigger')?.classList.remove('active');
+    }
+
+    async function loadIdentities(pushState = true) {
+      const thead = document.getElementById('subscriptionsTableHead');
+      const body = document.getElementById('subscriptionsBody');
+
+      // Update header
+      document.getElementById('subTitle').textContent = 'Subscriptions';
+      const badge = document.getElementById('subBadge');
+      badge.textContent = 'Global Identities';
+      badge.classList.remove('tooltip-wrapper');
+      badge.style.cursor = '';
+      badge.onclick = null;
+      document.getElementById('subBackBtn').style.display = 'none';
+      document.getElementById('subRefreshWrapper').style.display = 'inline-block';
+
+      // Show pagination container
+      document.querySelector('#view-subscriptions .pagination-container').style.display = 'flex';
+
+      if (pushState) syncSubUrl();
+
+      const idSortClass = subSortBy === 'id' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
+      const bucketsSortClass = subSortBy === 'buckets' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
+      const dateSortClass = subSortBy === 'lastchanged' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
+      const sortIcon = '<span class="sort-icon">▲</span>';
+      const hasSearch = subSearchQuery ? 'has-search' : '';
+
+      thead.innerHTML = `
+        <th>
+          <div class="column-search">
+            <span class="sortable ${idSortClass}" onclick="toggleSubSort('id')" style="cursor:pointer">Identity (ID) ${sortIcon}</span>
+            <button class="search-trigger ${hasSearch}" id="subSearchTrigger" onclick="toggleSubSearchPopover(event)" title="Search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+            <div class="search-popover" id="subSearchPopover" style="min-width:240px">
+              <label>Enter ID from logs (partial hash)</label>
+              <input type="text" id="subSearchInput" placeholder="e.g., a1b2c3d4" value="${sanitize(subSearchQuery)}" onkeydown="if(event.key==='Enter')searchIdentities()">
+              <div class="search-actions">
+                <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearSubSearch()">Clear</button>
+                <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="searchIdentities()">Search</button>
+              </div>
+            </div>
+          </div>
+        </th>
+        <th class="sortable ${bucketsSortClass}" onclick="toggleSubSort('buckets')">Buckets ${sortIcon}</th>
+        <th class="sortable ${dateSortClass}" onclick="toggleSubSort('lastchanged')">Last Changed ${sortIcon}</th>
+        <th style="width:50px"></th>
+      `;
+
+      let url = `/api/admin/identities?page=${subCurrentPage}&pageSize=${subPageSize}&sortBy=${subSortBy}&sortDir=${subSortDir}`;
+      if (subSearchQuery) {
+        url += `&search=${encodeURIComponent(subSearchQuery)}`;
+      }
+
+      const result = await apiRequest(url);
+      if (result.ok) {
+        const data = result.data;
+        subTotalRecords = data.total;
+        body.innerHTML = data.records.map((id, idx) => {
+          const idDisplay = `<span class="email-hash" title="${sanitize(id.emailHash || '')}">${sanitize(id.emailHash.substring(0, 16))}...</span>`;
+
+          return `
+            <tr style="cursor:pointer" onclick="showIdentityDetails('${sanitize(id.emailHash)}')">
+              <td>${idDisplay}</td>
+              <td><span class="status-badge">${id.bucketCount} bucket${id.bucketCount !== 1 ? 's' : ''}</span></td>
+              <td>${sanitize(formatDate(id.lastChanged))}</td>
+              <td>
+                <div class="row-actions">
+                  <span class="tooltip-wrapper">
+                    <button class="btn-actions" onclick="event.stopPropagation();showIdentityDetails('${sanitize(id.emailHash)}')">:</button>
+                    <span class="tooltip tooltip-above tooltip-right">View details</span>
+                  </span>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        updateSubPagination();
+      }
+    }
+
+    async function showIdentityDetails(emailHash, pushState = true) {
+      const result = await apiRequest(`/api/admin/identities/${encodeURIComponent(emailHash)}`);
+      if (!result.ok) return;
+
+      if (pushState) syncSubUrl(emailHash);
+
+      const details = result.data;
+      
+      // Update header
+      document.getElementById('subTitle').textContent = 'Identity Details';
+      const badge = document.getElementById('subBadge');
+      badge.classList.add('tooltip-wrapper');
+      badge.style.cursor = 'pointer';
+      badge.onclick = () => copyIdentityHash();
+      badge.innerHTML = `<span class="email-hash" style="color:inherit">${sanitize(emailHash.substring(0, 16))}...</span><span class="tooltip" id="subTooltip">${sanitize(emailHash)}</span>`;
+      document.getElementById('subBackBtn').style.display = 'inline-block';
+      document.getElementById('subRefreshWrapper').style.display = 'none';
+
+      const body = document.getElementById('subscriptionsBody');
+      const thead = document.getElementById('subscriptionsTableHead');
+      
+      thead.innerHTML = `
+        <th>Bucket</th>
+        <th>Permissions</th>
+        <th>Last Changed</th>
+        <th class="col-actions"></th>
+      `;
+
+      body.innerHTML = details.subscriptions.map(s => {
+        const permsHtml = Object.entries(s.permissions).map(([p, optedIn]) => {
+          return `<span class="tooltip-wrapper select-none"><span class="status-badge ${optedIn ? '' : 'opted-out'}">${sanitize(formatPermission(p))}</span><span class="tooltip">${optedIn ? 'Opted-in' : 'Opted-out'}</span></span>`;
+        }).join(' ');
+
+        return `
+          <tr>
+            <td style="cursor:pointer" onclick="showBucket('${sanitize(s.bucket)}')"><strong>${sanitize(s.bucket)}</strong></td>
+            <td>${permsHtml}</td>
+            <td>${sanitize(formatDate(s.lastChanged))}</td>
+            <td>
+              <div class="row-actions">
+                <span class="tooltip-wrapper">
+                  <button class="btn-actions" onclick="showBucket('${sanitize(s.bucket)}')" title="View Bucket">:</button>
+                  <span class="tooltip tooltip-above tooltip-right">View bucket</span>
+                </span>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Hide pagination for detail view
+      document.querySelector('#view-subscriptions .pagination-container').style.display = 'none';
+    }
+
+    async function copyIdentityHash() {
+        const tooltipElement = document.getElementById('subTooltip');
+        const hash = tooltipElement.innerText;
+
+        if (!hash) return;
+
+        try {
+            await clipboardWrite(hash);
+            const originalText = tooltipElement.innerText;
+            tooltipElement.innerText = "Copied!";
+            setTimeout(() => {
+                tooltipElement.innerText = originalText;
+            }, 2000);
+        } catch (err) {
+            console.error("Failed to copy identity: ", err);
+        }
+    }
+
+    function setSubSearchType(type) {
+      // Legacy - kept for URL restore compatibility if needed
+      currentSubscriptionType = type;
+    }
+
+    async function searchSubscriptions(pushState = true) {
+      // Transition from search to list view if called from legacy restore
+      loadIdentities();
     }
 
     // ========== OVERVIEW ==========
@@ -2971,7 +3297,7 @@
       }
 
       trigger.classList.add('has-errors');
-      dropdown.innerHTML = `<div class="error-header"><span>Recent Delivery Errors</span><button class="clear-all-btn" onclick="event.stopPropagation();clearAllWebhookErrors()">Clear All</button></div>` +
+      dropdown.innerHTML = `<div class="error-header"><span>Recent Errors</span><button class="clear-all-btn" onclick="event.stopPropagation();clearAllWebhookErrors()">Clear All</button></div>` +
         errors.map((e, i) => {
           const time = formatDate(e.occurredAt);
           const msg = e.errorMessage.length > 120 ? e.errorMessage.substring(0, 120) + '...' : e.errorMessage;
@@ -3335,8 +3661,13 @@
         }
 
         // Refresh the active bucket view only if it was affected
-        if (currentBucket && pendingBuckets.has(currentBucket)) {
+        if (currentView === 'bucket' && currentBucket && pendingBuckets.has(currentBucket)) {
           loadBucket(currentBucket);
+        }
+
+        // Refresh subscriptions view if active
+        if (currentView === 'subscriptions') {
+          loadIdentities(false);
         }
       });
     }

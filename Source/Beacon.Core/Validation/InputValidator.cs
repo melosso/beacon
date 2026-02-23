@@ -221,6 +221,29 @@ public static partial class InputValidator
         return ValidationResult.Fail("Invalid CSS border-radius value");
     }
 
+    public static ValidationResult ValidateEmailHash(string? hash)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return ValidationResult.Fail("Hash is required");
+        }
+
+        if (hash.Length != 64)
+        {
+            return ValidationResult.Fail("Invalid hash length. Must be 64 characters.");
+        }
+
+        if (!EmailHashPattern().IsMatch(hash))
+        {
+            return ValidationResult.Fail("Invalid hash format. Must be a hex string.");
+        }
+
+        return ValidationResult.Ok();
+    }
+
+    [GeneratedRegex("^[a-fA-F0-9]{64}$")]
+    private static partial Regex EmailHashPattern();
+
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 

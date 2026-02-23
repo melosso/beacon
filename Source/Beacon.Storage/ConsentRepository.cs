@@ -216,6 +216,110 @@ public sealed class ConsentRepository : IConsentRepository
             .ToListAsync();
     }
 
+    public async Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
+    {
+        var allRecords = await _context.ConsentRecords.ToListAsync();
+
+        var identities = allRecords
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new IdentityInfo
+            {
+                EmailHash = g.Key,
+                EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
+                BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
+                LastChanged = g.Max(r => r.ChangedAt)
+            })
+            .ToList();
+
+        // Filter by search (matches emailHash prefix)
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            identities = identities
+                .Where(i => i.EmailHash.StartsWith(searchLower, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Sorting
+        IEnumerable<IdentityInfo> sorted = sortBy?.ToLowerInvariant() switch
+        {
+            "id" => sortDir == "asc"
+                ? identities.OrderBy(i => i.EmailHash)
+                : identities.OrderByDescending(i => i.EmailHash),
+            "buckets" => sortDir == "asc"
+                ? identities.OrderBy(i => i.BucketCount)
+                : identities.OrderByDescending(i => i.BucketCount),
+            "lastchanged" => sortDir == "asc"
+                ? identities.OrderBy(i => i.LastChanged)
+                : identities.OrderByDescending(i => i.LastChanged),
+            _ => identities.OrderByDescending(i => i.LastChanged)
+        };
+
+        var sortedList = sorted.ToList();
+        var total = sortedList.Count;
+        var paged = sortedList
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PagedResult<IdentityInfo>
+        {
+            Records = paged,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
+    {
+        var subscriptions = await GetSubscriptionsAsync(emailHash);
+        if (subscriptions.Count == 0) return null;
+
+        var encryptedEmail = await _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash && r.EncryptedEmail != null)
+            .Select(r => r.EncryptedEmail)
+            .FirstOrDefaultAsync();
+
+        return new IdentityDetails
+        {
+            EmailHash = emailHash,
+            EncryptedEmail = encryptedEmail,
+            Subscriptions = subscriptions
+        };
+    }
+
+    private async Task<IReadOnlyList<BucketSubscription>> GetSubscriptionsAsync(string emailHash)
+    {
+        var records = await _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash)
+            .ToListAsync();
+
+        return records
+            .GroupBy(r => r.Bucket)
+            .Select(g => new BucketSubscription
+            {
+                Bucket = g.Key,
+                Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                LastChanged = g.Max(r => r.ChangedAt)
+            })
+            .OrderBy(b => b.Bucket)
+            .ToList();
+    }
+
+    public async Task<IDisposable> BeginTransactionAsync()
+    {
+        return await _context.Database.BeginTransactionAsync();
+    }
+
+    public async Task CommitTransactionAsync()
+    {
+        if (_context.Database.CurrentTransaction != null)
+        {
+            await _context.Database.CurrentTransaction.CommitAsync();
+        }
+    }
+
     private static Dictionary<string, string>? DeserializeCustomFields(string? json)
     {
         if (string.IsNullOrEmpty(json)) return null;
