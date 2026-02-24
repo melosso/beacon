@@ -740,6 +740,8 @@ public class SubmissionFormServiceTests
         }
 
         public Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null) => throw new NotImplementedException();
+        public Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync() => throw new NotImplementedException();
+        public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null) => throw new NotImplementedException();
 
         public Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
         {
