@@ -362,8 +362,11 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     font-weight: 500;
 }
 
-.status-badge.opted-in { background: hsl(142 76% 90%); color: hsl(var(--success)); }
-.status-badge.opted-out { background: hsl(0 84% 95%); color: hsl(var(--destructive)); }
+.status-badge.opted-in { text-decoration: none; }
+.status-badge.opted-out {
+    background: hsl(var(--muted) / 0.3);
+    color: hsl(var(--muted-foreground) / 0.6);
+}
 
 .bucket-actions { display: flex; gap: 0.75rem; align-items: center; }
 
@@ -545,10 +548,12 @@ th { text-align: left; padding: 0.875rem 1rem; color: hsl(var(--muted-foreground
 .search-popover input { width: 100%; padding: 0.5rem; border: 1px solid hsl(var(--border)); border-radius: var(--radius); font-size: 0.875rem; margin-bottom: 0.5rem; background: hsl(var(--background)); color: hsl(var(--foreground)); }
 .search-popover input:focus { outline: none; border-color: hsl(var(--foreground)); }
 .search-popover .search-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-.search-popover .search-type-toggle { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
-.search-popover .search-type-btn { flex: 1; padding: 0.375rem 0.5rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); color: hsl(var(--foreground)); border-radius: var(--radius); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
-.search-popover .search-type-btn:hover { background: hsl(var(--muted)); }
-.search-popover .search-type-btn.active { background: hsl(var(--foreground)); color: hsl(var(--background)); border-color: hsl(var(--foreground)); }
+
+.search-type-toggle { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
+.search-type-btn { flex: 1; padding: 0.375rem 0.5rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); color: hsl(var(--foreground)); border-radius: var(--radius); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
+.search-type-btn:hover { background: hsl(var(--muted)); }
+.search-type-btn.active { background: hsl(var(--foreground)); color: hsl(var(--background)); border-color: hsl(var(--foreground)); }
+
 td { padding: 1rem; border-bottom: 1px solid hsl(var(--border)); }
 tr:last-child td { border-bottom: none; }
 

@@ -216,6 +216,173 @@ public sealed class ConsentRepository : IConsentRepository
             .ToListAsync();
     }
 
+    public async Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
+    {
+        var baseQuery = _context.ConsentRecords.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            baseQuery = baseQuery.Where(r => r.EmailHash.StartsWith(searchLower));
+        }
+
+        // Count distinct identities for pagination total — separate query so EF
+        // doesn't need to wrap the grouped projection in a subquery count.
+        var total = await baseQuery
+            .Select(r => r.EmailHash)
+            .Distinct()
+            .CountAsync();
+
+        var grouped = baseQuery
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new IdentityInfo
+            {
+                EmailHash = g.Key,
+                BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
+                LastChanged = g.Max(r => r.ChangedAt)
+            });
+
+        IQueryable<IdentityInfo> sorted = sortBy?.ToLowerInvariant() switch
+        {
+            "id" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.EmailHash)
+                : grouped.OrderByDescending(i => i.EmailHash),
+            "buckets" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.BucketCount)
+                : grouped.OrderByDescending(i => i.BucketCount),
+            _ => sortDir == "asc"
+                ? grouped.OrderBy(i => i.LastChanged)
+                : grouped.OrderByDescending(i => i.LastChanged)
+        };
+
+        var paged = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<IdentityInfo>
+        {
+            Records = paged,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync()
+    {
+        var rows = await _context.ConsentRecords
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new
+            {
+                EmailHash = g.Key,
+                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return rows.Select(r => (r.EmailHash, r.EncryptedEmail)).ToList();
+    }
+
+    public async Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(
+        IReadOnlyList<string> hashes, int page, int pageSize,
+        string? sortBy = null, string? sortDir = null)
+    {
+        if (hashes.Count == 0)
+            return new PagedResult<IdentityInfo> { Records = [], Total = 0, Page = page, PageSize = pageSize };
+
+        var baseQuery = _context.ConsentRecords
+            .Where(r => hashes.Contains(r.EmailHash));
+
+        var total = await baseQuery
+            .Select(r => r.EmailHash)
+            .Distinct()
+            .CountAsync();
+
+        var grouped = baseQuery
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new IdentityInfo
+            {
+                EmailHash = g.Key,
+                BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
+                LastChanged = g.Max(r => r.ChangedAt)
+            });
+
+        IQueryable<IdentityInfo> sorted = sortBy?.ToLowerInvariant() switch
+        {
+            "id" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.EmailHash)
+                : grouped.OrderByDescending(i => i.EmailHash),
+            "buckets" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.BucketCount)
+                : grouped.OrderByDescending(i => i.BucketCount),
+            _ => sortDir == "asc"
+                ? grouped.OrderBy(i => i.LastChanged)
+                : grouped.OrderByDescending(i => i.LastChanged)
+        };
+
+        var paged = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<IdentityInfo>
+        {
+            Records = paged,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
+    {
+        var subscriptions = await GetSubscriptionsAsync(emailHash);
+        if (subscriptions.Count == 0) return null;
+
+        var encryptedEmail = await _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash && r.EncryptedEmail != null)
+            .Select(r => r.EncryptedEmail)
+            .FirstOrDefaultAsync();
+
+        return new IdentityDetails
+        {
+            EmailHash = emailHash,
+            EncryptedEmail = encryptedEmail,
+            Subscriptions = subscriptions
+        };
+    }
+
+    private async Task<IReadOnlyList<BucketSubscription>> GetSubscriptionsAsync(string emailHash)
+    {
+        var records = await _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash)
+            .ToListAsync();
+
+        return records
+            .GroupBy(r => r.Bucket)
+            .Select(g => new BucketSubscription
+            {
+                Bucket = g.Key,
+                Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                LastChanged = g.Max(r => r.ChangedAt)
+            })
+            .OrderBy(b => b.Bucket)
+            .ToList();
+    }
+
+    public async Task<IDisposable> BeginTransactionAsync()
+    {
+        return await _context.Database.BeginTransactionAsync();
+    }
+
+    public async Task CommitTransactionAsync()
+    {
+        if (_context.Database.CurrentTransaction != null)
+        {
+            await _context.Database.CurrentTransaction.CommitAsync();
+        }
+    }
+
     private static Dictionary<string, string>? DeserializeCustomFields(string? json)
     {
         if (string.IsNullOrEmpty(json)) return null;

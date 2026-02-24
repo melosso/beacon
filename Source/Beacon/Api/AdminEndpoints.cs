@@ -42,7 +42,7 @@ public static class AdminEndpoints
             .RequireAuthorization()
             .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.");
 
-        // Management APIs (admin panel - excluded from public OpenAPI docs)
+        // Management APIs (excluded from public OpenAPI docs)
         routes.MapGet("/api/admin/buckets", GetBuckets)
             .RequireAuthorization()
             .ExcludeFromDescription();
@@ -83,11 +83,18 @@ public static class AdminEndpoints
             .RequireAuthorization()
             .ExcludeFromDescription();
 
+        routes.MapGet("/api/admin/identities", GetIdentities)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/identities/{emailHash}", GetIdentityDetails)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
         routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
             .RequireAuthorization()
             .ExcludeFromDescription();
 
-        // Webhook Management APIs (excluded from OpenAPI)
         routes.MapGet("/api/admin/webhooks/buckets", GetWebhookBuckets)
             .RequireAuthorization()
             .ExcludeFromDescription();
@@ -241,6 +248,8 @@ public static class AdminEndpoints
 
         try
         {
+            using var transaction = await consentService.BeginTransactionAsync();
+
             foreach (var (permission, status) in request.Permissions)
             {
                 if (!Enum.TryParse<ConsentStatus>(status, true, out var consentStatus))
@@ -250,6 +259,8 @@ public static class AdminEndpoints
 
                 await consentService.OverrideAsync(normalizedBucket, request.Email, permission, consentStatus, customFieldsJson);
             }
+
+            await consentService.CommitTransactionAsync();
 
             logger.LogInformation(
                 "Batch consent override: bucket={Bucket}, id={EmailId}, permissions={Permissions}, timestamp={Timestamp}",
@@ -329,6 +340,8 @@ public static class AdminEndpoints
 
         try
         {
+            using var transaction = await consentService.BeginTransactionAsync();
+
             var tokenOptions = new Tokens.GenerateTokenRequest
             {
                 AllowReplay = request.AllowReplay,
@@ -362,6 +375,8 @@ public static class AdminEndpoints
                     hasChanges = true;
                 }
             }
+
+            await consentService.CommitTransactionAsync();
 
             var emailHash = emailHasher.Hash(request.Email);
             if (hasChanges)
@@ -543,10 +558,22 @@ public static class AdminEndpoints
             normalizedBucket,
             DateTime.UtcNow);
 
-        var deleted = await repository.DeleteBucketAsync(normalizedBucket);
-        await bucketRepository.DeleteBucketAsync(normalizedBucket);
+        try
+        {
+            using var transaction = await repository.BeginTransactionAsync();
 
-        return Results.Ok(new { message = "Bucket deleted", recordsDeleted = deleted });
+            var deleted = await repository.DeleteBucketAsync(normalizedBucket);
+            await bucketRepository.DeleteBucketAsync(normalizedBucket);
+
+            await repository.CommitTransactionAsync();
+
+            return Results.Ok(new { message = "Bucket deleted", recordsDeleted = deleted });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting bucket {Bucket}", normalizedBucket);
+            return Results.StatusCode(500);
+        }
     }
 
     private static async Task<IResult> DeleteRecord(
@@ -608,11 +635,24 @@ public static class AdminEndpoints
             normalizedPermission,
             DateTime.UtcNow);
 
-        var deleted = await repository.DeletePermissionAsync(normalizedBucket, normalizedPermission);
-        await bucketRepository.RemovePermissionAsync(normalizedBucket, normalizedPermission);
-        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
+        try
+        {
+            using var transaction = await repository.BeginTransactionAsync();
 
-        return Results.Ok(new { message = "Permission deleted", recordsDeleted = deleted });
+            var deleted = await repository.DeletePermissionAsync(normalizedBucket, normalizedPermission);
+            await bucketRepository.RemovePermissionAsync(normalizedBucket, normalizedPermission);
+
+            await repository.CommitTransactionAsync();
+
+            await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
+
+            return Results.Ok(new { message = "Permission deleted", recordsDeleted = deleted });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting permission {Permission} from bucket {Bucket}", normalizedPermission, normalizedBucket);
+            return Results.StatusCode(500);
+        }
     }
 
     private static async Task<IResult> ArchiveBucket(
@@ -1036,6 +1076,74 @@ public static class AdminEndpoints
         {
             // Silently ignore webhook failures to not disrupt the main operation
         }
+    }
+
+    private static async Task<IResult> GetIdentities(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDir = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? searchType = null,
+        [FromServices] IConsentRepository repository = null!,
+        [FromServices] Encryptor encryptor = null!)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+
+        if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.Trim().ToLowerInvariant();
+            var mappings = await repository.GetEmailHashMappingsAsync();
+            var matchingHashes = mappings
+                .Where(m =>
+                {
+                    if (m.EncryptedEmail is null) return false;
+                    try
+                    {
+                        var email = encryptor.Decrypt(m.EncryptedEmail);
+                        return email.Contains(searchLower, StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch { return false; }
+                })
+                .Select(m => m.EmailHash)
+                .ToList();
+
+            var emailResult = await repository.GetIdentitiesByHashesAsync(matchingHashes, page, pageSize, sortBy, sortDir);
+            return Results.Ok(emailResult);
+        }
+
+        var result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search);
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> GetIdentityDetails(
+        string emailHash,
+        [FromServices] IConsentRepository repository = null!,
+        [FromServices] Encryptor encryptor = null!)
+    {
+        var validation = InputValidator.ValidateEmailHash(emailHash);
+        if (!validation.IsValid)
+            return Results.BadRequest(new { error = validation.Error });
+
+        var details = await repository.GetIdentityDetailsAsync(emailHash.ToLowerInvariant());
+        if (details == null)
+            return Results.NotFound();
+
+        string? email = null;
+        if (!string.IsNullOrEmpty(details.EncryptedEmail))
+        {
+            try { email = encryptor.Decrypt(details.EncryptedEmail); }
+            catch { }
+        }
+
+        return Results.Ok(new
+        {
+            details.EmailHash,
+            Email = email,
+            details.Subscriptions
+        });
     }
 
     private static bool IsPrivateOrReserved(IPAddress address)

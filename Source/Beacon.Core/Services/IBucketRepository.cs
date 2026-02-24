@@ -10,4 +10,6 @@ public interface IBucketRepository
     Task<IReadOnlyList<string>> GetAllBucketNamesAsync();
     Task RemovePermissionAsync(string bucket, string permission);
     Task DeleteBucketAsync(string bucket);
+    Task<IDisposable> BeginTransactionAsync();
+    Task CommitTransactionAsync();
 }

@@ -117,6 +117,9 @@ public sealed class ConsentService : IConsentService
         return true;
     }
 
+    public Task<IDisposable> BeginTransactionAsync() => _repository.BeginTransactionAsync();
+    public Task CommitTransactionAsync() => _repository.CommitTransactionAsync();
+
     private static string ComputeTokenHash(string token)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
