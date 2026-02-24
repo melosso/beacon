@@ -218,49 +218,112 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
     {
-        var allRecords = await _context.ConsentRecords.ToListAsync();
+        var baseQuery = _context.ConsentRecords.AsQueryable();
 
-        var identities = allRecords
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            baseQuery = baseQuery.Where(r => r.EmailHash.StartsWith(searchLower));
+        }
+
+        // Count distinct identities for pagination total — separate query so EF
+        // doesn't need to wrap the grouped projection in a subquery count.
+        var total = await baseQuery
+            .Select(r => r.EmailHash)
+            .Distinct()
+            .CountAsync();
+
+        var grouped = baseQuery
             .GroupBy(r => r.EmailHash)
             .Select(g => new IdentityInfo
             {
                 EmailHash = g.Key,
-                EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
                 LastChanged = g.Max(r => r.ChangedAt)
-            })
-            .ToList();
+            });
 
-        // Filter by search (matches emailHash prefix)
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLowerInvariant();
-            identities = identities
-                .Where(i => i.EmailHash.StartsWith(searchLower, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
-
-        // Sorting
-        IEnumerable<IdentityInfo> sorted = sortBy?.ToLowerInvariant() switch
+        IQueryable<IdentityInfo> sorted = sortBy?.ToLowerInvariant() switch
         {
             "id" => sortDir == "asc"
-                ? identities.OrderBy(i => i.EmailHash)
-                : identities.OrderByDescending(i => i.EmailHash),
+                ? grouped.OrderBy(i => i.EmailHash)
+                : grouped.OrderByDescending(i => i.EmailHash),
             "buckets" => sortDir == "asc"
-                ? identities.OrderBy(i => i.BucketCount)
-                : identities.OrderByDescending(i => i.BucketCount),
-            "lastchanged" => sortDir == "asc"
-                ? identities.OrderBy(i => i.LastChanged)
-                : identities.OrderByDescending(i => i.LastChanged),
-            _ => identities.OrderByDescending(i => i.LastChanged)
+                ? grouped.OrderBy(i => i.BucketCount)
+                : grouped.OrderByDescending(i => i.BucketCount),
+            _ => sortDir == "asc"
+                ? grouped.OrderBy(i => i.LastChanged)
+                : grouped.OrderByDescending(i => i.LastChanged)
         };
 
-        var sortedList = sorted.ToList();
-        var total = sortedList.Count;
-        var paged = sortedList
+        var paged = await sorted
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToList();
+            .ToListAsync();
+
+        return new PagedResult<IdentityInfo>
+        {
+            Records = paged,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync()
+    {
+        var rows = await _context.ConsentRecords
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new
+            {
+                EmailHash = g.Key,
+                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return rows.Select(r => (r.EmailHash, r.EncryptedEmail)).ToList();
+    }
+
+    public async Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(
+        IReadOnlyList<string> hashes, int page, int pageSize,
+        string? sortBy = null, string? sortDir = null)
+    {
+        if (hashes.Count == 0)
+            return new PagedResult<IdentityInfo> { Records = [], Total = 0, Page = page, PageSize = pageSize };
+
+        var baseQuery = _context.ConsentRecords
+            .Where(r => hashes.Contains(r.EmailHash));
+
+        var total = await baseQuery
+            .Select(r => r.EmailHash)
+            .Distinct()
+            .CountAsync();
+
+        var grouped = baseQuery
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new IdentityInfo
+            {
+                EmailHash = g.Key,
+                BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
+                LastChanged = g.Max(r => r.ChangedAt)
+            });
+
+        IQueryable<IdentityInfo> sorted = sortBy?.ToLowerInvariant() switch
+        {
+            "id" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.EmailHash)
+                : grouped.OrderByDescending(i => i.EmailHash),
+            "buckets" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.BucketCount)
+                : grouped.OrderByDescending(i => i.BucketCount),
+            _ => sortDir == "asc"
+                ? grouped.OrderBy(i => i.LastChanged)
+                : grouped.OrderByDescending(i => i.LastChanged)
+        };
+
+        var paged = await sorted
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
         return new PagedResult<IdentityInfo>
         {

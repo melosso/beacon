@@ -1084,6 +1084,7 @@ public static class AdminEndpoints
         [FromQuery] string? sortBy = null,
         [FromQuery] string? sortDir = null,
         [FromQuery] string? search = null,
+        [FromQuery] string? searchType = null,
         [FromServices] IConsentRepository repository = null!,
         [FromServices] Encryptor encryptor = null!)
     {
@@ -1091,42 +1092,58 @@ public static class AdminEndpoints
         if (pageSize < 1) pageSize = 10;
         if (pageSize > 100) pageSize = 100;
 
-        var result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search);
-
-        // Decrypt emails for admin display where available
-        foreach (var id in result.Records)
+        if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
         {
-            if (!string.IsNullOrEmpty(id.EncryptedEmail))
-            {
-                try
+            var searchLower = search.Trim().ToLowerInvariant();
+            var mappings = await repository.GetEmailHashMappingsAsync();
+            var matchingHashes = mappings
+                .Where(m =>
                 {
-                    // For the identities list, we could potentially show the email if decrypted
-                    // but IdentityInfo DTO doesn't have an 'Email' property yet. 
-                    // Let's stick to what's there or just use the hash.
-                }
-                catch { }
-            }
+                    if (m.EncryptedEmail is null) return false;
+                    try
+                    {
+                        var email = encryptor.Decrypt(m.EncryptedEmail);
+                        return email.Contains(searchLower, StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch { return false; }
+                })
+                .Select(m => m.EmailHash)
+                .ToList();
+
+            var emailResult = await repository.GetIdentitiesByHashesAsync(matchingHashes, page, pageSize, sortBy, sortDir);
+            return Results.Ok(emailResult);
         }
 
+        var result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search);
         return Results.Ok(result);
     }
 
     private static async Task<IResult> GetIdentityDetails(
         string emailHash,
-        [FromServices] IConsentRepository repository = null!)
+        [FromServices] IConsentRepository repository = null!,
+        [FromServices] Encryptor encryptor = null!)
     {
-        if (string.IsNullOrWhiteSpace(emailHash))
-        {
-            return Results.BadRequest(new { error = "Email hash is required" });
-        }
+        var validation = InputValidator.ValidateEmailHash(emailHash);
+        if (!validation.IsValid)
+            return Results.BadRequest(new { error = validation.Error });
 
         var details = await repository.GetIdentityDetailsAsync(emailHash.ToLowerInvariant());
         if (details == null)
-        {
             return Results.NotFound();
+
+        string? email = null;
+        if (!string.IsNullOrEmpty(details.EncryptedEmail))
+        {
+            try { email = encryptor.Decrypt(details.EncryptedEmail); }
+            catch { }
         }
 
-        return Results.Ok(details);
+        return Results.Ok(new
+        {
+            details.EmailHash,
+            Email = email,
+            details.Subscriptions
+        });
     }
 
     private static bool IsPrivateOrReserved(IPAddress address)

@@ -18,6 +18,8 @@ public interface IConsentRepository
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);
     Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
+    Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync();
+    Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null);
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
     Task<IDisposable> BeginTransactionAsync();
     Task CommitTransactionAsync();
@@ -33,7 +35,6 @@ public sealed class BucketInfo
 public sealed class IdentityInfo
 {
     public required string EmailHash { get; init; }
-    public string? EncryptedEmail { get; init; }
     public int BucketCount { get; init; }
     public DateTime LastChanged { get; init; }
 }
