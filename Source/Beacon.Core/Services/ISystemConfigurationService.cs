@@ -6,6 +6,9 @@ public sealed class SystemConfig
 {
     [JsonPropertyName("allowDbLookup")]
     public bool AllowDbLookup { get; set; } = false;
+
+    [JsonPropertyName("defaultLanguage")]
+    public string DefaultLanguage { get; set; } = "en";
 }
 
 public interface ISystemConfigurationService

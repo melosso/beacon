@@ -846,6 +846,20 @@
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
+              <div class="settings-item-block" style="align-items: center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Default language</span>
+                  <p class="settings-item-desc">Default language pre-selected when generating tokens or creating forms in the admin panel.</p>
+                </div>
+                <select id="setting-uiLanguage" class="appearance-select" onchange="saveSetting('uiLanguage', this.value)">
+                  <option value="en">English</option>
+                  <option value="de">Deutsch</option>
+                  <option value="fr">Français</option>
+                  <option value="nl">Nederlands</option>
+                  <option value="pl">Polski</option>
+                  <option value="es">Español</option>
+                </select>
+              </div>
               <label class="settings-item-card" for="setting-allowDbLookup">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Allow database lookup for token</span>
@@ -981,6 +995,20 @@
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
+              <div class="settings-item-block" style="align-items: center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Fallback language</span>
+                  <p class="settings-item-desc">Fallback language for the consent page when no language is specified in the token (request).</p>
+                </div>
+                <select id="setting-defaultLanguage" class="appearance-select" onchange="saveSetting('defaultLanguage', this.value)">
+                  <option value="en">English</option>
+                  <option value="de">German</option>
+                  <option value="fr">French</option>
+                  <option value="nl">Dutch</option>
+                  <option value="pl">Polish</option>
+                  <option value="es">Spanish</option>
+                </select>
+              </div>
               <div class="settings-item-card settings-item-card--split">
                 <label class="settings-item-card-label" for="setting-enableCaching">
                   <div class="settings-item-info">
@@ -2890,7 +2918,7 @@
       document.getElementById('tokenEmail').value = '';
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
       document.getElementById('tokenAllowReplay').checked = true;
-      document.getElementById('tokenLanguage').value = 'en';
+      document.getElementById('tokenLanguage').value = appSettings.uiLanguage || 'en';
       document.getElementById('tokenOutputWrapper').style.display = 'none';
       document.getElementById('tokenOutput').textContent = '';
       document.getElementById('generateTokenBtn').textContent = 'Generate Token';
@@ -3596,7 +3624,7 @@
         openMenuId = null;
       }
       document.getElementById('webhookErrorsDropdown')?.classList.remove('open');
-      document.querySelectorAll('.autocomplete-dropdown').forEach(d => { d.style.display = 'none'; d.classList.remove('open'); });
+      document.querySelectorAll('.autocomplete-dropdown').forEach(d => { d.style.display = ''; d.classList.remove('open'); });
     }
 
     document.addEventListener('click', function(e) {
@@ -3746,7 +3774,7 @@
         `;
       }).join('');
 
-      document.getElementById('editLanguage').value = 'en';
+      document.getElementById('editLanguage').value = appSettings.uiLanguage || 'en';
 
       // Populate custom fields
       editCustomFields = { ...(editingRecord.customFields || {}) };
@@ -4141,7 +4169,7 @@
       document.getElementById('nlRedirectJsEmbed').checked = false;
       document.getElementById('nlDisableRedirects').checked = false;
       toggleRedirectFields();
-      document.getElementById('nlLanguage').value = 'en';
+      document.getElementById('nlLanguage').value = appSettings.uiLanguage || 'en';
       document.getElementById('nlIsEnabled').checked = true;
       document.getElementById('nlConsentRequired').checked = true;
       document.getElementById('nlConsentText').value = '';
@@ -4168,7 +4196,7 @@
         document.getElementById('nlRedirectJsEmbed').checked = !!editData.redirectJsEmbed;
         document.getElementById('nlDisableRedirects').checked = !!editData.disableRedirects;
         toggleRedirectFields();
-        document.getElementById('nlLanguage').value = editData.language || 'en';
+        document.getElementById('nlLanguage').value = editData.language || appSettings.uiLanguage || 'en';
         document.getElementById('nlIsEnabled').checked = editData.isEnabled !== false;
         document.getElementById('nlConsentRequired').checked = editData.consentRequired !== false;
         document.getElementById('nlConsentText').value = editData.consentText || '';
@@ -4701,7 +4729,9 @@ ${bodyStr}
       enableSubmissionForms: false,
       enableCaching: false,
       theme: 'system',
-      font: 'inter'
+      font: 'inter',
+      defaultLanguage: 'en',
+      uiLanguage: 'en'
     };
     let appSettings = { ...settingsDefaults };
 
@@ -4715,6 +4745,12 @@ ${bodyStr}
       // Font select
       const fontEl = document.getElementById('setting-font');
       if (fontEl) fontEl.value = appSettings.font || 'inter';
+      // Default language select
+      const langEl = document.getElementById('setting-defaultLanguage');
+      if (langEl) langEl.value = appSettings.defaultLanguage || 'en';
+      // UI language select
+      const uiLangEl = document.getElementById('setting-uiLanguage');
+      if (uiLangEl) uiLangEl.value = appSettings.uiLanguage || 'en';
       // Theme radios
       const themeEl = document.querySelector(`input[name="setting-theme"][value="${appSettings.theme || 'system'}"]`);
       if (themeEl) themeEl.checked = true;
@@ -4729,6 +4765,9 @@ ${bodyStr}
       if (res.ok && res.data) {
         appSettings.allowDbLookup = res.data.allowDbLookup ?? false;
         document.getElementById('setting-allowDbLookup').checked = appSettings.allowDbLookup;
+        appSettings.defaultLanguage = res.data.defaultLanguage ?? 'en';
+        const langEl = document.getElementById('setting-defaultLanguage');
+        if (langEl) langEl.value = appSettings.defaultLanguage;
       }
     }
 
@@ -4769,7 +4808,7 @@ ${bodyStr}
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
       const res = await apiRequest('/api/admin/settings', {
         method: 'PUT',
-        body: { allowDbLookup: appSettings.allowDbLookup }
+        body: { allowDbLookup: appSettings.allowDbLookup, defaultLanguage: appSettings.defaultLanguage }
       });
       if (res.ok) {
         notify('success', 'Settings saved', 'Your changes have been applied.');

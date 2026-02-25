@@ -309,6 +309,7 @@ public static class AdminEndpoints
         [FromServices] IBucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
         [FromServices] IAdminNotificationService notifications,
+        [FromServices] ISystemConfigurationService configService,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -354,7 +355,9 @@ public static class AdminEndpoints
             {
                 AllowReplay = request.AllowReplay,
                 ExpiryDays = request.ExpiryDays,
-                Language = request.Language
+                Language = string.IsNullOrEmpty(request.Language)
+                    ? configService.Get().DefaultLanguage
+                    : request.Language
             };
 
             var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
