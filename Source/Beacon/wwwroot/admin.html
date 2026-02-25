@@ -883,6 +883,19 @@
                   <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
                 </span>
               </label>
+              <label class="settings-item-card" for="setting-enableDoubleOptIn">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Enable (double) opt-in confirmation</span>
+                  <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active.</p>
+                </div>
+                <span class="tooltip-wrapper">
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-enableDoubleOptIn" onchange="saveSetting('enableDoubleOptIn', this.checked)" disabled>
+                    <span class="toggle-track"></span>
+                  </div>
+                  <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
+                </span>
+              </label>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
               </div>
