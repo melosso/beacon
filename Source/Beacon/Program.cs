@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Beacon.Api;
 using Beacon.Configuration;
+using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Middleware;
@@ -123,6 +125,18 @@ try
     builder.Services.AddScoped<ISubmissionFormRepository, SubmissionFormRepository>();
     builder.Services.AddScoped<ISubmissionFormService, SubmissionFormService>();
     builder.Services.AddSingleton<SubmissionRateLimiter>();
+
+    // SystemConfiguration: singleton cache loaded lazily from DB on first use
+    builder.Services.AddSingleton<ISystemConfigurationService>(sp =>
+    {
+        using var scope = sp.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
+        var entity = db.SystemConfigurations.Find(1);
+        var config = entity is not null
+            ? JsonSerializer.Deserialize<SystemConfig>(entity.Configuration) ?? new SystemConfig()
+            : new SystemConfig();
+        return new SystemConfigurationService(sp.GetRequiredService<IServiceScopeFactory>(), config);
+    });
 
     builder.Services.AddHttpClient();
 

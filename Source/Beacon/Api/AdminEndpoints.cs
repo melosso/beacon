@@ -126,6 +126,14 @@ public static class AdminEndpoints
         routes.MapGet("/api/admin/events", StreamEvents)
             .RequireAuthorization()
             .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/settings", GetSystemConfiguration)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/settings", SaveSystemConfiguration)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
@@ -1144,6 +1152,20 @@ public static class AdminEndpoints
             Email = email,
             details.Subscriptions
         });
+    }
+
+    private static IResult GetSystemConfiguration(
+        [FromServices] ISystemConfigurationService configService)
+    {
+        return Results.Ok(configService.Get());
+    }
+
+    private static async Task<IResult> SaveSystemConfiguration(
+        [FromBody] SystemConfig config,
+        [FromServices] ISystemConfigurationService configService)
+    {
+        await configService.SaveAsync(config);
+        return Results.Ok(configService.Get());
     }
 
     private static bool IsPrivateOrReserved(IPAddress address)

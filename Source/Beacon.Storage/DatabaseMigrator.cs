@@ -14,6 +14,7 @@ public static class DatabaseMigrator
         MigrateSubmissionForms(db);
         MigrateArchivedBuckets(db);
         MigrateBucketPermissions(db);
+        MigrateSystemConfiguration(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -122,6 +123,20 @@ public static class DatabaseMigrator
                     Permission TEXT NOT NULL,
                     CreatedAt TEXT NOT NULL,
                     PRIMARY KEY (Bucket, Permission)
+                )
+                """);
+        }
+    }
+
+    private static void MigrateSystemConfiguration(BeaconDbContext db)
+    {
+        if (!TableExists(db, "SystemConfiguration"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE SystemConfiguration (
+                    Id INTEGER NOT NULL PRIMARY KEY,
+                    Configuration TEXT NOT NULL DEFAULT '{{}}',
+                    UpdatedAt TEXT NOT NULL
                 )
                 """);
         }

@@ -44,7 +44,8 @@ public static class ConsentEndpoints
         [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
         [FromServices] IConsentService consentService,
-        [FromServices] ITokenUsageRepository tokenUsageRepository)
+        [FromServices] ITokenUsageRepository tokenUsageRepository,
+        [FromServices] ISystemConfigurationService configService)
     {
         var result = validator.Validate(token);
 
@@ -71,12 +72,22 @@ public static class ConsentEndpoints
         }
 
         var permissionStates = new List<(string permission, bool optedIn)>();
+        var allowDbLookup = configService.Get().AllowDbLookup;
         foreach (var permission in result.Payload.Permissions)
         {
             if (InputValidator.IsPermissionAllowed(permission))
             {
-                var status = await consentService.CheckAsync(result.Payload.Bucket, result.Payload.Email, permission);
-                permissionStates.Add((permission, status == ConsentStatus.OptedIn));
+                bool optedIn;
+                if (allowDbLookup)
+                {
+                    var status = await consentService.CheckAsync(result.Payload.Bucket, result.Payload.Email, permission);
+                    optedIn = status == ConsentStatus.OptedIn;
+                }
+                else
+                {
+                    optedIn = true;
+                }
+                permissionStates.Add((permission, optedIn));
             }
         }
 

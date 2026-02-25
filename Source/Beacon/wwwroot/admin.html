@@ -851,13 +851,10 @@
                   <span class="settings-item-title select-none">Allow database lookup for token</span>
                   <p class="settings-item-desc">When enabled, the (user) consent page loads permissions from the database instead of the token.</p>
                 </div>
-                <span class="tooltip-wrapper">
-                  <div class="settings-item-control">
-                    <input type="checkbox" id="setting-allowDbLookup" onchange="saveSetting('allowDbLookup', this.checked)" disabled>
-                    <span class="toggle-track"></span>
-                  </div>
-                  <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
-                </span>
+                <div class="settings-item-control">
+                  <input type="checkbox" id="setting-allowDbLookup" onchange="saveSetting('allowDbLookup', this.checked)">
+                  <span class="toggle-track"></span>
+                </div>
               </label>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
@@ -4700,7 +4697,6 @@ ${bodyStr}
         const saved = localStorage.getItem('beacon_settings');
         if (saved) appSettings = { ...settingsDefaults, ...JSON.parse(saved) };
       } catch {}
-      document.getElementById('setting-allowDbLookup').checked = appSettings.allowDbLookup;
       document.getElementById('setting-enableSubmissionForms').checked = appSettings.enableSubmissionForms;
       document.getElementById('setting-enableCaching').checked = appSettings.enableCaching;
       // Font select
@@ -4711,6 +4707,16 @@ ${bodyStr}
       if (themeEl) themeEl.checked = true;
       applyAppearance();
       showSettingsSection('general', false);
+      // Load server-side settings
+      loadServerSettings();
+    }
+
+    async function loadServerSettings() {
+      const res = await apiRequest('/api/admin/settings');
+      if (res.ok && res.data) {
+        appSettings.allowDbLookup = res.data.allowDbLookup ?? false;
+        document.getElementById('setting-allowDbLookup').checked = appSettings.allowDbLookup;
+      }
     }
 
     function applyAppearance() {
@@ -4746,9 +4752,15 @@ ${bodyStr}
       appSettings[key] = value;
     }
 
-    function saveCurrentSettings() {
+    async function saveCurrentSettings() {
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
-      notify('success', 'Settings saved', 'Your changes have been applied.');
+      const res = await apiRequest('/api/admin/settings', {
+        method: 'PUT',
+        body: { allowDbLookup: appSettings.allowDbLookup }
+      });
+      if (res.ok) {
+        notify('success', 'Settings saved', 'Your changes have been applied.');
+      }
     }
 
     function openCacheSettingsModal() {

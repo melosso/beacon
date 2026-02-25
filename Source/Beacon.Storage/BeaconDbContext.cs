@@ -16,6 +16,7 @@ public class BeaconDbContext : DbContext
     public DbSet<SubmissionForm> SubmissionForms => Set<SubmissionForm>();
     public DbSet<ArchivedBucket> ArchivedBuckets => Set<ArchivedBucket>();
     public DbSet<BucketPermission> BucketPermissions => Set<BucketPermission>();
+    public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -115,6 +116,13 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.Permission)
                 .HasMaxLength(100)
                 .IsRequired();
+        });
+
+        modelBuilder.Entity<SystemConfiguration>(entity =>
+        {
+            entity.ToTable("SystemConfiguration");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Configuration).IsRequired();
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>
