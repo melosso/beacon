@@ -12,13 +12,24 @@ This is **Beacon**, a lightweight consent and opt-out service built with .NET 10
 
 ## What is Beacon?
 
-Beacon manages email permission states via logical groupings called Buckets. For every email address within a bucket, the application generates a unique, temporary URL that enables users to update their consent records directly. This functionality is exposed through a unified web API, allowing automation tools to retrieve these URLs and inject them into outgoing messages for decentralized permission management.
+Beacon is a **centralized consent** and **communication-preference** service. It allows external systems (ERP, CRM, marketing tools, automation platforms) to store, check, and update email permission states through a single, consistent API.
 
-**There are some other noteworthy features that must be mentioned:**
+Consent is organized into logical groupings called **Buckets** (for example: newsletters, campaigns, or customer programs). For every email address in a bucket, Beacon can generate a secure, temporary URL that lets recipients manage their own preferences. These URLs can be embedded directly into outgoing messages and validated independently using cryptographic signatures.
 
-- **Token-based opt-out**: Secure HMAC-signed URLs that validate without database lookups
+Beacon is designed to be:
+
+* Decoupled: no business logic in your sending systems
+* Stateless where possible: token validation without upstream lookups
+* Extensible: usable as a standalone service or embedded into existing flows
+
+Beyond basic opt-out handling, Beacon also supports richer consent workflows such as signup forms, multiple permission states, and administrative management via its built-in web interface.
+
+**Noteworthy features include:**
+
+- **Token-based opt-out**: Secure HMAC-signed URLs that validate without database lookups (unless you want to)
 - **Multi-database support**: SQLite (default), SQL Server, PostgreSQL, MySQL
 - **Admin panel**: Web UI for managing buckets and viewing consent records
+- **Confirmation mails**: You can choose for (double) opt-in confirmations via e-mail notifications
 - **Form builder**: Create campaign and newsletter signup forms
 - **Granular permissions**: Set multiple permission states in a single API call
 - **Security first**: Encrypted data at rest, hashed emails, rate limiting
