@@ -92,10 +92,18 @@ public sealed class Encryptor
 
             return Encoding.UTF8.GetString(plaintext);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // If it had the prefix but failed decryption, something is wrong, but we return original
-            // If it didn't have the prefix and failed, it was probably raw data anyway.
+            if (hasPrefix)
+            {
+                // The value was explicitly encrypted by this system (efx: prefix present).
+                // Failing here means the key is wrong or the data is corrupted — surface it loudly.
+                throw new CryptographicException(
+                    "Failed to decrypt an 'efx:'-prefixed value. The encryption key may be incorrect or the stored data is corrupted.",
+                    ex);
+            }
+
+            // No prefix: legacy / non-encrypted value. Return as-is for backwards compatibility.
             return encryptedBase64;
         }
     }

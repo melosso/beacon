@@ -85,4 +85,15 @@ public sealed class EmailQueueRepository : IEmailQueueRepository
             .Where(e => e.ExpiresAt <= now && e.Status != EmailQueueStatus.Confirmed)
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EmailQueueStatus.Expired));
     }
+
+    public async Task<int> DeleteOldAsync(DateTime olderThan)
+    {
+        return await _db.EmailQueueEntries
+            .Where(e => e.CreatedAt < olderThan
+                     && (e.Status == EmailQueueStatus.Confirmed
+                      || e.Status == EmailQueueStatus.Failed
+                      || e.Status == EmailQueueStatus.Expired
+                      || e.Status == EmailQueueStatus.Cancelled))
+            .ExecuteDeleteAsync();
+    }
 }

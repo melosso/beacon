@@ -11,4 +11,13 @@ public sealed class InstanceOptions
     /// Useful for private or demo deployments. Set via Beacon:DisableEmailNotifications.
     /// </summary>
     public bool DisableEmailNotifications { get; init; } = false;
+
+    /// <summary>
+    /// The public-facing base URL of this instance (e.g. "https://consent.example.com").
+    /// Used when building absolute confirmation URLs in emails. When set, this takes
+    /// precedence over the URL derived from the incoming HTTP request, which is unreliable
+    /// behind TLS-terminating reverse proxies that do not forward X-Forwarded-Proto/Host.
+    /// Set via Beacon:PublicUrl.
+    /// </summary>
+    public string? PublicUrl { get; init; }
 }

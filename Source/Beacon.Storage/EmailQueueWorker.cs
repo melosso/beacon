@@ -12,8 +12,14 @@ public sealed class EmailQueueWorker : BackgroundService
     private readonly ILogger<EmailQueueWorker> _logger;
     private readonly bool _disabled;
 
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Interval       = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan PruneInterval  = TimeSpan.FromHours(1);
+    private static readonly TimeSpan CleanupInterval = TimeSpan.FromDays(1);
+    private static readonly TimeSpan CleanupAge     = TimeSpan.FromDays(90);
     private const int MaxAttempts = 3;
+
+    private DateTime _lastPrune   = DateTime.MinValue;
+    private DateTime _lastCleanup = DateTime.MinValue;
 
     public EmailQueueWorker(
         IServiceScopeFactory scopeFactory,
@@ -53,7 +59,21 @@ public sealed class EmailQueueWorker : BackgroundService
         var sender   = sp.GetRequiredService<IEmailSenderService>();
         var encryptor = sp.GetRequiredService<Encryptor>();
 
-        await queue.PruneExpiredAsync();
+        var now = DateTime.UtcNow;
+
+        if (now - _lastPrune >= PruneInterval)
+        {
+            await queue.PruneExpiredAsync();
+            _lastPrune = now;
+        }
+
+        if (now - _lastCleanup >= CleanupInterval)
+        {
+            var deleted = await queue.DeleteOldAsync(now - CleanupAge);
+            if (deleted > 0)
+                _logger.LogInformation("Email queue cleanup: deleted {Count} old records (older than {Days} days)", deleted, (int)CleanupAge.TotalDays);
+            _lastCleanup = now;
+        }
 
         var entries = await queue.GetPendingBatchAsync(50);
         if (entries.Count == 0) return;

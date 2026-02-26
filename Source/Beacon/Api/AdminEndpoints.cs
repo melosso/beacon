@@ -367,9 +367,12 @@ public static class AdminEndpoints
             && config.EmailNotifications
             && config.EmailProvider != "none";
 
+        var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
+        var emailHash = emailHasher.Hash(request.Email);
+
         if (doubleOptInActive)
         {
-            var bucketOpts = await bucketOptionsRepo.GetAsync(request.Bucket.Trim().ToLowerInvariant());
+            var bucketOpts = await bucketOptionsRepo.GetAsync(normalizedBucket);
             doubleOptInActive = bucketOpts.DoubleOptIn;
         }
 
@@ -414,20 +417,14 @@ public static class AdminEndpoints
                 }
             }
 
-            await consentService.CommitTransactionAsync();
-
-            var emailHash = emailHasher.Hash(request.Email);
-            if (hasChanges)
-            {
-                await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
-                await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
-            }
-
-            // Enqueue confirmation emails for opted-in permissions when double opt-in is active
+            // Enqueue confirmation emails inside the transaction so that consent records
+            // and queue entries are committed atomically. A failure here rolls back both.
             if (doubleOptInActive)
             {
-                var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
-                var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
+                var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
+                    ? instanceOptions.PublicUrl.TrimEnd('/')
+                    : $"{context.Request.Scheme}://{context.Request.Host}";
+
                 var normalizedEmail = request.Email.Trim().ToLowerInvariant();
                 var encryptedEmail = encryptor.Encrypt(normalizedEmail);
                 var optedInPermissions = request.Permissions.Where(p => p.Value).Select(p => p.Key).ToList();
@@ -438,7 +435,6 @@ public static class AdminEndpoints
                     {
                         foreach (var permission in optedInPermissions)
                         {
-                            // Cancel any previous pending emails for this specific bucket/email/permission
                             await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
 
                             var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
@@ -457,8 +453,13 @@ public static class AdminEndpoints
                     }
                     else
                     {
-                        var allPermissions = string.Join(",", optedInPermissions);
-                        // Cancel any previous pending emails for this exact set of permissions (or we could be broader here)
+                        // Sort permissions so the key is stable regardless of input order.
+                        var allPermissions = string.Join(",", optedInPermissions.OrderBy(p => p));
+
+                        // Cancel any previous pending entries — both the combined key and each
+                        // individual permission, to catch entries queued with a different set.
+                        foreach (var permission in optedInPermissions)
+                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
                         await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
 
                         var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
@@ -479,6 +480,14 @@ public static class AdminEndpoints
                         "Confirmation emails queued: bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission}",
                         normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
                 }
+            }
+
+            await consentService.CommitTransactionAsync();
+
+            if (hasChanges)
+            {
+                await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+                await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
             }
 
             var emailId = emailHash[..12];
