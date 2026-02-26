@@ -20,6 +20,13 @@ public sealed class Encryptor
 
     public string Encrypt(string plaintext)
     {
+        if (string.IsNullOrEmpty(plaintext))
+            return string.Empty;
+
+        // Don't double encrypt
+        if (IsEncrypted(plaintext))
+            return plaintext;
+
         var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
         var nonce = new byte[NonceSize];
         RandomNumberGenerator.Fill(nonce);
@@ -35,32 +42,69 @@ public sealed class Encryptor
         Buffer.BlockCopy(ciphertext, 0, result, NonceSize, ciphertext.Length);
         Buffer.BlockCopy(tag, 0, result, NonceSize + ciphertext.Length, TagSize);
 
-        return Convert.ToBase64String(result);
+        return "efx:" + Convert.ToBase64String(result);
+    }
+
+    public bool IsEncrypted(string? value)
+    {
+        return !string.IsNullOrEmpty(value) && value.StartsWith("efx:", StringComparison.Ordinal);
     }
 
     public string Decrypt(string encryptedBase64)
     {
-        var data = Convert.FromBase64String(encryptedBase64);
+        if (string.IsNullOrEmpty(encryptedBase64))
+            return string.Empty;
 
-        if (data.Length < NonceSize + TagSize)
+        string actualBase64;
+        bool hasPrefix = IsEncrypted(encryptedBase64);
+
+        if (hasPrefix)
         {
-            throw new ArgumentException("Invalid encrypted data");
+            actualBase64 = encryptedBase64[4..];
+        }
+        else
+        {
+            actualBase64 = encryptedBase64;
         }
 
-        var nonce = new byte[NonceSize];
-        var ciphertextLength = data.Length - NonceSize - TagSize;
-        var ciphertext = new byte[ciphertextLength];
-        var tag = new byte[TagSize];
+        try
+        {
+            var data = Convert.FromBase64String(actualBase64);
 
-        Buffer.BlockCopy(data, 0, nonce, 0, NonceSize);
-        Buffer.BlockCopy(data, NonceSize, ciphertext, 0, ciphertextLength);
-        Buffer.BlockCopy(data, NonceSize + ciphertextLength, tag, 0, TagSize);
+            if (data.Length < NonceSize + TagSize)
+            {
+                return encryptedBase64; // Too short to be our encrypted data
+            }
 
-        var plaintext = new byte[ciphertextLength];
+            var nonce = new byte[NonceSize];
+            var ciphertextLength = data.Length - NonceSize - TagSize;
+            var ciphertext = new byte[ciphertextLength];
+            var tag = new byte[TagSize];
 
-        using var aes = new AesGcm(_key, TagSize);
-        aes.Decrypt(nonce, ciphertext, tag, plaintext);
+            Buffer.BlockCopy(data, 0, nonce, 0, NonceSize);
+            Buffer.BlockCopy(data, NonceSize, ciphertext, 0, ciphertextLength);
+            Buffer.BlockCopy(data, NonceSize + ciphertextLength, tag, 0, TagSize);
 
-        return Encoding.UTF8.GetString(plaintext);
+            var plaintext = new byte[ciphertextLength];
+
+            using var aes = new AesGcm(_key, TagSize);
+            aes.Decrypt(nonce, ciphertext, tag, plaintext);
+
+            return Encoding.UTF8.GetString(plaintext);
+        }
+        catch (Exception ex)
+        {
+            if (hasPrefix)
+            {
+                // The value was explicitly encrypted by this system (efx: prefix present).
+                // Failing here means the key is wrong or the data is corrupted — surface it loudly.
+                throw new CryptographicException(
+                    "Failed to decrypt an 'efx:'-prefixed value. The encryption key may be incorrect or the stored data is corrupted.",
+                    ex);
+            }
+
+            // No prefix: legacy / non-encrypted value. Return as-is for backwards compatibility.
+            return encryptedBase64;
+        }
     }
 }

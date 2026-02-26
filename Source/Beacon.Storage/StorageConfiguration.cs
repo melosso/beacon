@@ -1,3 +1,4 @@
+using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,6 +32,11 @@ public static class StorageConfiguration
                     throw new ArgumentException($"Unsupported database provider: {provider}");
             }
         });
+
+        services.AddScoped<IEmailQueueRepository, EmailQueueRepository>();
+        services.AddScoped<IBucketOptionsRepository, BucketOptionsRepository>();
+        services.AddScoped<IEmailSenderService, EmailSenderService>();
+        services.AddHostedService<EmailQueueWorker>();
 
         return services;
     }

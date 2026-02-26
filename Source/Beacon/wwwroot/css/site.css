@@ -26,7 +26,7 @@
     }
 }
 
-/* Manual theme overrides — override system preference */
+/* Manual theme overrides, override system preference */
 :root[data-theme="light"] {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
@@ -825,6 +825,40 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
     max-height: 90vh;
     overflow-y: auto;
+}
+
+.modal--lg {
+    width: 560px;
+}
+
+.input-reveal-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-reveal-wrapper input {
+    flex: 1;
+    padding-right: 2.25rem;
+}
+
+.btn-reveal {
+    position: absolute;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    color: hsl(var(--muted-foreground));
+    display: flex;
+    align-items: center;
+    border-radius: calc(var(--radius) - 2px);
+    transition: color 0.15s;
+}
+
+.btn-reveal:hover,
+.btn-reveal.active {
+    color: hsl(var(--foreground));
 }
 
 .modal h3 {

@@ -42,6 +42,52 @@ public class SecurityTests
     }
 
     [Fact]
+    public void Encryptor_Decrypt_ReturnsRawString_OnInvalidBase64()
+    {
+        var encryptor = new Encryptor(TestEncryptionKey);
+        var rawApiKey = "re_123456789"; // Not valid base64 due to underscore
+
+        var result = encryptor.Decrypt(rawApiKey);
+
+        Assert.Equal(rawApiKey, result);
+    }
+
+    [Fact]
+    public void Encryptor_IsEncrypted_Works()
+    {
+        var encryptor = new Encryptor(TestEncryptionKey);
+        var plaintext = "test input";
+        var encrypted = encryptor.Encrypt(plaintext);
+
+        Assert.True(encryptor.IsEncrypted(encrypted));
+        Assert.False(encryptor.IsEncrypted(plaintext));
+    }
+
+    [Fact]
+    public void Encryptor_Decrypt_HandlesLegacyUnprefixedData()
+    {
+        // Setup a legacy-style encrypted string (no "efx:" prefix)
+        var key = Convert.FromBase64String(TestEncryptionKey);
+        var plaintext = "legacy secret";
+        var plaintextBytes = System.Text.Encoding.UTF8.GetBytes(plaintext);
+        var nonce = new byte[12];
+        var ciphertext = new byte[plaintextBytes.Length];
+        var tag = new byte[16];
+        using var aes = new System.Security.Cryptography.AesGcm(key, 16);
+        aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+        var result = new byte[12 + plaintextBytes.Length + 16];
+        Buffer.BlockCopy(nonce, 0, result, 0, 12);
+        Buffer.BlockCopy(ciphertext, 0, result, 12, plaintextBytes.Length);
+        Buffer.BlockCopy(tag, 0, result, 12 + plaintextBytes.Length, 16);
+        var legacyEncrypted = Convert.ToBase64String(result);
+
+        var encryptor = new Encryptor(TestEncryptionKey);
+        var decrypted = encryptor.Decrypt(legacyEncrypted);
+
+        Assert.Equal(plaintext, decrypted);
+    }
+
+    [Fact]
     public void EmailHasher_ProducesConsistentHash()
     {
         var hasher = new EmailHasher(TestPepper);

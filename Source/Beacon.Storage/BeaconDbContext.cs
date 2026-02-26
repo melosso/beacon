@@ -17,6 +17,8 @@ public class BeaconDbContext : DbContext
     public DbSet<ArchivedBucket> ArchivedBuckets => Set<ArchivedBucket>();
     public DbSet<BucketPermission> BucketPermissions => Set<BucketPermission>();
     public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
+    public DbSet<EmailQueueEntry> EmailQueueEntries => Set<EmailQueueEntry>();
+    public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -123,6 +125,26 @@ public class BeaconDbContext : DbContext
             entity.ToTable("SystemConfiguration");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Configuration).IsRequired();
+        });
+
+        modelBuilder.Entity<EmailQueueEntry>(entity =>
+        {
+            entity.ToTable("EmailQueue"); // Match the table name created by DatabaseMigrator
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Bucket).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EmailHash).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Permission).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ConfirmationToken).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.ConfirmationUrl).IsRequired();
+            entity.HasIndex(e => e.ConfirmationToken).IsUnique();
+            entity.HasIndex(e => new { e.Bucket, e.EmailHash, e.Permission, e.Status });
+            entity.HasIndex(e => e.Status);
+        });
+
+        modelBuilder.Entity<BucketOptions>(entity =>
+        {
+            entity.HasKey(e => e.Bucket);
+            entity.Property(e => e.Bucket).HasMaxLength(100).IsRequired();
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>

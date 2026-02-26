@@ -216,6 +216,9 @@ When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based ro
 | `Beacon__AdminHosts` | Hosts for admin panel access | beacon-admin.example.com |
 | `Beacon__AllowedOrigins` | Additional CORS origins | https://app.example.com |
 | `Beacon__TrustForwardedHeaders` | Trust X-Forwarded-* headers from proxy | true |
+| `Beacon__PublicUrl` | Override the base URL used in confirmation email links | https://beacon-api.example.com |
+
+> When using double opt-in emails, Beacon builds confirmation links using the first entry of `Beacon__ApiHosts` (prefixed with `https://`). `Beacon__PublicUrl` is only needed when the public URL cannot be derived from `ApiHosts`. So, for example, in port-based deployments without a configured hostname, or when the external URL differs from the API host (CDN, custom domain).
 
 ### Port-Based Routing
 

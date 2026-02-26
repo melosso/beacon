@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
@@ -134,6 +135,14 @@ public static class AdminEndpoints
         routes.MapPut("/api/admin/settings", SaveSystemConfiguration)
             .RequireAuthorization()
             .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/buckets/{bucket}/options", GetBucketOptions)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/buckets/{bucket}/options", SaveBucketOptions)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
@@ -169,7 +178,7 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = permissionValidation.Error });
         }
 
-        if (!Enum.TryParse<ConsentStatus>(request.Status, true, out var status))
+        if (!Enum.TryParse<ConsentStatus>(request.Status, true, out var status) || status == ConsentStatus.PendingConfirmation)
         {
             return Results.BadRequest(new { error = "Invalid status. Use 'OptedIn' or 'OptedOut'" });
         }
@@ -260,7 +269,7 @@ public static class AdminEndpoints
 
             foreach (var (permission, status) in request.Permissions)
             {
-                if (!Enum.TryParse<ConsentStatus>(status, true, out var consentStatus))
+                if (!Enum.TryParse<ConsentStatus>(status, true, out var consentStatus) || consentStatus == ConsentStatus.PendingConfirmation)
                 {
                     return Results.BadRequest(new { error = $"Invalid status '{status}' for permission '{permission}'" });
                 }
@@ -301,6 +310,7 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> GenerateToken(
+        HttpContext context,
         [FromBody] GenerateTokenRequest request,
         [FromServices] TokenGenerator generator,
         [FromServices] IConsentService consentService,
@@ -310,6 +320,10 @@ public static class AdminEndpoints
         [FromServices] EmailHasher emailHasher,
         [FromServices] IAdminNotificationService notifications,
         [FromServices] ISystemConfigurationService configService,
+        [FromServices] IEmailQueueRepository emailQueueRepo,
+        [FromServices] IBucketOptionsRepository bucketOptionsRepo,
+        [FromServices] Encryptor encryptor,
+        [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -347,6 +361,21 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", SupportedLanguages)}" });
         }
 
+        var config = configService.Get();
+        var doubleOptInActive = !instanceOptions.DisableEmailNotifications
+            && config.EnableDoubleOptIn
+            && config.EmailNotifications
+            && config.EmailProvider != "none";
+
+        var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
+        var emailHash = emailHasher.Hash(request.Email);
+
+        if (doubleOptInActive)
+        {
+            var bucketOpts = await bucketOptionsRepo.GetAsync(normalizedBucket);
+            doubleOptInActive = bucketOpts.DoubleOptIn;
+        }
+
         try
         {
             using var transaction = await consentService.BeginTransactionAsync();
@@ -356,7 +385,7 @@ public static class AdminEndpoints
                 AllowReplay = request.AllowReplay,
                 ExpiryDays = request.ExpiryDays,
                 Language = string.IsNullOrEmpty(request.Language)
-                    ? configService.Get().DefaultLanguage
+                    ? config.DefaultLanguage
                     : request.Language
             };
 
@@ -367,11 +396,12 @@ public static class AdminEndpoints
                 ? JsonSerializer.Serialize(request.CustomFields)
                 : null;
 
-            // Create/update consent records with specified states
+            // Create/update consent records with specified states.
+            // When double opt-in is active, opted-in permissions are stored as PendingConfirmation until the user clicks the confirmation link.
             var hasChanges = false;
             foreach (var (permission, optedIn) in request.Permissions)
             {
-                var status = optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut;
+                var status = (optedIn && doubleOptInActive) ? ConsentStatus.PendingConfirmation : (optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut);
 
                 if (request.SkipPermissionUpdate)
                 {
@@ -387,9 +417,73 @@ public static class AdminEndpoints
                 }
             }
 
+            // Enqueue confirmation emails inside the transaction so that consent records
+            // and queue entries are committed atomically. A failure here rolls back both.
+            if (doubleOptInActive)
+            {
+                var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
+                    ? instanceOptions.PublicUrl.TrimEnd('/')
+                    : $"{context.Request.Scheme}://{context.Request.Host}";
+
+                var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+                var encryptedEmail = encryptor.Encrypt(normalizedEmail);
+                var optedInPermissions = request.Permissions.Where(p => p.Value).Select(p => p.Key).ToList();
+
+                if (optedInPermissions.Count > 0)
+                {
+                    if (config.PerPermissionEmail)
+                    {
+                        foreach (var permission in optedInPermissions)
+                        {
+                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
+
+                            var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                            await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
+                            {
+                                Bucket = normalizedBucket,
+                                EncryptedEmail = encryptedEmail,
+                                EmailHash = emailHash,
+                                Permission = permission,
+                                Language = tokenOptions.Language,
+                                ConfirmationToken = confirmationToken,
+                                ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                                ExpiresAt = DateTime.UtcNow.AddDays(7)
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // Sort permissions so the key is stable regardless of input order.
+                        var allPermissions = string.Join(",", optedInPermissions.OrderBy(p => p));
+
+                        // Cancel any previous pending entries — both the combined key and each
+                        // individual permission, to catch entries queued with a different set.
+                        foreach (var permission in optedInPermissions)
+                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
+                        await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
+
+                        var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                        await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
+                        {
+                            Bucket = normalizedBucket,
+                            EncryptedEmail = encryptedEmail,
+                            EmailHash = emailHash,
+                            Permission = allPermissions,
+                            Language = tokenOptions.Language,
+                            ConfirmationToken = confirmationToken,
+                            ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                            ExpiresAt = DateTime.UtcNow.AddDays(7)
+                        });
+                    }
+
+                    logger.LogInformation(
+                        "Confirmation emails queued: bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission}",
+                        normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
+                }
+            }
+
             await consentService.CommitTransactionAsync();
 
-            var emailHash = emailHasher.Hash(request.Email);
             if (hasChanges)
             {
                 await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
@@ -398,13 +492,14 @@ public static class AdminEndpoints
 
             var emailId = emailHash[..12];
             logger.LogInformation(
-                "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
+                "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, doubleOptIn={DoubleOptIn}, timestamp={Timestamp}",
                 request.Bucket,
                 emailId,
                 string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
                 request.AllowReplay,
                 request.ExpiryDays,
                 request.SkipPermissionUpdate,
+                doubleOptInActive,
                 DateTime.UtcNow);
 
             return Results.Ok(new GenerateTokenResponse { Token = token });
@@ -1158,18 +1253,92 @@ public static class AdminEndpoints
     }
 
     private static IResult GetSystemConfiguration(
-        [FromServices] ISystemConfigurationService configService)
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor)
     {
-        return Results.Ok(configService.Get());
+        var config = configService.Get();
+        
+        // Mask sensitive fields with descriptive hints
+        config.EmailResendApiKey = MaskSecret(encryptor.Decrypt(config.EmailResendApiKey));
+        config.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(config.EmailSmtpPassword));
+        
+        return Results.Ok(config);
     }
 
     private static async Task<IResult> SaveSystemConfiguration(
         [FromBody] SystemConfig config,
-        [FromServices] ISystemConfigurationService configService)
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor)
     {
+        var existing = configService.Get();
+
+        // Handle sensitive fields: only update if not submitted as a mask
+        // We compare the submitted value with what the display mask for the EXISTING secret would be
+        var existingResendMask = MaskSecret(encryptor.Decrypt(existing.EmailResendApiKey));
+        if (config.EmailResendApiKey == existingResendMask)
+        {
+            config.EmailResendApiKey = existing.EmailResendApiKey;
+        }
+        else if (!string.IsNullOrEmpty(config.EmailResendApiKey))
+        {
+            config.EmailResendApiKey = encryptor.Encrypt(config.EmailResendApiKey);
+        }
+
+        var existingSmtpMask = MaskSecret(encryptor.Decrypt(existing.EmailSmtpPassword));
+        if (config.EmailSmtpPassword == existingSmtpMask)
+        {
+            config.EmailSmtpPassword = existing.EmailSmtpPassword;
+        }
+        else if (!string.IsNullOrEmpty(config.EmailSmtpPassword))
+        {
+            config.EmailSmtpPassword = encryptor.Encrypt(config.EmailSmtpPassword);
+        }
+
         await configService.SaveAsync(config);
-        return Results.Ok(configService.Get());
+        
+        var saved = configService.Get();
+        saved.EmailResendApiKey = MaskSecret(encryptor.Decrypt(saved.EmailResendApiKey));
+        saved.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(saved.EmailSmtpPassword));
+        
+        return Results.Ok(saved);
     }
+
+    private static string MaskSecret(string? decryptedValue)
+    {
+        if (string.IsNullOrEmpty(decryptedValue)) return string.Empty;
+        
+        // Resend keys: re_12345678... (show prefix + 8 chars)
+        if (decryptedValue.StartsWith("re_", StringComparison.OrdinalIgnoreCase) && decryptedValue.Length > 12)
+        {
+            return decryptedValue[..11] + "...";
+        }
+
+        // Generic secrets: first 4 chars + stars + last 4 chars if long enough
+        if (decryptedValue.Length > 12)
+        {
+            return decryptedValue[..4] + "********" + decryptedValue[^4..];
+        }
+
+        return "********";
+    }
+
+    private static async Task<IResult> GetBucketOptions(
+        string bucket,
+        [FromServices] IBucketOptionsRepository repo)
+    {
+        return Results.Ok(await repo.GetAsync(bucket));
+    }
+
+    private static async Task<IResult> SaveBucketOptions(
+        string bucket,
+        [FromBody] BucketOptionsRequest request,
+        [FromServices] IBucketOptionsRepository repo)
+    {
+        await repo.SaveAsync(new BucketOptions { Bucket = bucket, DoubleOptIn = request.DoubleOptIn, UpdatedAt = DateTime.UtcNow });
+        return Results.Ok();
+    }
+
+    private sealed record BucketOptionsRequest(bool DoubleOptIn);
 
     private static bool IsPrivateOrReserved(IPAddress address)
     {

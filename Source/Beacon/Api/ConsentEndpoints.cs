@@ -36,6 +36,10 @@ public static class ConsentEndpoints
             .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
+
+        routes.MapGet("/confirm/{token}", ConfirmSubscription)
+            .WithName("ConfirmSubscription")
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> ShowPreferencePage(
@@ -206,11 +210,21 @@ public static class ConsentEndpoints
                 }
                 else
                 {
-                    await consentService.OverrideAsync(
+                    // Don't let the preference page self-confirm a PendingConfirmation record;
+                    // the user must click the confirmation link sent via email.
+                    var currentStatus = await consentService.CheckAsync(
                         result.Payload.Bucket,
                         result.Payload.Email,
-                        permission,
-                        ConsentStatus.OptedIn);
+                        permission);
+
+                    if (currentStatus != ConsentStatus.PendingConfirmation)
+                    {
+                        await consentService.OverrideAsync(
+                            result.Payload.Bucket,
+                            result.Payload.Email,
+                            permission,
+                            ConsentStatus.OptedIn);
+                    }
                     keptIn.Add(permission);
                 }
             }
@@ -275,6 +289,38 @@ public static class ConsentEndpoints
         {
             // Silently ignore webhook failures to prevent disrupt
         }
+    }
+
+    private static async Task<IResult> ConfirmSubscription(
+        string token,
+        [FromServices] IEmailQueueRepository emailQueue,
+        [FromServices] IConsentService consentService,
+        [FromServices] Encryptor encryptor)
+    {
+        var entry = await emailQueue.GetByConfirmationTokenAsync(token);
+        if (entry is null)
+            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+
+        var lang = entry.Language ?? "en";
+
+        if (entry.Status == EmailQueueStatus.Confirmed)
+            return Results.Content(GetStatusPage("already_processed", lang), "text/html");
+
+        if (entry.ExpiresAt < DateTime.UtcNow || entry.Status == EmailQueueStatus.Expired)
+            return Results.Content(GetStatusPage("expired", lang), "text/html");
+
+        var email = encryptor.Decrypt(entry.EncryptedEmail);
+
+        // Split permissions in case they are grouped (comma-separated)
+        var permissions = entry.Permission.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var permission in permissions)
+        {
+            await consentService.OverrideAsync(entry.Bucket, email, permission, ConsentStatus.OptedIn);
+        }
+
+        await emailQueue.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
+
+        return Results.Content(GetStatusPage("confirmed", lang), "text/html");
     }
 
     private static async Task<IResult> CheckConsent(
@@ -448,7 +494,8 @@ public static class ConsentEndpoints
         string ProcessedTitle, string ProcessedMsg,
         string UnsubTitle, string UnsubMsgPrefix,
         string UpdatedTitle, string UpdatedOptOutPrefix, string UpdatedOptInPrefix,
-        string SuccessTitle, string SuccessMsg
+        string SuccessTitle, string SuccessMsg,
+        string ConfirmedTitle, string ConfirmedMsg
     );
 
     private static readonly Dictionary<string, StatusStrings> StatusTranslations = new()
@@ -459,7 +506,8 @@ public static class ConsentEndpoints
             "Already processed", "Your preferences have already been updated using this link.",
             "Unsubscribed", "You have been unsubscribed from:",
             "Preferences updated", "Unsubscribed from:", "Still subscribed to:",
-            "Success", "Your preferences have been updated."
+            "Success", "Your preferences have been updated.",
+            "Subscription confirmed", "Your subscription has been confirmed. You're now opted in."
         ),
         ["de"] = new(
             "Link abgelaufen", "Dieser Link ist abgelaufen. Bitte verwenden Sie den Link in einer aktuelleren E-Mail.",
@@ -467,7 +515,8 @@ public static class ConsentEndpoints
             "Bereits bearbeitet", "Ihre Einstellungen wurden bereits über diesen Link aktualisiert.",
             "Abgemeldet", "Sie wurden abgemeldet von:",
             "Einstellungen aktualisiert", "Abgemeldet von:", "Noch angemeldet für:",
-            "Erfolg", "Ihre Einstellungen wurden aktualisiert."
+            "Erfolg", "Ihre Einstellungen wurden aktualisiert.",
+            "Anmeldung bestätigt", "Ihre Anmeldung wurde bestätigt. Sie sind jetzt eingetragen."
         ),
         ["fr"] = new(
             "Lien expiré", "Ce lien a expiré. Veuillez utiliser le lien contenu dans un e-mail plus récent.",
@@ -475,7 +524,8 @@ public static class ConsentEndpoints
             "Déjà traité", "Vos préférences ont déjà été mises à jour via ce lien.",
             "Désabonné", "Vous avez été désabonné de :",
             "Préférences mises à jour", "Désabonné de :", "Toujours abonné à :",
-            "Succès", "Vos préférences ont été mises à jour."
+            "Succès", "Vos préférences ont été mises à jour.",
+            "Abonnement confirmé", "Votre abonnement a été confirmé. Vous êtes maintenant inscrit."
         ),
         ["nl"] = new(
             "Link verlopen", "Deze link is verlopen. Gebruik de link in een recentere e-mail.",
@@ -483,7 +533,8 @@ public static class ConsentEndpoints
             "Reeds verwerkt", "Je voorkeuren zijn al bijgewerkt via deze link.",
             "Afgemeld", "Je bent afgemeld voor:",
             "Voorkeuren bijgewerkt", "Afgemeld voor:", "Nog aangemeld voor:",
-            "Succes", "Je voorkeuren zijn bijgewerkt."
+            "Succes", "Je voorkeuren zijn bijgewerkt.",
+            "Inschrijving bevestigd", "Je inschrijving is bevestigd. Je bent nu aangemeld."
         ),
         ["pl"] = new(
             "Link wygasł", "Ten link wygasł. Proszę użyć linku z nowszej wiadomości e-mail.",
@@ -491,7 +542,8 @@ public static class ConsentEndpoints
             "Już przetworzono", "Twoje preferencje zostały już zaktualizowane przy użyciu tego linku.",
             "Wypisano", "Wypisano z:",
             "Zaktualizowano preferencje", "Wypisano z:", "Nadal subskrybowany do:",
-            "Sukces", "Twoje preferencje zostały zaktualizowane."
+            "Sukces", "Twoje preferencje zostały zaktualizowane.",
+            "Subskrypcja potwierdzona", "Twoja subskrypcja została potwierdzona. Jesteś teraz zapisany."
         ),
         ["es"] = new(
             "Enlace caducado", "Este enlace ha caducado. Por favor, utilice el enlace de un correo más reciente.",
@@ -499,7 +551,8 @@ public static class ConsentEndpoints
             "Ya procesado", "Sus preferencias ya han sido actualizadas usando este enlace.",
             "Dado de baja", "Se ha dado de baja de:",
             "Preferencias actualizadas", "Dado de baja de:", "Suscrito todavía a:",
-            "Éxito", "Sus preferencias han sido actualizadas."
+            "Éxito", "Sus preferencias han sido actualizadas.",
+            "Suscripción confirmada", "Su suscripción ha sido confirmada. Ya está registrado."
         )
     };
 
@@ -661,6 +714,7 @@ public static class ConsentEndpoints
             "already_processed" => ("ℹ", "info", t.ProcessedTitle, t.ProcessedMsg),
             "unsubscribed" => ("✓", "success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
             "updated" => ("✓", "success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
+            "confirmed" => ("✓", "success", t.ConfirmedTitle, t.ConfirmedMsg),
             _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
         };
 
