@@ -894,6 +894,11 @@
               <p>Enable or disable optional application modules.</p>
             </div>
             <hr class="settings-sep">
+            <div id="modules-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
+              <span style="font-size:0.85rem;color:hsl(var(--muted-foreground))">
+                <strong style="color:hsl(var(--foreground))">Some modules are disabled</strong>. Contact your administrator to enable this feature.
+              </span>
+            </div>
             <div class="settings-items">
               <label class="settings-item-card" for="setting-enableSubmissionForms">
                 <div class="settings-item-info">
@@ -902,7 +907,7 @@
                 </div>
                 <span class="tooltip-wrapper">
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)" disabled>
+                    <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)" disabled checked>
                     <span class="toggle-track"></span>
                   </div>
                   <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
@@ -5083,9 +5088,13 @@ ${bodyStr}
       const emailDisabled = typeof DISABLE_EMAIL_NOTIFICATIONS !== 'undefined' && DISABLE_EMAIL_NOTIFICATIONS;
       if (!emailDisabled) return;
 
-      // Show notice banner in Integration section
+      // Show notice banner in Integrations section
       const notice = document.getElementById('email-disabled-notice');
       if (notice) notice.style.display = 'block';
+
+      // Show notice banner in Modules section
+      const modulesNotice = document.getElementById('modules-disabled-notice');
+      if (modulesNotice) modulesNotice.style.display = 'block';
 
       // Disable email notifications toggle + gear button
       const emailToggle = document.getElementById('setting-emailNotifications');
