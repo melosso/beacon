@@ -900,19 +900,27 @@
               </span>
             </div>
             <div class="settings-items">
-              <label class="settings-item-card" for="setting-enableSubmissionForms">
-                <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Enable submission forms</span>
-                  <p class="settings-item-desc">When enabled, submission forms can accept incoming subscription requests from external websites.</p>
-                </div>
-                <span class="tooltip-wrapper">
-                  <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)" disabled checked>
-                    <span class="toggle-track"></span>
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-enableSubmissionForms">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Enable submission forms</span>
+                    <p class="settings-item-desc">When enabled, submission forms can accept incoming subscription requests from external websites.</p>
                   </div>
-                  <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
-                </span>
-              </label>
+                  <span class="tooltip-wrapper">
+                    <div class="settings-item-control">
+                      <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)" disabled checked>
+                      <span class="toggle-track"></span>
+                    </div>
+                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
+                  </span>
+                </label>
+                <button class="btn-settings-gear" onclick="notify('warning', 'Coming soon', 'Submission form configuration settings will be available in a future release.')" aria-label="Submission forms settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+              </div>
               <div class="settings-item-card settings-item-card--split" id="doi-settings-items">
                 <label class="settings-item-card-label" for="setting-enableDoubleOptIn">
                   <div class="settings-item-info">
@@ -1212,7 +1220,7 @@
         <label class="settings-item-card" for="emailQueueEnabled">
           <div class="settings-item-info">
             <span class="settings-item-title select-none" style="font-size:0.875rem">Built-in email queue</span>
-            <p class="settings-item-desc">Queue outgoing emails within Beacon and retry on delivery failure. Recommended when not using a managed delivery platform.</p>
+            <p class="settings-item-desc">Queue outgoing emails within Beacon and retry on delivery failure. Recommended when not using a managed e-mail platform.</p>
           </div>
           <div class="settings-item-control">
             <input type="checkbox" id="emailQueueEnabled">
@@ -1619,7 +1627,7 @@
 
   <!-- Double Opt-In Settings Modal -->
   <div class="modal-backdrop" id="doubleOptInSettingsModal">
-    <div class="modal">
+    <div class="modal modal--lg">
       <h3>Double opt-in settings</h3>
       <p>Configure how confirmation emails are sent when double opt-in is active.</p>
       
