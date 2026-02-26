@@ -5127,6 +5127,7 @@ ${bodyStr}
         document.getElementById('setting-objectStorage').checked = appSettings.objectStorage;
         appSettings.enableDoubleOptIn  = res.data.enableDoubleOptIn  ?? false;
         document.getElementById('setting-enableDoubleOptIn').checked = appSettings.enableDoubleOptIn;
+        appSettings.perPermissionEmail = res.data.perPermissionEmail ?? false;
       }
     }
 
@@ -5182,7 +5183,8 @@ ${bodyStr}
           emailSmtpUseTls:    appSettings.emailSmtpUseTls,
           emailQueueEnabled:  appSettings.emailQueueEnabled,
           objectStorage:      appSettings.objectStorage,
-          enableDoubleOptIn:  appSettings.enableDoubleOptIn
+          enableDoubleOptIn:  appSettings.enableDoubleOptIn,
+          perPermissionEmail: appSettings.perPermissionEmail
         }
       });
       if (res.ok) {
@@ -5287,6 +5289,16 @@ ${bodyStr}
       Object.assign(appSettings, draft);
       await saveCurrentSettings();
       closeEmailSettingsModal();
+    }
+
+    function openDoubleOptInSettingsModal() {
+      const perPerm = appSettings.perPermissionEmail ?? false;
+      document.getElementById('setting-perPermissionEmail').value = String(perPerm);
+      document.getElementById('doubleOptInSettingsModal').style.display = 'flex';
+    }
+
+    function closeDoubleOptInSettingsModal() {
+      document.getElementById('doubleOptInSettingsModal').style.display = 'none';
     }
 
     function toggleReveal(inputId, btn) {

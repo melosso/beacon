@@ -136,12 +136,20 @@ public class ConfirmationEmailTemplateTests
     }
 
     [Fact]
+    public void Render_FormatsMultiplePermissionsWithAmpersand()
+    {
+        var html = ConfirmationEmailTemplate.Render("bucket", "newsletter,product-updates,marketing", "https://example.com/confirm/x", "en");
+
+        Assert.Contains("Newsletter, Product Updates &amp; Marketing", html);
+    }
+
+    [Fact]
     public void Render_ContainsMaskedEmailInFooter()
     {
         var email = "john.doe@example.com";
         var html = ConfirmationEmailTemplate.Render("bucket", "newsletter", "https://example.com/confirm/tok", "en", email);
 
-        Assert.Contains("Preferences for:", html);
+        Assert.Contains("Sent to:", html);
         Assert.Contains("j***e@example.com", html);
     }
 }
