@@ -47,6 +47,10 @@ public sealed class SystemConfig
     // Integration — Object storage
     [JsonPropertyName("objectStorage")]
     public bool ObjectStorage { get; set; } = false;
+
+    // Modules
+    [JsonPropertyName("enableDoubleOptIn")]
+    public bool EnableDoubleOptIn { get; set; } = false;
 }
 
 public interface ISystemConfigurationService

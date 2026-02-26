@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
@@ -134,6 +135,14 @@ public static class AdminEndpoints
         routes.MapPut("/api/admin/settings", SaveSystemConfiguration)
             .RequireAuthorization()
             .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/buckets/{bucket}/options", GetBucketOptions)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/buckets/{bucket}/options", SaveBucketOptions)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
@@ -169,7 +178,7 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = permissionValidation.Error });
         }
 
-        if (!Enum.TryParse<ConsentStatus>(request.Status, true, out var status))
+        if (!Enum.TryParse<ConsentStatus>(request.Status, true, out var status) || status == ConsentStatus.PendingConfirmation)
         {
             return Results.BadRequest(new { error = "Invalid status. Use 'OptedIn' or 'OptedOut'" });
         }
@@ -301,6 +310,7 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> GenerateToken(
+        HttpContext context,
         [FromBody] GenerateTokenRequest request,
         [FromServices] TokenGenerator generator,
         [FromServices] IConsentService consentService,
@@ -310,6 +320,10 @@ public static class AdminEndpoints
         [FromServices] EmailHasher emailHasher,
         [FromServices] IAdminNotificationService notifications,
         [FromServices] ISystemConfigurationService configService,
+        [FromServices] IEmailQueueRepository emailQueueRepo,
+        [FromServices] IBucketOptionsRepository bucketOptionsRepo,
+        [FromServices] Encryptor encryptor,
+        [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -347,6 +361,18 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", SupportedLanguages)}" });
         }
 
+        var config = configService.Get();
+        var doubleOptInActive = !instanceOptions.DisableEmailNotifications
+            && config.EnableDoubleOptIn
+            && config.EmailNotifications
+            && config.EmailProvider != "none";
+
+        if (doubleOptInActive)
+        {
+            var bucketOpts = await bucketOptionsRepo.GetAsync(request.Bucket.Trim().ToLowerInvariant());
+            doubleOptInActive = bucketOpts.DoubleOptIn;
+        }
+
         try
         {
             using var transaction = await consentService.BeginTransactionAsync();
@@ -356,7 +382,7 @@ public static class AdminEndpoints
                 AllowReplay = request.AllowReplay,
                 ExpiryDays = request.ExpiryDays,
                 Language = string.IsNullOrEmpty(request.Language)
-                    ? configService.Get().DefaultLanguage
+                    ? config.DefaultLanguage
                     : request.Language
             };
 
@@ -367,11 +393,12 @@ public static class AdminEndpoints
                 ? JsonSerializer.Serialize(request.CustomFields)
                 : null;
 
-            // Create/update consent records with specified states
+            // Create/update consent records with specified states.
+            // When double opt-in is active, opted-in permissions are stored as PendingConfirmation until the user clicks the confirmation link.
             var hasChanges = false;
             foreach (var (permission, optedIn) in request.Permissions)
             {
-                var status = optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut;
+                var status = (optedIn && doubleOptInActive) ? ConsentStatus.PendingConfirmation : (optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut);
 
                 if (request.SkipPermissionUpdate)
                 {
@@ -396,15 +423,44 @@ public static class AdminEndpoints
                 await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
             }
 
+            // Enqueue confirmation emails for opted-in permissions when double opt-in is active
+            if (doubleOptInActive)
+            {
+                var baseUrl = $"{context.Request.Scheme}://{context.Request.Host}";
+                var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
+                var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+                var encryptedEmail = encryptor.Encrypt(normalizedEmail);
+
+                foreach (var (permission, optedIn) in request.Permissions.Where(p => p.Value))
+                {
+                    if (await emailQueueRepo.HasPendingAsync(normalizedBucket, emailHash, permission))
+                        continue;
+
+                    var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                    await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
+                    {
+                        Bucket = normalizedBucket,
+                        EncryptedEmail = encryptedEmail,
+                        EmailHash = emailHash,
+                        Permission = permission,
+                        Language = tokenOptions.Language,
+                        ConfirmationToken = confirmationToken,
+                        ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                        ExpiresAt = DateTime.UtcNow.AddDays(7)
+                    });
+                }
+            }
+
             var emailId = emailHash[..12];
             logger.LogInformation(
-                "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, timestamp={Timestamp}",
+                "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, doubleOptIn={DoubleOptIn}, timestamp={Timestamp}",
                 request.Bucket,
                 emailId,
                 string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
                 request.AllowReplay,
                 request.ExpiryDays,
                 request.SkipPermissionUpdate,
+                doubleOptInActive,
                 DateTime.UtcNow);
 
             return Results.Ok(new GenerateTokenResponse { Token = token });
@@ -1170,6 +1226,24 @@ public static class AdminEndpoints
         await configService.SaveAsync(config);
         return Results.Ok(configService.Get());
     }
+
+    private static async Task<IResult> GetBucketOptions(
+        string bucket,
+        [FromServices] IBucketOptionsRepository repo)
+    {
+        return Results.Ok(await repo.GetAsync(bucket));
+    }
+
+    private static async Task<IResult> SaveBucketOptions(
+        string bucket,
+        [FromBody] BucketOptionsRequest request,
+        [FromServices] IBucketOptionsRepository repo)
+    {
+        await repo.SaveAsync(new BucketOptions { Bucket = bucket, DoubleOptIn = request.DoubleOptIn, UpdatedAt = DateTime.UtcNow });
+        return Results.Ok();
+    }
+
+    private sealed record BucketOptionsRequest(bool DoubleOptIn);
 
     private static bool IsPrivateOrReserved(IPAddress address)
     {

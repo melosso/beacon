@@ -15,6 +15,8 @@ public static class DatabaseMigrator
         MigrateArchivedBuckets(db);
         MigrateBucketPermissions(db);
         MigrateSystemConfiguration(db);
+        MigrateEmailQueue(db);
+        MigrateBucketOptions(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -137,6 +139,49 @@ public static class DatabaseMigrator
                     Id INTEGER NOT NULL PRIMARY KEY,
                     Configuration TEXT NOT NULL DEFAULT '{{}}',
                     UpdatedAt TEXT NOT NULL
+                )
+                """);
+        }
+    }
+
+    private static void MigrateEmailQueue(BeaconDbContext db)
+    {
+        if (!TableExists(db, "EmailQueue"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE EmailQueue (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Bucket TEXT NOT NULL,
+                    EncryptedEmail TEXT NOT NULL,
+                    EmailHash TEXT NOT NULL,
+                    Permission TEXT NOT NULL,
+                    Language TEXT NOT NULL DEFAULT 'en',
+                    ConfirmationToken TEXT NOT NULL UNIQUE,
+                    ConfirmationUrl TEXT NOT NULL,
+                    Status INTEGER NOT NULL DEFAULT 0,
+                    CreatedAt TEXT NOT NULL,
+                    SentAt TEXT NULL,
+                    ConfirmedAt TEXT NULL,
+                    ExpiresAt TEXT NOT NULL,
+                    AttemptCount INTEGER NOT NULL DEFAULT 0,
+                    LastError TEXT NULL,
+                    NextAttemptAt TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_EmailQueue_Status ON EmailQueue (Status)");
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_EmailQueue_Lookup ON EmailQueue (Bucket, EmailHash, Permission, Status)");
+        }
+    }
+
+    private static void MigrateBucketOptions(BeaconDbContext db)
+    {
+        if (!TableExists(db, "BucketOptions"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE BucketOptions (
+                    Bucket TEXT NOT NULL PRIMARY KEY,
+                    DoubleOptIn INTEGER NOT NULL DEFAULT 1,
+                    UpdatedAt TEXT NULL
                 )
                 """);
         }

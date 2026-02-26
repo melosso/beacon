@@ -61,10 +61,18 @@ try
     var adminApiKey = decryptedConfig.GetValueOrDefault("AdminApiKey") ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
     var tokenExpiryDays = int.TryParse(config["TokenExpiryDays"], out var days) ? days : 30;
     var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
+    var disableEmailNotifications = config.GetValue<bool>("DisableEmailNotifications", false);
 
     // Host routing configuration
     var hostOptions = HostRoutingOptionsFactory.Create(builder.Configuration);
     builder.Services.AddSingleton(hostOptions);
+
+    // Instance-level options (sourced from appsettings, not the DB)
+    var instanceOptions = new Beacon.Core.Services.InstanceOptions
+    {
+        DisableEmailNotifications = disableEmailNotifications
+    };
+    builder.Services.AddSingleton(instanceOptions);
 
     // Configure Kestrel to listen on both API and Admin ports
     builder.WebHost.ConfigureKestrel(options =>
@@ -393,7 +401,7 @@ try
         }
 
         var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
-        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};";
+        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};\nconst DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};";
         
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         context.Response.Headers.Append("Expires", "0");

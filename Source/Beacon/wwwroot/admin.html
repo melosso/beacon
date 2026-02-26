@@ -825,19 +825,19 @@
               </svg>
               Appearance
             </a>
-            <a href="#" class="settings-subnav-item" data-section="system" onclick="showSettingsSection('system');return false;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
-                <line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>
-              </svg>
-              System
-            </a>
             <a href="#" class="settings-subnav-item" data-section="integration" onclick="showSettingsSection('integration');return false;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
               </svg>
               Integration
+            </a>
+            <a href="#" class="settings-subnav-item" data-section="system" onclick="showSettingsSection('system');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+                <line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>
+              </svg>
+              System
             </a>
           </nav>
         </aside>
@@ -907,15 +907,12 @@
               <label class="settings-item-card" for="setting-enableDoubleOptIn">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Enable (double) opt-in confirmation</span>
-                  <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active.</p>
+                  <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active. Requires email notifications to be configured.</p>
                 </div>
-                <span class="tooltip-wrapper">
-                  <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableDoubleOptIn" onchange="saveSetting('enableDoubleOptIn', this.checked)" disabled>
-                    <span class="toggle-track"></span>
-                  </div>
-                  <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
-                </span>
+                <div class="settings-item-control">
+                  <input type="checkbox" id="setting-enableDoubleOptIn" onchange="saveSetting('enableDoubleOptIn', this.checked)">
+                  <span class="toggle-track"></span>
+                </div>
               </label>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
@@ -994,6 +991,67 @@
             </div>
           </div>
 
+          <!-- Integration section -->
+          <div id="settings-section-integration" class="settings-section">
+            <div class="settings-content-hd">
+              <h3>Integration</h3>
+              <p>Connect Beacon to external services for notifications and storage.</p>
+            </div>
+            <hr class="settings-sep">
+            <div id="email-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
+              <span style="font-size:0.85rem;color:hsl(var(--muted-foreground))">
+                <strong style="color:hsl(var(--foreground))">Email notifications are disabled</strong> — set by the instance administrator via <code style="font-size:0.8rem">Beacon:DisableEmailNotifications</code> in appsettings. Contact your administrator to enable this feature.
+              </span>
+            </div>
+            <div class="settings-items" id="email-settings-items">
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-emailNotifications">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Email notifications</span>
+                    <p class="settings-item-desc">Send outgoing emails via a configured provider, e.g. for opt-in confirmations.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-emailNotifications" onchange="onEmailNotificationsToggle(this)">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" onclick="openEmailSettingsModal()" aria-label="Email notification settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-objectStorage">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Object storage</span>
+                    <p class="settings-item-desc">Store attachments and exports in an external object storage provider such as S3 or R2.</p>
+                  </div>
+                  <span class="tooltip-wrapper">
+                    <div class="settings-item-control">
+                      <input type="checkbox" id="setting-objectStorage" onchange="saveSetting('objectStorage', this.checked)" disabled>
+                      <span class="toggle-track"></span>
+                    </div>
+                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
+                  </span>
+                </label>
+                <span class="tooltip-wrapper">
+                  <button class="btn-settings-gear" onclick="openObjectStorageModal()" aria-label="Object storage settings">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                  </button>
+                  <span class="tooltip tooltip-above tooltip-right">Object storage settings (coming soon)</span>
+                </span>
+              </div>
+              <div class="settings-save-row">
+                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
           <!-- System section -->
           <div id="settings-section-system" class="settings-section">
             <div class="settings-content-hd">
@@ -1038,62 +1096,6 @@
                     </svg>
                   </button>
                   <span class="tooltip tooltip-above tooltip-right">Cache settings (coming soon)</span>
-                </span>
-              </div>
-              <div class="settings-save-row">
-                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Integration section -->
-          <div id="settings-section-integration" class="settings-section">
-            <div class="settings-content-hd">
-              <h3>Integration</h3>
-              <p>Connect Beacon to external services for notifications and storage.</p>
-            </div>
-            <hr class="settings-sep">
-            <div class="settings-items">
-              <div class="settings-item-card settings-item-card--split">
-                <label class="settings-item-card-label" for="setting-emailNotifications">
-                  <div class="settings-item-info">
-                    <span class="settings-item-title select-none">Email notifications</span>
-                    <p class="settings-item-desc">Send outgoing emails via a configured provider, e.g. for opt-in confirmations.</p>
-                  </div>
-                  <div class="settings-item-control">
-                    <input type="checkbox" id="setting-emailNotifications" onchange="onEmailNotificationsToggle(this)">
-                    <span class="toggle-track"></span>
-                  </div>
-                </label>
-                <button class="btn-settings-gear" onclick="openEmailSettingsModal()" aria-label="Email notification settings">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                  </svg>
-                </button>
-              </div>
-              <div class="settings-item-card settings-item-card--split">
-                <label class="settings-item-card-label" for="setting-objectStorage">
-                  <div class="settings-item-info">
-                    <span class="settings-item-title select-none">Object storage</span>
-                    <p class="settings-item-desc">Store attachments and exports in an external object storage provider such as S3 or R2.</p>
-                  </div>
-                  <span class="tooltip-wrapper">
-                    <div class="settings-item-control">
-                      <input type="checkbox" id="setting-objectStorage" onchange="saveSetting('objectStorage', this.checked)" disabled>
-                      <span class="toggle-track"></span>
-                    </div>
-                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
-                  </span>
-                </label>
-                <span class="tooltip-wrapper">
-                  <button class="btn-settings-gear" onclick="openObjectStorageModal()" aria-label="Object storage settings">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                  </button>
-                  <span class="tooltip tooltip-above tooltip-right">Object storage settings (coming soon)</span>
                 </span>
               </div>
               <div class="settings-save-row">
@@ -1462,6 +1464,28 @@
           <div style="display:flex;gap:0.5rem;justify-content:flex-end;padding-top:0.5rem;border-top:1px solid hsl(var(--border))">
             <button class="btn btn-destructive" onclick="deleteWebhook()" id="deleteWebhookBtn" style="display:none">Delete Webhook</button>
             <button class="btn btn-primary" onclick="saveWebhook()">Save Webhook</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Section -->
+      <div class="options-section">
+        <button type="button" class="options-section-header" onclick="toggleOptionsSection(this)">
+          <svg class="options-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span class="options-section-label">Email</span>
+          <svg class="options-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="options-section-body">
+          <p class="options-section-desc select-none">Per-bucket email settings. Double opt-in requires subscribers to click a confirmation link before their subscription becomes active.</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:0.5rem 0">
+            <div style="flex:1;padding-right:1rem">
+              <span style="font-weight:500;font-size:0.9rem" id="bucketDoubleOptInLabel">Double opt-in</span>
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin:0.125rem 0 0;line-height:1.4" id="bucketDoubleOptInDesc">Subscribers must confirm via email. Disable to opt this bucket out of the global setting.</p>
+            </div>
+            <label class="settings-item-control" style="flex-shrink:0;margin-top:0.125rem">
+              <input type="checkbox" id="bucketDoubleOptIn" onchange="saveBucketDoubleOptIn(this.checked)">
+              <span class="toggle-track"></span>
+            </label>
           </div>
         </div>
       </div>
@@ -3594,6 +3618,9 @@
         }
       });
 
+      // Load bucket options (email settings)
+      loadBucketOptions();
+
       // Load existing webhook config if exists
       try {
         const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`);
@@ -3635,6 +3662,46 @@
       const url = new URL(window.location);
       url.searchParams.delete('modal');
       history.replaceState(null, '', url);
+    }
+
+    async function loadBucketOptions() {
+      if (!currentBucket) return;
+      const toggle = document.getElementById('bucketDoubleOptIn');
+      const label = document.getElementById('bucketDoubleOptInLabel');
+      const desc = document.getElementById('bucketDoubleOptInDesc');
+      const globalEnabled = appSettings.enableDoubleOptIn;
+
+      // Default state: inherit global (true), grayed out when global feature is off
+      if (toggle) toggle.checked = true;
+      if (toggle) toggle.disabled = !globalEnabled;
+      if (label) label.style.opacity = globalEnabled ? '1' : '0.5';
+      if (desc) desc.textContent = globalEnabled
+        ? 'Subscribers must confirm via email. Disable to opt this bucket out of the global setting.'
+        : 'Enable the global double opt-in setting first to configure this option.';
+
+      if (!globalEnabled) return;
+
+      try {
+        const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/options`);
+        if (result.ok && result.data) {
+          if (toggle) toggle.checked = result.data.doubleOptIn ?? true;
+        }
+      } catch {}
+    }
+
+    async function saveBucketDoubleOptIn(value) {
+      if (!currentBucket) return;
+      const res = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/options`, {
+        method: 'PUT',
+        body: { doubleOptIn: value }
+      });
+      if (res.ok) {
+        notify('success', 'Saved', 'Bucket email settings updated.');
+      } else {
+        notify('error', 'Error', 'Failed to save bucket settings.');
+        const toggle = document.getElementById('bucketDoubleOptIn');
+        if (toggle) toggle.checked = !value;
+      }
     }
 
     function addWebhookHeader() {
@@ -4908,7 +4975,8 @@ ${bodyStr}
       emailSmtpPassword: '',
       emailSmtpUseTls: true,
       emailQueueEnabled: false,
-      objectStorage: false
+      objectStorage: false,
+      enableDoubleOptIn: false
     };
     let appSettings = { ...settingsDefaults };
 
@@ -4937,6 +5005,31 @@ ${bodyStr}
       showSettingsSection('general', false);
       // Load server-side settings
       loadServerSettings();
+      // Apply read-only instance constraints (from config.js)
+      applyInstanceConstraints();
+    }
+
+    function applyInstanceConstraints() {
+      const emailDisabled = typeof DISABLE_EMAIL_NOTIFICATIONS !== 'undefined' && DISABLE_EMAIL_NOTIFICATIONS;
+      if (!emailDisabled) return;
+
+      // Show notice banner in Integration section
+      const notice = document.getElementById('email-disabled-notice');
+      if (notice) notice.style.display = 'block';
+
+      // Disable email notifications toggle + gear button
+      const emailToggle = document.getElementById('setting-emailNotifications');
+      if (emailToggle) { emailToggle.disabled = true; emailToggle.closest('.settings-item-card-label')?.style.setProperty('opacity', '0.5'); }
+      const emailGear = document.querySelector('#email-settings-items .btn-settings-gear');
+      if (emailGear) { emailGear.disabled = true; emailGear.style.opacity = '0.4'; emailGear.style.cursor = 'not-allowed'; }
+
+      // Disable double opt-in toggle and gray its card
+      const doiToggle = document.getElementById('setting-enableDoubleOptIn');
+      if (doiToggle) {
+        doiToggle.disabled = true;
+        const card = doiToggle.closest('label.settings-item-card');
+        if (card) { card.style.opacity = '0.5'; card.style.pointerEvents = 'none'; }
+      }
     }
 
     async function loadServerSettings() {
@@ -4962,6 +5055,8 @@ ${bodyStr}
         appSettings.emailQueueEnabled  = res.data.emailQueueEnabled  ?? false;
         appSettings.objectStorage      = res.data.objectStorage      ?? false;
         document.getElementById('setting-objectStorage').checked = appSettings.objectStorage;
+        appSettings.enableDoubleOptIn  = res.data.enableDoubleOptIn  ?? false;
+        document.getElementById('setting-enableDoubleOptIn').checked = appSettings.enableDoubleOptIn;
       }
     }
 
@@ -5016,7 +5111,8 @@ ${bodyStr}
           emailSmtpPassword:  appSettings.emailSmtpPassword,
           emailSmtpUseTls:    appSettings.emailSmtpUseTls,
           emailQueueEnabled:  appSettings.emailQueueEnabled,
-          objectStorage:      appSettings.objectStorage
+          objectStorage:      appSettings.objectStorage,
+          enableDoubleOptIn:  appSettings.enableDoubleOptIn
         }
       });
       if (res.ok) {
@@ -5030,6 +5126,7 @@ ${bodyStr}
 
     // ========== EMAIL SETTINGS MODAL ==========
     function openEmailSettingsModal() {
+      if (typeof DISABLE_EMAIL_NOTIFICATIONS !== 'undefined' && DISABLE_EMAIL_NOTIFICATIONS) return;
       document.getElementById('emailProvider').value          = appSettings.emailProvider || 'none';
       document.getElementById('emailResendApiKey').value      = appSettings.emailResendApiKey || '';
       document.getElementById('emailFromAddress').value       = appSettings.emailFromAddress || '';
@@ -5072,6 +5169,10 @@ ${bodyStr}
     }
 
     async function onEmailNotificationsToggle(checkbox) {
+      if (typeof DISABLE_EMAIL_NOTIFICATIONS !== 'undefined' && DISABLE_EMAIL_NOTIFICATIONS) {
+        checkbox.checked = false;
+        return;
+      }
       if (!checkbox.checked) {
         saveSetting('emailNotifications', false);
         return;
