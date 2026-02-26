@@ -210,11 +210,21 @@ public static class ConsentEndpoints
                 }
                 else
                 {
-                    await consentService.OverrideAsync(
+                    // Don't let the preference page self-confirm a PendingConfirmation record;
+                    // the user must click the confirmation link sent via email.
+                    var currentStatus = await consentService.CheckAsync(
                         result.Payload.Bucket,
                         result.Payload.Email,
-                        permission,
-                        ConsentStatus.OptedIn);
+                        permission);
+
+                    if (currentStatus != ConsentStatus.PendingConfirmation)
+                    {
+                        await consentService.OverrideAsync(
+                            result.Payload.Bucket,
+                            result.Payload.Email,
+                            permission,
+                            ConsentStatus.OptedIn);
+                    }
                     keptIn.Add(permission);
                 }
             }

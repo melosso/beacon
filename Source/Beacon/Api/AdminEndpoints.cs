@@ -269,7 +269,7 @@ public static class AdminEndpoints
 
             foreach (var (permission, status) in request.Permissions)
             {
-                if (!Enum.TryParse<ConsentStatus>(status, true, out var consentStatus))
+                if (!Enum.TryParse<ConsentStatus>(status, true, out var consentStatus) || consentStatus == ConsentStatus.PendingConfirmation)
                 {
                     return Results.BadRequest(new { error = $"Invalid status '{status}' for permission '{permission}'" });
                 }
