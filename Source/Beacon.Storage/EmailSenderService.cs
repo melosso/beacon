@@ -9,6 +9,7 @@ using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Core.Templates;
+using Microsoft.Extensions.Logging;
 
 namespace Beacon.Storage;
 
@@ -18,20 +19,44 @@ public sealed class EmailSenderService : IEmailSenderService
     private static readonly HttpClient _httpClient = new HttpClient();
 
     private readonly Encryptor _encryptor;
+    private readonly ILogger<EmailSenderService> _logger;
 
-    public EmailSenderService(Encryptor encryptor)
+    public EmailSenderService(Encryptor encryptor, ILogger<EmailSenderService> logger)
     {
         _encryptor = encryptor;
+        _logger = logger;
     }
 
-    public Task<bool> SendConfirmationAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken = default)
+    public async Task<bool> SendConfirmationAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken = default)
     {
-        return config.EmailProvider.ToLowerInvariant() switch
+        var provider = config.EmailProvider.ToLowerInvariant();
+        _logger.LogInformation("Attempting to send confirmation email via {Provider} to {Email} (queue={Id})", provider, toEmail[..3] + "...", entry.Id);
+
+        try
         {
-            "resend" => SendViaResendAsync(toEmail, entry, config, cancellationToken),
-            "smtp"   => SendViaSmtpAsync(toEmail, entry, config, cancellationToken),
-            _        => Task.FromResult(false)
-        };
+            var result = await (provider switch
+            {
+                "resend" => SendViaResendAsync(toEmail, entry, config, cancellationToken),
+                "smtp"   => SendViaSmtpAsync(toEmail, entry, config, cancellationToken),
+                _        => Task.FromResult(false)
+            });
+
+            if (result)
+            {
+                _logger.LogDebug("Provider {Provider} accepted email for delivery (queue={Id})", provider, entry.Id);
+            }
+            else
+            {
+                _logger.LogDebug("Provider {Provider} did not send the email (queue={Id})", provider, entry.Id);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Provider {Provider} failed to process email (queue={Id})", provider, entry.Id);
+            throw;
+        }
     }
 
     private async Task<bool> SendViaResendAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken)
@@ -43,7 +68,7 @@ public sealed class EmailSenderService : IEmailSenderService
             from    = BuildFrom(config),
             to      = new[] { toEmail },
             subject = ConfirmationEmailTemplate.GetSubject(entry.Language),
-            html    = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language)
+            html    = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language, toEmail)
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
@@ -82,7 +107,7 @@ public sealed class EmailSenderService : IEmailSenderService
         {
             From       = from,
             Subject    = ConfirmationEmailTemplate.GetSubject(entry.Language),
-            Body       = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language),
+            Body       = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language, toEmail),
             IsBodyHtml = true
         };
         message.To.Add(toEmail);

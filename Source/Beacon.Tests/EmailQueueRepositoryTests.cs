@@ -372,4 +372,32 @@ public class EmailQueueRepositoryTests : IDisposable
         var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
         Assert.Equal(EmailQueueStatus.Confirmed, updated!.Status);
     }
+
+    // ── CancelPendingAsync ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CancelPendingAsync_CancelsOnlyPendingEmailsForSameKey()
+    {
+        var bucket = "test-bucket";
+        var emailHash = "test-hash";
+        var permission = "test-permission";
+
+        // 1. Enqueue a pending email
+        await _repository.EnqueueAsync(MakeEntry("tk1", bucket, emailHash, permission));
+
+        // 2. Enqueue another pending email for a different permission
+        await _repository.EnqueueAsync(MakeEntry("tk2", bucket, emailHash, "other-permission"));
+
+        // 3. Cancel pending for the first key
+        await _repository.CancelPendingAsync(bucket, emailHash, permission);
+        _db.ChangeTracker.Clear();
+
+        var entries = await _db.EmailQueueEntries.ToListAsync();
+
+        var cancelled = entries.Single(e => e.Permission == permission);
+        var stillPending = entries.Single(e => e.Permission == "other-permission");
+
+        Assert.Equal(EmailQueueStatus.Cancelled, cancelled.Status);
+        Assert.Equal(EmailQueueStatus.Pending, stillPending.Status);
+    }
 }

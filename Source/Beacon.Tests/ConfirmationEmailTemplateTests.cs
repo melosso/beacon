@@ -8,11 +8,11 @@ public class ConfirmationEmailTemplateTests
     // ── GetSubject ────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData("en", "Please confirm your subscription")]
-    [InlineData("de", "Bitte bestätigen Sie Ihr Abonnement")]
-    [InlineData("fr", "Veuillez confirmer votre abonnement")]
-    [InlineData("nl", "Bevestig uw abonnement")]
-    [InlineData("pl", "Potwierdź swój zapis")]
+    [InlineData("en", "Confirm your sign-up")]
+    [InlineData("de", "Anmeldung bestätigen")]
+    [InlineData("fr", "Confirme ton inscription")]
+    [InlineData("nl", "Nog één stap om je aanmelding af te ronden")]
+    [InlineData("pl", "Potwierdź swoją rejestrację")]
     [InlineData("es", "Confirma tu suscripción")]
     public void GetSubject_ReturnsCorrectStringPerLanguage(string lang, string expected)
     {
@@ -33,14 +33,14 @@ public class ConfirmationEmailTemplateTests
     public void GetSubject_FallsBackToEnglish_ForUnknownLanguage()
     {
         var result = ConfirmationEmailTemplate.GetSubject("xx");
-        Assert.Equal("Please confirm your subscription", result);
+        Assert.Equal("Confirm your sign-up", result);
     }
 
     [Fact]
     public void GetSubject_FallsBackToEnglish_ForNull()
     {
         var result = ConfirmationEmailTemplate.GetSubject(null!);
-        Assert.Equal("Please confirm your subscription", result);
+        Assert.Equal("Confirm your sign-up", result);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -54,11 +54,11 @@ public class ConfirmationEmailTemplateTests
     }
 
     [Fact]
-    public void Render_ContainsBucketName()
+    public void Render_DoesNotContainBucketName()
     {
         var html = ConfirmationEmailTemplate.Render("acme-corp", "newsletter", "https://example.com/confirm/x", "en");
 
-        Assert.Contains("acme-corp", html);
+        Assert.DoesNotContain("acme-corp", html);
     }
 
     [Fact]
@@ -97,16 +97,7 @@ public class ConfirmationEmailTemplateTests
         var html = ConfirmationEmailTemplate.Render("bucket", "newsletter", "https://example.com/c", "xx");
 
         Assert.Contains("lang=\"en\"", html);
-        Assert.Contains("Confirm subscription", html);
-    }
-
-    [Fact]
-    public void Render_HtmlEncodesSpecialCharsInBucket()
-    {
-        var html = ConfirmationEmailTemplate.Render("<script>", "newsletter", "https://example.com/c", "en");
-
-        Assert.DoesNotContain("<script>", html);
-        Assert.Contains("&lt;script&gt;", html);
+        Assert.Contains("Yes, I want to receive these emails", html);
     }
 
     [Fact]
@@ -142,5 +133,15 @@ public class ConfirmationEmailTemplateTests
 
         Assert.Contains("<a href=", html);
         Assert.Contains("class=\"btn\"", html);
+    }
+
+    [Fact]
+    public void Render_ContainsMaskedEmailInFooter()
+    {
+        var email = "john.doe@example.com";
+        var html = ConfirmationEmailTemplate.Render("bucket", "newsletter", "https://example.com/confirm/tok", "en", email);
+
+        Assert.Contains("Preferences for:", html);
+        Assert.Contains("j***e@example.com", html);
     }
 }

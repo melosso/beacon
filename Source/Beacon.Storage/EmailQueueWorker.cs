@@ -29,7 +29,7 @@ public sealed class EmailQueueWorker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await ProcessBatchAsync(); }
+            try { await ProcessBatchAsync(stoppingToken); }
             catch (Exception ex) { _logger.LogError(ex, "Email queue worker encountered an unhandled error"); }
 
             try { await Task.Delay(Interval, stoppingToken); }
@@ -37,7 +37,7 @@ public sealed class EmailQueueWorker : BackgroundService
         }
     }
 
-    private async Task ProcessBatchAsync()
+    private async Task ProcessBatchAsync(CancellationToken stoppingToken)
     {
         if (_disabled) return;
 
@@ -56,9 +56,14 @@ public sealed class EmailQueueWorker : BackgroundService
         await queue.PruneExpiredAsync();
 
         var entries = await queue.GetPendingBatchAsync(50);
+        if (entries.Count == 0) return;
+
+        _logger.LogInformation("Processing email queue batch: {Count} entries pending", entries.Count);
 
         foreach (var entry in entries)
         {
+            if (stoppingToken.IsCancellationRequested) break;
+
             try
             {
                 var email = encryptor.Decrypt(entry.EncryptedEmail);
@@ -67,20 +72,29 @@ public sealed class EmailQueueWorker : BackgroundService
                 if (sent)
                 {
                     await queue.MarkSentAsync(entry.Id, DateTime.UtcNow);
-                    _logger.LogInformation("Confirmation email sent (queue={Id}, bucket={Bucket})", entry.Id, entry.Bucket);
+                    _logger.LogInformation("Confirmation email sent successfully (queue={Id}, bucket={Bucket}, permission={Permission})", entry.Id, entry.Bucket, entry.Permission);
                 }
                 else
                 {
                     _logger.LogWarning("Confirmation email not sent, provider returned false (queue={Id}, bucket={Bucket}, provider={Provider})", entry.Id, entry.Bucket, config.EmailProvider);
                     await queue.MarkFailedAsync(entry.Id, "Sender returned false", NextRetry(entry.AttemptCount));
                 }
+
+                // Rate limiting: Resend allows 2 requests per second.
+                // We add a 600ms delay between requests to stay safe.
+                if (config.EmailProvider.Equals("resend", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Task.Delay(600, stoppingToken);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send confirmation email (queue={Id})", entry.Id);
+                _logger.LogError(ex, "Failed to send confirmation email (queue={Id}, bucket={Bucket})", entry.Id, entry.Bucket);
                 await queue.MarkFailedAsync(entry.Id, ex.Message, NextRetry(entry.AttemptCount));
             }
         }
+
+        _logger.LogDebug("Finished processing email queue batch");
     }
 
     private static DateTime? NextRetry(int attempts) =>

@@ -51,6 +51,9 @@ public sealed class SystemConfig
     // Modules
     [JsonPropertyName("enableDoubleOptIn")]
     public bool EnableDoubleOptIn { get; set; } = false;
+
+    [JsonPropertyName("perPermissionEmail")]
+    public bool PerPermissionEmail { get; set; } = false;
 }
 
 public interface ISystemConfigurationService

@@ -310,7 +310,14 @@ public static class ConsentEndpoints
             return Results.Content(GetStatusPage("expired", lang), "text/html");
 
         var email = encryptor.Decrypt(entry.EncryptedEmail);
-        await consentService.OverrideAsync(entry.Bucket, email, entry.Permission, ConsentStatus.OptedIn);
+
+        // Split permissions in case they are grouped (comma-separated)
+        var permissions = entry.Permission.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var permission in permissions)
+        {
+            await consentService.OverrideAsync(entry.Bucket, email, permission, ConsentStatus.OptedIn);
+        }
+
         await emailQueue.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
 
         return Results.Content(GetStatusPage("confirmed", lang), "text/html");

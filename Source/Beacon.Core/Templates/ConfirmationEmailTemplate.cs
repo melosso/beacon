@@ -5,56 +5,62 @@ namespace Beacon.Core.Templates;
 public static class ConfirmationEmailTemplate
 {
     private sealed record Strings(
-        string Heading, string Body, string Button, string Footer);
+        string Heading, string Body, string Button, string Footer, string PreferencesFor);
 
     private static readonly Dictionary<string, Strings> Translations = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["en"] = new("Confirm your subscription",
-            "You (or someone on your behalf) subscribed to <strong>{permission}</strong> communications for <strong>{bucket}</strong>. Click the button below to confirm your subscription.",
-            "Confirm subscription",
-            "If you did not request this, you can safely ignore this email."),
-        ["de"] = new("Abonnement bestätigen",
-            "Sie (oder jemand in Ihrem Namen) haben sich für <strong>{permission}</strong>-Mitteilungen von <strong>{bucket}</strong> angemeldet. Klicken Sie auf die Schaltfläche, um zu bestätigen.",
-            "Abonnement bestätigen",
-            "Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren."),
-        ["fr"] = new("Confirmez votre abonnement",
-            "Vous (ou quelqu'un en votre nom) vous êtes abonné aux communications <strong>{permission}</strong> pour <strong>{bucket}</strong>. Cliquez sur le bouton ci-dessous pour confirmer.",
-            "Confirmer l'abonnement",
-            "Si vous n'avez pas demandé cela, vous pouvez ignorer cet e-mail."),
-        ["nl"] = new("Bevestig uw abonnement",
-            "U (of iemand namens u) heeft zich aangemeld voor <strong>{permission}</strong>-communicatie van <strong>{bucket}</strong>. Klik op de knop hieronder om te bevestigen.",
-            "Abonnement bevestigen",
-            "Als u dit niet heeft aangevraagd, kunt u deze e-mail veilig negeren."),
-        ["pl"] = new("Potwierdź zapis",
-            "Ty (lub ktoś w Twoim imieniu) zapisałeś się na komunikację <strong>{permission}</strong> dla <strong>{bucket}</strong>. Kliknij przycisk poniżej, aby potwierdzić.",
-            "Potwierdź zapis",
-            "Jeśli nie prosiłeś o to, możesz zignorować tę wiadomość."),
-        ["es"] = new("Confirma tu suscripción",
-            "Tú (o alguien en tu nombre) te has suscrito a las comunicaciones de <strong>{permission}</strong> para <strong>{bucket}</strong>. Haz clic en el botón de abajo para confirmar.",
-            "Confirmar suscripción",
-            "Si no solicitaste esto, puedes ignorar este correo."),
+        ["en"] = new("One more step to complete your sign-up",
+            "We received a request to sign you up for our <strong>{permission}</strong> email notifications. Click the button below to confirm.",
+            "Yes, I want to receive these emails",
+            "Didn't sign up? You can safely ignore this email.",
+            "Sent to:"),
+        ["de"] = new("Nur noch een Schritt, um deine Anmeldung abzuschließen",
+            "Wir haben eine Anfrage erhalten, dich für unsere <strong>{permission}</strong>-E-Mail-Benachrichtigungen anzumelden. Klicke auf die Schaltfläche unten, um dies zu bestätigen.",
+            "Ja, ich möchte diese E-Mails erhalten",
+            "Hast du dich nicht angemeldet? Dann kannst du diese E-Mail einfach ignorieren.",
+            "Einstellungen für:"),
+        ["fr"] = new("Plus qu'une étape pour finaliser ton inscription",
+            "Nous avons reçu une demande pour t'inscrire à nos notifications par e-mail <strong>{permission}</strong>. Clique sur le bouton ci-dessous pour confirmer.",
+            "Oui, je souhaite recevoir ces e-mails",
+            "Tu ne t'es pas inscrit ? Tu peux simplement ignorer cet e-mail.",
+            "Préférences pour :"),
+        ["nl"] = new("Nog één stap om je aanmelding af te ronden",
+            "We hebben een verzoek ontvangen om je aan te melden voor onze <strong>{permission}</strong> e-mailmeldingen. Klik op de knop hieronder om dit te bevestigen.",
+            "Ja, ik wil deze e-mails ontvangen",
+            "Heb jij je niet aangemeld? Dan kun je deze e-mail gewoon negeren.",
+            "Bestemd voor:"),
+        ["pl"] = new("Jeszcze tylko jeden krok, aby dokończyć rejestrację",
+            "Otrzymaliśmy prośbę o zapisanie Cię na nasze powiadomienia e-mail <strong>{permission}</strong>. Kliknij poniższy przycisk, aby potwierdzić.",
+            "Tak, chcę otrzymywać te wiadomości",
+            "Nie zapisywałeś się? Możesz bezpiecznie zignorować tę wiadomość.",
+            "Preferencje dla:"),
+        ["es"] = new("Solo un paso más para completar tu suscripción",
+            "Hemos recibido una solicitud para inscribirte en nuestras notificaciones por correo electrónico de <strong>{permission}</strong>. Haz clic en el botón de abajo para confirmar.",
+            "Sí, quiero recibir estos correos",
+            "¿No te has apuntado? Puedes ignorar este correo tranquilamente.",
+            "Preferencias para:"),
     };
 
     public static string GetSubject(string language) => language?.ToLowerInvariant() switch
     {
-        "de" => "Bitte bestätigen Sie Ihr Abonnement",
-        "fr" => "Veuillez confirmer votre abonnement",
-        "nl" => "Bevestig uw abonnement",
-        "pl" => "Potwierdź swój zapis",
+        "de" => "Anmeldung bestätigen",
+        "fr" => "Confirme ton inscription",
+        "nl" => "Nog één stap om je aanmelding af te ronden",
+        "pl" => "Potwierdź swoją rejestrację",
         "es" => "Confirma tu suscripción",
-        _    => "Please confirm your subscription"
+        _    => "Confirm your sign-up"
     };
 
-    public static string Render(string bucket, string permission, string confirmationUrl, string language)
+    public static string Render(string bucket, string permission, string confirmationUrl, string language, string? email = null)
     {
         var lang = Translations.ContainsKey(language ?? "en") ? language!.ToLowerInvariant() : "en";
         var t = Translations[lang];
 
         var body = t.Body
-            .Replace("{permission}", WebUtility.HtmlEncode(FormatPermission(permission)))
-            .Replace("{bucket}", WebUtility.HtmlEncode(bucket));
+            .Replace("{permission}", WebUtility.HtmlEncode(FormatPermission(permission)));
 
         var encodedUrl = WebUtility.HtmlEncode(confirmationUrl);
+        var maskedEmail = string.IsNullOrEmpty(email) ? "" : MaskEmail(email);
 
         return $$"""
             <!DOCTYPE html>
@@ -72,6 +78,8 @@ public static class ConfirmationEmailTemplate
                 p { margin:0 0 28px; color:#555555; font-size:0.9375rem; line-height:1.6; }
                 .btn { display:block; background-color:#111111; color:#ffffff !important; text-decoration:none; text-align:center; padding:14px 24px; border-radius:10px; font-size:1rem; font-weight:500; }
                 .footer { margin-top:24px; text-align:center; font-size:0.8125rem; color:#999999; line-height:1.5; }
+                .pref-footer { margin-top:32px; padding-top:24px; border-top:1px solid #eeeeee; text-align:center; font-size:0.8125rem; color:#999999; line-height:1.5; }
+                .email { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#777777; }
                 @media (prefers-color-scheme: dark) {
                   body, .wrapper { background-color:#0f0f0f !important; }
                   .card { background-color:#1a1a1a !important; border-color:#2e2e2e !important; }
@@ -79,6 +87,8 @@ public static class ConfirmationEmailTemplate
                   p { color:#aaaaaa !important; }
                   .btn { background-color:#e7e7e7 !important; color:#111111 !important; }
                   .footer { color:#666666 !important; }
+                  .pref-footer { border-color:#2e2e2e !important; color:#666666 !important; }
+                  .email { color:#888888 !important; }
                 }
               </style>
             </head>
@@ -94,6 +104,12 @@ public static class ConfirmationEmailTemplate
                             <p>{{body}}</p>
                             <a href="{{encodedUrl}}" class="btn">{{WebUtility.HtmlEncode(t.Button)}}</a>
                             <p class="footer">{{WebUtility.HtmlEncode(t.Footer)}}</p>
+                            {{(string.IsNullOrEmpty(maskedEmail) ? "" : $"""
+                            <div class="pref-footer">
+                              {WebUtility.HtmlEncode(t.PreferencesFor)}<br />
+                              <span class="email">{WebUtility.HtmlEncode(maskedEmail)}</span>
+                            </div>
+                            """)}}
                           </td>
                         </tr>
                       </table>
@@ -109,8 +125,29 @@ public static class ConfirmationEmailTemplate
     private static string FormatPermission(string permission)
     {
         if (string.IsNullOrEmpty(permission)) return string.Empty;
-        return string.Join(" ", permission
+        var parts = permission.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        
+        var formattedParts = parts.Select(p => string.Join(" ", p
             .Split(['_', '-'], StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => char.ToUpper(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
+            .Select(w => char.ToUpper(w[0]) + (w.Length > 1 ? w[1..] : string.Empty))));
+
+        var list = formattedParts.ToList();
+        if (list.Count <= 1) return list.FirstOrDefault() ?? string.Empty;
+        if (list.Count == 2) return $"{list[0]} & {list[1]}";
+        return $"{string.Join(", ", list.Take(list.Count - 1))} & {list.Last()}";
+    }
+
+    private static string MaskEmail(string email)
+    {
+        var atIndex = email.IndexOf('@');
+        if (atIndex <= 1) return email;
+
+        var local = email[..atIndex];
+        var domain = email[atIndex..];
+
+        if (local.Length <= 2)
+            return local[0] + "***" + domain;
+
+        return local[0] + "***" + local[^1] + domain;
     }
 }

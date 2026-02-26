@@ -68,6 +68,16 @@ public sealed class EmailQueueRepository : IEmailQueueRepository
             e.Permission == permission &&
             (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent));
 
+    public async Task CancelPendingAsync(string bucket, string emailHash, string permission)
+    {
+        await _db.EmailQueueEntries
+            .Where(e => e.Bucket == bucket &&
+                        e.EmailHash == emailHash &&
+                        e.Permission == permission &&
+                        e.Status == EmailQueueStatus.Pending)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EmailQueueStatus.Cancelled));
+    }
+
     public async Task PruneExpiredAsync()
     {
         var now = DateTime.UtcNow;

@@ -430,35 +430,55 @@ public static class AdminEndpoints
                 var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
                 var normalizedEmail = request.Email.Trim().ToLowerInvariant();
                 var encryptedEmail = encryptor.Encrypt(normalizedEmail);
-                var queued = 0;
-                var skipped = 0;
+                var optedInPermissions = request.Permissions.Where(p => p.Value).Select(p => p.Key).ToList();
 
-                foreach (var (permission, optedIn) in request.Permissions.Where(p => p.Value))
+                if (optedInPermissions.Count > 0)
                 {
-                    if (await emailQueueRepo.HasPendingAsync(normalizedBucket, emailHash, permission))
+                    if (config.PerPermissionEmail)
                     {
-                        skipped++;
-                        continue;
+                        foreach (var permission in optedInPermissions)
+                        {
+                            // Cancel any previous pending emails for this specific bucket/email/permission
+                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
+
+                            var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                            await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
+                            {
+                                Bucket = normalizedBucket,
+                                EncryptedEmail = encryptedEmail,
+                                EmailHash = emailHash,
+                                Permission = permission,
+                                Language = tokenOptions.Language,
+                                ConfirmationToken = confirmationToken,
+                                ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                                ExpiresAt = DateTime.UtcNow.AddDays(7)
+                            });
+                        }
+                    }
+                    else
+                    {
+                        var allPermissions = string.Join(",", optedInPermissions);
+                        // Cancel any previous pending emails for this exact set of permissions (or we could be broader here)
+                        await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
+
+                        var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                        await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
+                        {
+                            Bucket = normalizedBucket,
+                            EncryptedEmail = encryptedEmail,
+                            EmailHash = emailHash,
+                            Permission = allPermissions,
+                            Language = tokenOptions.Language,
+                            ConfirmationToken = confirmationToken,
+                            ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                            ExpiresAt = DateTime.UtcNow.AddDays(7)
+                        });
                     }
 
-                    var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-                    await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
-                    {
-                        Bucket = normalizedBucket,
-                        EncryptedEmail = encryptedEmail,
-                        EmailHash = emailHash,
-                        Permission = permission,
-                        Language = tokenOptions.Language,
-                        ConfirmationToken = confirmationToken,
-                        ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
-                        ExpiresAt = DateTime.UtcNow.AddDays(7)
-                    });
-                    queued++;
+                    logger.LogInformation(
+                        "Confirmation emails queued: bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission}",
+                        normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
                 }
-
-                logger.LogInformation(
-                    "Confirmation emails queued: bucket={Bucket}, id={EmailId}, queued={Queued}, skipped={Skipped} (already pending)",
-                    normalizedBucket, emailHash[..12], queued, skipped);
             }
 
             var emailId = emailHash[..12];
@@ -1224,17 +1244,73 @@ public static class AdminEndpoints
     }
 
     private static IResult GetSystemConfiguration(
-        [FromServices] ISystemConfigurationService configService)
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor)
     {
-        return Results.Ok(configService.Get());
+        var config = configService.Get();
+        
+        // Mask sensitive fields with descriptive hints
+        config.EmailResendApiKey = MaskSecret(encryptor.Decrypt(config.EmailResendApiKey));
+        config.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(config.EmailSmtpPassword));
+        
+        return Results.Ok(config);
     }
 
     private static async Task<IResult> SaveSystemConfiguration(
         [FromBody] SystemConfig config,
-        [FromServices] ISystemConfigurationService configService)
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor)
     {
+        var existing = configService.Get();
+
+        // Handle sensitive fields: only update if not submitted as a mask
+        // We compare the submitted value with what the display mask for the EXISTING secret would be
+        var existingResendMask = MaskSecret(encryptor.Decrypt(existing.EmailResendApiKey));
+        if (config.EmailResendApiKey == existingResendMask)
+        {
+            config.EmailResendApiKey = existing.EmailResendApiKey;
+        }
+        else if (!string.IsNullOrEmpty(config.EmailResendApiKey))
+        {
+            config.EmailResendApiKey = encryptor.Encrypt(config.EmailResendApiKey);
+        }
+
+        var existingSmtpMask = MaskSecret(encryptor.Decrypt(existing.EmailSmtpPassword));
+        if (config.EmailSmtpPassword == existingSmtpMask)
+        {
+            config.EmailSmtpPassword = existing.EmailSmtpPassword;
+        }
+        else if (!string.IsNullOrEmpty(config.EmailSmtpPassword))
+        {
+            config.EmailSmtpPassword = encryptor.Encrypt(config.EmailSmtpPassword);
+        }
+
         await configService.SaveAsync(config);
-        return Results.Ok(configService.Get());
+        
+        var saved = configService.Get();
+        saved.EmailResendApiKey = MaskSecret(encryptor.Decrypt(saved.EmailResendApiKey));
+        saved.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(saved.EmailSmtpPassword));
+        
+        return Results.Ok(saved);
+    }
+
+    private static string MaskSecret(string? decryptedValue)
+    {
+        if (string.IsNullOrEmpty(decryptedValue)) return string.Empty;
+        
+        // Resend keys: re_12345678... (show prefix + 8 chars)
+        if (decryptedValue.StartsWith("re_", StringComparison.OrdinalIgnoreCase) && decryptedValue.Length > 12)
+        {
+            return decryptedValue[..11] + "...";
+        }
+
+        // Generic secrets: first 4 chars + stars + last 4 chars if long enough
+        if (decryptedValue.Length > 12)
+        {
+            return decryptedValue[..4] + "********" + decryptedValue[^4..];
+        }
+
+        return "********";
     }
 
     private static async Task<IResult> GetBucketOptions(

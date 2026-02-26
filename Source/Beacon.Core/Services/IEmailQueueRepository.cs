@@ -11,5 +11,6 @@ public interface IEmailQueueRepository
     Task<EmailQueueEntry?> GetByConfirmationTokenAsync(string token);
     Task MarkConfirmedAsync(Guid id, DateTime confirmedAt);
     Task<bool> HasPendingAsync(string bucket, string emailHash, string permission);
+    Task CancelPendingAsync(string bucket, string emailHash, string permission);
     Task PruneExpiredAsync();
 }
