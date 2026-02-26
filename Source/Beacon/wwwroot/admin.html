@@ -1000,7 +1000,7 @@
             <hr class="settings-sep">
             <div id="email-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
               <span style="font-size:0.85rem;color:hsl(var(--muted-foreground))">
-                <strong style="color:hsl(var(--foreground))">Email notifications are disabled</strong> — set by the instance administrator via <code style="font-size:0.8rem">Beacon:DisableEmailNotifications</code> in appsettings. Contact your administrator to enable this feature.
+                <strong style="color:hsl(var(--foreground))">Email notifications are disabled</strong>. Contact your administrator to enable this feature.
               </span>
             </div>
             <div class="settings-items" id="email-settings-items">
@@ -2013,6 +2013,9 @@
     let tokenCustomFields = {};
     let editCustomFields = {};
 
+    // When true, newly added permissions in the token modal default to Out (used when bucket has double opt-in)
+    let tokenDefaultOptOut = false;
+
     function renderPermissionsGrid() {
       const container = document.getElementById('permissionsGrid');
 
@@ -2032,12 +2035,15 @@
         return;
       }
 
+      const defaultIn  = tokenDefaultOptOut ? '' : ' active';
+      const defaultOut = tokenDefaultOptOut ? ' active' : '';
+
       container.innerHTML = [...tokenPermissions].sort().map(p => `
         <div class="permission-row" data-perm="${sanitize(p)}">
           <span class="permission-name">${sanitize(formatPermission(p))}</span>
           <div class="permission-toggle">
-            <button type="button" class="opted-in active" onclick="setPermState('${sanitize(p)}', true)">In</button>
-            <button type="button" class="opted-out" onclick="setPermState('${sanitize(p)}', false)">Out</button>
+            <button type="button" class="opted-in${defaultIn}" onclick="setPermState('${sanitize(p)}', true)">In</button>
+            <button type="button" class="opted-out${defaultOut}" onclick="setPermState('${sanitize(p)}', false)">Out</button>
             <button type="button" class="skip" onclick="setPermState('${sanitize(p)}', null)">Skip</button>
           </div>
           <button type="button" class="btn-remove" onclick="removePermission('${sanitize(p)}')" title="Remove">&times;</button>
@@ -2354,7 +2360,7 @@
     let subSearchQuery = '';
     let subSearchType = 'id';
 
-    // Detail view sort state (client-side — data is already loaded)
+    // Detail view sort state (client-side, data is already loaded)
     const _subDetailSortPrefs = JSON.parse(localStorage.getItem('beacon_sub_detail_sort_prefs') || '{}');
     let subDetailSortBy = _subDetailSortPrefs.sortBy || 'bucket';
     let subDetailSortDir = _subDetailSortPrefs.sortDir || 'asc';
@@ -2907,7 +2913,7 @@
 
     function setSearchType(type) {
       searchType = type;
-      // Update toggle, label, placeholder in-place — no re-render or data refetch
+      // Update toggle, label, placeholder in-place, no re-render or data refetch
       document.querySelectorAll('#searchPopover .search-type-btn').forEach(btn => {
         btn.classList.toggle('active', btn.textContent.trim() === (type === 'id' ? 'By ID' : 'By Email'));
       });
@@ -2973,12 +2979,22 @@
       dropdown.classList.add('open');
     }
 
-    function selectBucket(name) {
+    async function selectBucket(name) {
       document.getElementById('tokenBucket').value = name;
       document.getElementById('bucketAutocomplete').classList.remove('open');
       selectedAutocompleteIndex = -1;
       tokenPermissions.clear();
       removedPermissions.clear();
+      tokenDefaultOptOut = false;
+
+      // If global double opt-in is on, check whether this bucket has it enabled
+      if (appSettings.enableDoubleOptIn) {
+        try {
+          const r = await apiRequest(`/api/admin/buckets/${encodeURIComponent(name)}/options`);
+          if (r.ok && r.data) tokenDefaultOptOut = r.data.doubleOptIn ?? true;
+        } catch {}
+      }
+
       renderPermissionsGrid();
     }
 
@@ -3114,6 +3130,7 @@
 
       tokenPermissions.clear();
       removedPermissions.clear();
+      tokenDefaultOptOut = false;
       renderPermissionsGrid();
 
       tokenCustomFields = {};
@@ -4111,7 +4128,11 @@
         notify('success', 'Record Removed', 'Consent record has been deleted');
         closeDeleteRecordModal();
         closeEditPermissionsModal();
-        if (currentBucket) loadBucket(currentBucket);
+        if (currentView === 'subscriptions' && subDetailHash) {
+          showIdentityDetails(subDetailHash, false);
+        } else if (currentBucket) {
+          loadBucket(currentBucket);
+        }
       }
     }
 
@@ -5074,7 +5095,7 @@ ${bodyStr}
       } else {
         document.documentElement.setAttribute('data-theme', theme);
       }
-      // Appearance changes persist immediately — no save button needed
+      // Appearance changes persist immediately, no save button needed
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
     }
 

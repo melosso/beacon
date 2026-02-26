@@ -430,11 +430,16 @@ public static class AdminEndpoints
                 var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
                 var normalizedEmail = request.Email.Trim().ToLowerInvariant();
                 var encryptedEmail = encryptor.Encrypt(normalizedEmail);
+                var queued = 0;
+                var skipped = 0;
 
                 foreach (var (permission, optedIn) in request.Permissions.Where(p => p.Value))
                 {
                     if (await emailQueueRepo.HasPendingAsync(normalizedBucket, emailHash, permission))
+                    {
+                        skipped++;
                         continue;
+                    }
 
                     var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
                     await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
@@ -448,7 +453,12 @@ public static class AdminEndpoints
                         ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
                         ExpiresAt = DateTime.UtcNow.AddDays(7)
                     });
+                    queued++;
                 }
+
+                logger.LogInformation(
+                    "Confirmation emails queued: bucket={Bucket}, id={EmailId}, queued={Queued}, skipped={Skipped} (already pending)",
+                    normalizedBucket, emailHash[..12], queued, skipped);
             }
 
             var emailId = emailHash[..12];

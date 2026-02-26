@@ -26,7 +26,7 @@
     }
 }
 
-/* Manual theme overrides — override system preference */
+/* Manual theme overrides, override system preference */
 :root[data-theme="light"] {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;

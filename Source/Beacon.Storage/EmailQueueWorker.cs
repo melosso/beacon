@@ -71,6 +71,7 @@ public sealed class EmailQueueWorker : BackgroundService
                 }
                 else
                 {
+                    _logger.LogWarning("Confirmation email not sent, provider returned false (queue={Id}, bucket={Bucket}, provider={Provider})", entry.Id, entry.Bucket, config.EmailProvider);
                     await queue.MarkFailedAsync(entry.Id, "Sender returned false", NextRetry(entry.AttemptCount));
                 }
             }

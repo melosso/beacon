@@ -226,7 +226,7 @@ public sealed class ConsentRepository : IConsentRepository
             baseQuery = baseQuery.Where(r => r.EmailHash.StartsWith(searchLower));
         }
 
-        // Count distinct identities for pagination total — separate query so EF
+        // Count distinct identities for pagination total, separate query so EF
         // doesn't need to wrap the grouped projection in a subquery count.
         var total = await baseQuery
             .Select(r => r.EmailHash)
