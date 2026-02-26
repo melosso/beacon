@@ -832,6 +832,13 @@
               </svg>
               System
             </a>
+            <a href="#" class="settings-subnav-item" data-section="integration" onclick="showSettingsSection('integration');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              Integration
+            </a>
           </nav>
         </aside>
 
@@ -1039,10 +1046,168 @@
             </div>
           </div>
 
+          <!-- Integration section -->
+          <div id="settings-section-integration" class="settings-section">
+            <div class="settings-content-hd">
+              <h3>Integration</h3>
+              <p>Connect Beacon to external services for notifications and storage.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items">
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-emailNotifications">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Email notifications</span>
+                    <p class="settings-item-desc">Send outgoing emails via a configured provider, e.g. for opt-in confirmations.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-emailNotifications" onchange="onEmailNotificationsToggle(this)">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" onclick="openEmailSettingsModal()" aria-label="Email notification settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-objectStorage">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Object storage</span>
+                    <p class="settings-item-desc">Store attachments and exports in an external object storage provider such as S3 or R2.</p>
+                  </div>
+                  <span class="tooltip-wrapper">
+                    <div class="settings-item-control">
+                      <input type="checkbox" id="setting-objectStorage" onchange="saveSetting('objectStorage', this.checked)" disabled>
+                      <span class="toggle-track"></span>
+                    </div>
+                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
+                  </span>
+                </label>
+                <span class="tooltip-wrapper">
+                  <button class="btn-settings-gear" onclick="openObjectStorageModal()" aria-label="Object storage settings">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                  </button>
+                  <span class="tooltip tooltip-above tooltip-right">Object storage settings (coming soon)</span>
+                </span>
+              </div>
+              <div class="settings-save-row">
+                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
   </main>
+
+  <!-- Email Settings Modal -->
+  <div class="modal-backdrop" id="emailSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Email notifications</h3>
+      <p>Configure how Beacon sends outgoing emails, such as opt-in confirmations.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="emailProvider">Provider</label>
+        <select id="emailProvider" onchange="showEmailProviderFields(this.value)" style="width:100%">
+          <option value="none">None</option>
+          <option value="resend">Resend</option>
+          <option value="smtp">SMTP</option>
+        </select>
+      </div>
+
+      <!-- Resend-specific fields -->
+      <div id="email-fields-resend" style="display:none">
+        <div class="form-group">
+          <label for="emailResendApiKey">API Key</label>
+          <div class="input-reveal-wrapper">
+            <input type="password" id="emailResendApiKey" placeholder="re_••••••••••••••••••••••••" autocomplete="off">
+            <button type="button" class="btn-reveal" onclick="toggleReveal('emailResendApiKey', this)" aria-label="Show/hide API key">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMTP-specific fields -->
+      <div id="email-fields-smtp" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 100px;gap:0.75rem">
+          <div class="form-group">
+            <label for="emailSmtpHost">Host</label>
+            <input type="text" id="emailSmtpHost" placeholder="smtp.example.com" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="emailSmtpPort">Port</label>
+            <input type="number" id="emailSmtpPort" placeholder="587" min="1" max="65535">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label for="emailSmtpUsername">Username</label>
+            <input type="text" id="emailSmtpUsername" placeholder="username" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="emailSmtpPassword">Password</label>
+            <div class="input-reveal-wrapper">
+              <input type="password" id="emailSmtpPassword" placeholder="••••••••" autocomplete="new-password">
+              <button type="button" class="btn-reveal" onclick="toggleReveal('emailSmtpPassword', this)" aria-label="Show/hide password">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <label class="settings-item-card" for="emailSmtpUseTls" style="margin-bottom:0.75rem">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none" style="font-size:0.875rem">Use TLS / STARTTLS</span>
+            <p class="settings-item-desc">Encrypt the connection to the mail server.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="emailSmtpUseTls">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Shared sender fields (Resend + SMTP) -->
+      <div id="email-fields-sender" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label for="emailFromAddress">From address</label>
+            <input type="email" id="emailFromAddress" placeholder="noreply@example.com" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="emailFromName">From name</label>
+            <input type="text" id="emailFromName" placeholder="Beacon" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <!-- Queue section (Resend + SMTP) -->
+      <div id="email-fields-queue" style="display:none">
+        <hr class="settings-sep" style="margin:1rem 0">
+        <label class="settings-item-card" for="emailQueueEnabled">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none" style="font-size:0.875rem">Built-in email queue</span>
+            <p class="settings-item-desc">Queue outgoing emails within Beacon and retry on delivery failure. Recommended when not using a managed delivery platform.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="emailQueueEnabled">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeEmailSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEmailSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Custom Fields Modal -->
   <div class="modal-backdrop" id="customFieldsModal">
@@ -4731,7 +4896,19 @@ ${bodyStr}
       theme: 'system',
       font: 'inter',
       defaultLanguage: 'en',
-      uiLanguage: 'en'
+      uiLanguage: 'en',
+      emailNotifications: false,
+      emailProvider: 'none',
+      emailResendApiKey: '',
+      emailFromAddress: '',
+      emailFromName: '',
+      emailSmtpHost: '',
+      emailSmtpPort: 587,
+      emailSmtpUsername: '',
+      emailSmtpPassword: '',
+      emailSmtpUseTls: true,
+      emailQueueEnabled: false,
+      objectStorage: false
     };
     let appSettings = { ...settingsDefaults };
 
@@ -4742,6 +4919,8 @@ ${bodyStr}
       } catch {}
       document.getElementById('setting-enableSubmissionForms').checked = appSettings.enableSubmissionForms;
       document.getElementById('setting-enableCaching').checked = appSettings.enableCaching;
+      document.getElementById('setting-emailNotifications').checked = appSettings.emailNotifications;
+      document.getElementById('setting-objectStorage').checked = appSettings.objectStorage;
       // Font select
       const fontEl = document.getElementById('setting-font');
       if (fontEl) fontEl.value = appSettings.font || 'inter';
@@ -4768,6 +4947,21 @@ ${bodyStr}
         appSettings.defaultLanguage = res.data.defaultLanguage ?? 'en';
         const langEl = document.getElementById('setting-defaultLanguage');
         if (langEl) langEl.value = appSettings.defaultLanguage;
+        // Integration
+        appSettings.emailNotifications = res.data.emailNotifications ?? false;
+        document.getElementById('setting-emailNotifications').checked = appSettings.emailNotifications;
+        appSettings.emailProvider      = res.data.emailProvider      ?? 'none';
+        appSettings.emailResendApiKey  = res.data.emailResendApiKey  ?? '';
+        appSettings.emailFromAddress   = res.data.emailFromAddress   ?? '';
+        appSettings.emailFromName      = res.data.emailFromName      ?? '';
+        appSettings.emailSmtpHost      = res.data.emailSmtpHost      ?? '';
+        appSettings.emailSmtpPort      = res.data.emailSmtpPort      ?? 587;
+        appSettings.emailSmtpUsername  = res.data.emailSmtpUsername  ?? '';
+        appSettings.emailSmtpPassword  = res.data.emailSmtpPassword  ?? '';
+        appSettings.emailSmtpUseTls    = res.data.emailSmtpUseTls    ?? true;
+        appSettings.emailQueueEnabled  = res.data.emailQueueEnabled  ?? false;
+        appSettings.objectStorage      = res.data.objectStorage      ?? false;
+        document.getElementById('setting-objectStorage').checked = appSettings.objectStorage;
       }
     }
 
@@ -4794,7 +4988,7 @@ ${bodyStr}
       document.querySelectorAll('.settings-subnav-item').forEach(i => i.classList.remove('active'));
       document.getElementById(`settings-section-${section}`)?.classList.add('active');
       document.querySelector(`.settings-subnav-item[data-section="${section}"]`)?.classList.add('active');
-      const labels = { general: 'General', modules: 'Modules', appearance: 'Appearance', system: 'System' };
+      const labels = { general: 'General', modules: 'Modules', appearance: 'Appearance', system: 'System', integration: 'Integration' };
       const badge = document.getElementById('settingsSectionBadge');
       if (badge) badge.textContent = labels[section] || section;
       if (pushState) updateUrl({ view: 'settings', section });
@@ -4808,7 +5002,22 @@ ${bodyStr}
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
       const res = await apiRequest('/api/admin/settings', {
         method: 'PUT',
-        body: { allowDbLookup: appSettings.allowDbLookup, defaultLanguage: appSettings.defaultLanguage }
+        body: {
+          allowDbLookup:      appSettings.allowDbLookup,
+          defaultLanguage:    appSettings.defaultLanguage,
+          emailNotifications: appSettings.emailNotifications,
+          emailProvider:      appSettings.emailProvider,
+          emailResendApiKey:  appSettings.emailResendApiKey,
+          emailFromAddress:   appSettings.emailFromAddress,
+          emailFromName:      appSettings.emailFromName,
+          emailSmtpHost:      appSettings.emailSmtpHost,
+          emailSmtpPort:      appSettings.emailSmtpPort,
+          emailSmtpUsername:  appSettings.emailSmtpUsername,
+          emailSmtpPassword:  appSettings.emailSmtpPassword,
+          emailSmtpUseTls:    appSettings.emailSmtpUseTls,
+          emailQueueEnabled:  appSettings.emailQueueEnabled,
+          objectStorage:      appSettings.objectStorage
+        }
       });
       if (res.ok) {
         notify('success', 'Settings saved', 'Your changes have been applied.');
@@ -4817,6 +5026,107 @@ ${bodyStr}
 
     function openCacheSettingsModal() {
       notify('warning', 'Coming Soon', 'Cache configuration settings will be available in a future release.');
+    }
+
+    // ========== EMAIL SETTINGS MODAL ==========
+    function openEmailSettingsModal() {
+      document.getElementById('emailProvider').value          = appSettings.emailProvider || 'none';
+      document.getElementById('emailResendApiKey').value      = appSettings.emailResendApiKey || '';
+      document.getElementById('emailFromAddress').value       = appSettings.emailFromAddress || '';
+      document.getElementById('emailFromName').value          = appSettings.emailFromName || '';
+      document.getElementById('emailSmtpHost').value          = appSettings.emailSmtpHost || '';
+      document.getElementById('emailSmtpPort').value          = appSettings.emailSmtpPort || 587;
+      document.getElementById('emailSmtpUsername').value      = appSettings.emailSmtpUsername || '';
+      document.getElementById('emailSmtpPassword').value      = appSettings.emailSmtpPassword || '';
+      document.getElementById('emailSmtpUseTls').checked      = appSettings.emailSmtpUseTls !== false;
+      document.getElementById('emailQueueEnabled').checked    = !!appSettings.emailQueueEnabled;
+      showEmailProviderFields(appSettings.emailProvider || 'none');
+      document.getElementById('emailSettingsModal').style.display = 'flex';
+    }
+
+    function closeEmailSettingsModal() {
+      document.getElementById('emailSettingsModal').style.display = 'none';
+    }
+
+    function showEmailProviderFields(provider) {
+      const isConfigured = provider === 'resend' || provider === 'smtp';
+      document.getElementById('email-fields-resend').style.display = provider === 'resend' ? '' : 'none';
+      document.getElementById('email-fields-smtp').style.display   = provider === 'smtp'   ? '' : 'none';
+      document.getElementById('email-fields-sender').style.display = isConfigured ? '' : 'none';
+      document.getElementById('email-fields-queue').style.display  = isConfigured ? '' : 'none';
+    }
+
+    function validateEmailConfig(provider, fields) {
+      if (provider === 'resend') {
+        if (!fields.emailResendApiKey?.trim()) return 'Resend API key is required.';
+        if (!fields.emailFromAddress?.trim())  return 'From address is required.';
+      }
+      if (provider === 'smtp') {
+        if (!fields.emailSmtpHost?.trim())     return 'SMTP host is required.';
+        if (!fields.emailSmtpPort)             return 'SMTP port is required.';
+        if (!fields.emailSmtpUsername?.trim()) return 'SMTP username is required.';
+        if (!fields.emailSmtpPassword?.trim()) return 'SMTP password is required.';
+        if (!fields.emailFromAddress?.trim())  return 'From address is required.';
+      }
+      return null;
+    }
+
+    async function onEmailNotificationsToggle(checkbox) {
+      if (!checkbox.checked) {
+        saveSetting('emailNotifications', false);
+        return;
+      }
+      const provider = appSettings.emailProvider || 'none';
+      if (provider === 'none') {
+        checkbox.checked = false;
+        notify('error', 'No provider configured', 'Select an email provider via the settings icon before enabling notifications.');
+        return;
+      }
+      const error = validateEmailConfig(provider, appSettings);
+      if (error) {
+        checkbox.checked = false;
+        notify('error', 'Incomplete configuration', error);
+        return;
+      }
+      saveSetting('emailNotifications', true);
+    }
+
+    async function saveEmailSettings() {
+      const draft = {
+        emailProvider:     document.getElementById('emailProvider').value,
+        emailResendApiKey: document.getElementById('emailResendApiKey').value,
+        emailFromAddress:  document.getElementById('emailFromAddress').value,
+        emailFromName:     document.getElementById('emailFromName').value,
+        emailSmtpHost:     document.getElementById('emailSmtpHost').value,
+        emailSmtpPort:     parseInt(document.getElementById('emailSmtpPort').value) || 587,
+        emailSmtpUsername: document.getElementById('emailSmtpUsername').value,
+        emailSmtpPassword: document.getElementById('emailSmtpPassword').value,
+        emailSmtpUseTls:   document.getElementById('emailSmtpUseTls').checked,
+        emailQueueEnabled: document.getElementById('emailQueueEnabled').checked,
+      };
+
+      if (appSettings.emailNotifications && draft.emailProvider !== 'none') {
+        const error = validateEmailConfig(draft.emailProvider, draft);
+        if (error) {
+          notify('error', 'Incomplete configuration', error);
+          return;
+        }
+      }
+
+      Object.assign(appSettings, draft);
+      await saveCurrentSettings();
+      closeEmailSettingsModal();
+    }
+
+    function toggleReveal(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      btn.classList.toggle('active', isHidden);
+    }
+
+    function openObjectStorageModal() {
+      notify('warning', 'Coming Soon', 'Object storage configuration will be available in a future release.');
     }
 
     init();
