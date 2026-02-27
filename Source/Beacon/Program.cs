@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Beacon.Api;
 using Beacon.Configuration;
-using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Middleware;
@@ -9,7 +8,7 @@ using Beacon.Security;
 using Beacon.Storage;
 using Beacon.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using Serilog;
 
 // Ensure log directory exists
@@ -197,15 +196,18 @@ try
             document.Info.Description = "A lightweight consent management platform. Handle email consent states independently from any ERP, CRM or platform.";
 
             // Add API key security scheme
-            document.Components ??= new Microsoft.OpenApi.Models.OpenApiComponents();
-            document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.Models.OpenApiSecurityScheme>();
-            document.Components.SecuritySchemes["ApiKey"] = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+            document.Components.SecuritySchemes["ApiKey"] = new OpenApiSecurityScheme
             {
-                Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+                Type = SecuritySchemeType.ApiKey,
+                In = ParameterLocation.Header,
                 Name = "X-Api-Key",
                 Description = "A mandatory API key for authentication."
             };
+
+            // Set the host document for references to resolve correctly
+            document.SetReferenceHostDocument();
 
             return Task.CompletedTask;
         });
@@ -220,18 +222,11 @@ try
             if (hasAuthorization)
             {
                 operation.Security ??= [];
-                operation.Security.Add(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                operation.Security.Add(new OpenApiSecurityRequirement
                 {
                     {
-                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-                        {
-                            Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                            {
-                                Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                                Id = "ApiKey"
-                            }
-                        },
-                        Array.Empty<string>()
+                        new OpenApiSecuritySchemeReference("ApiKey"),
+                        new List<string>()
                     }
                 });
             }
@@ -600,5 +595,3 @@ static string NormalizeKey(string key, int requiredBytes)
     var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key));
     return Convert.ToBase64String(hash);
 }
-
-public partial class Program { }

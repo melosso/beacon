@@ -21,19 +21,16 @@ public static class ConsentEndpoints
         routes.MapGet("/u/{token}", ShowPreferencePage)
             .WithName("ShowPreferencePage")
             .WithTags(PermissionControlTag)
-            .WithOpenApi()
             .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.");
 
         routes.MapPost("/u/{token}", ProcessPreferenceUpdate)
             .WithName("ProcessPreferenceUpdate")
             .WithTags(PermissionControlTag)
-            .WithOpenApi()
             .WithDescription("Process user preference updates from the form submission.");
 
         routes.MapPost("/api/consent/check", CheckConsent)
             .WithName("CheckConsent")
             .WithTags(PermissionTag)
-            .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
 

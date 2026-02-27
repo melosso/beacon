@@ -25,21 +25,18 @@ public static class AdminEndpoints
         routes.MapPost("/api/consent/override", OverrideConsent)
             .WithName("OverrideConsent")
             .WithTags(PermissionTag)
-            .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Override consent status for an email. Use to sync consent state from external systems.");
 
         routes.MapPost("/api/tokens/generate", GenerateToken)
             .WithName("GenerateToken")
             .WithTags(PermissionTag)
-            .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Generate a preference management token for an email. Returns a URL-safe token for the /u/{token} endpoint.");
 
         routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
             .WithName("GetAllBucketRecords")
             .WithTags(PermissionTag)
-            .WithOpenApi()
             .RequireAuthorization()
             .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.");
 
