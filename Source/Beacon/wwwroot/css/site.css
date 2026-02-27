@@ -1104,6 +1104,13 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 .modal-actions .tooltip-wrapper { flex: 1; }
 .modal-actions .btn { flex: 1; justify-content: center; width: 100%; }
 
+/* Frozen token form — shown after a successful generation */
+#tokenFormFields.frozen {
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
+}
+
 /* Options modal */
 .options-modal {
     width: 680px;

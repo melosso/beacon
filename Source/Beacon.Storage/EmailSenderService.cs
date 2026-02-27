@@ -29,8 +29,8 @@ public sealed class EmailSenderService : IEmailSenderService
 
     public async Task<bool> SendConfirmationAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken = default)
     {
-        var provider = config.EmailProvider.ToLowerInvariant();
-        _logger.LogInformation("Attempting to send confirmation email via {Provider} to {Email} (queue={Id})", provider, toEmail[..3] + "...", entry.Id);
+        var provider = config.EmailProvider?.Trim().ToLowerInvariant() ?? string.Empty;
+        _logger.LogInformation("Email queue: sending confirmation email via {Provider} to {Email} (queue={Id})", provider, toEmail[..3] + "...", entry.Id);
 
         try
         {
@@ -43,18 +43,23 @@ public sealed class EmailSenderService : IEmailSenderService
 
             if (result)
             {
-                _logger.LogDebug("Provider {Provider} accepted email for delivery (queue={Id})", provider, entry.Id);
+                _logger.LogDebug("Email queue: {Provider} accepted email for delivery (queue={Id})", provider, entry.Id);
             }
             else
             {
-                _logger.LogDebug("Provider {Provider} did not send the email (queue={Id})", provider, entry.Id);
+                _logger.LogDebug("Email queue: {Provider} returned false without error (queue={Id})", provider, entry.Id);
             }
 
             return result;
         }
+        catch (System.Net.Mail.SmtpException ex)
+        {
+            _logger.LogError("Email queue: SMTP error sending confirmation email via {Provider} (queue={Id}): {Message}", provider, entry.Id, ex.Message);
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Provider {Provider} failed to process email (queue={Id})", provider, entry.Id);
+            _logger.LogError(ex, "Email queue: unexpected error sending confirmation email via {Provider} (queue={Id})", provider, entry.Id);
             throw;
         }
     }
@@ -75,18 +80,26 @@ public sealed class EmailSenderService : IEmailSenderService
         request.Headers.Add("Authorization", $"Bearer {apiKey}");
         request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new HttpRequestException(
-                $"Resend API returned {(int)response.StatusCode} {response.StatusCode}: {body}",
-                null,
-                response.StatusCode);
-        }
+            var response = await _httpClient.SendAsync(request, cancellationToken);
 
-        return true;
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new HttpRequestException(
+                    $"Resend API returned {(int)response.StatusCode} {response.StatusCode}: {body}",
+                    null,
+                    response.StatusCode);
+            }
+
+            return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError("Email queue: Resend API error (queue={Id}): {Message}", entry.Id, ex.Message);
+            throw;
+        }
     }
 
     private async Task<bool> SendViaSmtpAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken)

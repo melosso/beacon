@@ -321,6 +321,7 @@ public static class AdminEndpoints
         [FromServices] IBucketOptionsRepository bucketOptionsRepo,
         [FromServices] Encryptor encryptor,
         [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
+        [FromServices] Beacon.Storage.EmailDispatchTrigger emailDispatchTrigger,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -359,10 +360,11 @@ public static class AdminEndpoints
         }
 
         var config = configService.Get();
+        var emailProviderNormalized = config.EmailProvider?.Trim().ToLowerInvariant() ?? string.Empty;
         var doubleOptInActive = !instanceOptions.DisableEmailNotifications
             && config.EnableDoubleOptIn
             && config.EmailNotifications
-            && config.EmailProvider != "none";
+            && emailProviderNormalized is not ("none" or "");
 
         var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
         var emailHash = emailHasher.Hash(request.Email);
@@ -372,6 +374,9 @@ public static class AdminEndpoints
             var bucketOpts = await bucketOptionsRepo.GetAsync(normalizedBucket);
             doubleOptInActive = bucketOpts.DoubleOptIn;
         }
+
+        if (request.SkipConfirmationEmail)
+            doubleOptInActive = false;
 
         try
         {
@@ -474,12 +479,17 @@ public static class AdminEndpoints
                     }
 
                     logger.LogInformation(
-                        "Confirmation emails queued: bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission}",
+                        "Email queue: confirmation email(s) enqueued (bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission})",
                         normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
                 }
             }
 
             await consentService.CommitTransactionAsync();
+
+            // Wake the email queue worker immediately if emails were just enqueued,
+            // rather than waiting for the next cron tick.
+            if (doubleOptInActive)
+                emailDispatchTrigger.Signal();
 
             if (hasChanges)
             {
@@ -1422,6 +1432,12 @@ public sealed class GenerateTokenRequest
     /// Example: {"company": "Acme", "source": "webinar"}
     /// </summary>
     public Dictionary<string, string>? CustomFields { get; set; }
+
+    /// <summary>
+    /// When true, bypasses the double opt-in confirmation email for this specific record,
+    /// even if double opt-in is enabled for the bucket. Default: false (send emails).
+    /// </summary>
+    public bool SkipConfirmationEmail { get; set; } = false;
 }
 
 public sealed class GenerateTokenResponse
