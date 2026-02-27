@@ -44,10 +44,45 @@
 
   <aside>
     <div class="brand select-none">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+      <div class="brand-avatar">
+        <!-- Gradient background (Resend-style) -->
+        <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-avatar-bg" aria-hidden="true">
+          <g clip-path="url(#beacon-avatar-clip)">
+            <rect width="20" height="20" fill="#000" rx="5.5"/>
+            <rect width="20" height="20" fill="url(#beacon-avatar-gradient)" fill-opacity="0.2" rx="5.5"/>
+            <g filter="url(#beacon-avatar-blur-1)" opacity="0.3"><circle cx="16" cy="17" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+            <g filter="url(#beacon-avatar-blur-2)" opacity="0.1"><circle cx="16" cy="16" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+            <g filter="url(#beacon-avatar-blur-3)" opacity="0.4"><circle cx="17" cy="19" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+            <rect width="20" height="20" fill="#FF64B4" fill-opacity="0.15" rx="5.5"/>
+            <g style="mix-blend-mode:hard-light"><rect width="20" height="20" fill="#6A62FF" fill-opacity="0.1" rx="5.5"/></g>
+          </g>
+          <rect width="19" height="19" x="0.5" y="0.5" stroke="#FDFDFD" stroke-opacity="0.1" rx="5"/>
+          <defs>
+            <filter id="beacon-avatar-blur-1" width="32" height="32" x="0" y="1" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+              <feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur" stdDeviation="5"/>
+            </filter>
+            <filter id="beacon-avatar-blur-2" width="22" height="22" x="5" y="5" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+              <feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur" stdDeviation="2.5"/>
+            </filter>
+            <filter id="beacon-avatar-blur-3" width="22" height="22" x="6" y="8" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+              <feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur" stdDeviation="2.5"/>
+            </filter>
+            <linearGradient id="beacon-avatar-gradient" x1="10" x2="10" y1="0" y2="20" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FDFDFD"/><stop offset="1" stop-color="#FDFDFD" stop-opacity="0"/>
+            </linearGradient>
+            <clipPath id="beacon-avatar-clip"><rect width="20" height="20" fill="#FDFDFD" rx="5.5"/></clipPath>
+          </defs>
+        </svg>
+        <!-- Beacon icon overlaid -->
+        <svg class="brand-avatar-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FDFDFD" stroke-width="2.5" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="brand-name">Beacon</span>
+      <svg style="visibility:hidden;" class="brand-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m7 15 5 5 5-5"></path>
+        <path d="m7 9 5-5 5 5"></path>
       </svg>
-      Beacon
     </div>
 
     <div class="nav-group select-none">
@@ -91,7 +126,7 @@
           </svg>
           New bucket
         </a>
-        <a href="#" class="nav-item" data-view="tokens" onclick="showView('tokens')">
+        <a href="#" class="nav-item" data-view="new-token" onclick="showView('new-token')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
             <path d="M7 11V7a5 5 0 0110 0v4"/>
@@ -326,15 +361,15 @@
     </div>
 
     <!-- Tokens View -->
-    <div id="view-tokens" class="view" style="overflow-y:auto">
+    <div id="view-new-token" class="view" style="overflow-y:auto">
       <section class="header-container" style="flex-shrink:0">
         <div>
-          <h1>Generate Token</h1>
+          <h1>Create Token</h1>
           <span class="status-badge">Token Management</span>
         </div>
       </section>
       <div class="modal" style="box-shadow:none;border:1px solid hsl(var(--border));margin-bottom:2rem">
-        <h3>Create New Permission</h3>
+        <h3>Add Consent Record</h3>
         <p>Generate a secure token that allows users to manage their email preferences, stored in a specific bucket.</p>
 
         <div class="form-group">
@@ -1812,6 +1847,7 @@
           renderBucketsSidebar();
           showView('overview');
           connectSSE();
+          loadServerSettings(); // populate appSettings (e.g. enableDoubleOptIn) in background
           notify('success', 'Authenticated', 'Mainframe access granted.');
         }
       } catch (e) {
@@ -1907,6 +1943,7 @@
             renderBucketsSidebar();
             restoreViewFromUrl();
             connectSSE();
+            loadServerSettings(); // populate appSettings (e.g. enableDoubleOptIn) in background
             return; // Exit early; we are logged in.
           }
         }
@@ -1939,8 +1976,8 @@
         if (modal === 'options') showOptionsModal(false);
       } else if (view === 'new-bucket') {
         showView('new-bucket', false);
-      } else if (view === 'tokens') {
-        showView('tokens', false);
+      } else if (view === 'new-token') {
+        showView('new-token', false);
       } else if (view === 'submissions') {
         showView('submissions', false);
       } else if (view === 'submission-create') {
@@ -3080,6 +3117,19 @@
       selectedAutocompleteIndex = index;
     }
 
+    // When the bucket field loses focus without an autocomplete selection, still check double opt-in
+    document.getElementById('tokenBucket')?.addEventListener('blur', async function() {
+      const name = this.value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
+      if (!name || !appSettings.enableDoubleOptIn) return;
+      try {
+        const r = await apiRequest(`/api/admin/buckets/${encodeURIComponent(name)}/options`);
+        if (r.ok && r.data) {
+          tokenDefaultOptOut = r.data.doubleOptIn ?? false;
+          document.getElementById('tokenDoubleOptInNotice').style.display = tokenDefaultOptOut ? 'flex' : 'none';
+        }
+      } catch {}
+    });
+
     // Keyboard navigation for autocomplete
     document.getElementById('tokenBucket')?.addEventListener('keydown', function(e) {
       const dropdown = document.getElementById('bucketAutocomplete');
@@ -3187,7 +3237,12 @@
       if (btn.textContent === 'Create new token') {
         clearTokenForm();
       } else {
-        generateToken();
+        generateToken().catch(err => {
+          console.error('Token generation failed:', err);
+          notify('error', 'Error', 'An unexpected error occurred during token generation.');
+          document.getElementById('generateTokenBtn').disabled = false;
+          document.getElementById('generateTokenBtn').textContent = 'Generate Token';
+        });
       }
     }
 
@@ -3230,41 +3285,53 @@
         return;
       }
 
-      // Check if email already exists in this bucket
-      const checkResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/check-email`, {
-        method: 'POST',
-        body: { email }
-      });
+      const btn = document.getElementById('generateTokenBtn');
+      btn.disabled = true;
 
-      if (checkResult.ok && checkResult.data.exists) {
-        notify('error', 'Duplicate Email', `This email address already exists in bucket "${bucket}"`);
-        return;
-      }
+      try {
+        // Check if email already exists in this bucket
+        const checkResult = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/check-email`, {
+          method: 'POST',
+          body: { email }
+        });
 
-      const expiryDays = parseInt(document.getElementById('tokenExpiry').value) || DEFAULT_EXPIRY_DAYS;
-      const allowReplay = document.getElementById('tokenAllowReplay').checked;
-      const language = document.getElementById('tokenLanguage').value;
-      const customFields = Object.keys(tokenCustomFields).length > 0 ? tokenCustomFields : undefined;
+        if (checkResult.ok && checkResult.data?.exists) {
+          notify('error', 'Duplicate Email', `This email address already exists in bucket "${bucket}"`);
+          return;
+        }
 
-      const result = await apiRequest('/api/tokens/generate', {
-        method: 'POST',
-        body: { bucket, email, permissions, expiryDays, allowReplay, language, customFields }
-      });
+        const expiryDays = parseInt(document.getElementById('tokenExpiry').value) || DEFAULT_EXPIRY_DAYS;
+        const allowReplay = document.getElementById('tokenAllowReplay').checked;
+        const language = document.getElementById('tokenLanguage').value;
+        const customFields = Object.keys(tokenCustomFields).length > 0 ? tokenCustomFields : undefined;
 
-      if (result.ok) {
-        const tokenUrl = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
-        document.getElementById('tokenOutput').textContent = tokenUrl;
-        document.getElementById('tokenOutputWrapper').style.display = 'block';
-        document.getElementById('tokenOutput').style.display = 'block';
-        document.getElementById('generateTokenBtn').textContent = 'Create new token';
-        
-        const hasOptIn = Object.values(permissions).some(v => v === true);
-        const toastMsg = (tokenDefaultOptOut && hasOptIn) 
-          ? 'Token generated and confirmation email queued.' 
-          : 'The token has been created successfully.';
-        notify('success', 'Token Generated', toastMsg);
-        
-        loadBuckets();
+        const result = await apiRequest('/api/tokens/generate', {
+          method: 'POST',
+          body: { bucket, email, permissions, expiryDays, allowReplay, language, customFields }
+        });
+
+        if (result.ok) {
+          const tokenUrl = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
+          document.getElementById('tokenOutput').textContent = tokenUrl;
+          document.getElementById('tokenOutputWrapper').style.display = 'block';
+          document.getElementById('tokenOutput').style.display = 'block';
+          btn.textContent = 'Create new token';
+
+          // Use the server-confirmed doubleOptIn flag — eliminates the race with selectBucket()
+          const doubleOptInConfirmed = result.data.doubleOptIn ?? tokenDefaultOptOut;
+          tokenDefaultOptOut = doubleOptInConfirmed;
+          const hasOptIn = Object.values(permissions).some(v => v === true);
+          document.getElementById('tokenDoubleOptInNotice').style.display = (doubleOptInConfirmed && hasOptIn) ? 'flex' : 'none';
+
+          const toastMsg = (doubleOptInConfirmed && hasOptIn)
+            ? 'Token generated and confirmation email queued.'
+            : 'The token has been created successfully.';
+          notify('success', 'Token Generated', toastMsg);
+
+          loadBuckets();
+        }
+      } finally {
+        btn.disabled = false;
       }
     }
 

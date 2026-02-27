@@ -499,7 +499,7 @@ public static class AdminEndpoints
                 doubleOptInActive,
                 DateTime.UtcNow);
 
-            return Results.Ok(new GenerateTokenResponse { Token = token });
+            return Results.Ok(new GenerateTokenResponse { Token = token, DoubleOptIn = doubleOptInActive });
         }
         catch (DbUpdateException ex)
         {
@@ -1427,6 +1427,7 @@ public sealed class GenerateTokenRequest
 public sealed class GenerateTokenResponse
 {
     public string Token { get; set; } = string.Empty;
+    public bool DoubleOptIn { get; set; }
 }
 
 public sealed class CheckEmailRequest
