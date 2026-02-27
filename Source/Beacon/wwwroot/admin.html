@@ -3851,15 +3851,18 @@
       const toggle = document.getElementById('bucketDoubleOptIn');
       const label = document.getElementById('bucketDoubleOptInLabel');
       const desc = document.getElementById('bucketDoubleOptInDesc');
-      const globalEnabled = appSettings.enableDoubleOptIn;
+      const emailDisabled = typeof DISABLE_EMAIL_NOTIFICATIONS !== 'undefined' && DISABLE_EMAIL_NOTIFICATIONS;
+      const globalEnabled = !emailDisabled && appSettings.enableDoubleOptIn;
 
-      // Default state: inherit global (true), grayed out when global feature is off
+      // Default state: inherit global (true), grayed out when global feature is off or email is disabled
       if (toggle) toggle.checked = true;
       if (toggle) toggle.disabled = !globalEnabled;
       if (label) label.style.opacity = globalEnabled ? '1' : '0.5';
       if (desc) desc.textContent = globalEnabled
         ? 'Subscribers must confirm via email. Disable to opt this bucket out of the global setting.'
-        : 'Enable the global double opt-in setting first to configure this option.';
+        : emailDisabled
+          ? 'Email notifications are disabled by your administrator.'
+          : 'Enable the global double opt-in setting first to configure this option.';
 
       if (!globalEnabled) return;
 
@@ -5144,7 +5147,6 @@ ${bodyStr}
     // ========== SETTINGS ==========
     const settingsDefaults = {
       allowDbLookup: false,
-      enableSubmissionForms: true,
       enableCaching: false,
       theme: 'system',
       font: 'inter',
@@ -5172,7 +5174,6 @@ ${bodyStr}
         const saved = localStorage.getItem('beacon_settings');
         if (saved) appSettings = { ...settingsDefaults, ...JSON.parse(saved) };
       } catch {}
-      document.getElementById('setting-enableSubmissionForms').checked = appSettings.enableSubmissionForms;
       document.getElementById('setting-enableCaching').checked = appSettings.enableCaching;
       document.getElementById('setting-emailNotifications').checked = appSettings.emailNotifications;
       document.getElementById('setting-objectStorage').checked = appSettings.objectStorage;
@@ -5218,7 +5219,7 @@ ${bodyStr}
       const doiToggle = document.getElementById('setting-enableDoubleOptIn');
       if (doiToggle) {
         doiToggle.disabled = true;
-        const card = doiToggle.closest('label.settings-item-card');
+        const card = doiToggle.closest('.settings-item-card');
         if (card) { card.style.opacity = '0.5'; card.style.pointerEvents = 'none'; }
       }
     }
