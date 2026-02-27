@@ -54,6 +54,10 @@ public sealed class SystemConfig
 
     [JsonPropertyName("perPermissionEmail")]
     public bool PerPermissionEmail { get; set; } = false;
+
+    // System
+    [JsonPropertyName("emailQueueCron")]
+    public string EmailQueueCron { get; set; } = "*/5 * * * *";
 }
 
 public interface ISystemConfigurationService

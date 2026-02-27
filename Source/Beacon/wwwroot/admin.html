@@ -1099,6 +1099,20 @@
                   <option value="es">Spanish</option>
                 </select>
               </div>
+              <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Cron schedule</span>
+                  <p class="settings-item-desc">How often the email queue is processed. Uses standard 5-field cron syntax.</p>
+                </div>
+                <div class="autocomplete-wrapper" style="flex-shrink:0;width:180px">
+                  <input type="text" id="setting-emailQueueCron" value="*/5 * * * *"
+                    class="appearance-select" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
+                    oninput="showCronSuggestions(false); validateCronInput(this); saveSetting('emailQueueCron', this.value)"
+                    onfocus="showCronSuggestions(true)"
+                    style="font-family:monospace;width:100%">
+                  <div class="autocomplete-dropdown" id="cronAutocomplete"></div>
+                </div>
+              </div>
               <div class="settings-item-card settings-item-card--split">
                 <label class="settings-item-card-label" for="setting-enableCaching">
                   <div class="settings-item-info">
@@ -3098,11 +3112,15 @@
     document.addEventListener('click', function(e) {
       const bucketWrapper = document.getElementById('bucketAutocomplete')?.parentElement;
       const permWrapper = document.getElementById('permissionAutocomplete')?.parentElement;
+      const cronWrapper = document.getElementById('cronAutocomplete')?.parentElement;
       if (bucketWrapper && !bucketWrapper.contains(e.target)) {
         hideBucketSuggestions();
       }
       if (permWrapper && !permWrapper.contains(e.target)) {
         hidePermissionSuggestions();
+      }
+      if (cronWrapper && !cronWrapper.contains(e.target)) {
+        hideCronSuggestions();
       }
     });
 
@@ -5059,7 +5077,8 @@ ${bodyStr}
       emailSmtpUseTls: true,
       emailQueueEnabled: false,
       objectStorage: false,
-      enableDoubleOptIn: false
+      enableDoubleOptIn: false,
+      emailQueueCron: '*/5 * * * *'
     };
     let appSettings = { ...settingsDefaults };
 
@@ -5145,6 +5164,9 @@ ${bodyStr}
         appSettings.enableDoubleOptIn  = res.data.enableDoubleOptIn  ?? false;
         document.getElementById('setting-enableDoubleOptIn').checked = appSettings.enableDoubleOptIn;
         appSettings.perPermissionEmail = res.data.perPermissionEmail ?? false;
+        appSettings.emailQueueCron     = res.data.emailQueueCron     ?? '*/5 * * * *';
+        const cronEl = document.getElementById('setting-emailQueueCron');
+        if (cronEl) cronEl.value = appSettings.emailQueueCron;
       }
     }
 
@@ -5201,13 +5223,109 @@ ${bodyStr}
           emailQueueEnabled:  appSettings.emailQueueEnabled,
           objectStorage:      appSettings.objectStorage,
           enableDoubleOptIn:  appSettings.enableDoubleOptIn,
-          perPermissionEmail: appSettings.perPermissionEmail
+          perPermissionEmail: appSettings.perPermissionEmail,
+          emailQueueCron:     appSettings.emailQueueCron
         }
       });
       if (res.ok) {
         notify('success', 'Settings saved', 'Your changes have been applied.');
       }
     }
+
+    const CRON_REGEX = /^(\*|[0-9]+(,[0-9]+)*|[0-9]+-[0-9]+)(\/[0-9]+)? (\*|[0-9]+(,[0-9]+)*|[0-9]+-[0-9]+)(\/[0-9]+)? (\*|[0-9]+(,[0-9]+)*|[0-9]+-[0-9]+)(\/[0-9]+)? (\*|[0-9]+(,[0-9]+)*|[0-9]+-[0-9]+)(\/[0-9]+)? (\*|[0-9]+(,[0-9]+)*|[0-9]+-[0-9]+)(\/[0-9]+)?$/;
+
+    function validateCronInput(input) {
+      const valid = CRON_REGEX.test(input.value.trim());
+      input.style.borderColor = valid ? '' : 'hsl(var(--destructive))';
+      return valid;
+    }
+
+    const CRON_PRESETS = [
+      { expr: '* * * * *',       label: 'Every minute' },
+      { expr: '*/2 * * * *',     label: 'Every 2 minutes' },
+      { expr: '*/5 * * * *',     label: 'Every 5 minutes' },
+      { expr: '*/10 * * * *',    label: 'Every 10 minutes' },
+      { expr: '*/15 * * * *',    label: 'Every 15 minutes' },
+      { expr: '*/30 * * * *',    label: 'Every 30 minutes' },
+      { expr: '0 * * * *',       label: 'Every hour' },
+      { expr: '0 */2 * * *',     label: 'Every 2 hours' },
+      { expr: '0 */6 * * *',     label: 'Every 6 hours' },
+      { expr: '0 */12 * * *',    label: 'Every 12 hours' },
+      { expr: '0 0 * * *',       label: 'Once a day (midnight)' },
+      { expr: '0 9 * * *',       label: 'Once a day (9:00 UTC)' },
+      { expr: '0 0 * * 0',       label: 'Once a week (Sunday midnight)' },
+    ];
+
+    let selectedCronIndex = -1;
+
+    function showCronSuggestions(force = false) {
+      const input = document.getElementById('setting-emailQueueCron');
+      const dropdown = document.getElementById('cronAutocomplete');
+      const query = input.value.trim().toLowerCase();
+
+      const matches = (force || !query)
+        ? CRON_PRESETS
+        : CRON_PRESETS.filter(p => p.expr.includes(query) || p.label.toLowerCase().includes(query));
+
+      if (!force && (matches.length === 0 || (matches.length === 1 && matches[0].expr === query))) {
+        dropdown.classList.remove('open');
+        return;
+      }
+
+      selectedCronIndex = -1;
+      dropdown.innerHTML = matches.map((p, idx) => `
+        <div class="autocomplete-item" data-index="${idx}" onclick="selectCronPreset('${p.expr}')" onmouseenter="highlightCron(${idx})">
+          <div class="bucket-name">${sanitize(p.expr)}</div>
+          <div class="bucket-info">${sanitize(p.label)}</div>
+        </div>
+      `).join('');
+
+      positionDropdown(input, dropdown);
+      dropdown.classList.add('open');
+    }
+
+    function selectCronPreset(expr) {
+      const input = document.getElementById('setting-emailQueueCron');
+      input.value = expr;
+      document.getElementById('cronAutocomplete').classList.remove('open');
+      selectedCronIndex = -1;
+      validateCronInput(input);
+      saveSetting('emailQueueCron', expr);
+    }
+
+    function hideCronSuggestions() {
+      document.getElementById('cronAutocomplete')?.classList.remove('open');
+      selectedCronIndex = -1;
+    }
+
+    function highlightCron(index) {
+      document.querySelectorAll('#cronAutocomplete .autocomplete-item').forEach((item, i) => {
+        item.classList.toggle('selected', i === index);
+      });
+      selectedCronIndex = index;
+    }
+
+    document.getElementById('setting-emailQueueCron')?.addEventListener('keydown', function(e) {
+      const dropdown = document.getElementById('cronAutocomplete');
+      if (!dropdown.classList.contains('open')) return;
+      const items = dropdown.querySelectorAll('.autocomplete-item');
+      if (items.length === 0) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedCronIndex = Math.min(selectedCronIndex + 1, items.length - 1);
+        highlightCron(selectedCronIndex);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedCronIndex = Math.max(selectedCronIndex - 1, 0);
+        highlightCron(selectedCronIndex);
+      } else if (e.key === 'Enter' && selectedCronIndex >= 0) {
+        e.preventDefault();
+        const expr = items[selectedCronIndex].querySelector('.bucket-name').textContent;
+        selectCronPreset(expr);
+      } else if (e.key === 'Escape') {
+        hideCronSuggestions();
+      }
+    });
 
     function openCacheSettingsModal() {
       notify('warning', 'Coming Soon', 'Cache configuration settings will be available in a future release.');

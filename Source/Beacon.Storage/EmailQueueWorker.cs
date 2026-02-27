@@ -1,5 +1,6 @@
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Cronos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,6 @@ public sealed class EmailQueueWorker : BackgroundService
     private readonly ILogger<EmailQueueWorker> _logger;
     private readonly bool _disabled;
 
-    private static readonly TimeSpan Interval       = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan PruneInterval  = TimeSpan.FromHours(1);
     private static readonly TimeSpan CleanupInterval = TimeSpan.FromDays(1);
     private static readonly TimeSpan CleanupAge     = TimeSpan.FromDays(90);
@@ -38,8 +38,30 @@ public sealed class EmailQueueWorker : BackgroundService
             try { await ProcessBatchAsync(stoppingToken); }
             catch (Exception ex) { _logger.LogError(ex, "Email queue worker encountered an unhandled error"); }
 
-            try { await Task.Delay(Interval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+            var cron = ReadCurrentCron();
+            var next = cron.GetNextOccurrence(DateTimeOffset.UtcNow, TimeZoneInfo.Utc);
+            if (next is null) break;
+
+            var delay = next.Value - DateTimeOffset.UtcNow;
+            if (delay > TimeSpan.Zero)
+            {
+                try { await Task.Delay(delay, stoppingToken); }
+                catch (OperationCanceledException) { break; }
+            }
+        }
+    }
+
+    private CronExpression ReadCurrentCron()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var config = scope.ServiceProvider.GetRequiredService<ISystemConfigurationService>().Get();
+            return CronExpression.Parse(config.EmailQueueCron);
+        }
+        catch
+        {
+            return CronExpression.Parse("*/5 * * * *");
         }
     }
 
