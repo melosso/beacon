@@ -101,13 +101,13 @@ for BUCKET_NAME in "${BUCKETS[@]}"; do
         PERMISSIONS_JSON=$(generate_email_permissions)
 
         PAYLOAD=$(cat <<EOF
-{
+[{
   "bucket": "$BUCKET_NAME",
   "email": "$EMAIL",
   "permissions": {
     $PERMISSIONS_JSON
   }
-}
+}]
 EOF
 )
 

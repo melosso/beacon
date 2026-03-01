@@ -94,9 +94,23 @@ public sealed class WebhookDeliveryService : BackgroundService
             catch (Exception ex)
             {
                 lastException = ex;
-                _logger.LogWarning(ex,
-                    "Webhook delivery failed for bucket {Bucket} (attempt {Attempt}/{MaxRetries})",
-                    message.Bucket, attempt + 1, MaxRetries + 1);
+                var summary = SummarizeNetworkException(ex);
+                if (summary is not null)
+                    _logger.LogWarning(
+                        "Webhook delivery failed for bucket {Bucket} (attempt {Attempt}/{MaxRetries}): {Reason}",
+                        message.Bucket, attempt + 1, MaxRetries + 1, summary);
+                else
+                    _logger.LogWarning(ex,
+                        "Webhook delivery failed for bucket {Bucket} (attempt {Attempt}/{MaxRetries})",
+                        message.Bucket, attempt + 1, MaxRetries + 1);
+
+                // Notify on first failure so the user knows something went wrong immediately.
+                // The final failure notification is sent after the loop with the persisted error.
+                if (attempt == 0)
+                {
+                    var firstErrorMessage = summary ?? lastException.Message;
+                    await PublishErrorNotificationAsync(message.Bucket, $"{firstErrorMessage} (retrying…)", 0);
+                }
             }
         }
 
@@ -210,6 +224,39 @@ public sealed class WebhookDeliveryService : BackgroundService
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Returns a short, human-readable summary for well-known transient network errors
+    /// (SSL failures, socket errors, timeouts). Returns null for unexpected exceptions,
+    /// which should be logged with the full stack trace.
+    /// </summary>
+    private static string? SummarizeNetworkException(Exception ex)
+    {
+        // Walk the inner exception chain to find the root cause
+        var inner = ex;
+        while (inner.InnerException is not null)
+            inner = inner.InnerException;
+
+        return ex switch
+        {
+            TaskCanceledException or OperationCanceledException
+                => "Request timed out",
+
+            HttpRequestException { InnerException: System.Security.Authentication.AuthenticationException }
+                => $"SSL error: {inner.Message}",
+
+            HttpRequestException { InnerException: SocketException se }
+                => $"Connection error: {se.Message}",
+
+            HttpRequestException httpEx when httpEx.StatusCode.HasValue
+                => null, // unexpected HTTP status — keep full trace
+
+            HttpRequestException
+                => $"Network error: {inner.Message}",
+
+            _ => null
+        };
     }
 
     private static bool IsPrivateOrReserved(IPAddress address)

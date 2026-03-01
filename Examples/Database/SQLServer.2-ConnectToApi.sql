@@ -43,17 +43,17 @@ FETCH NEXT FROM UserCursor INTO @Email;
 
 WHILE @@FETCH_STATUS = 0
 BEGIN
-    -- Construct JSON payload
+    -- Construct JSON payload as an array (endpoint always expects an array; single item = array of one)
     -- CAST is used for BIT types to ensure JSON boolean (true/false) output
     SET @payload = (
-        SELECT 
+        SELECT
             'q1-campaign' AS [bucket],
             @Email AS [email],
             JSON_QUERY('{"newsletter": true, "marketing": false}') AS [permissions],
             CAST(0 AS BIT) AS [skipPermissionUpdate],
             CAST(1 AS BIT) AS [allowReplay],
             60 AS [expiryDays]
-        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+        FOR JSON PATH
     );
 
     BEGIN TRY
@@ -69,8 +69,8 @@ BEGIN
         -- Check Procedure Return Code (0 = Success) and HTTP Status Code
         IF @ret = 0 AND JSON_VALUE(@response, '$.response.status') IN ('200', '201')
         BEGIN
-            -- Parse the token from the nested JSON result
-            SET @ExtractedToken = JSON_VALUE(@response, '$.result.token');
+            -- Parse the token from the nested JSON result (response is an array; read first element)
+            SET @ExtractedToken = JSON_VALUE(@response, '$.result[0].token');
 
             -- Update the record
             UPDATE Bpa.Users

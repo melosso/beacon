@@ -32,7 +32,7 @@ public static class AdminEndpoints
             .WithName("GenerateToken")
             .WithTags(PermissionTag)
             .RequireAuthorization()
-            .WithDescription("Generate a preference management token for an email. Returns a URL-safe token for the /u/{token} endpoint.");
+            .WithDescription("Generate preference management tokens. Accepts an array of requests. Returns an array of URL-safe tokens for the /u/{token} endpoint.");
 
         routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
             .WithName("GetAllBucketRecords")
@@ -308,7 +308,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GenerateToken(
         HttpContext context,
-        [FromBody] GenerateTokenRequest request,
+        [FromBody] List<GenerateTokenRequest> requests,
         [FromServices] TokenGenerator generator,
         [FromServices] IConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
@@ -324,120 +324,143 @@ public static class AdminEndpoints
         [FromServices] Beacon.Storage.EmailDispatchTrigger emailDispatchTrigger,
         ILogger<Program> logger)
     {
-        var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
-        if (!bucketValidation.IsValid)
-        {
-            return Results.BadRequest(new { error = bucketValidation.Error });
-        }
+        if (requests is null || requests.Count == 0)
+            return Results.BadRequest(new { error = "At least one object is required." });
 
-        if (await bucketRepository.IsArchivedAsync(request.Bucket.Trim().ToLowerInvariant()))
+        // Validate all requests upfront before processing any
+        foreach (var request in requests)
         {
-            return Results.Conflict(new { error = "Bucket is archived" });
-        }
+            var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
+            if (!bucketValidation.IsValid)
+                return Results.BadRequest(new { error = bucketValidation.Error });
 
-        var emailValidation = InputValidator.ValidateEmail(request.Email);
-        if (!emailValidation.IsValid)
-        {
-            return Results.BadRequest(new { error = emailValidation.Error });
-        }
+            if (await bucketRepository.IsArchivedAsync(request.Bucket.Trim().ToLowerInvariant()))
+                return Results.Conflict(new { error = "Bucket is archived" });
 
-        if (request.Permissions is null || request.Permissions.Count == 0)
-        {
-            return Results.BadRequest(new { error = "At least one permission is required" });
-        }
+            var emailValidation = InputValidator.ValidateEmail(request.Email);
+            if (!emailValidation.IsValid)
+                return Results.BadRequest(new { error = emailValidation.Error });
 
-        var permissionNames = request.Permissions.Keys.ToArray();
+            if (request.Permissions is null || request.Permissions.Count == 0)
+                return Results.BadRequest(new { error = "At least one permission is required" });
 
-        var permissionsValidation = InputValidator.ValidatePermissions(permissionNames);
-        if (!permissionsValidation.IsValid)
-        {
-            return Results.BadRequest(new { error = permissionsValidation.Error });
-        }
+            var permissionsValidation = InputValidator.ValidatePermissions(request.Permissions.Keys.ToArray());
+            if (!permissionsValidation.IsValid)
+                return Results.BadRequest(new { error = permissionsValidation.Error });
 
-        if (!string.IsNullOrEmpty(request.Language) && !SupportedLanguages.Contains(request.Language.ToLowerInvariant()))
-        {
-            return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", SupportedLanguages)}" });
+            if (!string.IsNullOrEmpty(request.Language) && !SupportedLanguages.Contains(request.Language.ToLowerInvariant()))
+                return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", SupportedLanguages)}" });
         }
 
         var config = configService.Get();
         var emailProviderNormalized = config.EmailProvider?.Trim().ToLowerInvariant() ?? string.Empty;
-        var doubleOptInActive = !instanceOptions.DisableEmailNotifications
-            && config.EnableDoubleOptIn
-            && config.EmailNotifications
-            && emailProviderNormalized is not ("none" or "");
-
-        var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
-        var emailHash = emailHasher.Hash(request.Email);
-
-        if (doubleOptInActive)
-        {
-            var bucketOpts = await bucketOptionsRepo.GetAsync(normalizedBucket);
-            doubleOptInActive = bucketOpts.DoubleOptIn;
-        }
-
-        if (request.SkipConfirmationEmail)
-            doubleOptInActive = false;
+        var responses = new List<GenerateTokenResponse>(requests.Count);
 
         try
         {
-            using var transaction = await consentService.BeginTransactionAsync();
-
-            var tokenOptions = new Tokens.GenerateTokenRequest
+            foreach (var request in requests)
             {
-                AllowReplay = request.AllowReplay,
-                ExpiryDays = request.ExpiryDays,
-                Language = string.IsNullOrEmpty(request.Language)
-                    ? config.DefaultLanguage
-                    : request.Language
-            };
+                var doubleOptInActive = !instanceOptions.DisableEmailNotifications
+                    && config.EnableDoubleOptIn
+                    && config.EmailNotifications
+                    && emailProviderNormalized is not ("none" or "");
 
-            var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
+                var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
+                var emailHash = emailHasher.Hash(request.Email);
+                var permissionNames = request.Permissions!.Keys.ToArray();
 
-            // Serialize custom fields to JSON for storage
-            string? customFieldsJson = request.CustomFields is { Count: > 0 }
-                ? JsonSerializer.Serialize(request.CustomFields)
-                : null;
-
-            // Create/update consent records with specified states.
-            // When double opt-in is active, opted-in permissions are stored as PendingConfirmation until the user clicks the confirmation link.
-            var hasChanges = false;
-            foreach (var (permission, optedIn) in request.Permissions)
-            {
-                var status = (optedIn && doubleOptInActive) ? ConsentStatus.PendingConfirmation : (optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut);
-
-                if (request.SkipPermissionUpdate)
+                if (doubleOptInActive)
                 {
-                    // Only insert if record doesn't exist, preserving existing user preferences
-                    var created = await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
-                    if (created) hasChanges = true;
+                    var bucketOpts = await bucketOptionsRepo.GetAsync(normalizedBucket);
+                    doubleOptInActive = bucketOpts.DoubleOptIn;
                 }
-                else
+
+                if (request.SkipConfirmationEmail)
+                    doubleOptInActive = false;
+
+                using var transaction = await consentService.BeginTransactionAsync();
+
+                var tokenOptions = new Tokens.GenerateTokenRequest
                 {
-                    // Always upsert (insert or update)
-                    await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
-                    hasChanges = true;
-                }
-            }
+                    AllowReplay = request.AllowReplay,
+                    ExpiryDays = request.ExpiryDays,
+                    Language = string.IsNullOrEmpty(request.Language)
+                        ? config.DefaultLanguage
+                        : request.Language
+                };
 
-            // Enqueue confirmation emails inside the transaction so that consent records
-            // and queue entries are committed atomically. A failure here rolls back both.
-            if (doubleOptInActive)
-            {
-                var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
-                    ? instanceOptions.PublicUrl.TrimEnd('/')
-                    : $"{context.Request.Scheme}://{context.Request.Host}";
+                var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
 
-                var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-                var encryptedEmail = encryptor.Encrypt(normalizedEmail);
-                var optedInPermissions = request.Permissions.Where(p => p.Value).Select(p => p.Key).ToList();
+                // Serialize custom fields to JSON for storage
+                string? customFieldsJson = request.CustomFields is { Count: > 0 }
+                    ? JsonSerializer.Serialize(request.CustomFields)
+                    : null;
 
-                if (optedInPermissions.Count > 0)
+                // Create/update consent records with specified states.
+                // When double opt-in is active, opted-in permissions are stored as PendingConfirmation until the user clicks the confirmation link.
+                var hasChanges = false;
+                foreach (var (permission, optedIn) in request.Permissions)
                 {
-                    if (config.PerPermissionEmail)
+                    var status = (optedIn && doubleOptInActive) ? ConsentStatus.PendingConfirmation : (optedIn ? ConsentStatus.OptedIn : ConsentStatus.OptedOut);
+
+                    if (request.SkipPermissionUpdate)
                     {
-                        foreach (var permission in optedInPermissions)
+                        // Only insert if record doesn't exist, preserving existing user preferences
+                        var created = await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                        if (created) hasChanges = true;
+                    }
+                    else
+                    {
+                        // Always upsert (insert or update)
+                        await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                        hasChanges = true;
+                    }
+                }
+
+                // Enqueue confirmation emails inside the transaction so that consent records
+                // and queue entries are committed atomically. A failure here rolls back both.
+                if (doubleOptInActive)
+                {
+                    var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
+                        ? instanceOptions.PublicUrl.TrimEnd('/')
+                        : $"{context.Request.Scheme}://{context.Request.Host}";
+
+                    var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+                    var encryptedEmail = encryptor.Encrypt(normalizedEmail);
+                    var optedInPermissions = request.Permissions.Where(p => p.Value).Select(p => p.Key).ToList();
+
+                    if (optedInPermissions.Count > 0)
+                    {
+                        if (config.PerPermissionEmail)
                         {
-                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
+                            foreach (var permission in optedInPermissions)
+                            {
+                                await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
+
+                                var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                                await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
+                                {
+                                    Bucket = normalizedBucket,
+                                    EncryptedEmail = encryptedEmail,
+                                    EmailHash = emailHash,
+                                    Permission = permission,
+                                    Language = tokenOptions.Language,
+                                    ConfirmationToken = confirmationToken,
+                                    ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                                    ExpiresAt = DateTime.UtcNow.AddDays(7)
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // Sort permissions so the key is stable regardless of input order.
+                            var allPermissions = string.Join(",", optedInPermissions.OrderBy(p => p));
+
+                            // Cancel any previous pending entries — both the combined key and each
+                            // individual permission, to catch entries queued with a different set.
+                            foreach (var permission in optedInPermissions)
+                                await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
+                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
 
                             var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
                             await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
@@ -445,86 +468,63 @@ public static class AdminEndpoints
                                 Bucket = normalizedBucket,
                                 EncryptedEmail = encryptedEmail,
                                 EmailHash = emailHash,
-                                Permission = permission,
+                                Permission = allPermissions,
                                 Language = tokenOptions.Language,
                                 ConfirmationToken = confirmationToken,
                                 ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
                                 ExpiresAt = DateTime.UtcNow.AddDays(7)
                             });
                         }
+
+                        logger.LogInformation(
+                            "Email queue: confirmation email(s) enqueued (bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission})",
+                            normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
                     }
-                    else
-                    {
-                        // Sort permissions so the key is stable regardless of input order.
-                        var allPermissions = string.Join(",", optedInPermissions.OrderBy(p => p));
-
-                        // Cancel any previous pending entries — both the combined key and each
-                        // individual permission, to catch entries queued with a different set.
-                        foreach (var permission in optedInPermissions)
-                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
-                        await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
-
-                        var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-                        await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
-                        {
-                            Bucket = normalizedBucket,
-                            EncryptedEmail = encryptedEmail,
-                            EmailHash = emailHash,
-                            Permission = allPermissions,
-                            Language = tokenOptions.Language,
-                            ConfirmationToken = confirmationToken,
-                            ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
-                            ExpiresAt = DateTime.UtcNow.AddDays(7)
-                        });
-                    }
-
-                    logger.LogInformation(
-                        "Email queue: confirmation email(s) enqueued (bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission})",
-                        normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
                 }
+
+                await consentService.CommitTransactionAsync();
+
+                // Wake the email queue worker immediately if emails were just enqueued,
+                // rather than waiting for the next cron tick.
+                if (doubleOptInActive)
+                    emailDispatchTrigger.Signal();
+
+                if (hasChanges)
+                {
+                    await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+                    await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
+                }
+
+                logger.LogInformation(
+                    "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, doubleOptIn={DoubleOptIn}, timestamp={Timestamp}",
+                    request.Bucket,
+                    emailHash[..12],
+                    string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
+                    request.AllowReplay,
+                    request.ExpiryDays,
+                    request.SkipPermissionUpdate,
+                    doubleOptInActive,
+                    DateTime.UtcNow);
+
+                responses.Add(new GenerateTokenResponse { Token = token, DoubleOptIn = doubleOptInActive });
             }
 
-            await consentService.CommitTransactionAsync();
-
-            // Wake the email queue worker immediately if emails were just enqueued,
-            // rather than waiting for the next cron tick.
-            if (doubleOptInActive)
-                emailDispatchTrigger.Signal();
-
-            if (hasChanges)
-            {
-                await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
-                await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
-            }
-
-            var emailId = emailHash[..12];
-            logger.LogInformation(
-                "Token generated: bucket={Bucket}, id={EmailId}, permissions={Permissions}, allowReplay={AllowReplay}, expiryDays={ExpiryDays}, skipUpdate={SkipUpdate}, doubleOptIn={DoubleOptIn}, timestamp={Timestamp}",
-                request.Bucket,
-                emailId,
-                string.Join(",", request.Permissions.Select(p => $"{p.Key}:{(p.Value ? "in" : "out")}")),
-                request.AllowReplay,
-                request.ExpiryDays,
-                request.SkipPermissionUpdate,
-                doubleOptInActive,
-                DateTime.UtcNow);
-
-            return Results.Ok(new GenerateTokenResponse { Token = token, DoubleOptIn = doubleOptInActive });
+            return Results.Ok(responses);
         }
         catch (DbUpdateException ex)
         {
             if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
             {
-                logger.LogWarning("Unique constraint violation during token generation for bucket={Bucket}, email={Email}: {ErrorMessage}", request.Bucket, request.Email, ex.InnerException?.Message);
+                logger.LogWarning("Unique constraint violation during token generation: {ErrorMessage}", ex.InnerException?.Message);
                 return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
             }
 
-            logger.LogError(ex, "Database update error during token generation for bucket={Bucket}, email={Email}", request.Bucket, request.Email);
+            logger.LogError(ex, "Database update error during token generation");
             return Results.StatusCode(500);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An unexpected error occurred during token generation for bucket={Bucket}, email={Email}", request.Bucket, request.Email);
+            logger.LogError(ex, "An unexpected error occurred during token generation");
             return Results.StatusCode(500);
         }
     }

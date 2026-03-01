@@ -216,6 +216,16 @@
           <span class="status-badge">Buckets</span>
         </div>
         <div class="bucket-actions">
+          <span class="tooltip-wrapper" id="overviewWebhookErrorsContainer">
+            <button class="webhook-errors-trigger" id="overviewWebhookErrorsTrigger" onclick="toggleOverviewWebhookErrors(event)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+            <span class="tooltip">Notifications</span>
+          </span>
+          <div class="webhook-errors-dropdown" id="overviewWebhookErrorsDropdown"></div>
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadOverview(true)">Refresh</button>
             <span class="tooltip tooltip-right">Reload overview</span>
@@ -456,6 +466,12 @@
 
         <div class="modal-actions">
           <button class="btn btn-primary" id="generateTokenBtn" onclick="handleGenerateToken()">Generate Token</button>
+          <button class="btn-icon" id="viewTokenBucketBtn" onclick="openTokenBucketView()" title="View in bucket" style="display:none;flex:0;padding:0.5rem;border:1px solid hsl(var(--border));border-radius:var(--radius);color:hsl(var(--foreground))">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
           <button class="btn-icon" onclick="openCustomFieldsDialog()" title="Custom Fields" style="flex:0;padding:0.5rem;border:1px solid hsl(var(--border));border-radius:var(--radius);color:hsl(var(--foreground))">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
@@ -1305,7 +1321,7 @@
       <p>Add key-value pairs to store alongside consent records.</p>
       <div class="form-group">
         <div class="custom-fields-list" id="customFieldsGrid"></div>
-        <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+        <div class="custom-fields-add-row" style="display:flex;gap:0.5rem;margin-top:0.75rem">
           <input type="text" id="newFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
           <input type="text" id="newFieldValue" placeholder="Value" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
           <button type="button" class="btn btn-outline" onclick="addCustomField('token')">Add</button>
@@ -1987,6 +2003,13 @@
         searchType = params.get('qtype') || 'id';
         showBucket(bucket, false);
         if (modal === 'options') showOptionsModal(false);
+        if (modal === 'error-detail') {
+          const errorId = params.get('errorId');
+          if (errorId) loadWebhookErrors(bucket).then(() => {
+            const error = webhookErrorsCache.find(e => e.id === errorId);
+            if (error) openErrorDetail(error);
+          });
+        }
       } else if (view === 'new-bucket') {
         showView('new-bucket', false);
       } else if (view === 'new-token') {
@@ -2250,8 +2273,11 @@
 
     // ========== CUSTOM FIELDS ==========
     function openCustomFieldsDialog() {
-      renderCustomFieldsGrid();
-      document.getElementById('customFieldsModal').style.display = 'flex';
+      const frozen = document.getElementById('tokenFormFields').classList.contains('frozen');
+      renderCustomFieldsGrid(frozen);
+      const modal = document.getElementById('customFieldsModal');
+      modal.querySelector('.custom-fields-add-row').style.display = frozen ? 'none' : '';
+      modal.style.display = 'flex';
     }
 
     function closeCustomFieldsDialog() {
@@ -2301,14 +2327,14 @@
       }
     }
 
-    function renderCustomFieldsGrid() {
+    function renderCustomFieldsGrid(readonly = false) {
       const grid = document.getElementById('customFieldsGrid');
       const entries = Object.entries(tokenCustomFields);
       grid.innerHTML = entries.map(([k, v]) => `
         <div class="custom-field-row">
           <span class="custom-field-key">${sanitize(k)}</span>
           <span class="custom-field-value">${sanitize(v)}</span>
-          <button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'token')" title="Remove">&times;</button>
+          ${readonly ? '' : `<button type="button" class="btn-remove" onclick="removeCustomField('${sanitize(k)}', 'token')" title="Remove">&times;</button>`}
         </div>
       `).join('');
     }
@@ -2779,17 +2805,26 @@
         webhookBuckets = new Set(whResult.data || []);
       }
 
-      // Fetch error counts for webhook-enabled buckets
+      // Fetch errors for webhook-enabled buckets
       const webhookErrorBuckets = new Set();
+      overviewErrorsCache = [];
       if (webhookBuckets.size > 0) {
         const errorChecks = await Promise.all(
           [...webhookBuckets].map(async name => {
             const r = await apiRequest(`/api/admin/buckets/${encodeURIComponent(name)}/webhook/errors`);
-            return { name, hasErrors: r.ok && r.data && r.data.length > 0 };
+            const errors = r.ok && r.data ? r.data : [];
+            return { name, errors };
           })
         );
-        errorChecks.forEach(c => { if (c.hasErrors) webhookErrorBuckets.add(c.name); });
+        errorChecks.forEach(c => {
+          if (c.errors.length > 0) {
+            webhookErrorBuckets.add(c.name);
+            c.errors.forEach(e => overviewErrorsCache.push({ bucket: c.name, ...e }));
+          }
+        });
       }
+      const overviewTrigger = document.getElementById('overviewWebhookErrorsTrigger');
+      if (overviewTrigger) overviewTrigger.classList.toggle('has-errors', overviewErrorsCache.length > 0);
 
       const body = document.getElementById('overviewBody');
 
@@ -3265,6 +3300,7 @@
       document.getElementById('tokenOutputWrapper').style.display = 'none';
       document.getElementById('tokenOutput').textContent = '';
       document.getElementById('generateTokenBtn').textContent = 'Generate Token';
+      document.getElementById('viewTokenBucketBtn').style.display = 'none';
       document.getElementById('tokenDoubleOptInNotice').style.display = 'none';
       document.getElementById('tokenSkipEmailGroup').style.display = 'none';
       document.getElementById('tokenSendConfirmation').checked = true;
@@ -3321,18 +3357,20 @@
 
         const result = await apiRequest('/api/tokens/generate', {
           method: 'POST',
-          body: { bucket, email, permissions, expiryDays, allowReplay, language, customFields, skipConfirmationEmail }
+          body: [{ bucket, email, permissions, expiryDays, allowReplay, language, customFields, skipConfirmationEmail }]
         });
 
         if (result.ok) {
-          const tokenUrl = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
+          const tokenUrl = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
           document.getElementById('tokenOutput').textContent = tokenUrl;
           document.getElementById('tokenOutputWrapper').style.display = 'block';
           document.getElementById('tokenOutput').style.display = 'block';
+          document.getElementById('viewTokenBucketBtn').style.display = '';
+          document.getElementById('tokenOutputWrapper').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           btn.textContent = 'Create new token';
 
           // Use the server-confirmed doubleOptIn flag — eliminates the race with selectBucket()
-          const doubleOptInConfirmed = result.data.doubleOptIn ?? tokenDefaultOptOut;
+          const doubleOptInConfirmed = result.data[0].doubleOptIn ?? tokenDefaultOptOut;
           tokenDefaultOptOut = doubleOptInConfirmed;
           const hasOptIn = Object.values(permissions).some(v => v === true);
           document.getElementById('tokenDoubleOptInNotice').style.display = (doubleOptInConfirmed && hasOptIn) ? 'flex' : 'none';
@@ -3351,6 +3389,15 @@
       } finally {
         btn.disabled = false;
       }
+    }
+
+    function openTokenBucketView() {
+      const bucket = document.getElementById('tokenBucket').value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
+      const email = document.getElementById('tokenEmail').value.trim();
+      if (!bucket) { notify('warning', 'Missing Field', 'Please enter a bucket name first'); return; }
+      const params = new URLSearchParams({ view: 'bucket', bucket });
+      if (email) { params.set('q', email); params.set('qtype', 'email'); }
+      window.location.href = `${window.location.pathname}?${params}`;
     }
 
     function copyTokenLink() {
@@ -4041,6 +4088,7 @@
         openMenuId = null;
       }
       document.getElementById('webhookErrorsDropdown')?.classList.remove('open');
+      document.getElementById('overviewWebhookErrorsDropdown')?.classList.remove('open');
       document.querySelectorAll('.autocomplete-dropdown').forEach(d => { d.style.display = ''; d.classList.remove('open'); });
     }
 
@@ -4051,6 +4099,7 @@
 
     // ========== WEBHOOK ERRORS ==========
     let webhookErrorsCache = [];
+    let overviewErrorsCache = []; // flat: [{bucket, ...errorFields}]
     let activeErrorDetail = null;
 
     async function loadWebhookErrors(bucket) {
@@ -4082,6 +4131,23 @@
     function showErrorDetailModal(index) {
       const error = webhookErrorsCache[index];
       if (!error) return;
+      openErrorDetail(error);
+    }
+
+    function openOverviewErrorDetail(index) {
+      const error = overviewErrorsCache[index];
+      if (!error) return;
+      currentBucket = error.bucket;
+      showBucket(error.bucket);
+      openErrorDetail(error);
+      // Reflect in URL so the modal is directly linkable
+      const url = new URL(window.location);
+      url.searchParams.set('modal', 'error-detail');
+      url.searchParams.set('errorId', error.id);
+      history.replaceState({}, '', url);
+    }
+
+    function openErrorDetail(error) {
       activeErrorDetail = error;
       document.getElementById('errorDetailTime').textContent = new Date(error.occurredAt).toLocaleString();
       const badgeEl = document.getElementById('errorDetailBadge');
@@ -4109,13 +4175,19 @@
         stackWrap.style.display = 'none';
       }
 
+      closeAllMenus();
       document.getElementById('errorDetailModal').style.display = 'flex';
-      document.getElementById('webhookErrorsDropdown').classList.remove('open');
     }
 
     function closeErrorDetailModal() {
       document.getElementById('errorDetailModal').style.display = 'none';
       activeErrorDetail = null;
+      const url = new URL(window.location);
+      if (url.searchParams.get('modal') === 'error-detail') {
+        url.searchParams.delete('modal');
+        url.searchParams.delete('errorId');
+        history.replaceState({}, '', url);
+      }
     }
 
     function copyErrorMessage() {
@@ -4164,6 +4236,41 @@
         dropdown.style.top = `${rect.bottom + 4}px`;
         dropdown.style.left = `${Math.max(0, rect.right - dropdown.offsetWidth)}px`;
       }
+    }
+
+    function toggleOverviewWebhookErrors(event) {
+      event.stopPropagation();
+      const dropdown = document.getElementById('overviewWebhookErrorsDropdown');
+      const trigger = document.getElementById('overviewWebhookErrorsTrigger');
+      const isOpen = dropdown.classList.contains('open');
+
+      closeAllMenus();
+
+      if (!isOpen) {
+        renderOverviewErrorsDropdown();
+        dropdown.classList.add('open');
+        const rect = trigger.getBoundingClientRect();
+        dropdown.style.top = `${rect.bottom + 4}px`;
+        dropdown.style.left = `${Math.max(0, rect.right - dropdown.offsetWidth)}px`;
+      }
+    }
+
+    function renderOverviewErrorsDropdown() {
+      const dropdown = document.getElementById('overviewWebhookErrorsDropdown');
+      if (overviewErrorsCache.length === 0) {
+        dropdown.innerHTML = `<div class="error-header" style="padding-bottom:0.8rem;">Notifications</div><div class="error-item" style="text-align:center;color:hsl(var(--muted-foreground));padding:1rem 0.875rem;cursor:default">Nothing here to report!</div>`;
+        return;
+      }
+      dropdown.innerHTML = `<div class="error-header"><span>Notifications</span></div>` +
+        overviewErrorsCache.map((e, i) => {
+          const time = formatDate(e.occurredAt);
+          const msg = e.errorMessage.length > 100 ? e.errorMessage.substring(0, 100) + '…' : e.errorMessage;
+          const badge = e.statusCode ? `<span class="error-status">${e.statusCode}</span>` : '';
+          return `<div class="error-item" onclick="event.stopPropagation();openOverviewErrorDetail(${i})">
+            <div class="error-time"><strong>${sanitize(e.bucket)}</strong> &middot; ${sanitize(time)}</div>
+            <div class="error-msg">${sanitize(msg)}${badge}</div>
+          </div>`;
+        }).join('');
     }
 
     // ========== EDIT PERMISSIONS MODAL ==========
@@ -4354,7 +4461,7 @@
 
       const result = await apiRequest('/api/tokens/generate', {
         method: 'POST',
-        body: {
+        body: [{
           bucket: currentBucket,
           email: record.email,
           permissions,
@@ -4362,11 +4469,11 @@
           allowReplay: true,
           skipPermissionUpdate: true,
           language
-        }
+        }]
       });
 
       if (result.ok) {
-        const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data.token}` : `${window.location.origin}/u/${result.data.token}`;
+        const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
         window.open(url, '_blank');
       }
     }

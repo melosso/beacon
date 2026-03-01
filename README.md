@@ -129,21 +129,24 @@ You can incorporate this in your newsletters, system notifications, or anything 
 As Beacon is an API-first platform, all consent management operations should be handled programmatically. While manual execution via the web UII is possible, integration typically involves automating these calls within your specific workflow. The first step requires creating a permission state for an email address in a bucket–which triggers the automatic creation of the target bucket if it is not already present. 
 
 #### Generate Token
-Creates consent records and returns a signed opt-out token (`{"token":"<signed_jwt>"}`).
+Creates consent records and returns a signed opt-out token (`[{"token":"<signed_jwt>"}]`).
+
 
 ```bash
 curl -X POST http://localhost:5000/api/tokens/generate \
   -H "X-Api-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{
+  -d '[{
     "bucket": "q1-campaign",
     "email": "user@example.com",
     "permissions": {
       "newsletter": true,
       "marketing": false
     }
-  }'
+  }]'
 ```
+
+Response is an array of `[{"token":"<signed_token>","doubleOptIn":false}]`. Access the first element for single-item requests.
 
 If you're planning on updating the permission record after insertion, may want to use configure `skipPermissionUpdate` to prevent overwriting (user) updated permissions. 
 
@@ -184,7 +187,7 @@ curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
 curl -X POST http://localhost:5000/api/tokens/generate \
   -H "X-Api-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{
+  -d '[{
     "bucket": "q1-campaign",
     "email": "beige@example.com",
     "permissions": {
@@ -198,7 +201,7 @@ curl -X POST http://localhost:5000/api/tokens/generate \
     "expiryDays": 30,
     "language": "nl",
     "skipPermissionUpdate": true
-  }'
+  }]'
 ```
 
 ## Configuration
