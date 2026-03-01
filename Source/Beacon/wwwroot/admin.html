@@ -4555,6 +4555,11 @@
           renderBucketsSidebar();
         }
 
+        // Refresh the overview if it's the active view
+        if (currentView === 'overview') {
+          loadOverview();
+        }
+
         // Refresh the active bucket view only if it was affected
         if (currentView === 'bucket' && currentBucket && pendingBuckets.has(currentBucket)) {
           loadBucket(currentBucket);
