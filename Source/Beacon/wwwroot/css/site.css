@@ -442,6 +442,10 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     font-weight: 500;
 }
 
+.status-badge-muted {
+    background: hsl(var(--muted) / 0.5);
+    color: hsl(var(--muted-foreground));
+}
 .status-badge.opted-in { text-decoration: none; }
 .status-badge.opted-out {
     background: hsl(var(--muted) / 0.3);

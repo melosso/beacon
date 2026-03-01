@@ -62,6 +62,7 @@ try
     var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
     var disableEmailNotifications = config.GetValue<bool>("DisableEmailNotifications", false);
     var publicUrl = config["PublicUrl"];
+    var userAuthentication = config["UserAuthentication"] ?? "";
 
     // Host routing configuration
     var hostOptions = HostRoutingOptionsFactory.Create(builder.Configuration);
@@ -129,6 +130,7 @@ try
     builder.Services.AddSingleton<IEncryptionService>(encryptionService);
     builder.Services.AddSingleton(new EmailHasher(pepper));
 
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
     builder.Services.AddScoped<IBucketRepository, BucketRepository>();
     builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
     builder.Services.AddScoped<IConsentService, ConsentService>();
@@ -166,6 +168,7 @@ try
         .AddApiKeyAuth(options =>
         {
             options.AdminApiKey = adminApiKey;
+            options.UserAuthentication = userAuthentication;
         })
         .AddJwtAuth(options =>
         {
@@ -183,7 +186,10 @@ try
         });
 
     builder.Services.AddAntiforgery();
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("Admin", policy => policy.RequireRole("admin"));
+    });
     builder.Services.AddEndpointsApiExplorer();
 
     // .NET 9/10 OpenAPI Generation
@@ -320,6 +326,7 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         DatabaseMigrator.Initialize(db);
+
     }
 
     // Add Serilog request logging
@@ -359,6 +366,7 @@ try
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
     app.MapAuthEndpoints();
+    app.MapUserEndpoints();
     app.MapSubmissionEndpoints();
 
     // Health check endpoint
@@ -406,7 +414,7 @@ try
         }
 
         var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
-        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};\nconst DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};";
+        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};\nconst DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};\nconst USER_AUTH_METHOD = '{userAuthentication}';";
         
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         context.Response.Headers.Append("Expires", "0");
@@ -576,6 +584,7 @@ static bool IsInsecureDefault(string value)
 {
     return value.Contains("INSECURE", StringComparison.OrdinalIgnoreCase);
 }
+
 
 static void ValidateSecureKey(string value, string keyName)
 {

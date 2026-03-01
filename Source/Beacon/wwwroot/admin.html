@@ -35,10 +35,12 @@
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-box select-none">
       <h2>Beam Me In, Scotty</h2>
-      <p>Enter the sequence and power up the admin mainframe. In other words: enter your API-key.</p>
-      <input type="password" id="apiKeyInput" placeholder="X-Api-Key" onkeydown="if(event.key==='Enter')authenticate()">
-      <div class="error" id="authError">Invalid API key</div>
+      <p id="authOverlayDesc">Enter the sequence and power up the admin mainframe. In other words: enter your API-key.</p>
+      <input type="text" id="usernameInput" placeholder="Username" autocomplete="username" style="display:none" onkeydown="if(event.key==='Enter')authenticate()">
+      <input type="password" id="apiKeyInput" placeholder="X-Api-Key" autocomplete="current-password" onkeydown="if(event.key==='Enter')authenticate()">
+      <div class="error" id="authError">Invalid credentials</div>
       <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center" onclick="authenticate()"><span class="btn-label">Sign In</span><span class="spinner"></span></button>
+      <a href="#" id="authToggleLink" style="display:none;text-align:center;font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.75rem" onclick="toggleAuthMode(event)">Other sign-in options</a>
     </div>
   </div>
 
@@ -169,7 +171,15 @@
     </div>
 
     <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid hsl(var(--border));">
-      
+
+      <a href="#" class="nav-item sidebar-settings-item" id="navAccount" data-view="account" onclick="showView('settings');showSettingsSection('account');return false;" style="display:none; margin: 0; padding: 0.5rem 0.75rem; justify-content: flex-start;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        Account
+      </a>
+
       <a href="#" class="nav-item sidebar-settings-item" data-view="settings" onclick="showView('settings')" style="margin: 0; padding: 0.5rem 0.75rem; justify-content: flex-start;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
           <circle cx="12" cy="12" r="3"></circle>
@@ -856,6 +866,8 @@
       </div>
     </div>
 
+    <!-- Users and Account are now Settings sections -->
+
     <!-- Settings View -->
     <div id="view-settings" class="view">
       <section class="header-container" style="flex-shrink:0">
@@ -899,6 +911,19 @@
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
               </svg>
               Integration
+            </a>
+            <a href="#" class="settings-subnav-item" id="settingsNavUsers" data-section="users" onclick="showSettingsSection('users');return false;" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Users
+            </a>
+            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" onclick="showSettingsSection('account');return false;" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              Account
             </a>
             <a href="#" class="settings-subnav-item" data-section="system" onclick="showSettingsSection('system');return false;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1137,6 +1162,122 @@
               </div>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Users section -->
+          <div id="settings-section-users" class="settings-section">
+            <div class="settings-content-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+              <div>
+                <h3 class="select-none">Users</h3>
+                <p>Manage user accounts and role-based access control.</p>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
+                <button class="btn btn-outline" onclick="loadUsers()">Refresh</button>
+                <button class="btn btn-primary" onclick="openAddUserModal()">Add User</button>
+              </div>
+            </div>
+            <hr class="settings-sep">
+            <div style="overflow-x:auto">
+              <table style="width:100%">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Last Login</th>
+                    <th class="col-actions"></th>
+                  </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Account section -->
+          <div id="settings-section-account" class="settings-section">
+            <!-- Profile -->
+            <div class="settings-content-hd">
+              <h3 class="select-none">Profile</h3>
+              <p>Your account identity and current role.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items">
+              <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Username</span>
+                  <p class="settings-item-desc">Your login name (read-only).</p>
+                </div>
+                <input type="text" id="accountUsername" readonly class="appearance-select" style="cursor:default;min-width:140px;text-align:left;font-family:inherit">
+              </div>
+              <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Role</span>
+                  <p class="settings-item-desc">Your current permission level in this system.</p>
+                </div>
+                <div id="accountRoleBadge" style="flex-shrink:0"></div>
+              </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="settings-content-hd" style="margin-top:1.5rem">
+              <h3 class="select-none">Password</h3>
+              <p>Update your login password. Minimum 12 characters.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items">
+              <div id="accountCurrentPasswordGroup" class="form-group" style="max-width:400px;margin-bottom:0.75rem">
+                <label>Current Password</label>
+                <div class="input-reveal-wrapper">
+                  <input type="password" id="accountCurrentPassword" placeholder="Current password" autocomplete="current-password">
+                  <button type="button" class="reveal-btn" onclick="toggleReveal('accountCurrentPassword', this)" tabindex="-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group" style="max-width:400px;margin-bottom:0.75rem">
+                <label>New Password</label>
+                <div class="input-reveal-wrapper">
+                  <input type="password" id="accountNewPassword" placeholder="New password (min. 12 chars)" autocomplete="new-password">
+                  <button type="button" class="reveal-btn" onclick="toggleReveal('accountNewPassword', this)" tabindex="-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="form-group" style="max-width:400px;margin-bottom:1rem">
+                <label>Confirm New Password</label>
+                <input type="password" id="accountConfirmPassword" placeholder="Confirm new password" autocomplete="new-password">
+              </div>
+              <div class="settings-save-row">
+                <button class="btn btn-primary" onclick="saveAccountPassword()">Update Password</button>
+              </div>
+            </div>
+
+            <!-- API Key -->
+            <div class="settings-content-hd" style="margin-top:1.5rem">
+              <h3 class="select-none">API Key</h3>
+              <p>Personal API key for programmatic access. Regenerating immediately invalidates the old key.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items">
+              <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Current key</span>
+                  <p class="settings-item-desc">Only the last few characters are shown for security.</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">
+                  <code id="accountApiKeyHint" style="background:hsl(var(--muted));padding:0.25rem 0.5rem;border-radius:var(--radius);font-size:0.8rem">••••••••</code>
+                  <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
+                </div>
+              </div>
+              <div id="accountApiKeyReveal" style="display:none">
+                <p style="font-size:0.85rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">New API key — copy now, not shown again:</p>
+                <span class="tooltip-wrapper" style="display:block">
+                  <div class="token-output" id="accountApiKeyOutput" onclick="copyAccountApiKey()" style="cursor:pointer"></div>
+                  <span class="tooltip tooltip-above">Click to copy</span>
+                </span>
               </div>
             </div>
           </div>
@@ -1728,6 +1869,49 @@
     </div>
   </div>
 
+  <!-- Add User Modal -->
+  <div class="modal-backdrop" id="addUserModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:1.5rem">Add User</h3>
+      <div class="form-group">
+        <label>Username <span class="required" title="Required">*</span></label>
+        <input type="text" id="newUserUsername" placeholder="e.g., john.doe" autocomplete="off" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label>Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="newUserPassword" placeholder="Min. 12 characters" autocomplete="new-password">
+          <button type="button" class="reveal-btn" onclick="toggleReveal('newUserPassword', this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password <span class="required" title="Required">*</span></label>
+        <input type="password" id="newUserConfirmPassword" placeholder="Repeat password" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="newUserRole">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div id="newUserApiKeySection" style="display:none;margin-bottom:1rem">
+        <p style="font-size:0.85rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">API key (copy now — not shown again):</p>
+        <span class="tooltip-wrapper" style="display:block">
+          <div class="token-output" id="newUserApiKeyOutput" onclick="copyNewUserApiKey()" style="cursor:pointer"></div>
+          <span class="tooltip tooltip-above">Click to copy</span>
+        </span>
+        <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.5rem">This key will not be shown again.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeAddUserModal()">Cancel</button>
+        <button class="btn btn-primary" id="addUserBtn" onclick="createUser()"><span class="btn-label">Create User</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
   <script src="/admin/config.js"></script>
   <script>
     document.getElementById('openapi-link').href = (typeof API_BASE !== 'undefined' && API_BASE ? API_BASE : '') + '/openapi';
@@ -1837,13 +2021,27 @@
 
     // ========== AUTH ==========
     async function authenticate() {
-      const key = document.getElementById('apiKeyInput').value.trim();
-      if (!key) {
-        notify('warning', 'Input Required', 'Please enter an API key.');
-        return;
+      const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
+      const btn = document.getElementById('signInBtn');
+      let body;
+
+      if (mode === 'user' || (mode === 'both' && _authFormMode === 'password')) {
+        const username = document.getElementById('usernameInput').value.trim();
+        const password = document.getElementById('apiKeyInput').value;
+        if (!username || !password) {
+          notify('warning', 'Input Required', 'Please enter your username and password.');
+          return;
+        }
+        body = { username, password };
+      } else {
+        const key = document.getElementById('apiKeyInput').value.trim();
+        if (!key) {
+          notify('warning', 'Input Required', 'Please enter an API key.');
+          return;
+        }
+        body = { apiKey: key };
       }
 
-      const btn = document.getElementById('signInBtn');
       btn.classList.add('is-loading');
       btn.disabled = true;
 
@@ -1851,21 +2049,23 @@
         const res = await fetch(`${API_BASE}/api/admin/auth`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey: key })
+          body: JSON.stringify(body)
         });
 
         if (!res.ok) {
           document.getElementById('authError').style.display = 'block';
           document.getElementById('apiKeyInput').value = '';
-          notify('error', 'Authentication Failed', 'Invalid API key.');
+          notify('error', 'Authentication Failed', 'Invalid credentials.');
           return;
         }
 
         const data = await res.json();
         authToken = data.token;
         tokenExpiresAt = new Date(data.expiresAt);
+        currentUserRole = data.role || 'admin';
         sessionStorage.setItem('beacon_jwt', authToken);
         sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);
+        sessionStorage.setItem('beacon_user_role', currentUserRole);
         startTokenRefresh();
 
         // Load initial data
@@ -1874,10 +2074,11 @@
           document.getElementById('authOverlay').style.setProperty('display', 'none', 'important');
           buckets = bucketsResult.data || [];
           renderBucketsSidebar();
+          setupUserAuthNav(currentUserRole);
           showView('overview');
           connectSSE();
           loadServerSettings(); // populate appSettings (e.g. enableDoubleOptIn) in background
-          notify('success', 'Authenticated', 'Mainframe access granted.');
+          notify('success', 'Authenticated', mode === 'user' ? 'Welcome back!' : 'Mainframe access granted.');
         }
       } catch (e) {
         notify('error', 'Network Error', 'Could not connect to server.');
@@ -1906,6 +2107,8 @@
       sessionStorage.removeItem('beacon_jwt');
       sessionStorage.removeItem('beacon_jwt_exp');
       sessionStorage.removeItem('beacon_buckets');
+      sessionStorage.removeItem('beacon_user_role');
+      sessionStorage.removeItem('beacon_user_id');
       location.reload();
     }
 
@@ -1943,6 +2146,9 @@
     async function init() {
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
 
+      // Set up auth overlay based on USER_AUTH_METHOD
+      setupAuthOverlay();
+
       // Track user activity
       ['mousemove', 'keydown', 'click', 'scroll'].forEach(evt =>
         document.addEventListener(evt, () => { lastActivity = Date.now(); }, { passive: true })
@@ -1956,6 +2162,7 @@
         if (exp > new Date()) {
           authToken = savedToken;
           tokenExpiresAt = exp;
+          currentUserRole = sessionStorage.getItem('beacon_user_role') || 'admin';
           startTokenRefresh();
 
           // Restore cached buckets for speed
@@ -1970,21 +2177,24 @@
             // ONLY hide the overlay once we are 100% sure we are authenticated
             document.getElementById('authOverlay').style.setProperty('display', 'none', 'important');
             renderBucketsSidebar();
+            setupUserAuthNav(currentUserRole);
             restoreViewFromUrl();
             connectSSE();
             loadServerSettings(); // populate appSettings (e.g. enableDoubleOptIn) in background
             return; // Exit early; we are logged in.
           }
         }
-        
+
         // Cleanup if token was invalid or expired
         sessionStorage.removeItem('beacon_jwt');
         sessionStorage.removeItem('beacon_jwt_exp');
         sessionStorage.removeItem('beacon_buckets');
+        sessionStorage.removeItem('beacon_user_role');
+        sessionStorage.removeItem('beacon_user_id');
         authToken = '';
       }
 
-      // If we reach here, we are NOT authenticated. 
+      // If we reach here, we are NOT authenticated.
       document.getElementById('authOverlay').style.setProperty('display', 'flex', 'important');
     }
 
@@ -2439,6 +2649,9 @@
     }
 
     function showView(view, pushState = true, skipLoad = false) {
+      // Users and account are now Settings sections
+      if (view === 'users') { showView('settings', pushState, true); showSettingsSection('users', pushState); return; }
+      if (view === 'account') { showView('settings', pushState, true); showSettingsSection('account', pushState); return; }
       currentView = view;
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -5391,10 +5604,12 @@ ${bodyStr}
       document.querySelectorAll('.settings-subnav-item').forEach(i => i.classList.remove('active'));
       document.getElementById(`settings-section-${section}`)?.classList.add('active');
       document.querySelector(`.settings-subnav-item[data-section="${section}"]`)?.classList.add('active');
-      const labels = { general: 'General', modules: 'Modules', appearance: 'Appearance', system: 'System', integration: 'Integration' };
+      const labels = { general: 'General', modules: 'Modules', appearance: 'Appearance', system: 'System', integration: 'Integration', users: 'Users', account: 'Account' };
       const badge = document.getElementById('settingsSectionBadge');
       if (badge) badge.textContent = labels[section] || section;
       if (pushState) updateUrl({ view: 'settings', section });
+      if (section === 'users') loadUsers();
+      if (section === 'account') loadAccount();
     }
 
     function saveSetting(key, value) {
@@ -5643,6 +5858,275 @@ ${bodyStr}
 
     function openObjectStorageModal() {
       notify('warning', 'Coming Soon', 'Object storage configuration will be available in a future release.');
+    }
+
+    // ========== USER AUTHENTICATION UI SETUP ==========
+    let currentUserRole = 'admin';
+    let currentUserId = null;
+
+    let _authFormMode = 'password'; // 'password' | 'apikey' — only used in 'both' mode
+
+    function setupAuthOverlay() {
+      const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
+      const usernameInput = document.getElementById('usernameInput');
+      const apiKeyInput = document.getElementById('apiKeyInput');
+      const desc = document.getElementById('authOverlayDesc');
+      const toggleLink = document.getElementById('authToggleLink');
+      if (mode === 'user' || mode === 'both') {
+        usernameInput.style.display = '';
+        apiKeyInput.placeholder = 'Password';
+        apiKeyInput.autocomplete = 'current-password';
+        if (desc) desc.textContent = 'Sign in with your username and password.';
+      } else if (mode === 'api') {
+        usernameInput.style.display = 'none';
+        apiKeyInput.placeholder = 'API Key';
+        if (desc) desc.textContent = 'Enter your personal API key to sign in.';
+      }
+      if (toggleLink) toggleLink.style.display = (mode === 'both') ? '' : 'none';
+    }
+
+    function toggleAuthMode(e) {
+      e.preventDefault();
+      _authFormMode = (_authFormMode === 'password') ? 'apikey' : 'password';
+      const usernameInput = document.getElementById('usernameInput');
+      const apiKeyInput = document.getElementById('apiKeyInput');
+      const toggleLink = document.getElementById('authToggleLink');
+      const desc = document.getElementById('authOverlayDesc');
+      document.getElementById('authError').style.display = 'none';
+      apiKeyInput.value = '';
+      if (_authFormMode === 'password') {
+        usernameInput.style.display = '';
+        apiKeyInput.placeholder = 'Password';
+        apiKeyInput.autocomplete = 'current-password';
+        if (desc) desc.textContent = 'Sign in with your username and password.';
+      } else {
+        usernameInput.style.display = 'none';
+        apiKeyInput.placeholder = 'API Key';
+        apiKeyInput.autocomplete = 'off';
+        if (desc) desc.textContent = 'Enter your personal API key to sign in.';
+      }
+    }
+
+    function setupUserAuthNav(role) {
+      const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
+      const navAccount = document.getElementById('navAccount');
+      const settingsNavUsers = document.getElementById('settingsNavUsers');
+      const settingsNavAccount = document.getElementById('settingsNavAccount');
+      if (mode && navAccount) navAccount.style.display = '';
+      if (mode && settingsNavAccount) settingsNavAccount.style.display = '';
+      if (mode && role === 'admin' && settingsNavUsers) settingsNavUsers.style.display = '';
+    }
+
+    // ========== USERS VIEW ==========
+    async function loadUsers() {
+      const result = await apiRequest('/api/admin/users');
+      if (!result.ok) return;
+      renderUsersTable(result.data || []);
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('usersBody');
+      if (!users.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:hsl(var(--muted-foreground));padding:2rem">No users found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td><strong>${escHtml(u.username)}</strong></td>
+          <td><span class="status-badge ${u.role === 'admin' ? '' : 'status-badge-muted'}">${escHtml(u.role)}</span></td>
+          <td>${u.isEnabled ? '<span style="color:hsl(var(--success,142 71% 45%))">Enabled</span>' : '<span style="color:hsl(var(--muted-foreground))">Disabled</span>'}</td>
+          <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
+          <td>${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}</td>
+          <td class="col-actions">
+            <div class="dropdown-wrapper">
+              <button class="btn-actions" onclick="toggleUserActionsDropdown(event, '${u.id}')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              <div class="dropdown" id="userDropdown-${u.id}">
+                <button class="dropdown-item" onclick="openUserPasswordModal('${u.id}', '${escHtml(u.username)}'); closeAllDropdowns()">Change Password</button>
+                <button class="dropdown-item" onclick="openUserRoleModal('${u.id}', '${escHtml(u.username)}', '${u.role}'); closeAllDropdowns()">Change Role</button>
+                <button class="dropdown-item" onclick="regenerateUserApiKey('${u.id}', '${escHtml(u.username)}'); closeAllDropdowns()">Regenerate API Key</button>
+                <button class="dropdown-item dropdown-item--destructive" onclick="deleteUser('${u.id}', '${escHtml(u.username)}'); closeAllDropdowns()">Delete</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function toggleUserActionsDropdown(e, userId) {
+      e.stopPropagation();
+      closeAllDropdowns();
+      const d = document.getElementById(`userDropdown-${userId}`);
+      if (d) d.classList.toggle('open');
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+      const result = await apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
+      if (result.ok) {
+        notify('success', 'User deleted', `${username} has been removed.`);
+        loadUsers();
+      }
+    }
+
+    let userActionTargetId = null;
+    let userActionTargetName = null;
+
+    function openUserPasswordModal(id, username) {
+      userActionTargetId = id;
+      userActionTargetName = username;
+      const pwd = prompt(`Set new password for "${username}" (min 12 chars):`);
+      if (!pwd) return;
+      if (pwd.length < 12) { notify('error', 'Password too short', 'Minimum 12 characters required.'); return; }
+      apiRequest(`/api/admin/users/${id}/password`, {
+        method: 'PATCH',
+        body: { newPassword: pwd }
+      }).then(r => {
+        if (r.ok) notify('success', 'Password updated', `Password changed for ${username}.`);
+      });
+    }
+
+    function openUserRoleModal(id, username, currentRole) {
+      const newRole = currentRole === 'admin' ? 'user' : 'admin';
+      if (!confirm(`Change role for "${username}" from "${currentRole}" to "${newRole}"?`)) return;
+      apiRequest(`/api/admin/users/${id}/role`, {
+        method: 'PATCH',
+        body: { role: newRole }
+      }).then(r => {
+        if (r.ok) {
+          notify('success', 'Role updated', `${username} is now a ${newRole}.`);
+          loadUsers();
+        }
+      });
+    }
+
+    async function regenerateUserApiKey(id, username) {
+      if (!confirm(`Regenerate API key for "${username}"? The old key will stop working immediately.`)) return;
+      const result = await apiRequest(`/api/admin/users/${id}/api-key`, { method: 'POST' });
+      if (result.ok) {
+        notify('success', 'API Key regenerated', 'Copy the new key now — it will not be shown again.');
+        alert(`New API key for ${username}:\n\n${result.data.apiKey}\n\nCopy it now!`);
+      }
+    }
+
+    // ========== ADD USER MODAL ==========
+    let _newUserApiKey = '';
+
+    function openAddUserModal() {
+      document.getElementById('newUserUsername').value = '';
+      document.getElementById('newUserPassword').value = '';
+      document.getElementById('newUserConfirmPassword').value = '';
+      document.getElementById('newUserRole').value = 'user';
+      document.getElementById('newUserApiKeySection').style.display = 'none';
+      document.getElementById('newUserApiKeyOutput').textContent = '';
+      _newUserApiKey = '';
+      document.getElementById('addUserBtn').disabled = false;
+      document.getElementById('addUserModal').style.display = 'flex';
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'none';
+    }
+
+    async function createUser() {
+      const username = document.getElementById('newUserUsername').value.trim();
+      const password = document.getElementById('newUserPassword').value;
+      const confirm = document.getElementById('newUserConfirmPassword').value;
+      const role = document.getElementById('newUserRole').value;
+
+      if (!username) { notify('error', 'Validation', 'Username is required.'); return; }
+      if (password !== confirm) { notify('error', 'Validation', 'Passwords do not match.'); return; }
+
+      const btn = document.getElementById('addUserBtn');
+      btn.classList.add('is-loading');
+      btn.disabled = true;
+
+      const result = await apiRequest('/api/admin/users', {
+        method: 'POST',
+        body: { username, password, role }
+      });
+
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+
+      if (result.ok) {
+        _newUserApiKey = result.data.apiKey;
+        document.getElementById('newUserApiKeyOutput').textContent = _newUserApiKey;
+        document.getElementById('newUserApiKeySection').style.display = 'block';
+        document.querySelector('#addUserModal .modal-actions .btn-outline').textContent = 'Done';
+        document.getElementById('addUserBtn').style.display = 'none';
+        notify('success', 'User created', `${username} has been created. Copy the API key now.`);
+        loadUsers();
+      }
+    }
+
+    function copyNewUserApiKey() {
+      if (!_newUserApiKey) return;
+      navigator.clipboard.writeText(_newUserApiKey).then(() => notify('success', 'Copied', 'API key copied to clipboard.'));
+    }
+
+    // ========== ACCOUNT VIEW ==========
+    async function loadAccount() {
+      const result = await apiRequest('/api/admin/users/me');
+      if (!result.ok) return;
+      const me = result.data;
+      document.getElementById('accountUsername').value = me.username || '';
+      document.getElementById('accountRoleBadge').innerHTML =
+        `<span class="status-badge ${me.role === 'admin' ? '' : 'status-badge-muted'}">${escHtml(me.role || 'admin')}</span>`;
+      // Hide current password field for admins (they can skip it)
+      const isAdmin = (me.role === 'admin');
+      const curPwdGroup = document.getElementById('accountCurrentPasswordGroup');
+      if (curPwdGroup) curPwdGroup.style.display = isAdmin ? 'none' : '';
+      sessionStorage.setItem('beacon_user_id', me.id || '');
+    }
+
+    async function saveAccountPassword() {
+      const currentPwd = document.getElementById('accountCurrentPassword').value;
+      const newPwd = document.getElementById('accountNewPassword').value;
+      const confirmPwd = document.getElementById('accountConfirmPassword').value;
+
+      if (newPwd !== confirmPwd) { notify('error', 'Validation', 'Passwords do not match.'); return; }
+      if (newPwd.length < 12) { notify('error', 'Validation', 'Password must be at least 12 characters.'); return; }
+
+      const userId = sessionStorage.getItem('beacon_user_id');
+      if (!userId) { notify('error', 'Error', 'Could not determine user ID.'); return; }
+
+      const body = { newPassword: newPwd };
+      if (currentPwd) body.currentPassword = currentPwd;
+
+      const result = await apiRequest(`/api/admin/users/${userId}/password`, { method: 'PATCH', body });
+      if (result.ok) {
+        notify('success', 'Password updated', 'Your password has been changed.');
+        document.getElementById('accountCurrentPassword').value = '';
+        document.getElementById('accountNewPassword').value = '';
+        document.getElementById('accountConfirmPassword').value = '';
+      }
+    }
+
+    async function regenerateOwnApiKey() {
+      if (!confirm('Regenerate your API key? The old key will stop working immediately.')) return;
+      const userId = sessionStorage.getItem('beacon_user_id');
+      if (!userId) { notify('error', 'Error', 'Could not determine user ID.'); return; }
+
+      const result = await apiRequest(`/api/admin/users/${userId}/api-key`, { method: 'POST' });
+      if (result.ok) {
+        const key = result.data.apiKey;
+        document.getElementById('accountApiKeyOutput').textContent = key;
+        document.getElementById('accountApiKeyReveal').style.display = '';
+        notify('success', 'API Key regenerated', 'Copy it now — it will not be shown again.');
+      }
+    }
+
+    function copyAccountApiKey() {
+      const key = document.getElementById('accountApiKeyOutput').textContent;
+      if (!key) return;
+      navigator.clipboard.writeText(key).then(() => notify('success', 'Copied', 'API key copied to clipboard.'));
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     init();

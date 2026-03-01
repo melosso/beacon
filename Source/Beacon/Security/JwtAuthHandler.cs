@@ -51,8 +51,13 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             }
 
             var sub = payload.TryGetProperty("sub", out var subElement) ? subElement.GetString() ?? "unknown" : "unknown";
+            var role = payload.TryGetProperty("role", out var roleElement) ? roleElement.GetString() ?? "admin" : "admin";
 
-            var claims = new[] { new Claim(ClaimTypes.Name, sub) };
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.Name, sub),
+                new Claim(ClaimTypes.Role, role)
+            };
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
@@ -100,13 +105,13 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         return JsonSerializer.Deserialize<JsonElement>(payloadJson);
     }
 
-    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt)
+    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin")
     {
         var header = Base64UrlEncode("""{"alg":"HS256","typ":"JWT"}"""u8);
 
         var iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var exp = expiresAt.ToUnixTimeSeconds();
-        var payloadJson = $"{{\"sub\":\"{subject}\",\"iat\":{iat},\"exp\":{exp}}}";
+        var payloadJson = $"{{\"sub\":\"{subject}\",\"role\":\"{role}\",\"iat\":{iat},\"exp\":{exp}}}";
         var payload = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
 
         var signatureInput = Encoding.ASCII.GetBytes($"{header}.{payload}");
