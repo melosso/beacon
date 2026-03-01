@@ -135,7 +135,7 @@ public static class AuthEndpoints
     private static IResult OkToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role)
     {
         var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role);
-        return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role });
+        return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role, username = subject });
     }
 
     private static bool CryptographicEquals(string providedKey, string expectedKey)

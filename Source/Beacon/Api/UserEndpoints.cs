@@ -163,8 +163,8 @@ public static class UserEndpoints
         if (!isSelf && currentRole != "admin")
             return Results.Json(new { error = "Forbidden." }, statusCode: 403);
 
-        // Non-admin changing own password must provide current password
-        if (isSelf && currentRole != "admin")
+        // All users must provide their current password when changing their own
+        if (isSelf)
         {
             if (string.IsNullOrEmpty(request.CurrentPassword))
                 return Results.Json(new { error = "Current password is required." }, statusCode: 400);

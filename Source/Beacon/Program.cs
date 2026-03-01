@@ -173,6 +173,7 @@ try
         .AddJwtAuth(options =>
         {
             options.SigningKey = Convert.FromBase64String(normalizedSigningKey);
+            options.UserAuthentication = userAuthentication;
         })
         .AddPolicyScheme("CompositeScheme", "API Key or JWT", options =>
         {
@@ -346,6 +347,8 @@ try
     {
         options.MaxRequests = 1500;
         options.Window = TimeSpan.FromMinutes(1);
+        // Strict limit for auth endpoints to mitigate brute-force attacks
+        options.StrictPaths["/api/admin/auth"] = 10;
     });
 
     // Middleware pipeline

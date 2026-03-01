@@ -7,6 +7,7 @@ public class RateLimitingMiddleware
     private readonly RequestDelegate _next;
     private readonly RateLimitOptions _options;
     private readonly ConcurrentDictionary<string, RateLimitEntry> _clients = new();
+    private readonly ConcurrentDictionary<string, RateLimitEntry> _strictClients = new();
 
     public RateLimitingMiddleware(RequestDelegate next, RateLimitOptions options)
     {
@@ -16,18 +17,47 @@ public class RateLimitingMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var clientId = GetClientIdentifier(context);
+        var clientIp = GetClientIdentifier(context);
         var now = DateTime.UtcNow;
 
+        // Check path-specific strict limits first
+        var path = context.Request.Path.Value ?? "";
+        foreach (var strictLimit in _options.StrictPaths)
+        {
+            if (path.StartsWith(strictLimit.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                var strictKey = $"{strictLimit.Key}:{clientIp}";
+                var strictEntry = _strictClients.AddOrUpdate(
+                    strictKey,
+                    _ => new RateLimitEntry { Count = 1, WindowStart = now },
+                    (_, existing) =>
+                    {
+                        if (now - existing.WindowStart > _options.Window)
+                            return new RateLimitEntry { Count = 1, WindowStart = now };
+                        existing.Count++;
+                        return existing;
+                    });
+
+                if (strictEntry.Count > strictLimit.Value)
+                {
+                    context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    context.Response.Headers.RetryAfter =
+                        ((int)(_options.Window - (now - strictEntry.WindowStart)).TotalSeconds).ToString();
+                    await context.Response.WriteAsJsonAsync(new { error = "Rate limit exceeded" });
+                    return;
+                }
+                break;
+            }
+        }
+
+        // Global rate limit
         var entry = _clients.AddOrUpdate(
-            clientId,
+            clientIp,
             _ => new RateLimitEntry { Count = 1, WindowStart = now },
             (_, existing) =>
             {
                 if (now - existing.WindowStart > _options.Window)
-                {
                     return new RateLimitEntry { Count = 1, WindowStart = now };
-                }
                 existing.Count++;
                 return existing;
             });
@@ -66,9 +96,12 @@ public class RateLimitingMiddleware
         foreach (var key in _clients.Keys)
         {
             if (_clients.TryGetValue(key, out var entry) && entry.WindowStart < cutoff)
-            {
                 _clients.TryRemove(key, out _);
-            }
+        }
+        foreach (var key in _strictClients.Keys)
+        {
+            if (_strictClients.TryGetValue(key, out var entry) && entry.WindowStart < cutoff)
+                _strictClients.TryRemove(key, out _);
         }
     }
 
@@ -83,6 +116,8 @@ public class RateLimitOptions
 {
     public int MaxRequests { get; set; } = 1500;
     public TimeSpan Window { get; set; } = TimeSpan.FromMinutes(1);
+    /// <summary>Path prefixes mapped to their maximum requests per window.</summary>
+    public Dictionary<string, int> StrictPaths { get; set; } = new();
 }
 
 public static class RateLimitingExtensions

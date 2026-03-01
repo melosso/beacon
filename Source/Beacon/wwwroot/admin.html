@@ -33,19 +33,48 @@
 
   <!-- Auth Overlay -->
   <div class="auth-overlay" id="authOverlay">
-    <div class="auth-box select-none">
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.25rem">
+        <div class="brand-avatar" style="width:28px;height:28px">
+          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-avatar-bg" aria-hidden="true">
+            <g clip-path="url(#beacon-avatar-clip)">
+              <rect width="20" height="20" fill="#000" rx="5.5"/>
+              <rect width="20" height="20" fill="url(#beacon-avatar-gradient)" fill-opacity="0.2" rx="5.5"/>
+              <g filter="url(#beacon-avatar-blur-1)" opacity="0.3"><circle cx="16" cy="17" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+              <g filter="url(#beacon-avatar-blur-2)" opacity="0.1"><circle cx="16" cy="16" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+              <g filter="url(#beacon-avatar-blur-3)" opacity="0.4"><circle cx="17" cy="19" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+              <rect width="20" height="20" fill="#FF64B4" fill-opacity="0.15" rx="5.5"/>
+              <g style="mix-blend-mode:hard-light"><rect width="20" height="20" fill="#6A62FF" fill-opacity="0.1" rx="5.5"/></g>
+            </g>
+            <rect width="19" height="19" x="0.5" y="0.5" stroke="#FDFDFD" stroke-opacity="0.1" rx="5"/>
+          </svg>
+          <svg class="brand-avatar-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FDFDFD" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h1 style="font-size:1.1rem;font-weight:500;margin:0">Beacon</h1>
+      </div>
+      <div class="auth-box select-none">
       <h2>Beam Me In, Scotty</h2>
       <p id="authOverlayDesc">Enter the sequence and power up the admin mainframe. In other words: enter your API-key.</p>
       <input type="text" id="usernameInput" placeholder="Username" autocomplete="username" style="display:none" onkeydown="if(event.key==='Enter')authenticate()">
       <input type="password" id="apiKeyInput" placeholder="X-Api-Key" autocomplete="current-password" onkeydown="if(event.key==='Enter')authenticate()">
       <div class="error" id="authError">Invalid credentials</div>
-      <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center" onclick="authenticate()"><span class="btn-label">Sign In</span><span class="spinner"></span></button>
-      <div id="authToggleSep" style="display:none;align-items:center;gap:0.75rem;margin:1rem 0 0">
-        <hr style="flex:1;border:none;border-top:1px solid hsl(var(--border))">
-        <span style="font-size:0.75rem;color:hsl(var(--muted-foreground))">or</span>
-        <hr style="flex:1;border:none;border-top:1px solid hsl(var(--border))">
+      <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center" onclick="authenticate()">
+        <span class="btn-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:0.4rem"><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>Sign In</span><span class="spinner"></span>
+      </button>
+      <div id="authToggleSep" style="display:none;align-items:center;gap:0.5rem;margin:1rem 0 0">
+        <span style="flex:1;height:1px;background:hsl(var(--border))"></span>
+        <span style="font-size:0.7rem;color:hsl(var(--muted-foreground));text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Or continue with</span>
+        <span style="flex:1;height:1px;background:hsl(var(--border))"></span>
       </div>
-      <button class="btn btn-outline" id="authToggleBtn" style="display:none;width:100%;justify-content:center;margin-top:0.75rem;font-family:inherit" onclick="toggleAuthMode(event)">Other sign-in options</button>
+      <div id="authToggleBtn" style="display:none;margin-top:0.75rem">
+        <button class="btn btn-outline" style="width:100%;justify-content:center;font-family:inherit" onclick="toggleAuthMode(event)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+          Access Token
+        </button>
+      </div>
+    </div>
     </div>
   </div>
 
@@ -1238,26 +1267,31 @@
                 <div id="accountRoleBadge" style="flex-shrink:0"></div>
               </div>
             </div>
-            <div class="settings-content-hd" style="margin-top:1.5rem">
-              <h3 class="select-none">Security</h3>
-              <p>Manage your password and API access key.</p>
-            </div>
-            <hr class="settings-sep">
-            <div class="settings-items">
-              <div class="settings-item-block" style="align-items:center">
-                <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Password</span>
-                  <p class="settings-item-desc">Update your login password.</p>
-                </div>
-                <button class="btn btn-outline" onclick="openAccountPasswordModal()">Change Password</button>
+            <div style="margin-top:1.5rem">
+              <div class="settings-content-hd">
+                <h3 class="select-none">Security</h3>
+                <p>Manage your password and API access key.</p>
               </div>
-              <div class="settings-item-block" style="align-items:center">
-                <div class="settings-item-info">
-                  <span class="settings-item-title select-none">API Key</span>
-                  <p class="settings-item-desc">Personal key for programmatic access. Regenerating immediately invalidates the old key.</p>
+              <hr class="settings-sep">
+              <div id="accountSecurityItems" class="settings-items">
+                <div class="settings-item-block" style="align-items:center">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Password</span>
+                    <p class="settings-item-desc">Update your login password.</p>
+                  </div>
+                  <button class="btn btn-outline" onclick="openAccountPasswordModal()">Change Password</button>
                 </div>
-                <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
+                <div class="settings-item-block" style="align-items:center">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">API Key</span>
+                    <p class="settings-item-desc">Personal key for programmatic access. Regenerating immediately invalidates the old key.</p>
+                  </div>
+                  <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
+                </div>
               </div>
+              <p id="accountGlobalAdminNotice" class="select-none" style="display:none;font-size:0.875rem;color:hsl(var(--muted-foreground));margin:0.75rem 0 0">
+                Signed in with the global admin API key. Password and API key management are configured via environment variables.
+              </p>
             </div>
           </div>
 
@@ -2152,9 +2186,11 @@
         authToken = data.token;
         tokenExpiresAt = new Date(data.expiresAt);
         currentUserRole = data.role || 'admin';
+        currentUsername = data.username || '';
         sessionStorage.setItem('beacon_jwt', authToken);
         sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);
         sessionStorage.setItem('beacon_user_role', currentUserRole);
+        sessionStorage.setItem('beacon_username', currentUsername);
         startTokenRefresh();
 
         // Load initial data
@@ -2198,6 +2234,7 @@
       sessionStorage.removeItem('beacon_buckets');
       sessionStorage.removeItem('beacon_user_role');
       sessionStorage.removeItem('beacon_user_id');
+      sessionStorage.removeItem('beacon_username');
       location.reload();
     }
 
@@ -2252,6 +2289,7 @@
           authToken = savedToken;
           tokenExpiresAt = exp;
           currentUserRole = sessionStorage.getItem('beacon_user_role') || 'admin';
+          currentUsername = sessionStorage.getItem('beacon_username') || '';
           startTokenRefresh();
 
           // Restore cached buckets for speed
@@ -2280,6 +2318,7 @@
         sessionStorage.removeItem('beacon_buckets');
         sessionStorage.removeItem('beacon_user_role');
         sessionStorage.removeItem('beacon_user_id');
+        sessionStorage.removeItem('beacon_username');
         authToken = '';
       }
 
@@ -2764,6 +2803,7 @@
       if (view === 'submissions') loadSubmissionForms();
       if (view === 'submission-create') initSubmissionWizard();
       if (view === 'new-bucket') renderNewBucketPerms();
+      if (view === 'new-token') document.getElementById('tokenLanguage').value = appSettings.uiLanguage || 'en';
       if (view === 'settings') loadSettings();
       if (view === 'subscriptions') {
         loadIdentities(pushState);
@@ -3687,7 +3727,7 @@
           document.getElementById('tokenFormFields').classList.add('frozen');
 
           loadBuckets();
-        }
+        } else { notify('error', 'Error', result.data?.error || 'Failed to generate token.'); }
       } finally {
         btn.disabled = false;
       }
@@ -3903,7 +3943,7 @@
         closeRemoveModal();
         await loadBuckets();
         showView('overview');
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to delete bucket.'); }
     }
 
     function closeRemoveModal() {
@@ -3978,7 +4018,7 @@
         notify('success', 'Permission Added', `"${formatPermission(perm)}" added to bucket`);
         await loadBucketPerms();
         await loadBucket(currentBucket);
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to add permission.'); }
     }
 
     function showPermRemoveModal(perm) {
@@ -4033,7 +4073,7 @@
         await loadBucketPerms();
         // Refresh the main bucket view
         await loadBucket(currentBucket);
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to remove permission.'); }
     }
 
     function closePermRemoveModal() {
@@ -4425,7 +4465,7 @@
         errors.map((e, i) => {
           const time = formatDate(e.occurredAt);
           const msg = e.errorMessage.length > 120 ? e.errorMessage.substring(0, 120) + '...' : e.errorMessage;
-          const badge = e.statusCode ? `<span class="error-status">${e.statusCode}</span>` : '';
+          const badge = e.statusCode ? `<span class="error-status">${sanitize(String(e.statusCode))}</span>` : '';
           return `<div class="error-item" onclick="event.stopPropagation();showErrorDetailModal(${i})"><div class="error-time">${sanitize(time)}</div><div class="error-msg">${sanitize(msg)}${badge}</div></div>`;
         }).join('');
     }
@@ -4453,7 +4493,7 @@
       activeErrorDetail = error;
       document.getElementById('errorDetailTime').textContent = new Date(error.occurredAt).toLocaleString();
       const badgeEl = document.getElementById('errorDetailBadge');
-      badgeEl.innerHTML = error.statusCode ? `<span class="error-status">${error.statusCode}</span>` : '';
+      badgeEl.innerHTML = error.statusCode ? `<span class="error-status">${sanitize(String(error.statusCode))}</span>` : '';
 
       // Request info
       const reqEl = document.getElementById('errorDetailRequest');
@@ -4514,14 +4554,14 @@
       if (result.ok) {
         closeErrorDetailModal();
         await loadWebhookErrors(currentBucket);
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to remove error.'); }
     }
 
     async function clearAllWebhookErrors() {
       const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/errors`, { method: 'DELETE' });
       if (result.ok) {
         await loadWebhookErrors(currentBucket);
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to clear errors.'); }
     }
 
     function toggleWebhookErrors(event) {
@@ -4567,7 +4607,7 @@
         overviewErrorsCache.map((e, i) => {
           const time = formatDate(e.occurredAt);
           const msg = e.errorMessage.length > 100 ? e.errorMessage.substring(0, 100) + '…' : e.errorMessage;
-          const badge = e.statusCode ? `<span class="error-status">${e.statusCode}</span>` : '';
+          const badge = e.statusCode ? `<span class="error-status">${sanitize(String(e.statusCode))}</span>` : '';
           return `<div class="error-item" onclick="event.stopPropagation();openOverviewErrorDetail(${i})">
             <div class="error-time"><strong>${sanitize(e.bucket)}</strong> &middot; ${sanitize(time)}</div>
             <div class="error-msg">${sanitize(msg)}${badge}</div>
@@ -4710,7 +4750,7 @@
         } else if (currentBucket) {
           loadBucket(currentBucket);
         }
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to delete record.'); }
     }
 
     async function savePermissions() {
@@ -4742,7 +4782,7 @@
         notify('success', 'Permissions Updated', 'Consent preferences have been saved');
         closeEditPermissionsModal();
         if (currentBucket) loadBucket(currentBucket);
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to save permissions.'); }
     }
 
     async function openOptOutPage(encodedData) {
@@ -4777,7 +4817,7 @@
       if (result.ok) {
         const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
         window.open(url, '_blank');
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to generate opt-out link.'); }
     }
 
     // ========== SSE WEBHOOK ERROR NOTIFICATIONS ==========
@@ -5343,7 +5383,7 @@
         notify('success', 'Form Removed', `Successfully deleted submission form "${submissionToRemove.name}"`);
         closeSubmissionRemoveModal();
         loadSubmissionForms();
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to delete submission form.'); }
     }
 
     function closeSubmissionRemoveModal() {
@@ -5353,10 +5393,11 @@
     }
 
     async function toggleSubmissionEnabled(id, enabled) {
-      await apiRequest(`/api/admin/submissions/${id}`, {
+      const result = await apiRequest(`/api/admin/submissions/${id}`, {
         method: 'PUT',
         body: { isEnabled: enabled }
       });
+      if (!result.ok) { notify('error', 'Error', result.data?.error || 'Failed to update submission form.'); loadSubmissionForms(); }
     }
 
     function switchEmbedTab(tab) {
@@ -5581,7 +5622,12 @@ ${bodyStr}
       enableDoubleOptIn: false,
       emailQueueCron: '*/5 * * * *'
     };
-    let appSettings = { ...settingsDefaults };
+    let appSettings = (() => {
+      try {
+        const saved = localStorage.getItem('beacon_settings');
+        return saved ? { ...settingsDefaults, ...JSON.parse(saved) } : { ...settingsDefaults };
+      } catch { return { ...settingsDefaults }; }
+    })();
 
     function loadSettings() {
       try {
@@ -5951,7 +5997,7 @@ ${bodyStr}
 
     // ========== USER AUTHENTICATION UI SETUP ==========
     let currentUserRole = 'admin';
-    let currentUserId = null;
+    let currentUsername = '';
 
     let _authFormMode = 'password'; // 'password' | 'apikey' — only used in 'both' mode
 
@@ -5959,16 +6005,19 @@ ${bodyStr}
       const usernameInput = document.getElementById('usernameInput');
       const apiKeyInput = document.getElementById('apiKeyInput');
       const desc = document.getElementById('authOverlayDesc');
+      const toggleBtn = document.getElementById('authToggleBtn')?.querySelector('button');
       if (isPassword) {
         usernameInput.style.display = '';
         apiKeyInput.placeholder = 'Password';
         apiKeyInput.autocomplete = 'current-password';
-        if (desc) desc.textContent = 'Sign in with your username and password.';
+        if (desc) desc.textContent = 'Insert your access key to interface with the core. Your username and password will do.';
+        if (toggleBtn) toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg> Access Token`;
       } else {
         usernameInput.style.display = 'none';
         apiKeyInput.placeholder = 'API Key';
         apiKeyInput.autocomplete = 'off';
         if (desc) desc.textContent = 'Enter your personal API key to sign in.';
+        if (toggleBtn) toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg> Password`;
       }
     }
 
@@ -6073,6 +6122,10 @@ ${bodyStr}
     let userActionTargetId = null;
 
     function openUserPasswordModal(id, username) {
+      if (username === currentUsername) {
+        notify('info', 'Use Account Settings', 'To change your own password, go to Settings → Account.');
+        return;
+      }
       userActionTargetId = id;
       document.getElementById('userPasswordModalDesc').textContent = `Set a new password for ${username}.`;
       document.getElementById('userPasswordInput').value = '';
@@ -6092,6 +6145,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userActionTargetId}/password`, { method: 'PATCH', body: { newPassword: pwd } });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeUserPasswordModal(); notify('success', 'Password updated', 'The password has been changed.'); }
+      else { notify('error', 'Error', result.data?.error || 'Failed to update password.'); }
     }
 
     function openUserRoleModal(id, username, currentRole) {
@@ -6112,6 +6166,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userActionTargetId}/role`, { method: 'PATCH', body: { role } });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeUserRoleModal(); notify('success', 'Role updated', 'The role has been changed.'); loadUsers(); }
+      else { notify('error', 'Error', result.data?.error || 'Failed to update role.'); }
     }
 
     function openRenameUserModal(id, username) {
@@ -6134,6 +6189,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userActionTargetId}/username`, { method: 'PATCH', body: { username } });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeRenameUserModal(); notify('success', 'User renamed', 'The username has been updated.'); loadUsers(); }
+      else { notify('error', 'Error', result.data?.error || 'Failed to rename user.'); }
     }
 
     async function deleteUser(id, username) {
@@ -6144,6 +6200,7 @@ ${bodyStr}
         async () => {
           const result = await apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
           if (result.ok) { notify('success', 'User deleted', `${username} has been removed.`); loadUsers(); }
+          else { notify('error', 'Error', result.data?.error || 'Failed to delete user.'); }
         }
       );
     }
@@ -6159,7 +6216,7 @@ ${bodyStr}
             document.getElementById('userApiKeyRevealDesc').textContent = `New API key for ${username} — copy it now, it will not be shown again.`;
             document.getElementById('userApiKeyRevealOutput').textContent = result.data.apiKey;
             document.getElementById('userApiKeyRevealModal').style.display = 'flex';
-          }
+          } else { notify('error', 'Error', result.data?.error || 'Failed to regenerate API key.'); }
         }
       );
     }
@@ -6246,7 +6303,7 @@ ${bodyStr}
         document.getElementById('addUserBtn').style.display = 'none';
         notify('success', 'User created', `${username} has been created. Copy the API key now.`);
         loadUsers();
-      }
+      } else { notify('error', 'Error', result.data?.error || 'Failed to create user.'); }
     }
 
     function copyNewUserApiKey() {
@@ -6265,22 +6322,19 @@ ${bodyStr}
         `<span class="status-badge ${me.role === 'admin' ? '' : 'status-badge-muted'}">${sanitize(me.role || 'admin')}</span>`;
       sessionStorage.setItem('beacon_user_id', me.id || '');
       sessionStorage.setItem('beacon_user_role', me.role || '');
+      const hasDbRecord = !!me.id;
+      const itemsEl = document.getElementById('accountSecurityItems');
+      const noticeEl = document.getElementById('accountGlobalAdminNotice');
+      if (itemsEl) itemsEl.style.display = hasDbRecord ? '' : 'none';
+      if (noticeEl) noticeEl.style.display = hasDbRecord ? 'none' : '';
     }
 
     function openAccountPasswordModal() {
-      const isAdmin = sessionStorage.getItem('beacon_user_role') === 'admin';
-      const curPwdGroup = document.getElementById('accountCurrentPasswordGroup');
-      if (curPwdGroup) curPwdGroup.style.display = isAdmin ? 'none' : '';
       document.getElementById('accountCurrentPassword').value = '';
       document.getElementById('accountNewPassword').value = '';
       document.getElementById('accountConfirmPassword').value = '';
       document.getElementById('accountPasswordModal').style.display = 'flex';
-      setTimeout(() => {
-        const first = isAdmin
-          ? document.getElementById('accountNewPassword')
-          : document.getElementById('accountCurrentPassword');
-        first?.focus();
-      }, 50);
+      setTimeout(() => document.getElementById('accountCurrentPassword')?.focus(), 50);
     }
 
     function closeAccountPasswordModal() {
@@ -6306,6 +6360,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userId}/password`, { method: 'PATCH', body });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeAccountPasswordModal(); notify('success', 'Password updated', 'Your password has been changed.'); }
+      else { notify('error', 'Error', result.data?.error || 'Failed to change password.'); }
     }
 
     async function regenerateOwnApiKey() {
@@ -6321,7 +6376,7 @@ ${bodyStr}
             document.getElementById('userApiKeyRevealDesc').textContent = 'Your new API key — copy it now, it will not be shown again.';
             document.getElementById('userApiKeyRevealOutput').textContent = result.data.apiKey;
             document.getElementById('userApiKeyRevealModal').style.display = 'flex';
-          }
+          } else { notify('error', 'Error', result.data?.error || 'Failed to regenerate API key.'); }
         }
       );
     }
