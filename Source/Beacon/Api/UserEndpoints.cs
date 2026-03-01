@@ -30,6 +30,11 @@ public static class UserEndpoints
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
+        // Admin-only: rename user
+        routes.MapPatch("/api/admin/users/{id:guid}/username", ChangeUsername)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
         // Admin can reset any; user can reset own
         routes.MapPost("/api/admin/users/{id:guid}/api-key", RegenerateApiKey)
             .RequireAuthorization()
@@ -93,7 +98,7 @@ public static class UserEndpoints
     private static async Task<IResult> DeleteUser(Guid id, HttpContext ctx, IUserRepository repo)
     {
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
-        var user = (await repo.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+        var user = await repo.FindByIdAsync(id);
         if (user == null)
             return Results.Json(new { error = "User not found." }, statusCode: 404);
 
@@ -111,7 +116,7 @@ public static class UserEndpoints
             return Results.Json(new { error = "Role must be 'admin' or 'user'." }, statusCode: 400);
 
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
-        var user = (await repo.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+        var user = await repo.FindByIdAsync(id);
         if (user == null)
             return Results.Json(new { error = "User not found." }, statusCode: 404);
 
@@ -127,7 +132,7 @@ public static class UserEndpoints
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var currentRole = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "user";
 
-        var user = (await repo.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+        var user = await repo.FindByIdAsync(id);
         if (user == null)
             return Results.Json(new { error = "User not found." }, statusCode: 404);
 
@@ -149,7 +154,7 @@ public static class UserEndpoints
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var currentRole = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "user";
 
-        var user = (await repo.GetAllAsync()).FirstOrDefault(u => u.Id == id);
+        var user = await repo.FindByIdAsync(id);
         if (user == null)
             return Results.Json(new { error = "User not found." }, statusCode: 404);
 
@@ -208,14 +213,14 @@ public static class UserEndpoints
             error = "Username is required.";
             return false;
         }
-        if (username.Length < 3 || username.Length > 50)
+        if (username.Length < 3 || username.Length > 100)
         {
-            error = "Username must be 3-50 characters.";
+            error = "Username must be 3-100 characters.";
             return false;
         }
-        if (!System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9\-_\.]+$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9\-_\.@]+$"))
         {
-            error = "Username may only contain letters, numbers, hyphens, underscores, and dots.";
+            error = "Username may only contain letters, numbers, hyphens, underscores, dots, and @ signs.";
             return false;
         }
         return true;
@@ -237,7 +242,25 @@ public static class UserEndpoints
         return true;
     }
 
+    private static async Task<IResult> ChangeUsername(Guid id, ChangeUsernameRequest request, IUserRepository repo)
+    {
+        if (!ValidateUsername(request.Username, out var usernameError))
+            return Results.Json(new { error = usernameError }, statusCode: 400);
+
+        var user = await repo.FindByIdAsync(id);
+        if (user == null)
+            return Results.Json(new { error = "User not found." }, statusCode: 404);
+
+        var existing = await repo.FindByUsernameAsync(request.Username!);
+        if (existing != null && existing.Id != id)
+            return Results.Json(new { error = "Username already exists." }, statusCode: 409);
+
+        await repo.UpdateUsernameAsync(id, request.Username!);
+        return Results.Ok(new { success = true });
+    }
+
     private record CreateUserRequest(string? Username, string? Password, string? Role);
     private record ChangeRoleRequest(string? Role);
+    private record ChangeUsernameRequest(string? Username);
     private record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 }

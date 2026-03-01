@@ -13,6 +13,22 @@ public sealed class UserRepository : IUserRepository
         _context = context;
     }
 
+    public async Task<User?> FindByIdAsync(Guid id)
+    {
+        return await _context.Users.FindAsync(id);
+    }
+
+    public async Task UpdateUsernameAsync(Guid id, string username)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user != null)
+        {
+            user.Username = username;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+    }
+
     public async Task<User?> FindByUsernameAsync(string username)
     {
         var lower = username.ToLowerInvariant();

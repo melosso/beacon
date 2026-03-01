@@ -48,8 +48,7 @@ public static class AuthEndpoints
             }
 
             await userRepo.SetLastLoginAsync(user.Id);
-            var token = JwtAuthHandler.CreateToken(signingKey, user.Username, expiresAt, user.Role);
-            return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role = user.Role });
+            return OkToken(signingKey, user.Username, expiresAt, user.Role);
         }
 
         if (userAuthentication == "api")
@@ -61,10 +60,7 @@ public static class AuthEndpoints
             // Check global AdminApiKey first
             var adminApiKey = opts.AdminApiKey ?? "";
             if (!string.IsNullOrEmpty(adminApiKey) && CryptographicEquals(request.ApiKey, adminApiKey))
-            {
-                var token = JwtAuthHandler.CreateToken(signingKey, "admin", expiresAt, "admin");
-                return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role = "admin" });
-            }
+                return OkToken(signingKey, "admin", expiresAt, "admin");
 
             // Check per-user API keys
             if (userRepo != null)
@@ -74,8 +70,7 @@ public static class AuthEndpoints
                 if (user != null && user.IsEnabled)
                 {
                     await userRepo.SetLastLoginAsync(user.Id);
-                    var token = JwtAuthHandler.CreateToken(signingKey, user.Username, expiresAt, user.Role);
-                    return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role = user.Role });
+                    return OkToken(signingKey, user.Username, expiresAt, user.Role);
                 }
             }
 
@@ -95,8 +90,7 @@ public static class AuthEndpoints
                     PasswordHasher.VerifyPassword(request.Password, user.PasswordHash, user.Salt))
                 {
                     await userRepo.SetLastLoginAsync(user.Id);
-                    var token = JwtAuthHandler.CreateToken(signingKey, user.Username, expiresAt, user.Role);
-                    return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role = user.Role });
+                    return OkToken(signingKey, user.Username, expiresAt, user.Role);
                 }
             }
 
@@ -105,18 +99,14 @@ public static class AuthEndpoints
             {
                 var adminApiKey = opts.AdminApiKey ?? "";
                 if (!string.IsNullOrEmpty(adminApiKey) && CryptographicEquals(request.ApiKey, adminApiKey))
-                {
-                    var token = JwtAuthHandler.CreateToken(signingKey, "admin", expiresAt, "admin");
-                    return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role = "admin" });
-                }
+                    return OkToken(signingKey, "admin", expiresAt, "admin");
 
                 var keyHash = ApiKeyGenerator.ComputeHash(request.ApiKey);
                 var userByKey = await userRepo.FindByApiKeyHashAsync(keyHash);
                 if (userByKey != null && userByKey.IsEnabled)
                 {
                     await userRepo.SetLastLoginAsync(userByKey.Id);
-                    var token = JwtAuthHandler.CreateToken(signingKey, userByKey.Username, expiresAt, userByKey.Role);
-                    return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role = userByKey.Role });
+                    return OkToken(signingKey, userByKey.Username, expiresAt, userByKey.Role);
                 }
             }
 
@@ -131,20 +121,20 @@ public static class AuthEndpoints
         if (!CryptographicEquals(request.ApiKey, legacyAdminKey))
             return Results.Json(new { error = "Invalid API key." }, statusCode: 401);
 
-        var legacyToken = JwtAuthHandler.CreateToken(signingKey, "admin", expiresAt, "admin");
-        return Results.Ok(new { token = legacyToken, expiresAt = expiresAt.ToString("o"), role = "admin" });
+        return OkToken(signingKey, "admin", expiresAt, "admin");
     }
 
     private static IResult Refresh(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions)
     {
         var signingKey = jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey;
-
         var sub = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
+        return OkToken(signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role);
+    }
 
-        var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
-        var token = JwtAuthHandler.CreateToken(signingKey, sub, expiresAt, role);
-
+    private static IResult OkToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role)
+    {
+        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role);
         return Results.Ok(new { token, expiresAt = expiresAt.ToString("o"), role });
     }
 

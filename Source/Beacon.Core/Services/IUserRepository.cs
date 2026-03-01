@@ -4,6 +4,8 @@ namespace Beacon.Core.Services;
 
 public interface IUserRepository
 {
+    Task<User?> FindByIdAsync(Guid id);
+    Task UpdateUsernameAsync(Guid id, string username);
     Task<User?> FindByUsernameAsync(string username);
     Task<User?> FindByApiKeyHashAsync(string hash);
     Task<IList<User>> GetAllAsync();

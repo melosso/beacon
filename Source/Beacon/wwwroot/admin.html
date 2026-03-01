@@ -40,7 +40,12 @@
       <input type="password" id="apiKeyInput" placeholder="X-Api-Key" autocomplete="current-password" onkeydown="if(event.key==='Enter')authenticate()">
       <div class="error" id="authError">Invalid credentials</div>
       <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center" onclick="authenticate()"><span class="btn-label">Sign In</span><span class="spinner"></span></button>
-      <a href="#" id="authToggleLink" style="display:none;text-align:center;font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.75rem" onclick="toggleAuthMode(event)">Other sign-in options</a>
+      <div id="authToggleSep" style="display:none;align-items:center;gap:0.75rem;margin:1rem 0 0">
+        <hr style="flex:1;border:none;border-top:1px solid hsl(var(--border))">
+        <span style="font-size:0.75rem;color:hsl(var(--muted-foreground))">or</span>
+        <hr style="flex:1;border:none;border-top:1px solid hsl(var(--border))">
+      </div>
+      <button class="btn btn-outline" id="authToggleBtn" style="display:none;width:100%;justify-content:center;margin-top:0.75rem;font-family:inherit" onclick="toggleAuthMode(event)">Other sign-in options</button>
     </div>
   </div>
 
@@ -171,14 +176,6 @@
     </div>
 
     <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid hsl(var(--border));">
-
-      <a href="#" class="nav-item sidebar-settings-item" id="navAccount" data-view="account" onclick="showView('settings');showSettingsSection('account');return false;" style="display:none; margin: 0; padding: 0.5rem 0.75rem; justify-content: flex-start;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        Account
-      </a>
 
       <a href="#" class="nav-item sidebar-settings-item" data-view="settings" onclick="showView('settings')" style="margin: 0; padding: 0.5rem 0.75rem; justify-content: flex-start;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
@@ -884,6 +881,23 @@
         <!-- Left sub-nav -->
         <aside class="settings-subnav select-none">
           <nav class="settings-subnav-nav">
+            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" onclick="showSettingsSection('account');return false;" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              Account
+            </a>
+            <a href="#" class="settings-subnav-item" data-section="appearance" onclick="showSettingsSection('appearance');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+                <path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+              </svg>
+              Appearance
+            </a>
+
+            <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
+
             <a href="#" class="settings-subnav-item active" data-section="general" onclick="showSettingsSection('general');return false;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>
@@ -896,14 +910,6 @@
                 <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
               </svg>
               Modules
-            </a>
-            <a href="#" class="settings-subnav-item" data-section="appearance" onclick="showSettingsSection('appearance');return false;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
-                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
-                <path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
-              </svg>
-              Appearance
             </a>
             <a href="#" class="settings-subnav-item" data-section="integration" onclick="showSettingsSection('integration');return false;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -919,12 +925,9 @@
               </svg>
               Users
             </a>
-            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" onclick="showSettingsSection('account');return false;" style="display:none">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-              Account
-            </a>
+
+            <hr style="border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
+
             <a href="#" class="settings-subnav-item" data-section="system" onclick="showSettingsSection('system');return false;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
@@ -1194,90 +1197,66 @@
                 <tbody id="usersBody"></tbody>
               </table>
             </div>
+            <div class="pagination-container" id="usersPaginationBar" style="display:none">
+              <div class="pagination-settings">
+                <div class="page-size-selector">
+                  <span>Show</span>
+                  <select class="page-size-input" id="usersPageSize" onchange="updateUsersPageSize()">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                  </select>
+                  <span>per page</span>
+                </div>
+                <div class="pagination-info" id="usersPaginationInfo"></div>
+              </div>
+              <div style="display:flex;gap:0.5rem">
+                <button class="btn btn-outline" id="usersPrevBtn" onclick="changeUsersPage(-1)">Previous</button>
+                <button class="btn btn-outline" id="usersNextBtn" onclick="changeUsersPage(1)">Next</button>
+              </div>
+            </div>
           </div>
 
           <!-- Account section -->
           <div id="settings-section-account" class="settings-section">
-            <!-- Profile -->
             <div class="settings-content-hd">
               <h3 class="select-none">Profile</h3>
-              <p>Your account identity and current role.</p>
+              <p>Your account identity and role.</p>
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
               <div class="settings-item-block" style="align-items:center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Username</span>
-                  <p class="settings-item-desc">Your login name (read-only).</p>
                 </div>
-                <input type="text" id="accountUsername" readonly class="appearance-select" style="cursor:default;min-width:140px;text-align:left;font-family:inherit">
+                <code id="accountUsername" style="background:hsl(var(--muted));padding:0.25rem 0.5rem;border-radius:var(--radius);font-size:0.875rem;flex-shrink:0"></code>
               </div>
               <div class="settings-item-block" style="align-items:center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Role</span>
-                  <p class="settings-item-desc">Your current permission level in this system.</p>
                 </div>
                 <div id="accountRoleBadge" style="flex-shrink:0"></div>
               </div>
             </div>
-
-            <!-- Change Password -->
             <div class="settings-content-hd" style="margin-top:1.5rem">
-              <h3 class="select-none">Password</h3>
-              <p>Update your login password. Minimum 12 characters.</p>
-            </div>
-            <hr class="settings-sep">
-            <div class="settings-items">
-              <div id="accountCurrentPasswordGroup" class="form-group" style="max-width:400px;margin-bottom:0.75rem">
-                <label>Current Password</label>
-                <div class="input-reveal-wrapper">
-                  <input type="password" id="accountCurrentPassword" placeholder="Current password" autocomplete="current-password">
-                  <button type="button" class="reveal-btn" onclick="toggleReveal('accountCurrentPassword', this)" tabindex="-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                </div>
-              </div>
-              <div class="form-group" style="max-width:400px;margin-bottom:0.75rem">
-                <label>New Password</label>
-                <div class="input-reveal-wrapper">
-                  <input type="password" id="accountNewPassword" placeholder="New password (min. 12 chars)" autocomplete="new-password">
-                  <button type="button" class="reveal-btn" onclick="toggleReveal('accountNewPassword', this)" tabindex="-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                </div>
-              </div>
-              <div class="form-group" style="max-width:400px;margin-bottom:1rem">
-                <label>Confirm New Password</label>
-                <input type="password" id="accountConfirmPassword" placeholder="Confirm new password" autocomplete="new-password">
-              </div>
-              <div class="settings-save-row">
-                <button class="btn btn-primary" onclick="saveAccountPassword()">Update Password</button>
-              </div>
-            </div>
-
-            <!-- API Key -->
-            <div class="settings-content-hd" style="margin-top:1.5rem">
-              <h3 class="select-none">API Key</h3>
-              <p>Personal API key for programmatic access. Regenerating immediately invalidates the old key.</p>
+              <h3 class="select-none">Security</h3>
+              <p>Manage your password and API access key.</p>
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
               <div class="settings-item-block" style="align-items:center">
                 <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Current key</span>
-                  <p class="settings-item-desc">Only the last few characters are shown for security.</p>
+                  <span class="settings-item-title select-none">Password</span>
+                  <p class="settings-item-desc">Update your login password.</p>
                 </div>
-                <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0">
-                  <code id="accountApiKeyHint" style="background:hsl(var(--muted));padding:0.25rem 0.5rem;border-radius:var(--radius);font-size:0.8rem">••••••••</code>
-                  <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
-                </div>
+                <button class="btn btn-outline" onclick="openAccountPasswordModal()">Change Password</button>
               </div>
-              <div id="accountApiKeyReveal" style="display:none">
-                <p style="font-size:0.85rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">New API key — copy now, not shown again:</p>
-                <span class="tooltip-wrapper" style="display:block">
-                  <div class="token-output" id="accountApiKeyOutput" onclick="copyAccountApiKey()" style="cursor:pointer"></div>
-                  <span class="tooltip tooltip-above">Click to copy</span>
-                </span>
+              <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">API Key</span>
+                  <p class="settings-item-desc">Personal key for programmatic access. Regenerating immediately invalidates the old key.</p>
+                </div>
+                <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
               </div>
             </div>
           </div>
@@ -1869,13 +1848,126 @@
     </div>
   </div>
 
-  <!-- Add User Modal -->
+  <!-- Confirm Modal -->
+  <div class="modal-backdrop" id="confirmModal" style="display:none">
+    <div class="modal" style="max-width:400px">
+      <h3 id="confirmModalTitle" style="margin-bottom:0.5rem"></h3>
+      <p id="confirmModalMessage" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.5rem"></p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn btn-destructive" id="confirmModalBtn" onclick="executeConfirmAction()"><span class="btn-label"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Role Modal -->
+  <div class="modal-backdrop" id="userRoleModal" style="display:none">
+    <div class="modal" style="max-width:380px">
+      <h3 style="margin-bottom:0.5rem">Change Role</h3>
+      <p id="userRoleModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Role</label>
+        <select id="userRoleSelect">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeUserRoleModal()">Cancel</button>
+        <button class="btn btn-primary" id="userRoleSaveBtn" onclick="saveUserRole()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename User Modal -->
+  <div class="modal-backdrop" id="renameUserModal" style="display:none">
+    <div class="modal" style="max-width:400px">
+      <h3 style="margin-bottom:0.5rem">Rename User</h3>
+      <p id="renameUserModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>New Username <span class="required" title="Required">*</span></label>
+        <input type="text" id="renameUserInput" placeholder="e.g., user@domain.local" autocomplete="off" maxlength="100" onkeydown="if(event.key==='Enter')saveRenameUser()">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeRenameUserModal()">Cancel</button>
+        <button class="btn btn-primary" id="renameUserSaveBtn" onclick="saveRenameUser()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Password Modal -->
+  <div class="modal-backdrop" id="accountPasswordModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3 style="margin-bottom:0.5rem">Change Password</h3>
+      <p style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem">Update your login password. Minimum 12 characters.</p>
+      <div id="accountCurrentPasswordGroup" class="form-group">
+        <label>Current Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="accountCurrentPassword" placeholder="Current password" autocomplete="current-password">
+          <button type="button" class="reveal-btn" onclick="toggleReveal('accountCurrentPassword',this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>New Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="accountNewPassword" placeholder="Min. 12 characters" autocomplete="new-password">
+          <button type="button" class="reveal-btn" onclick="toggleReveal('accountNewPassword',this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Confirm New Password <span class="required" title="Required">*</span></label>
+        <input type="password" id="accountConfirmPassword" placeholder="Repeat new password" autocomplete="new-password">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeAccountPasswordModal()">Cancel</button>
+        <button class="btn btn-primary" id="accountPasswordSaveBtn" onclick="saveAccountPassword()"><span class="btn-label">Update Password</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Modals -->
+  <div class="modal-backdrop" id="userPasswordModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3 style="margin-bottom:0.5rem">Change Password</h3>
+      <p id="userPasswordModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
+      <div class="form-group">
+        <label>New Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="userPasswordInput" placeholder="Min. 12 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveUserPassword()">
+          <button type="button" class="reveal-btn" onclick="toggleReveal('userPasswordInput', this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeUserPasswordModal()">Cancel</button>
+        <button class="btn btn-primary" id="userPasswordSaveBtn" onclick="saveUserPassword()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="userApiKeyRevealModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:0.5rem">API Key Regenerated</h3>
+      <p id="userApiKeyRevealDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:0"></p>
+      <div class="passphrase-box select-none" id="userApiKeyRevealOutput" onclick="copyUserApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+      <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem;margin-bottom:1.25rem;text-align:center">Click to copy · Will not be shown again</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeUserApiKeyRevealModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="addUserModal" style="display:none">
     <div class="modal" style="max-width:480px">
       <h3 style="margin-bottom:1.5rem">Add User</h3>
       <div class="form-group">
         <label>Username <span class="required" title="Required">*</span></label>
-        <input type="text" id="newUserUsername" placeholder="e.g., john.doe" autocomplete="off" maxlength="50">
+        <input type="text" id="newUserUsername" placeholder="e.g., user@domain.local" autocomplete="off" maxlength="100">
       </div>
       <div class="form-group">
         <label>Password <span class="required" title="Required">*</span></label>
@@ -1898,12 +1990,9 @@
         </select>
       </div>
       <div id="newUserApiKeySection" style="display:none;margin-bottom:1rem">
-        <p style="font-size:0.85rem;color:hsl(var(--muted-foreground));margin-bottom:0.5rem">API key (copy now — not shown again):</p>
-        <span class="tooltip-wrapper" style="display:block">
-          <div class="token-output" id="newUserApiKeyOutput" onclick="copyNewUserApiKey()" style="cursor:pointer"></div>
-          <span class="tooltip tooltip-above">Click to copy</span>
-        </span>
-        <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.5rem">This key will not be shown again.</p>
+        <p style="font-size:0.85rem;font-weight:500;color:hsl(var(--foreground));margin-bottom:0">API Key</p>
+        <div class="passphrase-box select-none" id="newUserApiKeyOutput" onclick="copyNewUserApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+        <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem">Click to copy · Will not be shown again</p>
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeAddUserModal()">Cancel</button>
@@ -5866,35 +5955,11 @@ ${bodyStr}
 
     let _authFormMode = 'password'; // 'password' | 'apikey' — only used in 'both' mode
 
-    function setupAuthOverlay() {
-      const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
+    function _applyAuthFormMode(isPassword) {
       const usernameInput = document.getElementById('usernameInput');
       const apiKeyInput = document.getElementById('apiKeyInput');
       const desc = document.getElementById('authOverlayDesc');
-      const toggleLink = document.getElementById('authToggleLink');
-      if (mode === 'user' || mode === 'both') {
-        usernameInput.style.display = '';
-        apiKeyInput.placeholder = 'Password';
-        apiKeyInput.autocomplete = 'current-password';
-        if (desc) desc.textContent = 'Sign in with your username and password.';
-      } else if (mode === 'api') {
-        usernameInput.style.display = 'none';
-        apiKeyInput.placeholder = 'API Key';
-        if (desc) desc.textContent = 'Enter your personal API key to sign in.';
-      }
-      if (toggleLink) toggleLink.style.display = (mode === 'both') ? '' : 'none';
-    }
-
-    function toggleAuthMode(e) {
-      e.preventDefault();
-      _authFormMode = (_authFormMode === 'password') ? 'apikey' : 'password';
-      const usernameInput = document.getElementById('usernameInput');
-      const apiKeyInput = document.getElementById('apiKeyInput');
-      const toggleLink = document.getElementById('authToggleLink');
-      const desc = document.getElementById('authOverlayDesc');
-      document.getElementById('authError').style.display = 'none';
-      apiKeyInput.value = '';
-      if (_authFormMode === 'password') {
+      if (isPassword) {
         usernameInput.style.display = '';
         apiKeyInput.placeholder = 'Password';
         apiKeyInput.autocomplete = 'current-password';
@@ -5907,21 +5972,71 @@ ${bodyStr}
       }
     }
 
+    function setupAuthOverlay() {
+      const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
+      const isBoth = mode === 'both';
+      if (mode === 'user' || isBoth) _applyAuthFormMode(true);
+      else if (mode === 'api') _applyAuthFormMode(false);
+      document.getElementById('authToggleBtn').style.display = isBoth ? '' : 'none';
+      document.getElementById('authToggleSep').style.display = isBoth ? 'flex' : 'none';
+    }
+
+    function toggleAuthMode(e) {
+      e.preventDefault();
+      _authFormMode = (_authFormMode === 'password') ? 'apikey' : 'password';
+      document.getElementById('authError').style.display = 'none';
+      document.getElementById('apiKeyInput').value = '';
+      _applyAuthFormMode(_authFormMode === 'password');
+    }
+
     function setupUserAuthNav(role) {
       const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
-      const navAccount = document.getElementById('navAccount');
       const settingsNavUsers = document.getElementById('settingsNavUsers');
       const settingsNavAccount = document.getElementById('settingsNavAccount');
-      if (mode && navAccount) navAccount.style.display = '';
+      const settingsNavDivider = document.getElementById('settingsNavDivider');
       if (mode && settingsNavAccount) settingsNavAccount.style.display = '';
+      if (mode && settingsNavDivider) settingsNavDivider.style.display = '';
       if (mode && role === 'admin' && settingsNavUsers) settingsNavUsers.style.display = '';
     }
 
     // ========== USERS VIEW ==========
+    let _usersAll = [], _usersPage = 1, _usersPageSize = 25;
+
     async function loadUsers() {
       const result = await apiRequest('/api/admin/users');
       if (!result.ok) return;
-      renderUsersTable(result.data || []);
+      _usersAll = result.data || [];
+      _usersPage = 1;
+      renderUsersPage();
+    }
+
+    function renderUsersPage() {
+      const start = (_usersPage - 1) * _usersPageSize;
+      renderUsersTable(_usersAll.slice(start, start + _usersPageSize));
+      renderUsersPagination();
+    }
+
+    function renderUsersPagination() {
+      const total = _usersAll.length;
+      const totalPages = Math.ceil(total / _usersPageSize) || 1;
+      const start = total === 0 ? 0 : (_usersPage - 1) * _usersPageSize + 1;
+      const end = Math.min(_usersPage * _usersPageSize, total);
+      document.getElementById('usersPaginationInfo').textContent = `Showing ${start} to ${end} of ${total}`;
+      document.getElementById('usersPrevBtn').disabled = _usersPage <= 1;
+      document.getElementById('usersNextBtn').disabled = _usersPage >= totalPages;
+      document.getElementById('usersPaginationBar').style.display = total > _usersPageSize ? 'flex' : 'none';
+    }
+
+    function changeUsersPage(dir) {
+      const totalPages = Math.ceil(_usersAll.length / _usersPageSize) || 1;
+      _usersPage = Math.max(1, Math.min(totalPages, _usersPage + dir));
+      renderUsersPage();
+    }
+
+    function updateUsersPageSize() {
+      _usersPageSize = parseInt(document.getElementById('usersPageSize').value);
+      _usersPage = 1;
+      renderUsersPage();
     }
 
     function renderUsersTable(users) {
@@ -5932,21 +6047,22 @@ ${bodyStr}
       }
       tbody.innerHTML = users.map(u => `
         <tr>
-          <td><strong>${escHtml(u.username)}</strong></td>
-          <td><span class="status-badge ${u.role === 'admin' ? '' : 'status-badge-muted'}">${escHtml(u.role)}</span></td>
+          <td><strong>${sanitize(u.username)}</strong></td>
+          <td><span class="status-badge ${u.role === 'admin' ? '' : 'status-badge-muted'}">${sanitize(u.role)}</span></td>
           <td>${u.isEnabled ? '<span style="color:hsl(var(--success,142 71% 45%))">Enabled</span>' : '<span style="color:hsl(var(--muted-foreground))">Disabled</span>'}</td>
           <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
           <td>${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}</td>
           <td class="col-actions">
-            <div class="dropdown-wrapper">
-              <button class="btn-actions" onclick="toggleUserActionsDropdown(event, '${u.id}')">
+            <div class="row-actions">
+              <button class="btn-actions" onclick="event.stopPropagation();toggleMenu('userDropdown-${u.id}',this)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
               </button>
-              <div class="dropdown" id="userDropdown-${u.id}">
-                <button class="dropdown-item" onclick="openUserPasswordModal('${u.id}', '${escHtml(u.username)}'); closeAllDropdowns()">Change Password</button>
-                <button class="dropdown-item" onclick="openUserRoleModal('${u.id}', '${escHtml(u.username)}', '${u.role}'); closeAllDropdowns()">Change Role</button>
-                <button class="dropdown-item" onclick="regenerateUserApiKey('${u.id}', '${escHtml(u.username)}'); closeAllDropdowns()">Regenerate API Key</button>
-                <button class="dropdown-item dropdown-item--destructive" onclick="deleteUser('${u.id}', '${escHtml(u.username)}'); closeAllDropdowns()">Delete</button>
+              <div class="dropdown-menu" id="userDropdown-${u.id}">
+                <button class="dropdown-item" onclick="openRenameUserModal('${u.id}', '${sanitize(u.username)}')">Rename</button>
+                <button class="dropdown-item" onclick="openUserPasswordModal('${u.id}', '${sanitize(u.username)}')">Change Password</button>
+                <button class="dropdown-item" onclick="openUserRoleModal('${u.id}', '${sanitize(u.username)}', '${u.role}')">Change Role</button>
+                <button class="dropdown-item" onclick="regenerateUserApiKey('${u.id}', '${sanitize(u.username)}')">Regenerate API Key</button>
+                <button class="dropdown-item dropdown-item--destructive" onclick="deleteUser('${u.id}', '${sanitize(u.username)}')">Delete</button>
               </div>
             </div>
           </td>
@@ -5954,59 +6070,131 @@ ${bodyStr}
       `).join('');
     }
 
-    function toggleUserActionsDropdown(e, userId) {
-      e.stopPropagation();
-      closeAllDropdowns();
-      const d = document.getElementById(`userDropdown-${userId}`);
-      if (d) d.classList.toggle('open');
-    }
-
-    async function deleteUser(id, username) {
-      if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
-      const result = await apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
-      if (result.ok) {
-        notify('success', 'User deleted', `${username} has been removed.`);
-        loadUsers();
-      }
-    }
-
     let userActionTargetId = null;
-    let userActionTargetName = null;
 
     function openUserPasswordModal(id, username) {
       userActionTargetId = id;
-      userActionTargetName = username;
-      const pwd = prompt(`Set new password for "${username}" (min 12 chars):`);
-      if (!pwd) return;
+      document.getElementById('userPasswordModalDesc').textContent = `Set a new password for ${username}.`;
+      document.getElementById('userPasswordInput').value = '';
+      document.getElementById('userPasswordModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('userPasswordInput').focus(), 50);
+    }
+
+    function closeUserPasswordModal() {
+      document.getElementById('userPasswordModal').style.display = 'none';
+    }
+
+    async function saveUserPassword() {
+      const pwd = document.getElementById('userPasswordInput').value;
       if (pwd.length < 12) { notify('error', 'Password too short', 'Minimum 12 characters required.'); return; }
-      apiRequest(`/api/admin/users/${id}/password`, {
-        method: 'PATCH',
-        body: { newPassword: pwd }
-      }).then(r => {
-        if (r.ok) notify('success', 'Password updated', `Password changed for ${username}.`);
-      });
+      const btn = document.getElementById('userPasswordSaveBtn');
+      btn.classList.add('is-loading'); btn.disabled = true;
+      const result = await apiRequest(`/api/admin/users/${userActionTargetId}/password`, { method: 'PATCH', body: { newPassword: pwd } });
+      btn.classList.remove('is-loading'); btn.disabled = false;
+      if (result.ok) { closeUserPasswordModal(); notify('success', 'Password updated', 'The password has been changed.'); }
     }
 
     function openUserRoleModal(id, username, currentRole) {
-      const newRole = currentRole === 'admin' ? 'user' : 'admin';
-      if (!confirm(`Change role for "${username}" from "${currentRole}" to "${newRole}"?`)) return;
-      apiRequest(`/api/admin/users/${id}/role`, {
-        method: 'PATCH',
-        body: { role: newRole }
-      }).then(r => {
-        if (r.ok) {
-          notify('success', 'Role updated', `${username} is now a ${newRole}.`);
-          loadUsers();
+      userActionTargetId = id;
+      document.getElementById('userRoleModalDesc').textContent = `Change role for ${username}.`;
+      document.getElementById('userRoleSelect').value = currentRole;
+      document.getElementById('userRoleModal').style.display = 'flex';
+    }
+
+    function closeUserRoleModal() {
+      document.getElementById('userRoleModal').style.display = 'none';
+    }
+
+    async function saveUserRole() {
+      const role = document.getElementById('userRoleSelect').value;
+      const btn = document.getElementById('userRoleSaveBtn');
+      btn.classList.add('is-loading'); btn.disabled = true;
+      const result = await apiRequest(`/api/admin/users/${userActionTargetId}/role`, { method: 'PATCH', body: { role } });
+      btn.classList.remove('is-loading'); btn.disabled = false;
+      if (result.ok) { closeUserRoleModal(); notify('success', 'Role updated', 'The role has been changed.'); loadUsers(); }
+    }
+
+    function openRenameUserModal(id, username) {
+      userActionTargetId = id;
+      document.getElementById('renameUserModalDesc').textContent = `Current username: ${username}`;
+      document.getElementById('renameUserInput').value = username;
+      document.getElementById('renameUserModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('renameUserInput').focus(), 50);
+    }
+
+    function closeRenameUserModal() {
+      document.getElementById('renameUserModal').style.display = 'none';
+    }
+
+    async function saveRenameUser() {
+      const username = document.getElementById('renameUserInput').value.trim();
+      if (!username) { notify('error', 'Validation', 'Username is required.'); return; }
+      const btn = document.getElementById('renameUserSaveBtn');
+      btn.classList.add('is-loading'); btn.disabled = true;
+      const result = await apiRequest(`/api/admin/users/${userActionTargetId}/username`, { method: 'PATCH', body: { username } });
+      btn.classList.remove('is-loading'); btn.disabled = false;
+      if (result.ok) { closeRenameUserModal(); notify('success', 'User renamed', 'The username has been updated.'); loadUsers(); }
+    }
+
+    async function deleteUser(id, username) {
+      openConfirmModal(
+        'Delete User',
+        `Delete "${username}"? This cannot be undone.`,
+        'Delete',
+        async () => {
+          const result = await apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
+          if (result.ok) { notify('success', 'User deleted', `${username} has been removed.`); loadUsers(); }
         }
-      });
+      );
     }
 
     async function regenerateUserApiKey(id, username) {
-      if (!confirm(`Regenerate API key for "${username}"? The old key will stop working immediately.`)) return;
-      const result = await apiRequest(`/api/admin/users/${id}/api-key`, { method: 'POST' });
-      if (result.ok) {
-        notify('success', 'API Key regenerated', 'Copy the new key now — it will not be shown again.');
-        alert(`New API key for ${username}:\n\n${result.data.apiKey}\n\nCopy it now!`);
+      openConfirmModal(
+        'Regenerate API Key',
+        `Regenerate the API key for "${username}"? The old key will stop working immediately.`,
+        'Regenerate',
+        async () => {
+          const result = await apiRequest(`/api/admin/users/${id}/api-key`, { method: 'POST' });
+          if (result.ok) {
+            document.getElementById('userApiKeyRevealDesc').textContent = `New API key for ${username} — copy it now, it will not be shown again.`;
+            document.getElementById('userApiKeyRevealOutput').textContent = result.data.apiKey;
+            document.getElementById('userApiKeyRevealModal').style.display = 'flex';
+          }
+        }
+      );
+    }
+
+    function closeUserApiKeyRevealModal() {
+      document.getElementById('userApiKeyRevealModal').style.display = 'none';
+    }
+
+    function copyUserApiKey() {
+      const key = document.getElementById('userApiKeyRevealOutput').textContent;
+      if (!key) return;
+      navigator.clipboard.writeText(key).then(() => notify('success', 'Copied', 'API key copied to clipboard.'));
+    }
+
+    // ========== CONFIRM MODAL ==========
+    let _confirmAction = null;
+
+    function openConfirmModal(title, message, actionLabel, action) {
+      _confirmAction = action;
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalMessage').textContent = message;
+      document.querySelector('#confirmModalBtn .btn-label').textContent = actionLabel;
+      document.getElementById('confirmModal').style.display = 'flex';
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirmModal').style.display = 'none';
+      _confirmAction = null;
+    }
+
+    async function executeConfirmAction() {
+      if (_confirmAction) {
+        const action = _confirmAction;
+        closeConfirmModal();
+        await action();
       }
     }
 
@@ -6071,14 +6259,32 @@ ${bodyStr}
       const result = await apiRequest('/api/admin/users/me');
       if (!result.ok) return;
       const me = result.data;
-      document.getElementById('accountUsername').value = me.username || '';
+      const usernameEl = document.getElementById('accountUsername');
+      if (usernameEl) usernameEl.textContent = me.username || '';
       document.getElementById('accountRoleBadge').innerHTML =
-        `<span class="status-badge ${me.role === 'admin' ? '' : 'status-badge-muted'}">${escHtml(me.role || 'admin')}</span>`;
-      // Hide current password field for admins (they can skip it)
-      const isAdmin = (me.role === 'admin');
+        `<span class="status-badge ${me.role === 'admin' ? '' : 'status-badge-muted'}">${sanitize(me.role || 'admin')}</span>`;
+      sessionStorage.setItem('beacon_user_id', me.id || '');
+      sessionStorage.setItem('beacon_user_role', me.role || '');
+    }
+
+    function openAccountPasswordModal() {
+      const isAdmin = sessionStorage.getItem('beacon_user_role') === 'admin';
       const curPwdGroup = document.getElementById('accountCurrentPasswordGroup');
       if (curPwdGroup) curPwdGroup.style.display = isAdmin ? 'none' : '';
-      sessionStorage.setItem('beacon_user_id', me.id || '');
+      document.getElementById('accountCurrentPassword').value = '';
+      document.getElementById('accountNewPassword').value = '';
+      document.getElementById('accountConfirmPassword').value = '';
+      document.getElementById('accountPasswordModal').style.display = 'flex';
+      setTimeout(() => {
+        const first = isAdmin
+          ? document.getElementById('accountNewPassword')
+          : document.getElementById('accountCurrentPassword');
+        first?.focus();
+      }, 50);
+    }
+
+    function closeAccountPasswordModal() {
+      document.getElementById('accountPasswordModal').style.display = 'none';
     }
 
     async function saveAccountPassword() {
@@ -6095,38 +6301,29 @@ ${bodyStr}
       const body = { newPassword: newPwd };
       if (currentPwd) body.currentPassword = currentPwd;
 
+      const btn = document.getElementById('accountPasswordSaveBtn');
+      btn.classList.add('is-loading'); btn.disabled = true;
       const result = await apiRequest(`/api/admin/users/${userId}/password`, { method: 'PATCH', body });
-      if (result.ok) {
-        notify('success', 'Password updated', 'Your password has been changed.');
-        document.getElementById('accountCurrentPassword').value = '';
-        document.getElementById('accountNewPassword').value = '';
-        document.getElementById('accountConfirmPassword').value = '';
-      }
+      btn.classList.remove('is-loading'); btn.disabled = false;
+      if (result.ok) { closeAccountPasswordModal(); notify('success', 'Password updated', 'Your password has been changed.'); }
     }
 
     async function regenerateOwnApiKey() {
-      if (!confirm('Regenerate your API key? The old key will stop working immediately.')) return;
       const userId = sessionStorage.getItem('beacon_user_id');
       if (!userId) { notify('error', 'Error', 'Could not determine user ID.'); return; }
-
-      const result = await apiRequest(`/api/admin/users/${userId}/api-key`, { method: 'POST' });
-      if (result.ok) {
-        const key = result.data.apiKey;
-        document.getElementById('accountApiKeyOutput').textContent = key;
-        document.getElementById('accountApiKeyReveal').style.display = '';
-        notify('success', 'API Key regenerated', 'Copy it now — it will not be shown again.');
-      }
-    }
-
-    function copyAccountApiKey() {
-      const key = document.getElementById('accountApiKeyOutput').textContent;
-      if (!key) return;
-      navigator.clipboard.writeText(key).then(() => notify('success', 'Copied', 'API key copied to clipboard.'));
-    }
-
-    function escHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      openConfirmModal(
+        'Regenerate API Key',
+        'Regenerate your API key? The old key will stop working immediately.',
+        'Regenerate',
+        async () => {
+          const result = await apiRequest(`/api/admin/users/${userId}/api-key`, { method: 'POST' });
+          if (result.ok) {
+            document.getElementById('userApiKeyRevealDesc').textContent = 'Your new API key — copy it now, it will not be shown again.';
+            document.getElementById('userApiKeyRevealOutput').textContent = result.data.apiKey;
+            document.getElementById('userApiKeyRevealModal').style.display = 'flex';
+          }
+        }
+      );
     }
 
     init();
