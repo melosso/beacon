@@ -177,6 +177,11 @@ public static class SubmissionEndpoints
         if (!privacyUrlValidation.IsValid)
             return Results.BadRequest(new { error = privacyUrlValidation.Error });
 
+        // Validate redirect configuration
+        if (!request.DisableRedirects && (request.RedirectFormPost || request.RedirectJsEmbed) &&
+            string.IsNullOrWhiteSpace(request.RedirectSuccess) && string.IsNullOrWhiteSpace(request.RedirectError))
+            return Results.BadRequest(new { error = "Redirect is enabled but no redirect URLs are configured. Add a success or error URL, or disable redirects." });
+
         // Validate FormConfig CSS fields
         if (request.FormConfig != null)
         {
@@ -359,6 +364,11 @@ public static class SubmissionEndpoints
 
         if (request.CustomFields != null)
             existing.CustomFields = request.CustomFields.Count > 0 ? JsonSerializer.Serialize(request.CustomFields) : null;
+
+        // Validate redirect configuration after applying updates
+        if (!existing.DisableRedirects && (existing.RedirectFormPost || existing.RedirectJsEmbed) &&
+            string.IsNullOrWhiteSpace(existing.RedirectSuccess) && string.IsNullOrWhiteSpace(existing.RedirectError))
+            return Results.BadRequest(new { error = "Redirect is enabled but no redirect URLs are configured. Add a success or error URL, or disable redirects." });
 
         await service.UpdateFormAsync(existing);
 

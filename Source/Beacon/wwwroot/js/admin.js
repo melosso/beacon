@@ -3081,11 +3081,6 @@
         }
       };
 
-      if (!data.disableRedirects && (data.redirectFormPost || data.redirectJsEmbed) && !data.redirectSuccess && !data.redirectError) {
-        notify('warning', 'Missing URLs', 'Redirect is enabled but no redirect URLs are configured. Add a success or error URL, or disable redirects.');
-        return;
-      }
-
       let result;
       if (nlEditId) {
         result = await apiRequest(`/api/admin/submissions/${nlEditId}`, {
