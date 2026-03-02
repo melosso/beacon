@@ -58,6 +58,9 @@ public sealed class SystemConfig
     // System
     [JsonPropertyName("emailQueueCron")]
     public string EmailQueueCron { get; set; } = "*/5 * * * *";
+
+    [JsonPropertyName("emailQueueRetentionDays")]
+    public int EmailQueueRetentionDays { get; set; } = 90;
 }
 
 public interface ISystemConfigurationService

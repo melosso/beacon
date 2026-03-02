@@ -22,16 +22,22 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         _userRepository = userRepository;
     }
 
+    public const string CookieName = "beacon_auth";
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
-            return AuthenticateResult.NoResult();
+        // Prefer Bearer token from Authorization header; fall back to HttpOnly cookie
+        string? token = null;
+        if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+        {
+            var headerValue = authHeader.ToString();
+            if (headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                token = headerValue["Bearer ".Length..].Trim();
+        }
 
-        var headerValue = authHeader.ToString();
-        if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return AuthenticateResult.NoResult();
+        if (string.IsNullOrEmpty(token))
+            Request.Cookies.TryGetValue(CookieName, out token);
 
-        var token = headerValue["Bearer ".Length..].Trim();
         if (string.IsNullOrEmpty(token))
             return AuthenticateResult.NoResult();
 
@@ -118,6 +124,31 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         Response.ContentType = "application/json";
         await Response.WriteAsync("{\"error\":\"Forbidden. Insufficient permissions.\"}");
         await Response.CompleteAsync();
+    }
+
+    /// <summary>
+    /// Validates signature and expiry without DB lookups. Used for lightweight page-serve checks.
+    /// </summary>
+    public static bool TryValidateToken(byte[] signingKey, string token,
+        out string? subject, out string? role, out DateTimeOffset? expiresAt)
+    {
+        subject = null; role = null; expiresAt = null;
+        try
+        {
+            var payload = ValidateToken(token, signingKey);
+            if (payload == null) return false;
+
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (!payload.Value.TryGetProperty("exp", out var expEl)) return false;
+            var expSeconds = expEl.GetInt64();
+            if (now >= expSeconds) return false;
+            expiresAt = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
+
+            subject = payload.Value.TryGetProperty("sub", out var subEl) ? subEl.GetString() : null;
+            role    = payload.Value.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
+            return !string.IsNullOrEmpty(subject);
+        }
+        catch { return false; }
     }
 
     private static JsonElement? ValidateToken(string token, byte[] signingKey)

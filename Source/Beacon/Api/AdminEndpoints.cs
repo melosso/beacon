@@ -491,7 +491,7 @@ public static class AdminEndpoints
 
                 if (hasChanges)
                 {
-                    await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+                    _ = TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
                     await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
                 }
 

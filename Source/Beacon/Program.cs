@@ -179,9 +179,14 @@ try
         {
             options.ForwardDefaultSelector = context =>
             {
-                var authHeader = context.Request.Headers.Authorization.ToString();
-                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                // Bearer token → JWT handler
+                if (context.Request.Headers.Authorization.ToString()
+                    .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
                     return JwtAuthExtensions.SchemeName;
+                // HttpOnly auth cookie → JWT handler
+                if (context.Request.Cookies.ContainsKey(JwtAuthHandler.CookieName))
+                    return JwtAuthExtensions.SchemeName;
+                // Otherwise → API key handler
                 return ApiKeyAuthExtensions.SchemeName;
             };
         });
@@ -290,7 +295,8 @@ try
 
             policy.WithOrigins(origins.Distinct().ToArray())
                   .AllowAnyMethod()
-                  .AllowAnyHeader();
+                  .AllowAnyHeader()
+                  .AllowCredentials(); // Required for cross-origin cookie (admin port → API port)
         });
 
         // Permissive policy for public submission endpoints (it'll validate origins by checking the submission form's allowed origins)
@@ -387,12 +393,43 @@ try
         }
     }).ExcludeFromDescription();
 
+    // Resolve the JWT signing key bytes once for reuse in route handlers below
+    var jwtSigningKeyBytes = Convert.FromBase64String(normalizedSigningKey);
+
     // UI Endpoints (access controlled by HostRoutingMiddleware)
-    app.MapGet("/admin", async context =>
+    app.MapGet("/admin", async (HttpContext context) =>
     {
+        // Validate auth cookie — redirect to login if missing or expired
+        if (!context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) ||
+            !JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
+        {
+            context.Response.Redirect("/admin/login");
+            return;
+        }
         context.Response.ContentType = "text/html";
         await context.Response.SendFileAsync(
             Path.Combine(app.Environment.WebRootPath, "admin.html"));
+    }).ExcludeFromDescription();
+
+    app.MapGet("/admin/login", async (HttpContext context) =>
+    {
+        // Already authenticated — skip the login page
+        if (context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) &&
+            JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
+        {
+            context.Response.Redirect("/admin");
+            return;
+        }
+        context.Response.ContentType = "text/html";
+        await context.Response.SendFileAsync(
+            Path.Combine(app.Environment.WebRootPath, "login.html"));
+    }).ExcludeFromDescription();
+
+    app.MapGet("/admin/logout", async (HttpContext context) =>
+    {
+        context.Response.ContentType = "text/html";
+        await context.Response.SendFileAsync(
+            Path.Combine(app.Environment.WebRootPath, "logout.html"));
     }).ExcludeFromDescription();
 
     app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
@@ -474,6 +511,30 @@ try
             context.Response.StatusCode = 404;
         }
     });
+
+    app.MapGet("/js/auth.js", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "js", "auth.js");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "application/javascript";
+            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            await context.Response.SendFileAsync(path);
+        }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
+
+    app.MapGet("/js/admin.js", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "js", "admin.js");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "application/javascript";
+            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            await context.Response.SendFileAsync(path);
+        }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
 
     app.MapGet("/", async context =>
     {
