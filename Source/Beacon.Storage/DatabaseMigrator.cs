@@ -17,6 +17,7 @@ public static class DatabaseMigrator
         MigrateSystemConfiguration(db);
         MigrateEmailQueue(db);
         MigrateBucketOptions(db);
+        MigrateUsers(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -184,6 +185,29 @@ public static class DatabaseMigrator
                     UpdatedAt TEXT NULL
                 )
                 """);
+        }
+    }
+
+    private static void MigrateUsers(BeaconDbContext db)
+    {
+        if (!TableExists(db, "Users"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE Users (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Username TEXT NOT NULL,
+                    PasswordHash TEXT NOT NULL,
+                    Salt TEXT NOT NULL,
+                    Role TEXT NOT NULL DEFAULT 'admin',
+                    ApiKeyHash TEXT NOT NULL,
+                    IsEnabled INTEGER NOT NULL DEFAULT 1,
+                    CreatedAt TEXT NOT NULL,
+                    UpdatedAt TEXT NULL,
+                    LastLoginAt TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_Username ON Users (Username COLLATE NOCASE)");
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_ApiKeyHash ON Users (ApiKeyHash)");
         }
     }
 

@@ -19,6 +19,7 @@ public class BeaconDbContext : DbContext
     public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();
     public DbSet<EmailQueueEntry> EmailQueueEntries => Set<EmailQueueEntry>();
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -145,6 +146,35 @@ public class BeaconDbContext : DbContext
         {
             entity.HasKey(e => e.Bucket);
             entity.Property(e => e.Bucket).HasMaxLength(100).IsRequired();
+        });
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Username)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.PasswordHash)
+                .IsRequired();
+
+            entity.Property(e => e.Salt)
+                .IsRequired();
+
+            entity.Property(e => e.Role)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(e => e.ApiKeyHash)
+                .HasMaxLength(64)
+                .IsRequired();
+
+            entity.HasIndex(e => e.Username)
+                .IsUnique();
+
+            entity.HasIndex(e => e.ApiKeyHash)
+                .IsUnique();
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>

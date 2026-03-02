@@ -14,13 +14,7 @@ public sealed class EmailQueueWorker : BackgroundService
     private readonly EmailDispatchTrigger _trigger;
     private readonly bool _disabled;
 
-    private static readonly TimeSpan PruneInterval  = TimeSpan.FromHours(1);
-    private static readonly TimeSpan CleanupInterval = TimeSpan.FromDays(1);
-    private static readonly TimeSpan CleanupAge     = TimeSpan.FromDays(90);
     private const int MaxAttempts = 3;
-
-    private DateTime _lastPrune   = DateTime.MinValue;
-    private DateTime _lastCleanup = DateTime.MinValue;
 
     public EmailQueueWorker(
         IServiceScopeFactory scopeFactory,
@@ -106,35 +100,29 @@ public sealed class EmailQueueWorker : BackgroundService
         var sp = scope.ServiceProvider;
 
         var config = sp.GetRequiredService<ISystemConfigurationService>().Get();
+        var queue   = sp.GetRequiredService<IEmailQueueRepository>();
+        var now     = DateTime.UtcNow;
+
+        // Purge runs on every cron tick, independent of email-sending configuration.
+        await queue.PruneExpiredAsync();
+        var retentionDays = config.EmailQueueRetentionDays > 0 ? config.EmailQueueRetentionDays : 90;
+        var deleted = await queue.DeleteOldAsync(now.AddDays(-retentionDays));
+        if (deleted > 0)
+            _logger.LogInformation(
+                "Email queue: purged {Count} completed records (retention={Days}d)",
+                deleted, retentionDays);
 
         var providerLower = config.EmailProvider?.Trim().ToLowerInvariant() ?? string.Empty;
         if (!config.EmailNotifications || providerLower is "none" or "")
         {
             _logger.LogDebug(
-                "Email queue worker: skipping batch, email not configured (enabled={EmailNotifications}, provider={EmailProvider})",
+                "Email queue worker: skipping send, email not configured (enabled={EmailNotifications}, provider={EmailProvider})",
                 config.EmailNotifications, config.EmailProvider);
             return;
         }
 
-        var queue    = sp.GetRequiredService<IEmailQueueRepository>();
-        var sender   = sp.GetRequiredService<IEmailSenderService>();
+        var sender    = sp.GetRequiredService<IEmailSenderService>();
         var encryptor = sp.GetRequiredService<Encryptor>();
-
-        var now = DateTime.UtcNow;
-
-        if (now - _lastPrune >= PruneInterval)
-        {
-            await queue.PruneExpiredAsync();
-            _lastPrune = now;
-        }
-
-        if (now - _lastCleanup >= CleanupInterval)
-        {
-            var deleted = await queue.DeleteOldAsync(now - CleanupAge);
-            if (deleted > 0)
-                _logger.LogInformation("Email queue worker: cleanup deleted {Count} old records (older than {Days} days)", deleted, (int)CleanupAge.TotalDays);
-            _lastCleanup = now;
-        }
 
         var entries = await queue.GetPendingBatchAsync(50);
         if (entries.Count == 0)

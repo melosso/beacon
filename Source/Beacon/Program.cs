@@ -62,6 +62,7 @@ try
     var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
     var disableEmailNotifications = config.GetValue<bool>("DisableEmailNotifications", false);
     var publicUrl = config["PublicUrl"];
+    var userAuthentication = config["UserAuthentication"] ?? "";
 
     // Host routing configuration
     var hostOptions = HostRoutingOptionsFactory.Create(builder.Configuration);
@@ -129,6 +130,7 @@ try
     builder.Services.AddSingleton<IEncryptionService>(encryptionService);
     builder.Services.AddSingleton(new EmailHasher(pepper));
 
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
     builder.Services.AddScoped<IBucketRepository, BucketRepository>();
     builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
     builder.Services.AddScoped<IConsentService, ConsentService>();
@@ -166,24 +168,34 @@ try
         .AddApiKeyAuth(options =>
         {
             options.AdminApiKey = adminApiKey;
+            options.UserAuthentication = userAuthentication;
         })
         .AddJwtAuth(options =>
         {
             options.SigningKey = Convert.FromBase64String(normalizedSigningKey);
+            options.UserAuthentication = userAuthentication;
         })
         .AddPolicyScheme("CompositeScheme", "API Key or JWT", options =>
         {
             options.ForwardDefaultSelector = context =>
             {
-                var authHeader = context.Request.Headers.Authorization.ToString();
-                if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                // Bearer token → JWT handler
+                if (context.Request.Headers.Authorization.ToString()
+                    .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
                     return JwtAuthExtensions.SchemeName;
+                // HttpOnly auth cookie → JWT handler
+                if (context.Request.Cookies.ContainsKey(JwtAuthHandler.CookieName))
+                    return JwtAuthExtensions.SchemeName;
+                // Otherwise → API key handler
                 return ApiKeyAuthExtensions.SchemeName;
             };
         });
 
     builder.Services.AddAntiforgery();
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("Admin", policy => policy.RequireRole("admin"));
+    });
     builder.Services.AddEndpointsApiExplorer();
 
     // .NET 9/10 OpenAPI Generation
@@ -283,7 +295,8 @@ try
 
             policy.WithOrigins(origins.Distinct().ToArray())
                   .AllowAnyMethod()
-                  .AllowAnyHeader();
+                  .AllowAnyHeader()
+                  .AllowCredentials(); // Required for cross-origin cookie (admin port → API port)
         });
 
         // Permissive policy for public submission endpoints (it'll validate origins by checking the submission form's allowed origins)
@@ -320,6 +333,7 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         DatabaseMigrator.Initialize(db);
+
     }
 
     // Add Serilog request logging
@@ -339,6 +353,8 @@ try
     {
         options.MaxRequests = 1500;
         options.Window = TimeSpan.FromMinutes(1);
+        // Strict limit for auth endpoints to mitigate brute-force attacks
+        options.StrictPaths["/api/admin/auth"] = 10;
     });
 
     // Middleware pipeline
@@ -359,6 +375,7 @@ try
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
     app.MapAuthEndpoints();
+    app.MapUserEndpoints();
     app.MapSubmissionEndpoints();
 
     // Health check endpoint
@@ -376,12 +393,43 @@ try
         }
     }).ExcludeFromDescription();
 
+    // Resolve the JWT signing key bytes once for reuse in route handlers below
+    var jwtSigningKeyBytes = Convert.FromBase64String(normalizedSigningKey);
+
     // UI Endpoints (access controlled by HostRoutingMiddleware)
-    app.MapGet("/admin", async context =>
+    app.MapGet("/admin", async (HttpContext context) =>
     {
+        // Validate auth cookie — redirect to login if missing or expired
+        if (!context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) ||
+            !JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
+        {
+            context.Response.Redirect("/admin/login");
+            return;
+        }
         context.Response.ContentType = "text/html";
         await context.Response.SendFileAsync(
             Path.Combine(app.Environment.WebRootPath, "admin.html"));
+    }).ExcludeFromDescription();
+
+    app.MapGet("/admin/login", async (HttpContext context) =>
+    {
+        // Already authenticated — skip the login page
+        if (context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) &&
+            JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
+        {
+            context.Response.Redirect("/admin");
+            return;
+        }
+        context.Response.ContentType = "text/html";
+        await context.Response.SendFileAsync(
+            Path.Combine(app.Environment.WebRootPath, "login.html"));
+    }).ExcludeFromDescription();
+
+    app.MapGet("/admin/logout", async (HttpContext context) =>
+    {
+        context.Response.ContentType = "text/html";
+        await context.Response.SendFileAsync(
+            Path.Combine(app.Environment.WebRootPath, "logout.html"));
     }).ExcludeFromDescription();
 
     app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
@@ -406,7 +454,7 @@ try
         }
 
         var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
-        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};\nconst DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};";
+        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};\nconst DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};\nconst USER_AUTH_METHOD = '{userAuthentication}';";
         
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         context.Response.Headers.Append("Expires", "0");
@@ -463,6 +511,30 @@ try
             context.Response.StatusCode = 404;
         }
     });
+
+    app.MapGet("/js/auth.js", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "js", "auth.js");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "application/javascript";
+            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            await context.Response.SendFileAsync(path);
+        }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
+
+    app.MapGet("/js/admin.js", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "js", "admin.js");
+        if (File.Exists(path))
+        {
+            context.Response.ContentType = "application/javascript";
+            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+            await context.Response.SendFileAsync(path);
+        }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
 
     app.MapGet("/", async context =>
     {
@@ -576,6 +648,7 @@ static bool IsInsecureDefault(string value)
 {
     return value.Contains("INSECURE", StringComparison.OrdinalIgnoreCase);
 }
+
 
 static void ValidateSecureKey(string value, string keyName)
 {

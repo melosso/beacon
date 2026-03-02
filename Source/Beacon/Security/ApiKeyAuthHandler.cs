@@ -2,6 +2,8 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
+using Beacon.Core.Security;
+using Beacon.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
@@ -10,41 +12,62 @@ namespace Beacon.Security;
 public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 {
     private const string ApiKeyHeader = "X-Api-Key";
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public ApiKeyAuthHandler(
         IOptionsMonitor<ApiKeyAuthOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder) : base(options, logger, encoder)
+        UrlEncoder encoder,
+        IServiceScopeFactory scopeFactory) : base(options, logger, encoder)
     {
+        _scopeFactory = scopeFactory;
     }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // No API key header present - this is normal for unauthenticated endpoints
-        // Use NoResult() to indicate this scheme doesn't apply (not a failure)
+        // No API key header present
         if (!Request.Headers.TryGetValue(ApiKeyHeader, out var apiKeyHeader))
-        {
-            return Task.FromResult(AuthenticateResult.NoResult());
-        }
+            return AuthenticateResult.NoResult();
 
         var providedKey = apiKeyHeader.ToString();
 
-        if (string.IsNullOrEmpty(Options.AdminApiKey) ||
-            !CryptographicEquals(providedKey, Options.AdminApiKey))
+        // 1. Always check global AdminApiKey first (constant-time SHA256 comparison)
+        if (!string.IsNullOrEmpty(Options.AdminApiKey) &&
+            CryptographicEquals(providedKey, Options.AdminApiKey))
         {
-            Logger.LogWarning("Invalid API key attempt from {RemoteIp}",
-                Context.Connection.RemoteIpAddress);
-            return Task.FromResult(AuthenticateResult.Fail("Invalid API key"));
+            Logger.LogDebug("Global API key authenticated successfully");
+            return BuildSuccess("ApiKeyUser", "admin");
         }
 
-        Logger.LogDebug("API key authenticated successfully");
+        // 2. If user authentication is enabled, check per-user API keys
+        if (!string.IsNullOrEmpty(Options.UserAuthentication))
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var keyHash = ApiKeyGenerator.ComputeHash(providedKey);
+            var user = await userRepo.FindByApiKeyHashAsync(keyHash);
+            if (user != null && user.IsEnabled)
+            {
+                Logger.LogDebug("User API key authenticated for {Username}", user.Username);
+                return BuildSuccess(user.Username, user.Role);
+            }
+        }
 
-        var claims = new[] { new Claim(ClaimTypes.Name, "ApiKeyUser") };
+        Logger.LogWarning("Invalid API key attempt from {RemoteIp}", Context.Connection.RemoteIpAddress);
+        return AuthenticateResult.Fail("Invalid API key");
+    }
+
+    private AuthenticateResult BuildSuccess(string name, string role)
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, name),
+            new Claim(ClaimTypes.Role, role)
+        };
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
-
-        return Task.FromResult(AuthenticateResult.Success(ticket));
+        return AuthenticateResult.Success(ticket);
     }
 
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
@@ -66,15 +89,11 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
     private static bool CryptographicEquals(string providedKey, string expectedKey)
     {
         if (providedKey == null || expectedKey == null)
-        {
             return false;
-        }
 
-        // Use a fixed-length representation to mask the actual key length
         byte[] providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(providedKey));
         byte[] expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedKey));
 
-        // FixedTimeEquals ensures the bitwise comparison time is constant
         return CryptographicOperations.FixedTimeEquals(providedHash, expectedHash);
     }
 }
@@ -82,6 +101,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 public class ApiKeyAuthOptions : AuthenticationSchemeOptions
 {
     public string? AdminApiKey { get; set; }
+    public string UserAuthentication { get; set; } = "";
 }
 
 public static class ApiKeyAuthExtensions

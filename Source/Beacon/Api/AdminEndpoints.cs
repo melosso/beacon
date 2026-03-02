@@ -102,11 +102,11 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/webhook", SaveWebhookConfig)
-            .RequireAuthorization()
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/webhook", DeleteWebhookConfig)
-            .RequireAuthorization()
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/webhook/errors", GetWebhookErrors)
@@ -114,11 +114,11 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/webhook/errors/{id}", DeleteWebhookError)
-            .RequireAuthorization()
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/webhook/errors", ClearWebhookErrors)
-            .RequireAuthorization()
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/events", StreamEvents)
@@ -126,11 +126,11 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/settings", GetSystemConfiguration)
-            .RequireAuthorization()
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapPut("/api/admin/settings", SaveSystemConfiguration)
-            .RequireAuthorization()
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/options", GetBucketOptions)
@@ -491,7 +491,7 @@ public static class AdminEndpoints
 
                 if (hasChanges)
                 {
-                    await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+                    _ = TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
                     await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
                 }
 

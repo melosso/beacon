@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="/css/site.css" rel="stylesheet" />
+  <script>
+    (function() {
+      try {
+        var s = JSON.parse(localStorage.getItem('beacon_settings') || '{}');
+        var theme = s.theme || 'system';
+        var font = s.font || 'inter';
+        if (theme !== 'system') document.documentElement.setAttribute('data-theme', theme);
+        var fontMap = {
+          inter:   '"Inter", system-ui, -apple-system, sans-serif',
+          manrope: '"Manrope", system-ui, -apple-system, sans-serif',
+          system:  'system-ui, -apple-system, sans-serif'
+        };
+        document.documentElement.style.setProperty('--app-font', fontMap[font] || fontMap.inter);
+      } catch(e) {}
+    })();
+  </script>
+  <title>Sign In &middot; Beacon</title>
+</head>
+<body>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="auth-overlay" id="loginOverlay" style="display:none">
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.25rem">
+        <div class="brand-avatar" style="width:28px;height:28px">
+          <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-avatar-bg" aria-hidden="true">
+            <g clip-path="url(#beacon-avatar-clip)">
+              <rect width="20" height="20" fill="#000" rx="5.5"/>
+              <rect width="20" height="20" fill="url(#beacon-avatar-gradient)" fill-opacity="0.2" rx="5.5"/>
+              <g filter="url(#beacon-avatar-blur-1)" opacity="0.3"><circle cx="16" cy="17" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+              <g filter="url(#beacon-avatar-blur-2)" opacity="0.1"><circle cx="16" cy="16" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+              <g filter="url(#beacon-avatar-blur-3)" opacity="0.4"><circle cx="17" cy="19" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+              <rect width="20" height="20" fill="#FF64B4" fill-opacity="0.15" rx="5.5"/>
+              <g style="mix-blend-mode:hard-light"><rect width="20" height="20" fill="#6A62FF" fill-opacity="0.1" rx="5.5"/></g>
+            </g>
+            <rect width="19" height="19" x="0.5" y="0.5" stroke="#FDFDFD" stroke-opacity="0.1" rx="5"/>
+            <defs>
+              <filter id="beacon-avatar-blur-1" width="32" height="32" x="0" y="1" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+                <feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur" stdDeviation="5"/>
+              </filter>
+              <filter id="beacon-avatar-blur-2" width="22" height="22" x="5" y="5" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+                <feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur" stdDeviation="5"/>
+              </filter>
+              <filter id="beacon-avatar-blur-3" width="28" height="28" x="3" y="5" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+                <feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur" stdDeviation="5"/>
+              </filter>
+              <linearGradient id="beacon-avatar-gradient" x1="10" y1="0" x2="10" y2="20" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#FF64B4"/>
+                <stop offset="1" stop-color="#6A62FF" stop-opacity="0"/>
+              </linearGradient>
+              <clipPath id="beacon-avatar-clip">
+                <rect width="20" height="20" rx="5.5"/>
+              </clipPath>
+            </defs>
+          </svg>
+          <svg class="brand-avatar-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FDFDFD" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h1 style="font-size:1.1rem;font-weight:500;margin:0">Beacon</h1>
+      </div>
+      <div class="auth-box select-none">
+        <h2>Beam Me In, Scotty</h2>
+        <p id="authOverlayDesc">Enter the sequence and power up the admin mainframe. In other words: enter your API-key.</p>
+        <input type="text" id="usernameInput" placeholder="Username" autocomplete="username" style="display:none" onkeydown="if(event.key==='Enter')authenticate()">
+        <input type="password" id="apiKeyInput" placeholder="X-Api-Key" autocomplete="current-password" onkeydown="if(event.key==='Enter')authenticate()">
+        <div class="error" id="authError">Invalid credentials</div>
+        <button class="btn btn-primary" id="signInBtn" style="width:100%;justify-content:center" onclick="authenticate()">
+          <span class="btn-label"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;margin-right:0.4rem"><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>Sign In</span><span class="spinner"></span>
+        </button>
+        <div id="authToggleSep" style="display:none;align-items:center;gap:0.5rem;margin:1rem 0 0">
+          <span style="flex:1;height:1px;background:hsl(var(--border))"></span>
+          <span style="font-size:0.7rem;color:hsl(var(--muted-foreground));text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap">Or continue with</span>
+          <span style="flex:1;height:1px;background:hsl(var(--border))"></span>
+        </div>
+        <div id="authToggleBtn" style="display:none;margin-top:0.75rem">
+          <button class="btn btn-outline" style="width:100%;justify-content:center;font-family:inherit" onclick="toggleAuthMode(event)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+            Access Token
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    setupAuthOverlay();
+    document.getElementById('loginOverlay').style.display = 'flex';
+  </script>
+</body>
+</html>

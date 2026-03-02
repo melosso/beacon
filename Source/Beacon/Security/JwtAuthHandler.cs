@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Beacon.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 
@@ -10,59 +11,102 @@ namespace Beacon.Security;
 
 public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 {
+    private readonly IUserRepository? _userRepository;
+
     public JwtAuthHandler(
         IOptionsMonitor<JwtAuthOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder) : base(options, logger, encoder)
+        UrlEncoder encoder,
+        IUserRepository? userRepository = null) : base(options, logger, encoder)
     {
+        _userRepository = userRepository;
     }
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    public const string CookieName = "beacon_auth";
+
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
-            return Task.FromResult(AuthenticateResult.NoResult());
+        // Prefer Bearer token from Authorization header; fall back to HttpOnly cookie
+        string? token = null;
+        if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+        {
+            var headerValue = authHeader.ToString();
+            if (headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                token = headerValue["Bearer ".Length..].Trim();
+        }
 
-        var headerValue = authHeader.ToString();
-        if (!headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            return Task.FromResult(AuthenticateResult.NoResult());
-
-        var token = headerValue["Bearer ".Length..].Trim();
         if (string.IsNullOrEmpty(token))
-            return Task.FromResult(AuthenticateResult.NoResult());
+            Request.Cookies.TryGetValue(CookieName, out token);
+
+        if (string.IsNullOrEmpty(token))
+            return AuthenticateResult.NoResult();
 
         try
         {
             var payloadResult = ValidateToken(token, Options.SigningKey);
             if (payloadResult == null)
-                return Task.FromResult(AuthenticateResult.Fail("Invalid token signature"));
+                return AuthenticateResult.Fail("Invalid token signature");
 
             var payload = payloadResult.Value;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            if (payload.TryGetProperty("nbf", out var nbfElement))
+            {
+                if (now < nbfElement.GetInt64())
+                    return AuthenticateResult.Fail("Token not yet valid");
+            }
 
             if (payload.TryGetProperty("exp", out var expElement))
             {
-                var exp = expElement.GetInt64();
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                if (now >= exp)
-                    return Task.FromResult(AuthenticateResult.Fail("Token expired"));
+                if (now >= expElement.GetInt64())
+                    return AuthenticateResult.Fail("Token expired");
             }
             else
             {
-                return Task.FromResult(AuthenticateResult.Fail("Token missing expiry"));
+                return AuthenticateResult.Fail("Token missing expiry");
             }
 
-            var sub = payload.TryGetProperty("sub", out var subElement) ? subElement.GetString() ?? "unknown" : "unknown";
+            var sub = payload.TryGetProperty("sub", out var subElement) ? subElement.GetString() : null;
+            if (string.IsNullOrEmpty(sub))
+                return AuthenticateResult.Fail("Token missing subject");
 
-            var claims = new[] { new Claim(ClaimTypes.Name, sub) };
+            if (!payload.TryGetProperty("role", out var roleElement))
+                return AuthenticateResult.Fail("Token missing role claim");
+
+            var role = roleElement.GetString();
+            if (string.IsNullOrEmpty(role))
+                return AuthenticateResult.Fail("Token missing role claim");
+
+            // When user authentication is enabled, verify per-user tokens against the database
+            // so that disabled accounts and role changes take effect immediately.
+            // If no user record exists for the subject, the token was issued for the global
+            // AdminApiKey (which has no DB record), so it is allowed through unchanged.
+            if (!string.IsNullOrEmpty(Options.UserAuthentication) && _userRepository != null)
+            {
+                var user = await _userRepository.FindByUsernameAsync(sub);
+                if (user != null)
+                {
+                    if (!user.IsEnabled)
+                        return AuthenticateResult.Fail("User is disabled");
+                    role = user.Role;
+                }
+            }
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.Name, sub),
+                new Claim(ClaimTypes.Role, role)
+            };
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-            return Task.FromResult(AuthenticateResult.Success(ticket));
+            return AuthenticateResult.Success(ticket);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "JWT validation failed");
-            return Task.FromResult(AuthenticateResult.Fail("Invalid token"));
+            return AuthenticateResult.Fail("Invalid token");
         }
     }
 
@@ -80,6 +124,31 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         Response.ContentType = "application/json";
         await Response.WriteAsync("{\"error\":\"Forbidden. Insufficient permissions.\"}");
         await Response.CompleteAsync();
+    }
+
+    /// <summary>
+    /// Validates signature and expiry without DB lookups. Used for lightweight page-serve checks.
+    /// </summary>
+    public static bool TryValidateToken(byte[] signingKey, string token,
+        out string? subject, out string? role, out DateTimeOffset? expiresAt)
+    {
+        subject = null; role = null; expiresAt = null;
+        try
+        {
+            var payload = ValidateToken(token, signingKey);
+            if (payload == null) return false;
+
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (!payload.Value.TryGetProperty("exp", out var expEl)) return false;
+            var expSeconds = expEl.GetInt64();
+            if (now >= expSeconds) return false;
+            expiresAt = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
+
+            subject = payload.Value.TryGetProperty("sub", out var subEl) ? subEl.GetString() : null;
+            role    = payload.Value.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
+            return !string.IsNullOrEmpty(subject);
+        }
+        catch { return false; }
     }
 
     private static JsonElement? ValidateToken(string token, byte[] signingKey)
@@ -100,13 +169,13 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         return JsonSerializer.Deserialize<JsonElement>(payloadJson);
     }
 
-    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt)
+    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin")
     {
         var header = Base64UrlEncode("""{"alg":"HS256","typ":"JWT"}"""u8);
 
         var iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var exp = expiresAt.ToUnixTimeSeconds();
-        var payloadJson = $"{{\"sub\":\"{subject}\",\"iat\":{iat},\"exp\":{exp}}}";
+        var payloadJson = $"{{\"sub\":\"{subject}\",\"role\":\"{role}\",\"iat\":{iat},\"exp\":{exp}}}";
         var payload = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
 
         var signatureInput = Encoding.ASCII.GetBytes($"{header}.{payload}");
@@ -139,6 +208,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 public class JwtAuthOptions : AuthenticationSchemeOptions
 {
     public byte[] SigningKey { get; set; } = [];
+    public string UserAuthentication { get; set; } = "";
 }
 
 public static class JwtAuthExtensions
