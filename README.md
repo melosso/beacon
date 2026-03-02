@@ -245,6 +245,14 @@ When `ApiHosts`/`AdminHosts` are not configured, Beacon uses the following ports
 
 You may need to combine both the host- and port-based variables when working with a reverse proxy (e.g. Cloudflare Tunnels or Pangolin).
 
+### Other settings
+
+You can configure the following additional, completely optional settings:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `Beacon__UserAuthentication` | Allow user authentication, API tokens, or both (`user`, `api`, `both`). Leave blank to only allow `Beacon__AdminApiKey` | both |
+
 ### Generating Secure Keys
 
 ```bash
