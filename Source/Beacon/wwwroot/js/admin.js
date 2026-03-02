@@ -23,7 +23,7 @@
 
     // ========== CENTRALIZED API REQUESTS ==========
     async function apiRequest(endpoint, options = {}) {
-      const url = `${API_BASE}${endpoint}`;
+      const url = `${window.location.origin}${endpoint}`;
       const config = {
         ...options,
         credentials: 'include',  // Send the HttpOnly auth cookie with every request
@@ -41,7 +41,7 @@
         if (res.status === 401) {
           if (!options.skipAuthRedirect && !_redirectingToLogout) {
             _redirectingToLogout = true;
-            fetch(`${API_BASE}/api/admin/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+            fetch(`${window.location.origin}/api/admin/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
             ['beacon_user_role', 'beacon_username', 'beacon_jwt_exp', 'beacon_buckets', 'beacon_user_id']
               .forEach(k => sessionStorage.removeItem(k));
             window.location.href = '/admin/logout?reason=expired';
@@ -2668,7 +2668,7 @@
       if (sseAbortController) sseAbortController.abort();
       sseAbortController = new AbortController();
 
-      fetch(`${API_BASE}/api/admin/events`, {
+      fetch(`${window.location.origin}/api/admin/events`, {
         credentials: 'include',
         signal: sseAbortController.signal
       }).then(response => {

@@ -24,7 +24,7 @@
       } catch(e) {}
     })();
   </script>
-  <title>Signed Out &middot; Beacon</title>
+  <title>Signed out &middot; Beacon</title>
 </head>
 <body>
 
@@ -68,7 +68,7 @@
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
         </div>
-        <h1 style="font-size:1.1rem;font-weight:500;margin:0">Beacon</h1>
+        <h1 class="select-none" style="font-size:1.1rem;font-weight:500;margin:0">Beacon</h1>
       </div>
       <div class="auth-box select-none">
         <h2 id="logoutHeading">Signed Out</h2>
@@ -107,7 +107,7 @@
     if (_desc) {
       _desc.textContent = _reason === 'expired'
         ? 'Your session has expired. Please sign in again to continue.'
-        : 'You have been signed out. Sign in to continue.';
+        : 'You have been signed out. Sign in to get back into the mainframe.';
     }
     document.getElementById('loginOverlay').style.display = 'flex';
   </script>
