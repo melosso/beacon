@@ -111,7 +111,7 @@
       btn.disabled = true;
 
       try {
-        const res = await fetch(`${API_BASE}/api/admin/auth`, {
+        const res = await fetch(`${window.location.origin}/api/admin/auth`, {
           method: 'POST',
           credentials: 'include',  // Receive the HttpOnly cookie cross-origin
           headers: { 'Content-Type': 'application/json' },
@@ -143,7 +143,7 @@
     // ========== LOGOUT (used by admin.js via shared scope) ==========
     async function logout() {
       try {
-        await fetch(`${API_BASE}/api/admin/auth/logout`, {
+        await fetch(`${window.location.origin}/api/admin/auth/logout`, {
           method: 'POST',
           credentials: 'include'
         });
@@ -155,3 +155,4 @@
       sessionStorage.removeItem('beacon_user_id');
       window.location.href = '/admin/logout';
     }
+
