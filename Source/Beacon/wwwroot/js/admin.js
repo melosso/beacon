@@ -3904,6 +3904,20 @@ ${bodyStr}
       renderUsersPage();
     }
 
+    function formatRelativeTime(isoString) {
+      const date = new Date(isoString);
+      const diff = Date.now() - date.getTime();
+      const abs = Math.abs(diff);
+      const full = date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+      let rel;
+      if      (abs < 60_000)           rel = 'Just now';
+      else if (abs < 3_600_000)        rel = `${Math.floor(abs / 60_000)}m ago`;
+      else if (abs < 86_400_000)       rel = `${Math.floor(abs / 3_600_000)}h ago`;
+      else if (abs < 7 * 86_400_000)   rel = `${Math.floor(abs / 86_400_000)}d ago`;
+      else                             rel = date.toLocaleDateString();
+      return `<span class="tooltip-wrapper" style="cursor:default">${rel}<span class="tooltip tooltip-above">${full}</span></span>`;
+    }
+
     function renderUsersTable(users) {
       const tbody = document.getElementById('usersBody');
       if (!users.length) {
@@ -3916,7 +3930,7 @@ ${bodyStr}
           <td><span class="status-badge ${u.role === 'admin' ? '' : 'status-badge-muted'}">${sanitize(u.role)}</span></td>
           <td>${u.isEnabled ? '<span style="color:hsl(var(--success,142 71% 45%))">Enabled</span>' : '<span style="color:hsl(var(--muted-foreground))">Disabled</span>'}</td>
           <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
-          <td>${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}</td>
+          <td>${u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : '<span style="color:hsl(var(--muted-foreground))">Never</span>'}</td>
           <td class="col-actions">
             <div class="row-actions">
               <button class="btn-actions" onclick="event.stopPropagation();toggleMenu('userDropdown-${u.id}',this)">

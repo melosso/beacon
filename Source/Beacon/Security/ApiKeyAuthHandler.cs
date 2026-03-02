@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,6 +13,8 @@ namespace Beacon.Security;
 public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 {
     private const string ApiKeyHeader = "X-Api-Key";
+    private static readonly TimeSpan LoginWriteCooldown = TimeSpan.FromMinutes(5);
+    private static readonly ConcurrentDictionary<Guid, DateTime> _lastLoginWrite = new();
     private readonly IServiceScopeFactory _scopeFactory;
 
     public ApiKeyAuthHandler(
@@ -31,6 +34,10 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 
         var providedKey = apiKeyHeader.ToString();
 
+        // Strip "Bearer " prefix if callers mistakenly include it
+        if (providedKey.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            providedKey = providedKey["Bearer ".Length..];
+
         // 1. Always check global AdminApiKey first (constant-time SHA256 comparison)
         if (!string.IsNullOrEmpty(Options.AdminApiKey) &&
             CryptographicEquals(providedKey, Options.AdminApiKey))
@@ -39,22 +46,44 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
             return BuildSuccess("ApiKeyUser", "admin");
         }
 
-        // 2. If user authentication is enabled, check per-user API keys
-        if (!string.IsNullOrEmpty(Options.UserAuthentication))
+        // 2. Always check per-user API keys when a user repository is available,
+        //    regardless of UserAuthentication mode (login UI may be disabled but keys still work)
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetService<IUserRepository>();
+        if (userRepo != null)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
             var keyHash = ApiKeyGenerator.ComputeHash(providedKey);
             var user = await userRepo.FindByApiKeyHashAsync(keyHash);
             if (user != null && user.IsEnabled)
             {
                 Logger.LogDebug("User API key authenticated for {Username}", user.Username);
+                UpdateLastLoginWithCooldown(user.Id);
                 return BuildSuccess(user.Username, user.Role);
             }
         }
 
         Logger.LogWarning("Invalid API key attempt from {RemoteIp}", Context.Connection.RemoteIpAddress);
         return AuthenticateResult.Fail("Invalid API key");
+    }
+
+    private void UpdateLastLoginWithCooldown(Guid userId)
+    {
+        var now = DateTime.UtcNow;
+        if (_lastLoginWrite.TryGetValue(userId, out var last) && now - last < LoginWriteCooldown)
+            return;
+
+        _lastLoginWrite[userId] = now;
+        var scopeFactory = _scopeFactory;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var repo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+                await repo.SetLastLoginAsync(userId);
+            }
+            catch { /* best-effort; next successful auth will retry */ }
+        });
     }
 
     private AuthenticateResult BuildSuccess(string name, string role)
