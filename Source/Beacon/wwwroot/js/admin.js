@@ -3851,9 +3851,11 @@ ${bodyStr}
       const settingsNavAccount = document.getElementById('settingsNavAccount');
       const settingsNavDivider = document.getElementById('settingsNavDivider');
       const settingsNavUsers = document.getElementById('settingsNavUsers');
-      if (mode && settingsNavAccount) settingsNavAccount.style.display = '';
-      if (mode && settingsNavDivider) settingsNavDivider.style.display = '';
-      if (mode && isAdmin && settingsNavUsers) settingsNavUsers.style.display = '';
+      if (settingsNavAccount) settingsNavAccount.style.display = '';
+      if (settingsNavDivider) settingsNavDivider.style.display = '';
+      if (isAdmin && settingsNavUsers) settingsNavUsers.style.display = '';
+      const authNotice = document.getElementById('users-auth-disabled-notice');
+      if (authNotice) authNotice.style.display = mode ? 'none' : '';
       if (!isAdmin) {
         for (const id of ['settingsNavGeneral', 'settingsNavModules', 'settingsNavIntegration', 'settingsNavSystem', 'settingsNavSystemDivider']) {
           const el = document.getElementById(id);
