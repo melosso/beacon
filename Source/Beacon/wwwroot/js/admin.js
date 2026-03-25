@@ -224,6 +224,8 @@
         const section = params.get('section') || 'general';
         showView('settings', false);
         showSettingsSection(section, false);
+      } else if (view === 'workflow') {
+        showView('workflow', false);
       } else {
         showView('overview', false);
       }
@@ -646,6 +648,7 @@
       if (view === 'new-bucket') renderNewBucketPerms();
       if (view === 'new-token') document.getElementById('tokenLanguage').value = appSettings.uiLanguage || 'en';
       if (view === 'settings') loadSettings();
+      if (view === 'workflow') loadWorkflowPage();
       if (view === 'subscriptions') {
         loadIdentities(pushState);
       }
@@ -3464,7 +3467,18 @@ ${bodyStr}
       emailQueueEnabled: false,
       objectStorage: false,
       enableDoubleOptIn: false,
-      emailQueueCron: '*/5 * * * *'
+      emailQueueCron: '*/5 * * * *',
+      dataPoliciesEnabled: false,
+      dataPolicyCron: '0 0 * * *',
+      retentionPurgeEnabled: false,
+      retentionPurgeDays: 1095,
+      ipAnonymizationEnabled: false,
+      ipAnonymizationDays: 90,
+      pendingConfirmationPurgeEnabled: false,
+      pendingConfirmationPurgeDays: 30,
+      retentionPurgeRequireApproval: false,
+      ipAnonymizationRequireApproval: false,
+      pendingConfirmationPurgeRequireApproval: false
     };
     let appSettings = (() => {
       try {
@@ -3560,6 +3574,18 @@ ${bodyStr}
         appSettings.emailQueueCron     = res.data.emailQueueCron     ?? '*/5 * * * *';
         const cronEl = document.getElementById('setting-emailQueueCron');
         if (cronEl) cronEl.value = appSettings.emailQueueCron;
+        // Data Policies
+        appSettings.dataPoliciesEnabled            = res.data.dataPoliciesEnabled            ?? false;
+        appSettings.dataPolicyCron                 = res.data.dataPolicyCron                 ?? '0 0 * * *';
+        appSettings.retentionPurgeEnabled          = res.data.retentionPurgeEnabled          ?? false;
+        appSettings.retentionPurgeDays             = res.data.retentionPurgeDays             ?? 1095;
+        appSettings.ipAnonymizationEnabled         = res.data.ipAnonymizationEnabled         ?? false;
+        appSettings.ipAnonymizationDays            = res.data.ipAnonymizationDays            ?? 90;
+        appSettings.pendingConfirmationPurgeEnabled = res.data.pendingConfirmationPurgeEnabled ?? false;
+        appSettings.pendingConfirmationPurgeDays   = res.data.pendingConfirmationPurgeDays   ?? 30;
+        appSettings.retentionPurgeRequireApproval            = res.data.retentionPurgeRequireApproval            ?? false;
+        appSettings.ipAnonymizationRequireApproval           = res.data.ipAnonymizationRequireApproval           ?? false;
+        appSettings.pendingConfirmationPurgeRequireApproval  = res.data.pendingConfirmationPurgeRequireApproval  ?? false;
       }
     }
 
@@ -3581,7 +3607,7 @@ ${bodyStr}
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
     }
 
-    const _adminOnlySections = new Set(['general', 'modules', 'integration', 'system', 'users']);
+    const _adminOnlySections = new Set(['general', 'modules', 'data-policies', 'integration', 'system', 'users']);
 
     function showSettingsSection(section, pushState = true) {
       const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
@@ -3593,12 +3619,13 @@ ${bodyStr}
       document.querySelectorAll('.settings-subnav-item').forEach(i => i.classList.remove('active'));
       document.getElementById(`settings-section-${section}`)?.classList.add('active');
       document.querySelector(`.settings-subnav-item[data-section="${section}"]`)?.classList.add('active');
-      const labels = { general: 'General', modules: 'Modules', appearance: 'Appearance', system: 'System', integration: 'Integration', users: 'Users', account: 'Account' };
+      const labels = { general: 'General', modules: 'Modules', 'data-policies': 'Data Policies', appearance: 'Appearance', system: 'System', integration: 'Integration', users: 'Users', account: 'Account' };
       const badge = document.getElementById('settingsSectionBadge');
       if (badge) badge.textContent = labels[section] || section;
       if (pushState) updateUrl({ view: 'settings', section });
       if (section === 'users') loadUsers();
       if (section === 'account') loadAccount();
+      if (section === 'data-policies') loadDataPoliciesSection();
     }
 
     function saveSetting(key, value) {
@@ -3626,7 +3653,18 @@ ${bodyStr}
           objectStorage:      appSettings.objectStorage,
           enableDoubleOptIn:  appSettings.enableDoubleOptIn,
           perPermissionEmail: appSettings.perPermissionEmail,
-          emailQueueCron:     appSettings.emailQueueCron
+          emailQueueCron:     appSettings.emailQueueCron,
+          dataPoliciesEnabled:             appSettings.dataPoliciesEnabled,
+          dataPolicyCron:                  appSettings.dataPolicyCron,
+          retentionPurgeEnabled:           appSettings.retentionPurgeEnabled,
+          retentionPurgeDays:              appSettings.retentionPurgeDays,
+          ipAnonymizationEnabled:          appSettings.ipAnonymizationEnabled,
+          ipAnonymizationDays:             appSettings.ipAnonymizationDays,
+          pendingConfirmationPurgeEnabled:            appSettings.pendingConfirmationPurgeEnabled,
+          pendingConfirmationPurgeDays:               appSettings.pendingConfirmationPurgeDays,
+          retentionPurgeRequireApproval:              appSettings.retentionPurgeRequireApproval,
+          ipAnonymizationRequireApproval:             appSettings.ipAnonymizationRequireApproval,
+          pendingConfirmationPurgeRequireApproval:    appSettings.pendingConfirmationPurgeRequireApproval
         }
       });
       if (res.ok) {
@@ -3642,6 +3680,14 @@ ${bodyStr}
       return valid;
     }
 
+    const DATA_POLICY_CRON_PRESETS = [
+      { expr: '0 0 * * *',    label: 'Once a day (00:00 UTC)' },
+      { expr: '0 2 * * *',    label: 'Once a day (02:00 UTC)' },
+      { expr: '0 9 * * *',    label: 'Once a day (09:00 UTC)' },
+      { expr: '0 0 * * 0',    label: 'Once a week (Sunday 00:00 UTC)' },
+      { expr: '0 0 1 * *',    label: 'Once a month (1st at 00:00 UTC)' },
+    ];
+
     const CRON_PRESETS = [
       { expr: '* * * * *',       label: 'Every minute' },
       { expr: '*/2 * * * *',     label: 'Every 2 minutes' },
@@ -3653,9 +3699,9 @@ ${bodyStr}
       { expr: '0 */2 * * *',     label: 'Every 2 hours' },
       { expr: '0 */6 * * *',     label: 'Every 6 hours' },
       { expr: '0 */12 * * *',    label: 'Every 12 hours' },
-      { expr: '0 0 * * *',       label: 'Once a day (midnight)' },
-      { expr: '0 9 * * *',       label: 'Once a day (9:00 UTC)' },
-      { expr: '0 0 * * 0',       label: 'Once a week (Sunday midnight)' },
+      { expr: '0 0 * * *',       label: 'Once a day (00:00 UTC)' },
+      { expr: '0 9 * * *',       label: 'Once a day (09:00 UTC)' },
+      { expr: '0 0 * * 0',       label: 'Once a week (Sunday 00:00 UTC)' },
     ];
 
     let selectedCronIndex = -1;
@@ -3728,6 +3774,341 @@ ${bodyStr}
         hideCronSuggestions();
       }
     });
+
+    // DATA POLICIES CRON (mirrors email queue cron, separate input/dropdown IDs)
+    let _dpCronIndex = -1;
+
+    function showDataPolicyCronSuggestions(force = false) {
+      const input = document.getElementById('setting-dataPolicyCron');
+      const dropdown = document.getElementById('dataPolicyCronAutocomplete');
+      if (!input || !dropdown) return;
+      const query = input.value.trim().toLowerCase();
+      const matches = (force || !query)
+        ? DATA_POLICY_CRON_PRESETS
+        : DATA_POLICY_CRON_PRESETS.filter(p => p.expr.includes(query) || p.label.toLowerCase().includes(query));
+      if (!force && (matches.length === 0 || (matches.length === 1 && matches[0].expr === query))) {
+        dropdown.classList.remove('open');
+        return;
+      }
+      _dpCronIndex = -1;
+      dropdown.innerHTML = matches.map((p, idx) => `
+        <div class="autocomplete-item" data-index="${idx}" onclick="selectDataPolicyCronPreset('${p.expr}')" onmouseenter="_dpCronIndex=${idx};document.querySelectorAll('#dataPolicyCronAutocomplete .autocomplete-item').forEach((el,i)=>el.classList.toggle('selected',i===${idx}))">
+          <div class="bucket-name">${sanitize(p.expr)}</div>
+          <div class="bucket-info">${sanitize(p.label)}</div>
+        </div>
+      `).join('');
+      positionDropdown(input, dropdown);
+      dropdown.classList.add('open');
+    }
+
+    function selectDataPolicyCronPreset(expr) {
+      const input = document.getElementById('setting-dataPolicyCron');
+      if (!input) return;
+      input.value = expr;
+      document.getElementById('dataPolicyCronAutocomplete')?.classList.remove('open');
+      _dpCronIndex = -1;
+      validateCronInput(input);
+      saveSetting('dataPolicyCron', expr);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('setting-dataPolicyCron')?.addEventListener('keydown', function(e) {
+        const dropdown = document.getElementById('dataPolicyCronAutocomplete');
+        if (!dropdown?.classList.contains('open')) return;
+        const items = dropdown.querySelectorAll('.autocomplete-item');
+        if (items.length === 0) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); _dpCronIndex = Math.min(_dpCronIndex + 1, items.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); _dpCronIndex = Math.max(_dpCronIndex - 1, 0); }
+        else if (e.key === 'Enter' && _dpCronIndex >= 0) { e.preventDefault(); selectDataPolicyCronPreset(items[_dpCronIndex].querySelector('.bucket-name').textContent); return; }
+        else if (e.key === 'Escape') { dropdown.classList.remove('open'); return; }
+        items.forEach((el, i) => el.classList.toggle('selected', i === _dpCronIndex));
+      });
+    });
+
+    // DATA POLICIES SECTION
+    function toggleDataPoliciesEnabled(enabled) {
+      saveSetting('dataPoliciesEnabled', enabled);
+      const controls = document.getElementById('data-policies-controls');
+      if (controls) { controls.style.opacity = enabled ? '' : '0.5'; controls.style.pointerEvents = enabled ? '' : 'none'; }
+    }
+
+    async function loadDataPoliciesSection() {
+      const el = document.getElementById('setting-dataPoliciesEnabled');
+      if (el) { el.checked = !!appSettings.dataPoliciesEnabled; toggleDataPoliciesEnabled(!!appSettings.dataPoliciesEnabled); }
+      const cronEl = document.getElementById('setting-dataPolicyCron');
+      if (cronEl) cronEl.value = appSettings.dataPolicyCron || '0 0 * * *';
+      const rpe = document.getElementById('setting-retentionPurgeEnabled');
+      if (rpe) rpe.checked = !!appSettings.retentionPurgeEnabled;
+      const rpra = document.getElementById('setting-retentionPurgeRequireApproval');
+      if (rpra) rpra.checked = !!appSettings.retentionPurgeRequireApproval;
+      const iae = document.getElementById('setting-ipAnonymizationEnabled');
+      if (iae) iae.checked = !!appSettings.ipAnonymizationEnabled;
+      const iara = document.getElementById('setting-ipAnonymizationRequireApproval');
+      if (iara) iara.checked = !!appSettings.ipAnonymizationRequireApproval;
+      const pce = document.getElementById('setting-pendingConfirmationPurgeEnabled');
+      if (pce) pce.checked = !!appSettings.pendingConfirmationPurgeEnabled;
+      const pcra = document.getElementById('setting-pendingConfirmationPurgeRequireApproval');
+      if (pcra) pcra.checked = !!appSettings.pendingConfirmationPurgeRequireApproval;
+      await loadWorkflowTasks();
+    }
+
+    // Track tasks actioned in this session — they stay visible until next full reload
+    const _locallyActionedIds = new Set();
+    let _workflowAllTasks = [];
+    let _workflowPage = 1;
+    let _workflowPageSize = 25;
+    let _workflowArchivedVisible = false;
+
+    const _workflowTypeLabels = {
+      RetentionPurge: 'Opted-out anonymisation',
+      IpAnonymization: 'IP anonymisation',
+      PendingConfirmationPurge: 'Pending confirmation cleanup'
+    };
+
+    async function loadWorkflowPage() {
+      const notice = document.getElementById('workflow-policy-notice');
+      const noPolicies = !appSettings.retentionPurgeEnabled && !appSettings.ipAnonymizationEnabled && !appSettings.pendingConfirmationPurgeEnabled;
+      if (notice) notice.style.display = noPolicies ? '' : 'none';
+      _locallyActionedIds.clear();
+      _workflowArchivedVisible = false;
+      _workflowPage = 1;
+      const btn = document.getElementById('workflowArchiveToggle');
+      if (btn) btn.textContent = 'Show archived';
+      await loadWorkflowTasks();
+    }
+
+    async function loadWorkflowTasks() {
+      const res = await apiRequest('/api/admin/data-policies/tasks?limit=200');
+      if (!res.ok || !res.data) return;
+      _workflowAllTasks = res.data;
+
+      // Settings panel: last 5 completed/failed only
+      renderSettingsRunHistory(_workflowAllTasks.filter(t => t.status === 'Completed' || t.status === 'Failed').slice(0, 5));
+
+      // Workflow page
+      renderWorkflowTable();
+    }
+
+    function renderWorkflowTable() {
+      const tasks = _workflowArchivedVisible
+        ? _workflowAllTasks.filter(t => t.status !== 'Running' && t.status !== 'Pending')
+        : _workflowAllTasks.filter(t => t.status === 'PendingApproval' || _locallyActionedIds.has(t.id));
+
+      // Sort newest first by scheduledAt
+      tasks.sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+
+      const total = tasks.length;
+      const totalPages = Math.ceil(total / _workflowPageSize) || 1;
+      _workflowPage = Math.min(_workflowPage, totalPages);
+      const start = (_workflowPage - 1) * _workflowPageSize;
+      const page = tasks.slice(start, start + _workflowPageSize);
+
+      const tbody = document.getElementById('workflowTbody');
+      if (!tbody) return;
+
+      if (total === 0) {
+        const msg = _workflowArchivedVisible ? 'No runs yet.' : 'No items awaiting approval.';
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">${msg}</td></tr>`;
+      } else {
+        tbody.innerHTML = page.map(t => {
+          const isPending = t.status === 'PendingApproval';
+          const queued = t.scheduledAt ? new Date(t.scheduledAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+          const records = (t.status === 'Completed' || t.status === 'Failed') ? t.recordsAffected : '—';
+          const badge = isPending
+            ? '<span class="status-badge pending-approval">Pending approval</span>'
+            : t.status === 'Completed'
+              ? '<span class="status-badge completed">Completed</span>'
+              : t.status === 'Failed'
+                ? '<span class="status-badge failed">Failed</span>'
+                : '<span class="status-badge rejected">Rejected</span>';
+          const actions = isPending
+            ? `<div style="display:flex;gap:0.5rem;white-space:nowrap">
+                 <button class="btn btn-outline btn-sm" onclick="approveWorkflowTask('${sanitize(t.id)}')">Approve</button>
+                 <button class="btn btn-outline btn-sm" style="color:hsl(var(--muted-foreground))" onclick="rejectWorkflowTask('${sanitize(t.id)}')">Reject</button>
+               </div>`
+            : '';
+          return `<tr id="workflow-row-${sanitize(t.id)}">
+            <td>${sanitize(_workflowTypeLabels[t.taskType] || t.taskType)}</td>
+            <td>${sanitize(t.triggeredBy)}</td>
+            <td>${queued}</td>
+            <td>${records}</td>
+            <td>${badge}${t.errorMessage ? `<span title="${sanitize(t.errorMessage)}" style="margin-left:0.4rem;opacity:0.6;cursor:help;font-size:0.75rem">ⓘ</span>` : ''}</td>
+            <td>${actions}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // Pagination
+      const bar = document.getElementById('workflowPaginationBar');
+      if (bar) bar.style.display = 'flex';
+      const startN = total === 0 ? 0 : start + 1;
+      const endN = Math.min(start + _workflowPageSize, total);
+      const info = document.getElementById('workflowPaginationInfo');
+      if (info) info.textContent = `Showing ${startN} to ${endN} of ${total}`;
+      const prevBtn = document.getElementById('workflowPrevBtn');
+      const nextBtn = document.getElementById('workflowNextBtn');
+      if (prevBtn) prevBtn.disabled = _workflowPage <= 1;
+      if (nextBtn) nextBtn.disabled = _workflowPage >= totalPages;
+    }
+
+    function changeWorkflowPage(dir) {
+      const tasks = _workflowArchivedVisible
+        ? _workflowAllTasks.filter(t => t.status !== 'Running' && t.status !== 'Pending')
+        : _workflowAllTasks.filter(t => t.status === 'PendingApproval' || _locallyActionedIds.has(t.id));
+      const totalPages = Math.ceil(tasks.length / _workflowPageSize) || 1;
+      _workflowPage = Math.max(1, Math.min(totalPages, _workflowPage + dir));
+      renderWorkflowTable();
+    }
+
+    function updateWorkflowPageSize() {
+      const el = document.getElementById('workflowPageSize');
+      if (el) _workflowPageSize = parseInt(el.value, 10);
+      _workflowPage = 1;
+      renderWorkflowTable();
+    }
+
+    function toggleWorkflowArchived() {
+      _workflowArchivedVisible = !_workflowArchivedVisible;
+      _workflowPage = 1;
+      const btn = document.getElementById('workflowArchiveToggle');
+      if (btn) btn.textContent = _workflowArchivedVisible ? 'Hide archived' : 'Show archived';
+      renderWorkflowTable();
+    }
+
+    function renderSettingsRunHistory(tasks) {
+      const tbody = document.getElementById('workflowTasksTbody');
+      if (!tbody) return;
+      if (!tasks || tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No completed runs yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = tasks.map(t => {
+        const started = t.startedAt ? new Date(t.startedAt) : null;
+        const completed = t.completedAt ? new Date(t.completedAt) : null;
+        const durationMs = (started && completed) ? completed - started : null;
+        const duration = durationMs !== null ? (durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`) : '—';
+        const startedStr = started ? started.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+        const badge = t.status === 'Completed'
+          ? '<span class="status-badge completed">Completed</span>'
+          : '<span class="status-badge failed">Failed</span>';
+        return `<tr>
+          <td>${sanitize(_workflowTypeLabels[t.taskType] || t.taskType)}</td>
+          <td>${sanitize(t.triggeredBy)}</td>
+          <td>${startedStr}</td>
+          <td>${duration}</td>
+          <td>${t.recordsAffected}</td>
+          <td>${badge}${t.errorMessage ? `<span title="${sanitize(t.errorMessage)}" style="margin-left:0.4rem;opacity:0.6;cursor:help;font-size:0.75rem">ⓘ</span>` : ''}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function approveWorkflowTask(id) {
+      const row = document.getElementById(`workflow-row-${id}`);
+      const btns = row ? row.querySelectorAll('button') : [];
+      btns.forEach(b => { b.disabled = true; });
+      const res = await apiRequest(`/api/admin/data-policies/tasks/${id}/approve`, { method: 'POST' });
+      if (res.ok && res.data) {
+        _locallyActionedIds.add(id);
+        // Update cached task so toggling archived re-renders correctly
+        const idx = _workflowAllTasks.findIndex(t => t.id === id);
+        if (idx >= 0) _workflowAllTasks[idx] = res.data;
+        // Update row in-place (cols: 0=task, 1=by, 2=queued, 3=records, 4=badge, 5=actions)
+        if (row) {
+          if (row.cells[3]) row.cells[3].textContent = res.data.recordsAffected ?? '—';
+          if (row.cells[4]) row.cells[4].innerHTML = res.data.status === 'Completed'
+            ? '<span class="status-badge completed">Completed</span>'
+            : '<span class="status-badge failed">Failed</span>';
+          if (row.cells[5]) row.cells[5].innerHTML = '';
+        }
+        if (res.data.status === 'Completed') {
+          notify('success', 'Policy executed', `${res.data.recordsAffected} record(s) affected.`);
+        } else {
+          notify('error', 'Execution failed', res.data.errorMessage || 'An error occurred.');
+        }
+      } else {
+        btns.forEach(b => { b.disabled = false; });
+        notify('error', 'Approval failed', 'Could not approve the task.');
+      }
+    }
+
+    async function rejectWorkflowTask(id) {
+      const row = document.getElementById(`workflow-row-${id}`);
+      const btns = row ? row.querySelectorAll('button') : [];
+      btns.forEach(b => { b.disabled = true; });
+      const res = await apiRequest(`/api/admin/data-policies/tasks/${id}/reject`, { method: 'POST' });
+      if (res.ok && res.data) {
+        _locallyActionedIds.add(id);
+        // Update cached task so toggling archived re-renders correctly
+        const idx = _workflowAllTasks.findIndex(t => t.id === id);
+        if (idx >= 0) _workflowAllTasks[idx] = res.data;
+        // Update row in-place
+        if (row) {
+          if (row.cells[4]) row.cells[4].innerHTML = '<span class="status-badge rejected">Rejected</span>';
+          if (row.cells[5]) row.cells[5].innerHTML = '';
+        }
+      } else {
+        btns.forEach(b => { b.disabled = false; });
+        notify('error', 'Rejection failed', 'Could not reject the task.');
+      }
+    }
+
+    async function triggerDataPoliciesRun() {
+      // Update both possible Run Now buttons (settings panel + workflow page)
+      const btns = ['dataPoliciesRunBtn', 'workflowRunBtn'].map(id => document.getElementById(id)).filter(Boolean);
+      btns.forEach(b => { b.classList.add('is-loading'); b.disabled = true; });
+      const res = await apiRequest('/api/admin/data-policies/run', { method: 'POST' });
+      if (res.ok || res.status === 202) {
+        notify('success', 'Run triggered', 'Policies will run in a moment.');
+        // Poll twice: once quickly, once after giving the worker time to finish
+        setTimeout(loadWorkflowTasks, 1500);
+        setTimeout(loadWorkflowTasks, 6000);
+      } else {
+        notify('error', 'Run Failed', 'Could not trigger a manual run.');
+      }
+      btns.forEach(b => { b.classList.remove('is-loading'); b.disabled = false; });
+    }
+
+    // RETENTION PURGE MODAL
+    function openRetentionPurgeModal() {
+      const el = document.getElementById('setting-retentionPurgeDays');
+      if (el) el.value = appSettings.retentionPurgeDays ?? 1095;
+      document.getElementById('retentionPurgeModal').style.display = 'flex';
+    }
+    function closeRetentionPurgeModal() { document.getElementById('retentionPurgeModal').style.display = 'none'; }
+    function saveRetentionPurgeDays() {
+      const days = parseInt(document.getElementById('setting-retentionPurgeDays').value, 10);
+      if (isNaN(days) || days < 1) { notify('warning', 'Invalid value', 'Enter a number greater than 0.'); return; }
+      saveSetting('retentionPurgeDays', days);
+      closeRetentionPurgeModal();
+    }
+
+    // IP ANONYMISATION MODAL
+    function openIpAnonymizationModal() {
+      const el = document.getElementById('setting-ipAnonymizationDays');
+      if (el) el.value = appSettings.ipAnonymizationDays ?? 90;
+      document.getElementById('ipAnonymizationModal').style.display = 'flex';
+    }
+    function closeIpAnonymizationModal() { document.getElementById('ipAnonymizationModal').style.display = 'none'; }
+    function saveIpAnonymizationDays() {
+      const days = parseInt(document.getElementById('setting-ipAnonymizationDays').value, 10);
+      if (isNaN(days) || days < 1) { notify('warning', 'Invalid value', 'Enter a number greater than 0.'); return; }
+      saveSetting('ipAnonymizationDays', days);
+      closeIpAnonymizationModal();
+    }
+
+    // PENDING CONFIRMATION MODAL
+    function openPendingConfirmationModal() {
+      const el = document.getElementById('setting-pendingConfirmationPurgeDays');
+      if (el) el.value = appSettings.pendingConfirmationPurgeDays ?? 30;
+      document.getElementById('pendingConfirmationModal').style.display = 'flex';
+    }
+    function closePendingConfirmationModal() { document.getElementById('pendingConfirmationModal').style.display = 'none'; }
+    function savePendingConfirmationPurgeDays() {
+      const days = parseInt(document.getElementById('setting-pendingConfirmationPurgeDays').value, 10);
+      if (isNaN(days) || days < 1) { notify('warning', 'Invalid value', 'Enter a number greater than 0.'); return; }
+      saveSetting('pendingConfirmationPurgeDays', days);
+      closePendingConfirmationModal();
+    }
 
     function openCacheSettingsModal() {
       notify('warning', 'Coming Soon', 'Cache configuration settings will be available in a future release.');
@@ -3860,6 +4241,8 @@ ${bodyStr}
       if (isAdmin && settingsNavUsers) settingsNavUsers.style.display = '';
       const authNotice = document.getElementById('users-auth-disabled-notice');
       if (authNotice) authNotice.style.display = mode ? 'none' : '';
+      const navWorkflow = document.getElementById('navWorkflow');
+      if (navWorkflow) navWorkflow.style.display = isAdmin ? '' : 'none';
       if (!isAdmin) {
         for (const id of ['settingsNavGeneral', 'settingsNavModules', 'settingsNavIntegration', 'settingsNavSystem', 'settingsNavSystemDivider']) {
           const el = document.getElementById(id);

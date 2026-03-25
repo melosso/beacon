@@ -39,6 +39,11 @@ public static class StorageConfiguration
         services.AddSingleton<EmailDispatchTrigger>();
         services.AddHostedService<EmailQueueWorker>();
 
+        services.AddSingleton<DataPolicyTrigger>();
+        services.AddScoped<IWorkflowTaskRepository, WorkflowTaskRepository>();
+        services.AddScoped<DataPolicyService>();
+        services.AddHostedService<DataPolicyWorker>();
+
         return services;
     }
 }

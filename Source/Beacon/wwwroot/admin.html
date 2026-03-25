@@ -78,6 +78,7 @@
       <div class="nav-label">Navigation</div>
       <a href="#" class="nav-item" data-view="overview" onclick="showView('overview')">Overview</a>
       <a href="#" class="nav-item" data-view="subscriptions" onclick="showView('subscriptions')">Subscriptions</a>
+      <a href="#" class="nav-item" id="navWorkflow" data-view="workflow" onclick="showView('workflow')">Workflow</a>
     </div>
 
     <div class="nav-group">
@@ -856,6 +857,70 @@
 
     <!-- Users and Account are now Settings sections -->
 
+    <!-- Workflow View -->
+    <div id="view-workflow" class="view">
+      <section class="header-container" style="flex-shrink:0">
+        <div>
+          <h1 class="select-none">Workflow</h1>
+          <span class="status-badge select-none">Data Policies</span>
+        </div>
+        <div class="bucket-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" id="workflowArchiveToggle" onclick="toggleWorkflowArchived()">Show archived</button>
+            <span class="tooltip">Show completed workflows</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="loadWorkflowPage()">Refresh</button>
+            <span class="tooltip">Reload workflow</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" id="workflowRunBtn" onclick="triggerDataPoliciesRun()"><span class="btn-label">Run Now</span><span class="spinner"></span></button>
+            <span class="tooltip">Run data policies immediately</span>
+          </span>
+        </div>
+      </section>
+      <div id="workflow-policy-notice" style="display:none;margin:0.75rem 2rem -0.25rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border));font-size:0.85rem;color:hsl(var(--muted-foreground));flex-shrink:0">
+        No policies are enabled. Go to <a href="#" onclick="showView('settings');showSettingsSection('data-policies');return false;" style="color:hsl(var(--foreground));text-decoration:underline">Settings → Data Policies</a> to configure and enable policies.
+      </div>
+      <div class="table-wrapper">
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Triggered by</th>
+                <th>Queued</th>
+                <th>Records</th>
+                <th>Status</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="workflowTbody">
+              <tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No items awaiting approval.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-container" id="workflowPaginationBar" style="display:none">
+          <div class="pagination-settings">
+            <div class="page-size-selector">
+              <span>Show</span>
+              <select class="page-size-input" id="workflowPageSize" onchange="updateWorkflowPageSize()">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+              <span>per page</span>
+            </div>
+            <div class="pagination-info" id="workflowPaginationInfo"></div>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-outline" id="workflowPrevBtn" onclick="changeWorkflowPage(-1)">Previous</button>
+            <button class="btn btn-outline" id="workflowNextBtn" onclick="changeWorkflowPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings View -->
     <div id="view-settings" class="view">
       <section class="header-container" style="flex-shrink:0">
@@ -901,6 +966,12 @@
                 <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
               </svg>
               Modules
+            </a>
+            <a href="#" class="settings-subnav-item" id="settingsNavDataPolicies" data-section="data-policies" onclick="showSettingsSection('data-policies');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Policies
             </a>
             <a href="#" class="settings-subnav-item" id="settingsNavIntegration" data-section="integration" onclick="showSettingsSection('integration');return false;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1024,6 +1095,152 @@
               </div>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Data Policies section -->
+          <div id="settings-section-data-policies" class="settings-section">
+            <div class="settings-content-hd">
+              <h3 class="select-none">Data Policies</h3>
+              <p>Automated data lifecycle rules for GDPR compliance.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items">
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-dataPoliciesEnabled">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Enable data policies</span>
+                    <p class="settings-item-desc">Run automated data lifecycle rules on a scheduled basis. Disabling this pauses all policies without changing their configuration.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-dataPoliciesEnabled" onchange="toggleDataPoliciesEnabled(this.checked)">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+              </div>
+
+              <div id="data-policies-controls">
+                <div class="settings-item-block">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Schedule</span>
+                    <p class="settings-item-desc">How often data policies run. Uses standard 5-field cron syntax.</p>
+                  </div>
+                  <div class="autocomplete-wrapper" style="flex-shrink:0;width:180px">
+                    <input type="text" id="setting-dataPolicyCron" value="0 0 * * *"
+                      class="appearance-select" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
+                      oninput="showDataPolicyCronSuggestions(false); validateCronInput(this); saveSetting('dataPolicyCron', this.value)"
+                      onfocus="showDataPolicyCronSuggestions(true)"
+                      style="font-family:var(--font-mono);width:100%">
+                    <div class="autocomplete-dropdown" id="dataPolicyCronAutocomplete"></div>
+                  </div>
+                </div>
+
+                <div class="settings-item-card settings-item-card--split">
+                  <div class="settings-item-card-body">
+                    <label for="setting-retentionPurgeEnabled">
+                      <div class="settings-item-info">
+                        <span class="settings-item-title select-none">Opted-out anonymisation</span>
+                        <p class="settings-item-desc">Removes personal data from opted-out records after a set period. The email hash and opt-out status are retained for suppression.</p>
+                      </div>
+                      <div class="settings-item-control">
+                        <input type="checkbox" id="setting-retentionPurgeEnabled" onchange="saveSetting('retentionPurgeEnabled', this.checked)">
+                        <span class="toggle-track"></span>
+                      </div>
+                    </label>
+                    <label class="settings-item-sub-toggle" for="setting-retentionPurgeRequireApproval">
+                      <span>Require manual approval</span>
+                      <div class="settings-item-control">
+                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" onchange="saveSetting('retentionPurgeRequireApproval', this.checked)">
+                        <span class="toggle-track"></span>
+                      </div>
+                    </label>
+                  </div>
+                  <button class="btn-settings-gear" onclick="openRetentionPurgeModal()" aria-label="Opted-out anonymisation settings">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  </button>
+                </div>
+
+                <div class="settings-item-card settings-item-card--split">
+                  <div class="settings-item-card-body">
+                    <label for="setting-ipAnonymizationEnabled">
+                      <div class="settings-item-info">
+                        <span class="settings-item-title select-none">IP anonymisation</span>
+                        <p class="settings-item-desc">Removes stored IP addresses from all records after a set period.</p>
+                      </div>
+                      <div class="settings-item-control">
+                        <input type="checkbox" id="setting-ipAnonymizationEnabled" onchange="saveSetting('ipAnonymizationEnabled', this.checked)">
+                        <span class="toggle-track"></span>
+                      </div>
+                    </label>
+                    <label class="settings-item-sub-toggle" for="setting-ipAnonymizationRequireApproval">
+                      <span>Require manual approval</span>
+                      <div class="settings-item-control">
+                        <input type="checkbox" id="setting-ipAnonymizationRequireApproval" onchange="saveSetting('ipAnonymizationRequireApproval', this.checked)">
+                        <span class="toggle-track"></span>
+                      </div>
+                    </label>
+                  </div>
+                  <button class="btn-settings-gear" onclick="openIpAnonymizationModal()" aria-label="IP anonymisation settings">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  </button>
+                </div>
+
+                <div class="settings-item-card settings-item-card--split">
+                  <div class="settings-item-card-body">
+                    <label for="setting-pendingConfirmationPurgeEnabled">
+                      <div class="settings-item-info">
+                        <span class="settings-item-title select-none">Pending confirmation cleanup</span>
+                        <p class="settings-item-desc">Deletes unconfirmed double opt-in attempts after a set period.</p>
+                      </div>
+                      <div class="settings-item-control">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" onchange="saveSetting('pendingConfirmationPurgeEnabled', this.checked)">
+                        <span class="toggle-track"></span>
+                      </div>
+                    </label>
+                    <label class="settings-item-sub-toggle" for="setting-pendingConfirmationPurgeRequireApproval">
+                      <span>Require manual approval</span>
+                      <div class="settings-item-control">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" onchange="saveSetting('pendingConfirmationPurgeRequireApproval', this.checked)">
+                        <span class="toggle-track"></span>
+                      </div>
+                    </label>
+                  </div>
+                  <button class="btn-settings-gear" onclick="openPendingConfirmationModal()" aria-label="Pending confirmation cleanup settings">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="settings-save-row" style="gap:0.5rem">
+                <button class="btn btn-outline" id="dataPoliciesRunBtn" onclick="triggerDataPoliciesRun()"><span class="btn-label">Run Now</span><span class="spinner"></span></button>
+                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              </div>
+
+              <div style="margin-top:1.5rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+                  <span class="settings-item-title select-none" style="font-size:0.875rem">Run history</span>
+                  <button class="btn btn-icon" onclick="loadWorkflowTasks()" title="Refresh" style="opacity:0.6;width:28px;height:28px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                  </button>
+                </div>
+                <div class="table-wrapper">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Task</th>
+                        <th>Triggered by</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th>Records</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="workflowTasksTbody">
+                      <tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No runs yet — enable a policy, then click Run Now.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -1998,6 +2215,51 @@
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeAddUserModal()">Cancel</button>
         <button class="btn btn-primary" id="addUserBtn" onclick="createUser()"><span class="btn-label">Create User</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="retentionPurgeModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3>Opted-out anonymisation</h3>
+      <p>PII is removed from opted-out records once they exceed the threshold. The email hash and status are kept as a permanent suppression list entry.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
+        <input type="number" id="setting-retentionPurgeDays" min="1" max="3650" value="1095" style="width:100%">
+      </div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeRetentionPurgeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveRetentionPurgeDays()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="ipAnonymizationModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3>IP anonymisation</h3>
+      <p>IP addresses are nulled out on all records — regardless of consent status — once they exceed the threshold.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="setting-ipAnonymizationDays">Anonymise after (days)</label>
+        <input type="number" id="setting-ipAnonymizationDays" min="1" max="3650" value="90" style="width:100%">
+      </div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeIpAnonymizationModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveIpAnonymizationDays()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="pendingConfirmationModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3>Pending confirmation cleanup</h3>
+      <p>Unconfirmed double opt-in records are deleted once they exceed the threshold. No consent was established, so no suppression list entry is required.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="setting-pendingConfirmationPurgeDays">Delete after (days)</label>
+        <input type="number" id="setting-pendingConfirmationPurgeDays" min="1" max="365" value="30" style="width:100%">
+      </div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closePendingConfirmationModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePendingConfirmationPurgeDays()">Save</button>
       </div>
     </div>
   </div>

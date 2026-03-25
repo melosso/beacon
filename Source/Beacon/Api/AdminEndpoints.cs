@@ -6,6 +6,7 @@ using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Core.Validation;
+using Beacon.Storage;
 using Beacon.Tokens;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -139,6 +140,22 @@ public static class AdminEndpoints
 
         routes.MapPut("/api/admin/buckets/{bucket}/options", SaveBucketOptions)
             .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/data-policies/tasks", GetWorkflowTasks)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/data-policies/run", TriggerDataPolicies)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/data-policies/tasks/{id}/approve", ApproveWorkflowTask)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/data-policies/tasks/{id}/reject", RejectWorkflowTask)
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
     }
 
@@ -1346,6 +1363,50 @@ public static class AdminEndpoints
     }
 
     private sealed record BucketOptionsRequest(bool DoubleOptIn);
+
+    private static async Task<IResult> GetWorkflowTasks(
+        [FromQuery] int limit,
+        [FromServices] IWorkflowTaskRepository taskRepo,
+        CancellationToken ct)
+    {
+        var effectiveLimit = limit > 0 ? Math.Min(limit, 200) : 50;
+        return Results.Ok(await taskRepo.GetRecentAsync(effectiveLimit, ct));
+    }
+
+    private static IResult TriggerDataPolicies(
+        [FromServices] DataPolicyTrigger trigger)
+    {
+        trigger.Signal();
+        return Results.Accepted();
+    }
+
+    private static async Task<IResult> ApproveWorkflowTask(
+        Guid id,
+        [FromServices] DataPolicyService dataPolicySvc,
+        CancellationToken ct)
+    {
+        var result = await dataPolicySvc.ApproveTaskAsync(id, ct);
+        return result.Outcome switch
+        {
+            TaskOperationOutcome.NotFound => Results.NotFound(),
+            TaskOperationOutcome.InvalidStatus => Results.BadRequest("Task is not pending approval."),
+            _ => Results.Ok(result.Task)
+        };
+    }
+
+    private static async Task<IResult> RejectWorkflowTask(
+        Guid id,
+        [FromServices] DataPolicyService dataPolicySvc,
+        CancellationToken ct)
+    {
+        var result = await dataPolicySvc.RejectTaskAsync(id, ct);
+        return result.Outcome switch
+        {
+            TaskOperationOutcome.NotFound => Results.NotFound(),
+            TaskOperationOutcome.InvalidStatus => Results.BadRequest("Task is not pending approval."),
+            _ => Results.Ok(result.Task)
+        };
+    }
 
     private static bool IsPrivateOrReserved(IPAddress address)
     {

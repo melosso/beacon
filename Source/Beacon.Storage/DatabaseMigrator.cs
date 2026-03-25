@@ -18,6 +18,7 @@ public static class DatabaseMigrator
         MigrateEmailQueue(db);
         MigrateBucketOptions(db);
         MigrateUsers(db);
+        MigrateWorkflowTasks(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -208,6 +209,28 @@ public static class DatabaseMigrator
                 """);
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_Username ON Users (Username COLLATE NOCASE)");
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_ApiKeyHash ON Users (ApiKeyHash)");
+        }
+    }
+
+    private static void MigrateWorkflowTasks(BeaconDbContext db)
+    {
+        if (!TableExists(db, "WorkflowTasks"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE WorkflowTasks (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    TaskType TEXT NOT NULL,
+                    Status TEXT NOT NULL DEFAULT 'Pending',
+                    TriggeredBy TEXT NOT NULL DEFAULT 'cron',
+                    ScheduledAt TEXT NOT NULL,
+                    StartedAt TEXT NULL,
+                    CompletedAt TEXT NULL,
+                    RecordsAffected INTEGER NOT NULL DEFAULT 0,
+                    Notes TEXT NULL,
+                    ErrorMessage TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_WorkflowTasks_ScheduledAt ON WorkflowTasks (ScheduledAt)");
         }
     }
 

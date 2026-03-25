@@ -383,6 +383,54 @@ public sealed class ConsentRepository : IConsentRepository
         }
     }
 
+    public async Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .Where(r => r.Status == ConsentStatus.OptedOut
+                     && r.ChangedAt < cutoff
+                     && r.EncryptedEmail != null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.EncryptedEmail, (string?)null)
+                .SetProperty(r => r.IpAddress, (string?)null)
+                .SetProperty(r => r.CustomFields, (string?)null)
+                .SetProperty(r => r.ConsentText, (string?)null), ct);
+    }
+
+    public async Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .Where(r => r.IpAddress != null && r.ChangedAt < cutoff)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.IpAddress, (string?)null), ct);
+    }
+
+    public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .Where(r => r.Status == ConsentStatus.PendingConfirmation && r.ChangedAt < cutoff)
+            .ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .CountAsync(r => r.Status == ConsentStatus.OptedOut
+                          && r.ChangedAt < cutoff
+                          && r.EncryptedEmail != null, ct);
+    }
+
+    public async Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .CountAsync(r => r.IpAddress != null && r.ChangedAt < cutoff, ct);
+    }
+
+    public async Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .CountAsync(r => r.Status == ConsentStatus.PendingConfirmation && r.ChangedAt < cutoff, ct);
+    }
+
     private static Dictionary<string, string>? DeserializeCustomFields(string? json)
     {
         if (string.IsNullOrEmpty(json)) return null;

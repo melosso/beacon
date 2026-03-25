@@ -61,6 +61,40 @@ public sealed class SystemConfig
 
     [JsonPropertyName("emailQueueRetentionDays")]
     public int EmailQueueRetentionDays { get; set; } = 90;
+
+    // Data Policies
+    [JsonPropertyName("dataPoliciesEnabled")]
+    public bool DataPoliciesEnabled { get; set; }
+
+    [JsonPropertyName("dataPolicyCron")]
+    public string DataPolicyCron { get; set; } = "0 0 * * *";
+
+    [JsonPropertyName("retentionPurgeEnabled")]
+    public bool RetentionPurgeEnabled { get; set; }
+
+    [JsonPropertyName("retentionPurgeDays")]
+    public int RetentionPurgeDays { get; set; } = 1095;
+
+    [JsonPropertyName("ipAnonymizationEnabled")]
+    public bool IpAnonymizationEnabled { get; set; }
+
+    [JsonPropertyName("ipAnonymizationDays")]
+    public int IpAnonymizationDays { get; set; } = 90;
+
+    [JsonPropertyName("pendingConfirmationPurgeEnabled")]
+    public bool PendingConfirmationPurgeEnabled { get; set; }
+
+    [JsonPropertyName("pendingConfirmationPurgeDays")]
+    public int PendingConfirmationPurgeDays { get; set; } = 30;
+
+    [JsonPropertyName("retentionPurgeRequireApproval")]
+    public bool RetentionPurgeRequireApproval { get; set; }
+
+    [JsonPropertyName("ipAnonymizationRequireApproval")]
+    public bool IpAnonymizationRequireApproval { get; set; }
+
+    [JsonPropertyName("pendingConfirmationPurgeRequireApproval")]
+    public bool PendingConfirmationPurgeRequireApproval { get; set; }
 }
 
 public interface ISystemConfigurationService

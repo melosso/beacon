@@ -468,6 +468,7 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     border-radius: 4px;
     margin-top: 0.5rem;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .status-badge-muted {
@@ -478,6 +479,26 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
 .status-badge.opted-out {
     background: hsl(var(--muted) / 0.3);
     color: hsl(var(--muted-foreground) / 0.6);
+}
+.status-badge.completed {
+    background: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+}
+.status-badge.failed {
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
+}
+.status-badge.running {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+}
+.status-badge.pending-approval {
+    background: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+}
+.status-badge.rejected {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground) / 0.5);
 }
 
 .bucket-actions { display: flex; gap: 0.75rem; align-items: center; }
@@ -629,6 +650,7 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
 .btn-destructive { border: 1px solid hsl(var(--destructive)); background: transparent; color: hsl(var(--destructive)); }
 .btn-destructive:hover { background: hsl(var(--destructive)); color: hsl(var(--primary-foreground)); }
 .btn-destructive:focus-visible { outline: 2px solid hsl(var(--destructive)); outline-offset: 2px; }
+.btn-sm { height: 1.875rem; padding: 0 0.625rem; font-size: 0.8125rem; }
 .btn-icon { background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); transition: background 0.15s; }
 .btn-icon:hover { background: hsl(var(--muted)); }
 .btn-icon:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 2px; }
@@ -1600,6 +1622,49 @@ label.settings-item-card:hover {
 
 .settings-item-card-label:hover {
     background: hsl(var(--muted) / 0.5);
+}
+
+/* Multi-row card body (for cards with sub-toggles) — no cursor/hover bleed */
+.settings-item-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Main toggle row inside a card body */
+.settings-item-card-body > label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.settings-item-card-body > label:hover {
+    background: hsl(var(--muted) / 0.5);
+}
+
+/* Sub-toggle row below main toggle */
+.settings-item-sub-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid hsl(var(--border));
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.settings-item-sub-toggle:hover {
+    background: hsl(var(--muted) / 0.5);
+}
+
+.settings-item-sub-toggle span {
+    font-size: 0.8125rem;
+    color: hsl(var(--muted-foreground));
 }
 
 .settings-item-info {

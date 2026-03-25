@@ -20,6 +20,7 @@ public class BeaconDbContext : DbContext
     public DbSet<EmailQueueEntry> EmailQueueEntries => Set<EmailQueueEntry>();
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -175,6 +176,16 @@ public class BeaconDbContext : DbContext
 
             entity.HasIndex(e => e.ApiKeyHash)
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<WorkflowTask>(entity =>
+        {
+            entity.ToTable("WorkflowTasks");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TaskType).HasConversion<string>().HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TriggeredBy).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.HasIndex(e => e.ScheduledAt);
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>

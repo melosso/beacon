@@ -23,6 +23,14 @@ public interface IConsentRepository
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
     Task<IDisposable> BeginTransactionAsync();
     Task CommitTransactionAsync();
+
+    // Data policy operations
+    Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default);
+    Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default);
+    Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default);
+    Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
+    Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
+    Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default);
 }
 
 public sealed class BucketInfo
