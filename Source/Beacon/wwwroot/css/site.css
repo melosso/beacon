@@ -12,6 +12,7 @@
     --radius: 0.5rem;
     --sidebar-width: 260px;
     --app-font: "Inter", system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -85,21 +86,31 @@ body {
     min-width: 280px;
     max-width: 400px;
     pointer-events: auto;
-    animation: slideIn 0.2s ease-out;
+    animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
+    from { transform: translateX(calc(100% + 1rem)); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
 
 .toast.hiding {
-    animation: slideOut 0.2s ease-in forwards;
+    animation: slideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 @keyframes slideOut {
     from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(calc(100% + 1rem)); opacity: 0; }
+}
+
+@keyframes iconPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.toast.success .toast-icon {
+    animation: iconPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .toast-icon {
@@ -166,7 +177,12 @@ body {
     background: transparent;
     color: inherit;
     margin-bottom: 1rem;
-    font-family: monospace;
+    font-family: var(--font-mono);
+}
+
+.auth-box input:focus {
+    outline: none;
+    border-color: hsl(var(--foreground));
 }
 
 .auth-box .error {
@@ -292,7 +308,8 @@ aside {
 }
 
 .nav-item:hover { background-color: hsl(var(--muted)); }
-.nav-item.active { background-color: hsl(var(--muted)); font-weight: 600; }
+.nav-item:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: -2px; }
+.nav-item.active { background-color: hsl(var(--muted)); font-weight: 600; box-shadow: inset 2px 0 0 hsl(var(--foreground)); }
 
 .nav-item.show-more {
     color: hsl(var(--muted-foreground));
@@ -530,7 +547,7 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
 .webhook-errors-dropdown .error-status {
     display: inline-block;
     background: hsl(var(--destructive));
-    color: white;
+    color: hsl(var(--primary-foreground));
     font-size: 0.65rem;
     padding: 0.1rem 0.35rem;
     border-radius: 3px;
@@ -559,14 +576,14 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     transition: background 0.15s;
 }
 .webhook-errors-dropdown .error-header .clear-all-btn:hover {
-    background: hsl(0 84% 95%);
+    background: hsl(var(--destructive) / 0.1);
 }
 .error-detail-message {
     background: hsl(var(--muted));
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     padding: 0.875rem;
-    font-family: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
+    font-family: var(--font-mono);
     font-size: 0.8rem;
     white-space: pre-wrap;
     word-break: break-word;
@@ -593,18 +610,28 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, transform 0.1s;
     gap: 0.5rem;
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(1px);
 }
 
 .btn-outline { border: 1px solid hsl(var(--border)); background: transparent; color: hsl(var(--foreground)); }
 .btn-outline:hover:not(:disabled) { background: hsl(var(--muted)); }
 .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-outline:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 2px; }
 .btn-primary { border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 2px; }
 .btn-destructive { border: 1px solid hsl(var(--destructive)); background: transparent; color: hsl(var(--destructive)); }
-.btn-destructive:hover { background: hsl(var(--destructive)); color: white; }
+.btn-destructive:hover { background: hsl(var(--destructive)); color: hsl(var(--primary-foreground)); }
+.btn-destructive:focus-visible { outline: 2px solid hsl(var(--destructive)); outline-offset: 2px; }
 .btn-icon { background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); transition: background 0.15s; }
 .btn-icon:hover { background: hsl(var(--muted)); }
+.btn-icon:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 2px; }
 
 /* Table */
 .table-wrapper {
@@ -653,7 +680,7 @@ td { padding: 1rem; border-bottom: 1px solid hsl(var(--border)); }
 tr:last-child td { border-bottom: none; }
 
 .email-hash {
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 0.8rem;
     color: hsl(var(--muted-foreground));
 }
@@ -684,7 +711,7 @@ tr:last-child td { border-bottom: none; }
     right: 0;
     bottom: 0;
     background-color: hsl(var(--muted));
-    transition: 0.2s;
+    transition: background-color 0.2s;
     border-radius: 24px;
 }
 
@@ -696,7 +723,7 @@ tr:last-child td { border-bottom: none; }
     left: 3px;
     bottom: 3px;
     background-color: hsl(var(--background));
-    transition: 0.2s;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     border-radius: 50%;
 }
 
@@ -776,7 +803,7 @@ input:checked + .slider:before {
     border-radius: 50%;
     top: 2px;
     left: 2px;
-    transition: transform 0.2s;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
@@ -794,7 +821,7 @@ input:checked + .slider:before {
 .passphrase-box {
     background: hsl(var(--muted));
     color: hsl(var(--foreground));
-    font-family: monospace;
+    font-family: var(--font-mono);
     padding: 1rem;
     border-radius: var(--radius);
     text-align: center;
@@ -813,13 +840,13 @@ input:checked + .slider:before {
     margin-bottom: 1.5rem;
     outline: none;
     text-align: center;
-    font-family: monospace;
+    font-family: var(--font-mono);
     text-transform: uppercase;
 }
 
 .btn-confirm {
     background: hsl(var(--destructive));
-    color: white;
+    color: hsl(var(--primary-foreground));
     border: none;
     opacity: 0.3;
     pointer-events: none;
@@ -863,6 +890,7 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 .modal-backdrop-secondary {
     position: fixed;
     inset: 0;
+    background: rgba(0,0,0,0.4);
     display: none;
     align-items: center;
     justify-content: center;
@@ -951,6 +979,12 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     color: hsl(var(--foreground));
 }
 
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: hsl(var(--foreground));
+    box-shadow: 0 0 0 2px hsl(var(--foreground) / 0.1);
+}
+
 .form-group select option {
     background: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -971,7 +1005,6 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     max-height: 200px;
     overflow-y: auto;
     z-index: 50;
-    display: none;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
@@ -1086,7 +1119,7 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 .custom-field-row:last-child { border-bottom: none; }
 
 .custom-field-key {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 0.8rem;
     font-weight: 600;
     color: hsl(var(--muted-foreground));
@@ -1103,7 +1136,7 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     background: hsl(var(--muted));
     padding: 1rem;
     border-radius: var(--radius);
-    font-family: monospace;
+    font-family: var(--font-mono);
     font-size: 0.8rem;
     word-break: break-all;
     margin: 1rem 0;
@@ -1244,12 +1277,18 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 }
 
 /* Loading */
+@keyframes loadingPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
 .loading {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
     color: hsl(var(--muted-foreground));
+    animation: loadingPulse 1.5s ease-in-out infinite;
 }
 
 /* Row Actions Dropdown */
@@ -1326,8 +1365,14 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     overflow: hidden;
 }
 
+@keyframes viewIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .view.active {
     display: flex;
+    animation: viewIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Tooltip */
@@ -1347,7 +1392,7 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
     color: hsl(var(--background));
     font-size: 0.75rem;
     font-weight: 400;
-    font-family: monospace;
+    font-family: var(--font-mono);
     padding: 0.375rem 0.625rem;
     border-radius: calc(var(--radius) - 2px);
     white-space: nowrap;
@@ -1458,7 +1503,11 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 
 .settings-subnav-item:hover {
     background: hsl(var(--muted));
-    text-decoration: underline;
+}
+
+.settings-subnav-item:focus-visible {
+    outline: 2px solid hsl(var(--foreground));
+    outline-offset: -2px;
 }
 
 .settings-subnav-item.active {
@@ -1615,7 +1664,7 @@ label.settings-item-card .tooltip-wrapper,
     background: hsl(var(--muted));
 }
 
-/* ========== SETTINGS — APPEARANCE ========== */
+/* SETTINGS / APPEARANCE */
 
 .settings-item-block {
     display: flex;
@@ -1774,4 +1823,16 @@ label.settings-item-card .tooltip-wrapper,
 .theme-preview--dark .tp-dot,
 .tp-half--dark .tp-dot {
     background: #52525b;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .view.active { animation: none; }
+    .toast { animation: none; }
+    .toast.hiding { animation: none; opacity: 0; }
+    .toast.success .toast-icon { animation: none; }
+    .slider:before,
+    .checkbox-toggle .toggle-track::after,
+    .settings-item-control .toggle-track::after { transition: transform 0.1s linear; }
+    .btn { transition: none; }
 }

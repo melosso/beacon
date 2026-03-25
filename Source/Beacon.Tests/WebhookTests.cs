@@ -11,7 +11,7 @@ public class WebhookTests
     private const string TestEncryptionKey = "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=";
     private const string TestBucket = "test-bucket";
 
-    // ========== WebhookService ==========
+    // WebhookService
 
     [Fact]
     public async Task WebhookService_SaveAndGet_RoundTrips()
@@ -160,7 +160,7 @@ public class WebhookTests
         Assert.StartsWith("sha256=", message.SignatureHeader);
     }
 
-    // ========== SubstituteVariables ==========
+    // SubstituteVariables
 
     [Fact]
     public void SubstituteVariables_ReplacesAllPlaceholders()
@@ -225,7 +225,7 @@ public class WebhookTests
         Assert.Contains("Acme", result);
     }
 
-    // ========== WebhookDeliveryQueue ==========
+    // WebhookDeliveryQueue
 
     [Fact]
     public async Task DeliveryQueue_EnqueueDequeue_RoundTrips()
@@ -273,7 +273,7 @@ public class WebhookTests
         }
     }
 
-    // ========== AdminNotificationService ==========
+    // AdminNotificationService
 
     [Fact]
     public async Task NotificationService_PublishReachesSubscriber()
@@ -378,7 +378,7 @@ public class WebhookTests
         await service.PublishAsync(new WebhookErrorNotification(TestBucket, "orphan", 500, DateTime.UtcNow));
     }
 
-    // ========== WebhookRepository (in-memory) ==========
+    // WebhookRepository (in-memory)
 
     [Fact]
     public async Task WebhookRepository_AddAndGetErrors()
@@ -558,7 +558,7 @@ public class WebhookTests
         Assert.Equal(now, config.LastTriggeredAt);
     }
 
-    // ========== Helpers ==========
+    // Helpers
 
     private static (WebhookService service, InMemoryWebhookRepository repo) CreateWebhookService()
     {
@@ -597,7 +597,7 @@ public class WebhookTests
         Body = """{"test": true}"""
     };
 
-    // ========== In-Memory Test Double ==========
+    // In-Memory Test Double
 
     private sealed class InMemoryWebhookRepository : IWebhookRepository
     {

@@ -1,4 +1,4 @@
-    // ========== SANITIZATION ==========
+    // SANITIZATION
     function sanitize(str) {
       if (str === null || str === undefined) return '';
       const div = document.createElement('div');
@@ -6,7 +6,7 @@
       return div.innerHTML;
     }
 
-    // ========== TOAST NOTIFICATIONS ==========
+    // TOAST NOTIFICATIONS
     function notify(type, title, message = '') {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
@@ -34,7 +34,7 @@
       }, 4000);
     }
 
-    // ========== AUTH FORM UI ==========
+    // AUTH FORM UI
     let _authFormMode = 'password'; // 'password' | 'apikey' — only used in 'both' mode
 
     function _applyAuthFormMode(isPassword) {
@@ -46,7 +46,7 @@
         usernameInput.style.display = '';
         apiKeyInput.placeholder = 'Password';
         apiKeyInput.autocomplete = 'current-password';
-        if (desc) desc.textContent = 'Insert your access key to interface with the core. Your username and password will do.';
+        if (desc) desc.textContent = 'Enter your username and password to access the admin panel.';
         if (toggleBtn) toggleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg> Access Token`;
       } else {
         usernameInput.style.display = 'none';
@@ -83,7 +83,7 @@
       _applyAuthFormMode(_authFormMode === 'password');
     }
 
-    // ========== AUTHENTICATE ==========
+    // AUTHENTICATE
     // Posts credentials → server sets HttpOnly cookie → stores UI state → redirects to /admin
     async function authenticate() {
       const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
@@ -140,7 +140,7 @@
       }
     }
 
-    // ========== LOGOUT (used by admin.js via shared scope) ==========
+    // LOGOUT (used by admin.js via shared scope)
     async function logout() {
       try {
         await fetch(`${window.location.origin}/api/admin/auth/logout`, {

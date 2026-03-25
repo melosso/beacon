@@ -13,7 +13,7 @@
     let searchType = 'id';
     let buckets = [];
 
-    // ========== SESSION STATE (non-sensitive UI state; token lives in HttpOnly cookie) ==========
+    // SESSION STATE (non-sensitive UI state; token lives in HttpOnly cookie)
     let currentUserRole = sessionStorage.getItem('beacon_user_role') || 'admin';
     let currentUsername  = sessionStorage.getItem('beacon_username')  || '';
     let tokenExpiresAt   = sessionStorage.getItem('beacon_jwt_exp') ? new Date(sessionStorage.getItem('beacon_jwt_exp')) : null;
@@ -21,7 +21,7 @@
     let refreshInterval       = null;
     let _redirectingToLogout  = false;
 
-    // ========== CENTRALIZED API REQUESTS ==========
+    // CENTRALIZED API REQUESTS
     async function apiRequest(endpoint, options = {}) {
       const url = `${window.location.origin}${endpoint}`;
       const config = {
@@ -57,7 +57,7 @@
 
         if (!res.ok) {
           const errorMsg = data?.error || `Request failed (${res.status})`;
-          notify('error', 'Error', errorMsg);
+          notify('error', 'Request Failed', errorMsg);
           return { ok: false, status: res.status, data };
         }
 
@@ -90,7 +90,7 @@
       return false;
     }
 
-    // ========== TOKEN REFRESH (slides the HttpOnly cookie expiry) ==========
+    // TOKEN REFRESH (slides the HttpOnly cookie expiry)
     function startTokenRefresh() {
       if (refreshInterval) clearInterval(refreshInterval);
       refreshInterval = setInterval(async () => {
@@ -115,8 +115,15 @@
       }, 5 * 60 * 1000); // every 5 minutes
     }
 
-    // ========== INIT ==========
+    // INIT
     async function init() {
+      console.log(
+        '%cBeacon%c  admin panel',
+        'background:#0a0a0f;color:#FF64B4;font-weight:700;padding:2px 6px;border-radius:3px;font-size:13px',
+        'color:#888;font-size:12px'
+      );
+      console.log('%cAPI docs → /openapi   Source → https://github.com/melosso/beacon', 'color:#555;font-size:11px');
+
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
 
       // Track user activity for refresh decisions
@@ -222,7 +229,7 @@
       }
     }
 
-    // ========== LOAD BUCKETS ==========
+    // LOAD BUCKETS
     async function loadBuckets() {
       // Restore cached buckets immediately to prevent pop-in
       if (buckets.length === 0) {
@@ -280,7 +287,7 @@
       const container = document.getElementById('bucketsList');
       updateSidebarButtons();
       if (buckets.length === 0) {
-        container.innerHTML = '<div class="nav-item" style="opacity:0.5">No buckets yet</div>';
+        container.innerHTML = '<div class="nav-item" style="opacity:0.5;font-size:0.8rem">Create a token to get started</div>';
         return;
       }
 
@@ -443,7 +450,7 @@
       return states;
     }
 
-    // ========== CUSTOM FIELDS ==========
+    // CUSTOM FIELDS
     function openCustomFieldsDialog() {
       const frozen = document.getElementById('tokenFormFields').classList.contains('frozen');
       renderCustomFieldsGrid(frozen);
@@ -567,7 +574,7 @@
       }).join('');
     }
 
-    // ========== VIEWS ==========
+    // VIEWS
     function updateUrl(params, replace = false) {
       const url = new URL(window.location);
       url.search = '';
@@ -666,7 +673,7 @@
       loadBucket(bucket);
     }
 
-    // ========== SUBSCRIPTIONS ==========
+    // SUBSCRIPTIONS
     let subCurrentPage = 1;
     let subPageSize = 10;
     let subTotalRecords = 0;
@@ -898,7 +905,7 @@
       subTotalRecords = data.total;
 
       if (data.records.length === 0) {
-        const msg = subSearchQuery ? 'No identities matching your search' : 'No identities found';
+        const msg = subSearchQuery ? `No identities matching "${sanitize(subSearchQuery)}"` : 'No consent records found across any bucket';
         body.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${msg}</td></tr>`;
       } else {
         body.innerHTML = data.records.map(id => {
@@ -964,7 +971,7 @@
       renderDetailSubscriptions();
     }
 
-    // ========== OVERVIEW ==========
+    // OVERVIEW
     let webhookBuckets = new Set();
 
     async function loadOverview(refresh = false) {
@@ -1005,7 +1012,7 @@
       const body = document.getElementById('overviewBody');
 
       if (buckets.length === 0) {
-        body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No buckets yet. Generate a token to create one.</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No buckets yet — buckets are created automatically when a token makes its first API call.</td></tr>';
         return;
       }
 
@@ -1075,7 +1082,7 @@
         }
     }
 
-    // ========== BUCKET RECORDS ==========
+    // BUCKET RECORDS
     async function loadBucket(bucket) {
       const thead = document.getElementById('bucketTableHead');
       const body = document.getElementById('bucketBody');
@@ -1145,7 +1152,9 @@
       totalRecords = data.total;
 
       if (data.records.length === 0) {
-        const noResultsMsg = searchQuery ? 'No records matching your search' : 'No records';
+        const noResultsMsg = searchQuery
+          ? `No records matching "${sanitize(searchQuery)}" — try a different identifier or search type`
+          : 'No consent records yet — they appear here after the first API call for this bucket';
         body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 3}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
       } else {
         body.innerHTML = data.records.map((r, idx) => {
@@ -1273,7 +1282,7 @@
       }
     });
 
-    // ========== BUCKET AUTOCOMPLETE ==========
+    // BUCKET AUTOCOMPLETE
     let selectedAutocompleteIndex = -1;
 
     function showBucketSuggestions() {
@@ -1395,13 +1404,13 @@
       }
     });
 
-    // ========== NEW BUCKET ==========
+    // NEW BUCKET
     let newBucketPerms = [];
 
     function renderNewBucketPerms() {
       const container = document.getElementById('newBucketPermsList');
       if (newBucketPerms.length === 0) {
-        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:0.5rem 0">No permissions added yet.</div>';
+        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:0.5rem 0">No permissions yet — add one below.</div>';
         return;
       }
       container.innerHTML = newBucketPerms.map(p => `
@@ -1452,7 +1461,7 @@
       }
     }
 
-    // ========== TOKEN GENERATION ==========
+    // TOKEN GENERATION
     function handleGenerateToken() {
       const btn = document.getElementById('generateTokenBtn');
       if (btn.textContent === 'Create new token') {
@@ -1460,7 +1469,7 @@
       } else {
         generateToken().catch(err => {
           console.error('Token generation failed:', err);
-          notify('error', 'Error', 'An unexpected error occurred during token generation.');
+          notify('error', 'Token Generation Failed', 'An unexpected error occurred. Check the server logs.');
           document.getElementById('generateTokenBtn').disabled = false;
           document.getElementById('generateTokenBtn').textContent = 'Generate Token';
         });
@@ -1567,7 +1576,7 @@
           document.getElementById('tokenFormFields').classList.add('frozen');
 
           loadBuckets();
-        } else { notify('error', 'Error', result.data?.error || 'Failed to generate token.'); }
+        } else { notify('error', 'Token Generation Failed', result.data?.error || 'Failed to generate token.'); }
       } finally {
         btn.disabled = false;
       }
@@ -1604,7 +1613,7 @@
       notify('success', 'Copied', text);
     }
 
-    // ========== HELPERS ==========
+    // HELPERS
     async function clipboardWrite(text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         return navigator.clipboard.writeText(text);
@@ -1642,11 +1651,11 @@
       });
     }
 
-    // ========== REMOVE BUCKET ==========
+    // REMOVE BUCKET
     let generatedPassphrase = '';
     let bucketToRemove = '';
 
-    // ========== ARCHIVE ==========
+    // ARCHIVE
     let archiveTargetBucket = '';
 
     function showArchiveModal(bucket) {
@@ -1678,7 +1687,7 @@
         }
         await loadOverview(true);
       } else {
-        notify('error', 'Error', result.data?.error || 'Failed to archive bucket');
+        notify('error', 'Archive Failed', result.data?.error || 'Failed to archive bucket.');
       }
     }
 
@@ -1711,7 +1720,7 @@
         }
         await loadOverview(true);
       } else {
-        notify('error', 'Error', result.data?.error || 'Failed to unarchive bucket');
+        notify('error', 'Unarchive Failed', result.data?.error || 'Failed to unarchive bucket.');
       }
     }
 
@@ -1783,7 +1792,7 @@
         closeRemoveModal();
         await loadBuckets();
         showView('overview');
-      } else { notify('error', 'Error', result.data?.error || 'Failed to delete bucket.'); }
+      } else { notify('error', 'Delete Failed', result.data?.error || 'Failed to delete bucket.'); }
     }
 
     function closeRemoveModal() {
@@ -1792,7 +1801,7 @@
       bucketToRemove = '';
     }
 
-    // ========== BUCKET PERMISSIONS MANAGEMENT ==========
+    // BUCKET PERMISSIONS MANAGEMENT
     let bucketPermsData = [];
     let permToRemove = '';
     let permRemovePassphrase = '';
@@ -1808,7 +1817,7 @@
       }
 
       if (bucketPermsData.length === 0) {
-        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0">No permissions in this bucket yet.</div>';
+        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0">No permissions yet — add one below or generate a token to create them automatically.</div>';
         return;
       }
 
@@ -1858,7 +1867,7 @@
         notify('success', 'Permission Added', `"${formatPermission(perm)}" added to bucket`);
         await loadBucketPerms();
         await loadBucket(currentBucket);
-      } else { notify('error', 'Error', result.data?.error || 'Failed to add permission.'); }
+      } else { notify('error', 'Add Failed', result.data?.error || 'Failed to add permission.'); }
     }
 
     function showPermRemoveModal(perm) {
@@ -1913,7 +1922,7 @@
         await loadBucketPerms();
         // Refresh the main bucket view
         await loadBucket(currentBucket);
-      } else { notify('error', 'Error', result.data?.error || 'Failed to remove permission.'); }
+      } else { notify('error', 'Remove Failed', result.data?.error || 'Failed to remove permission.'); }
     }
 
     function closePermRemoveModal() {
@@ -1922,7 +1931,7 @@
       permToRemove = '';
     }
 
-    // ========== WEBHOOK CONFIGURATION ==========
+    // WEBHOOK CONFIGURATION
     const WEBHOOK_DEFAULT_BODY = JSON.stringify({
       bucket: '{{bucket}}',
       emailHash: '{{emailHash}}',
@@ -2112,7 +2121,7 @@
       if (res.ok) {
         notify('success', 'Saved', 'Bucket email settings updated.');
       } else {
-        notify('error', 'Error', 'Failed to save bucket settings.');
+        notify('error', 'Save Failed', 'Failed to save bucket email settings.');
         const toggle = document.getElementById('bucketDoubleOptIn');
         if (toggle) toggle.checked = !value;
       }
@@ -2190,7 +2199,7 @@
             document.getElementById('webhookSecretSection').style.display = 'block';
             document.getElementById('deleteWebhookBtn').style.display = 'block';
             setWebhookBadge(true);
-            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret below, since it will not be shown again!');
+            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret now — it won\'t be shown again.');
           } else {
             setWebhookBadge(true);
             notify('success', 'Webhook Saved', 'Webhook configuration updated successfully');
@@ -2205,7 +2214,7 @@
     }
 
     async function deleteWebhook() {
-      if (!confirm('Are you sure you want to delete this webhook configuration?')) {
+      if (!confirm('Delete webhook configuration? This cannot be undone.')) {
         return;
       }
 
@@ -2226,7 +2235,7 @@
       }
     }
 
-    // ========== ROW ACTIONS DROPDOWN ==========
+    // ROW ACTIONS DROPDOWN
     let openMenuId = null;
 
     function toggleRowMenu(event, idx) {
@@ -2279,7 +2288,7 @@
       closeAllMenus();
     });
 
-    // ========== WEBHOOK ERRORS ==========
+    // WEBHOOK ERRORS
     let webhookErrorsCache = [];
     let overviewErrorsCache = []; // flat: [{bucket, ...errorFields}]
     let activeErrorDetail = null;
@@ -2394,14 +2403,14 @@
       if (result.ok) {
         closeErrorDetailModal();
         await loadWebhookErrors(currentBucket);
-      } else { notify('error', 'Error', result.data?.error || 'Failed to remove error.'); }
+      } else { notify('error', 'Remove Failed', result.data?.error || 'Failed to remove error.'); }
     }
 
     async function clearAllWebhookErrors() {
       const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/errors`, { method: 'DELETE' });
       if (result.ok) {
         await loadWebhookErrors(currentBucket);
-      } else { notify('error', 'Error', result.data?.error || 'Failed to clear errors.'); }
+      } else { notify('error', 'Clear Failed', result.data?.error || 'Failed to clear errors.'); }
     }
 
     function toggleWebhookErrors(event) {
@@ -2455,7 +2464,7 @@
         }).join('');
     }
 
-    // ========== EDIT PERMISSIONS MODAL ==========
+    // EDIT PERMISSIONS MODAL
     let editingRecord = null;
     let editingBucket = '';
 
@@ -2542,7 +2551,7 @@
 
     function showPermissionsConfirmModal() {
       if (!editingRecord || !editingRecord.email) {
-        notify('error', 'Error', 'Cannot update permissions: email not available');
+        notify('error', 'Update Failed', 'Record data is missing — try reloading the page.');
         return;
       }
       document.getElementById('permissionsConfirmModal').style.display = 'flex';
@@ -2559,7 +2568,7 @@
 
     function showDeleteRecordModal() {
       if (!editingRecord || !editingRecord.emailHash) {
-        notify('error', 'Error', 'Cannot delete record: record not available');
+        notify('error', 'Delete Failed', 'Record data is missing — try reloading the page.');
         return;
       }
       document.getElementById('deleteRecordEmail').textContent = editingRecord.email || editingRecord.emailHash;
@@ -2572,7 +2581,7 @@
 
     async function confirmDeleteRecord() {
       if (!editingRecord || !editingRecord.emailHash) {
-        notify('error', 'Error', 'Cannot delete record: record not available');
+        notify('error', 'Delete Failed', 'Record data is missing — try reloading the page.');
         return;
       }
 
@@ -2590,12 +2599,12 @@
         } else if (currentBucket) {
           loadBucket(currentBucket);
         }
-      } else { notify('error', 'Error', result.data?.error || 'Failed to delete record.'); }
+      } else { notify('error', 'Delete Failed', result.data?.error || 'Failed to delete record.'); }
     }
 
     async function savePermissions() {
       if (!editingRecord || !editingRecord.email) {
-        notify('error', 'Error', 'Cannot update permissions: email not available');
+        notify('error', 'Update Failed', 'Record data is missing — try reloading the page.');
         return;
       }
 
@@ -2622,7 +2631,7 @@
         notify('success', 'Permissions Updated', 'Consent preferences have been saved');
         closeEditPermissionsModal();
         if (currentBucket) loadBucket(currentBucket);
-      } else { notify('error', 'Error', result.data?.error || 'Failed to save permissions.'); }
+      } else { notify('error', 'Save Failed', result.data?.error || 'Failed to save permissions.'); }
     }
 
     async function openOptOutPage(encodedData) {
@@ -2630,7 +2639,7 @@
       closeAllMenus();
 
       if (!record.email) {
-        notify('error', 'Error', 'Cannot generate opt-out link: email not available');
+        notify('error', 'Link Generation Failed', 'Email address not available for this record.');
         return;
       }
 
@@ -2657,10 +2666,10 @@
       if (result.ok) {
         const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
         window.open(url, '_blank');
-      } else { notify('error', 'Error', result.data?.error || 'Failed to generate opt-out link.'); }
+      } else { notify('error', 'Link Generation Failed', result.data?.error || 'Failed to generate opt-out link.'); }
     }
 
-    // ========== SSE WEBHOOK ERROR NOTIFICATIONS ==========
+    // SSE WEBHOOK ERROR NOTIFICATIONS
     let sseAbortController = null;
     let sseReconnectDelay = 1000;
 
@@ -2777,7 +2786,7 @@
       if (sseAbortController) { sseAbortController.abort(); sseAbortController = null; }
     }
 
-    // ========== START ==========
+    // START
     window.addEventListener('popstate', () => {
       const params = new URLSearchParams(window.location.search);
       if (!params.has('modal')) {
@@ -2786,7 +2795,7 @@
       restoreViewFromUrl();
     });
 
-    // ========== SUBMISSION FORMS ==========
+    // SUBMISSION FORMS
     let nlOrigins = [];
     let nlEditId = null;
     let nlCurrentFormId = null;
@@ -2803,7 +2812,7 @@
       const forms = result.data || [];
       const body = document.getElementById('submissionBody');
       if (forms.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No submission forms yet. Create one to get started.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No submission forms yet — use the button above to create your first embeddable form.</td></tr>';
         return;
       }
       body.innerHTML = forms.map((f, idx) => `
@@ -3121,7 +3130,7 @@
       // Warn if the form's bucket is archived
       const savedBucket = data.bucket;
       if (buckets.some(b => b.name === savedBucket && b.isArchived)) {
-        notify('warning', 'Bucket Archived', `The bucket "${savedBucket}" is archived, submissions to this form will be rejected until the bucket is unarchived.`);
+        notify('warning', 'Bucket Archived', `Bucket "${savedBucket}" is archived. Submissions will be rejected until it's unarchived.`);
       }
     }
 
@@ -3218,7 +3227,7 @@
         notify('success', 'Form Removed', `Successfully deleted submission form "${submissionToRemove.name}"`);
         closeSubmissionRemoveModal();
         loadSubmissionForms();
-      } else { notify('error', 'Error', result.data?.error || 'Failed to delete submission form.'); }
+      } else { notify('error', 'Delete Failed', result.data?.error || 'Failed to delete submission form.'); }
     }
 
     function closeSubmissionRemoveModal() {
@@ -3232,7 +3241,7 @@
         method: 'PUT',
         body: { isEnabled: enabled }
       });
-      if (!result.ok) { notify('error', 'Error', result.data?.error || 'Failed to update submission form.'); loadSubmissionForms(); }
+      if (!result.ok) { notify('error', 'Update Failed', result.data?.error || 'Failed to update submission form.'); loadSubmissionForms(); }
     }
 
     function switchEmbedTab(tab) {
@@ -3434,7 +3443,7 @@ ${bodyStr}
       return card;
     }
 
-    // ========== SETTINGS ==========
+    // SETTINGS
     const settingsDefaults = {
       allowDbLookup: false,
       enableCaching: false,
@@ -3724,7 +3733,7 @@ ${bodyStr}
       notify('warning', 'Coming Soon', 'Cache configuration settings will be available in a future release.');
     }
 
-    // ========== EMAIL SETTINGS MODAL ==========
+    // EMAIL SETTINGS MODAL
     function openEmailSettingsModal() {
       if (typeof DISABLE_EMAIL_NOTIFICATIONS !== 'undefined' && DISABLE_EMAIL_NOTIFICATIONS) return;
       document.getElementById('emailProvider').value          = appSettings.emailProvider || 'none';
@@ -3859,7 +3868,7 @@ ${bodyStr}
       }
     }
 
-    // ========== USERS VIEW ==========
+    // USERS VIEW
     let _usersAll = [], _usersPage = 1, _usersPageSize = 25;
 
     async function loadUsers() {
@@ -3916,7 +3925,7 @@ ${bodyStr}
     function renderUsersTable(users) {
       const tbody = document.getElementById('usersBody');
       if (!users.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:hsl(var(--muted-foreground));padding:2rem">No users found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:hsl(var(--muted-foreground));padding:2rem">No users yet — use the button above to create the first user.</td></tr>';
         return;
       }
       tbody.innerHTML = users.map(u => `
@@ -3970,7 +3979,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userActionTargetId}/password`, { method: 'PATCH', body: { newPassword: pwd } });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeUserPasswordModal(); notify('success', 'Password updated', 'The password has been changed.'); }
-      else { notify('error', 'Error', result.data?.error || 'Failed to update password.'); }
+      else { notify('error', 'Password Update Failed', result.data?.error || 'Failed to update password.'); }
     }
 
     function openUserRoleModal(id, username, currentRole) {
@@ -3991,7 +4000,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userActionTargetId}/role`, { method: 'PATCH', body: { role } });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeUserRoleModal(); notify('success', 'Role updated', 'The role has been changed.'); loadUsers(); }
-      else { notify('error', 'Error', result.data?.error || 'Failed to update role.'); }
+      else { notify('error', 'Role Update Failed', result.data?.error || 'Failed to update role.'); }
     }
 
     function openRenameUserModal(id, username) {
@@ -4014,7 +4023,7 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userActionTargetId}/username`, { method: 'PATCH', body: { username } });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeRenameUserModal(); notify('success', 'User renamed', 'The username has been updated.'); loadUsers(); }
-      else { notify('error', 'Error', result.data?.error || 'Failed to rename user.'); }
+      else { notify('error', 'Rename Failed', result.data?.error || 'Failed to rename user.'); }
     }
 
     async function deleteUser(id, username) {
@@ -4025,7 +4034,7 @@ ${bodyStr}
         async () => {
           const result = await apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
           if (result.ok) { notify('success', 'User deleted', `${username} has been removed.`); loadUsers(); }
-          else { notify('error', 'Error', result.data?.error || 'Failed to delete user.'); }
+          else { notify('error', 'Delete Failed', result.data?.error || 'Failed to delete user.'); }
         }
       );
     }
@@ -4041,7 +4050,7 @@ ${bodyStr}
             document.getElementById('userApiKeyRevealDesc').textContent = `New API key for ${username} — copy it now, it will not be shown again.`;
             document.getElementById('userApiKeyRevealOutput').textContent = result.data.apiKey;
             document.getElementById('userApiKeyRevealModal').style.display = 'flex';
-          } else { notify('error', 'Error', result.data?.error || 'Failed to regenerate API key.'); }
+          } else { notify('error', 'Regenerate Failed', result.data?.error || 'Failed to regenerate API key.'); }
         }
       );
     }
@@ -4056,7 +4065,7 @@ ${bodyStr}
       navigator.clipboard.writeText(key).then(() => notify('success', 'Copied', 'API key copied to clipboard.'));
     }
 
-    // ========== CONFIRM MODAL ==========
+    // CONFIRM MODAL
     let _confirmAction = null;
 
     function openConfirmModal(title, message, actionLabel, action) {
@@ -4080,7 +4089,7 @@ ${bodyStr}
       }
     }
 
-    // ========== ADD USER MODAL ==========
+    // ADD USER MODAL
     let _newUserApiKey = '';
 
     function openAddUserModal() {
@@ -4128,7 +4137,7 @@ ${bodyStr}
         document.getElementById('addUserBtn').style.display = 'none';
         notify('success', 'User created', `${username} has been created. Copy the API key now.`);
         loadUsers();
-      } else { notify('error', 'Error', result.data?.error || 'Failed to create user.'); }
+      } else { notify('error', 'Create Failed', result.data?.error || 'Failed to create user.'); }
     }
 
     function copyNewUserApiKey() {
@@ -4136,7 +4145,7 @@ ${bodyStr}
       navigator.clipboard.writeText(_newUserApiKey).then(() => notify('success', 'Copied', 'API key copied to clipboard.'));
     }
 
-    // ========== ACCOUNT VIEW ==========
+    // ACCOUNT VIEW
     async function loadAccount() {
       const result = await apiRequest('/api/admin/users/me');
       if (!result.ok) return;
@@ -4175,7 +4184,7 @@ ${bodyStr}
       if (newPwd.length < 12) { notify('error', 'Validation', 'Password must be at least 12 characters.'); return; }
 
       const userId = sessionStorage.getItem('beacon_user_id');
-      if (!userId) { notify('error', 'Error', 'Could not determine user ID.'); return; }
+      if (!userId) { notify('error', 'Session Error', 'Could not determine your user ID. Try signing out and back in.'); return; }
 
       const body = { newPassword: newPwd };
       if (currentPwd) body.currentPassword = currentPwd;
@@ -4185,12 +4194,12 @@ ${bodyStr}
       const result = await apiRequest(`/api/admin/users/${userId}/password`, { method: 'PATCH', body });
       btn.classList.remove('is-loading'); btn.disabled = false;
       if (result.ok) { closeAccountPasswordModal(); notify('success', 'Password updated', 'Your password has been changed.'); }
-      else { notify('error', 'Error', result.data?.error || 'Failed to change password.'); }
+      else { notify('error', 'Password Update Failed', result.data?.error || 'Failed to change password.'); }
     }
 
     async function regenerateOwnApiKey() {
       const userId = sessionStorage.getItem('beacon_user_id');
-      if (!userId) { notify('error', 'Error', 'Could not determine user ID.'); return; }
+      if (!userId) { notify('error', 'Session Error', 'Could not determine your user ID. Try signing out and back in.'); return; }
       openConfirmModal(
         'Regenerate API Key',
         'Are you sure you want to regenerate this? Your current key will be invalidated right away.',
@@ -4201,7 +4210,7 @@ ${bodyStr}
             document.getElementById('userApiKeyRevealDesc').textContent = 'Copy your new API key now, it won\'t be shown again. Your old key is now revoked.';
             document.getElementById('userApiKeyRevealOutput').textContent = result.data.apiKey;
             document.getElementById('userApiKeyRevealModal').style.display = 'flex';
-          } else { notify('error', 'Error', result.data?.error || 'Failed to regenerate API key.'); }
+          } else { notify('error', 'Regenerate Failed', result.data?.error || 'Failed to regenerate API key.'); }
         }
       );
     }
