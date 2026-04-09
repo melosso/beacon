@@ -7,6 +7,11 @@
 */[Oo]ut/
 Deployment/
 
+# Markdown
+*.md
+!README.md
+!CONTRIBUTING.md
+
 # User-specific files
 *.user
 *.userosscache
