@@ -364,7 +364,19 @@ try
     }
 
     app.UseHostRouting();
-    app.UseStaticFiles();
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = ctx =>
+        {
+            var ext = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
+            if (ext is ".js" or ".css" or ".html")
+            {
+                ctx.Context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+                ctx.Context.Response.Headers.Append("Pragma", "no-cache");
+                ctx.Context.Response.Headers.Append("Expires", "0");
+            }
+        }
+    });
     app.UseAuthentication();
     app.UseAuthorization();
 

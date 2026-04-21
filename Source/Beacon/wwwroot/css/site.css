@@ -1624,6 +1624,12 @@ label.settings-item-card:hover {
     background: hsl(var(--muted) / 0.5);
 }
 
+#data-policies-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 /* Multi-row card body (for cards with sub-toggles) — no cursor/hover bleed */
 .settings-item-card-body {
     flex: 1;
