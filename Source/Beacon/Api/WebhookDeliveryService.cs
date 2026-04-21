@@ -20,20 +20,17 @@ public sealed class WebhookDeliveryService : BackgroundService
     ];
 
     private readonly IWebhookDeliveryQueue _queue;
-    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAdminNotificationService _notifications;
     private readonly ILogger<WebhookDeliveryService> _logger;
 
     public WebhookDeliveryService(
         IWebhookDeliveryQueue queue,
-        IHttpClientFactory httpClientFactory,
         IServiceScopeFactory scopeFactory,
         IAdminNotificationService notifications,
         ILogger<WebhookDeliveryService> logger)
     {
         _queue = queue;
-        _httpClientFactory = httpClientFactory;
         _scopeFactory = scopeFactory;
         _notifications = notifications;
         _logger = logger;
@@ -64,8 +61,8 @@ public sealed class WebhookDeliveryService : BackgroundService
                     await Task.Delay(delay, stoppingToken);
                 }
 
-                // SSRF check at send time: resolve and validate the target IP
-                if (!await IsUrlSafeAsync(message.Url))
+                var resolvedAddress = await ResolveAndValidateAsync(message.Url);
+                if (resolvedAddress is null)
                 {
                     _logger.LogWarning(
                         "Webhook delivery blocked for bucket {Bucket}: URL {Url} resolves to a private/reserved address",
@@ -77,7 +74,7 @@ public sealed class WebhookDeliveryService : BackgroundService
                     return; // Don't retry SSRF blocks
                 }
 
-                await SendAsync(message);
+                await SendAsync(message, resolvedAddress);
 
                 // Update trigger stats using a fresh scope
                 using var scope = _scopeFactory.CreateScope();
@@ -173,10 +170,30 @@ public sealed class WebhookDeliveryService : BackgroundService
         }
     }
 
-    private async Task SendAsync(WebhookDeliveryMessage message)
+    private static async Task SendAsync(WebhookDeliveryMessage message, IPAddress resolvedAddress)
     {
-        using var httpClient = _httpClientFactory.CreateClient("WebhookClient");
-        httpClient.Timeout = TimeSpan.FromSeconds(10);
+        Uri.TryCreate(message.Url, UriKind.Absolute, out var uri);
+        var endpoint = new IPEndPoint(resolvedAddress, uri!.Port);
+
+        var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                try
+                {
+                    await socket.ConnectAsync(endpoint, cancellationToken);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            }
+        };
+
+        using var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
 
         var request = new HttpRequestMessage(new HttpMethod(message.Method), message.Url);
 
@@ -210,19 +227,22 @@ public sealed class WebhookDeliveryService : BackgroundService
         response.EnsureSuccessStatusCode();
     }
 
-    private static async Task<bool> IsUrlSafeAsync(string url)
+    private static async Task<IPAddress?> ResolveAndValidateAsync(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return false;
+            return null;
 
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(uri.Host);
-            return addresses.All(addr => !IsPrivateOrReserved(addr));
+            if (addresses.Length == 0 || addresses.Any(IsPrivateOrReserved))
+                return null;
+
+            return addresses[0];
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 
