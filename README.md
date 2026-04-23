@@ -4,37 +4,31 @@
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
 
-This is **Beacon**, a lightweight consent and opt-out service built with .NET 10. Beacon manages email consent state independently of any ERP, CRM, or automation platform. It issues secure, temporary URLs for opt-out and preference changes, validates them without upstream dependencies, and exposes a simple API that other systems query before sending email.
+This is **Beacon**, a lightweight service for handling email consent and opt-outs—no bloat, no dependencies. Built on .NET 10, it works independently of your CRM, ERP, or marketing tools. Generate secure, temporary opt-out links, validate them instantly, and let other systems check consent status via a clean API.
 
 ![Screenshot of Beacon](https://github.com/melosso/beacon/blob/main/.github/images/screenshot.webp?raw=true)
 
-> Feel free to play around in our live demo instance, available on [beacon-demo.melosso.com](https://beacon-demo.melosso.com). Use `Beacon-Api-Key` as your access token.
+> Try it out! Feel free to play around in our live demo instance, available on [beacon-demo.melosso.com](https://beacon-demo.melosso.com). Use `Beacon-Api-Key` as your access token.
 
 ## What is Beacon?
 
-Beacon is a **centralized consent** and **communication-preference** service. It allows external systems (ERP, CRM, marketing tools, automation platforms) to store, check, and update email permission states through a single, consistent API.
+Beacon **centralizes consent and communication preferences**, so your other systems don’t have to. Organize permissions into **Buckets** (e.g., newsletters, campaigns) and let recipients manage their preferences via secure, embeddable links.
 
-Consent is organized into logical groupings called **Buckets** (for example: newsletters, campaigns, or customer programs). For every email address in a bucket, Beacon can generate a secure, temporary URL that lets recipients manage their own preferences. These URLs can be embedded directly into outgoing messages and validated independently using cryptographic signatures.
+### **How It Works**
+Beacon handles consent for your automation tools, simple and efficient:
 
-Beacon is designed to be:
+- Generates cryptographically signed opt-out URLs.
+- Validates permission changes without database lookups (unless configured otherwise).
+- Keeps your sending systems lightweight, no complicated logic required.
 
-* Decoupled: no business logic in your sending systems
-* Stateless where possible: token validation without upstream lookups
-* Extensible: usable as a standalone service or embedded into existing flows
+### **Built for Your Workflow**
+Beacon adapts to your setup:
 
-Beyond basic opt-out handling, Beacon also supports richer consent workflows such as signup forms, multiple permission states, and administrative management via its built-in web interface.
-
-**Noteworthy features include:**
-
-- **Token-based opt-out**: Secure HMAC-signed URLs that validate without database lookups (unless you want to)
-- **Multi-database support**: SQLite (default), SQL Server, PostgreSQL, MySQL
-- **Admin panel**: Web UI for managing buckets and viewing consent records
-- **Confirmation mails**: You can choose for (double) opt-in confirmations via e-mail notifications
-- **Form builder**: Create campaign and newsletter signup forms
-- **Granular permissions**: Set multiple permission states in a single API call
-- **Security first**: Encrypted data at rest, hashed emails, rate limiting
-
-In other words, Beacon provides a decoupled infrastructure for managing communication preferences, allowing you to externalize consent logic and opt-out processing from your primary data sources.
+- Supports **SQLite, SQL Server, PostgreSQL, and MySQL**.
+- Admin panel for managing consent buckets and records.
+- Optional double opt-in confirmations.
+- Form builder for signup pages.
+- Granular permissions and security (encrypted data, hashed emails, rate limiting).
 
 ## Getting Started
 
