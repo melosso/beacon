@@ -61,6 +61,7 @@ body {
 }
 
 .select-none { user-select: none; }
+.muted { color: hsl(var(--muted-foreground)); }
 
 /* Toast Notifications */
 .toast-container {
@@ -499,6 +500,31 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
 .status-badge.rejected {
     background: hsl(var(--muted));
     color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Inline status chip — same tokens as status-badge but no block margin */
+.status-chip {
+    display: inline-flex;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    vertical-align: middle;
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+}
+.status-chip.opted-in {
+    background: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+}
+.status-chip.opted-out {
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+}
+.status-chip.pending {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
 }
 
 .bucket-actions { display: flex; gap: 0.75rem; align-items: center; }

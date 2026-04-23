@@ -152,6 +152,7 @@ public static class ConsentEndpoints
 
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
+        var ipAddress = context.Connection.RemoteIpAddress?.ToString();
 
         try
         {
@@ -168,7 +169,8 @@ public static class ConsentEndpoints
                     result.Payload.Email,
                     validPermissions,
                     token,
-                    ConsentSource.Url);
+                    ConsentSource.Url,
+                    ipAddress);
 
                 await consentService.CommitTransactionAsync();
 
@@ -202,7 +204,8 @@ public static class ConsentEndpoints
                         result.Payload.Email,
                         [permission],
                         token,
-                        ConsentSource.Url);
+                        ConsentSource.Url,
+                        ipAddress);
                     optedOut.Add(permission);
                 }
                 else

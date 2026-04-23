@@ -5,8 +5,8 @@ namespace Beacon.Core.Services;
 public interface IConsentService
 {
     Task<ConsentStatus> CheckAsync(string bucket, string email, string permission);
-    Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source);
-    Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null);
+    Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null);
+    Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? actorId = null);
 
     /// <summary>
     /// Ensures a consent record exists. Creates with the specified status if not found,

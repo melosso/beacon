@@ -54,7 +54,7 @@ public sealed class DataPolicyWorker : BackgroundService
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
 
-        _logger.LogInformation("Data policy worker stopped");
+        _logger.LogDebug("Data policy worker stopped");
     }
 
     /// <summary>Returns true if woken by a trigger signal, false if the cron delay elapsed.</summary>

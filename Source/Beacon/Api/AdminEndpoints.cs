@@ -157,9 +157,14 @@ public static class AdminEndpoints
         routes.MapPost("/api/admin/data-policies/tasks/{id}/reject", RejectWorkflowTask)
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/audit", GetAuditLog)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
+        HttpContext context,
         [FromBody] OverrideConsentRequest request,
         [FromServices] IConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
@@ -210,9 +215,11 @@ public static class AdminEndpoints
             ? JsonSerializer.Serialize(request.CustomFields)
             : null;
 
+        var actorId = context.User.Identity?.Name;
+
         try
         {
-            await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson);
+            await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson, actorId);
 
             await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
@@ -238,6 +245,7 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> BatchOverrideConsent(
+        HttpContext httpContext,
         string bucket,
         [FromBody] BatchOverrideRequest request,
         [FromServices] IConsentService consentService,
@@ -277,6 +285,8 @@ public static class AdminEndpoints
             ? JsonSerializer.Serialize(request.CustomFields)
             : null;
 
+        var actorId = httpContext.User.Identity?.Name;
+
         try
         {
             using var transaction = await consentService.BeginTransactionAsync();
@@ -288,7 +298,7 @@ public static class AdminEndpoints
                     return Results.BadRequest(new { error = $"Invalid status '{status}' for permission '{permission}'" });
                 }
 
-                await consentService.OverrideAsync(normalizedBucket, request.Email, permission, consentStatus, customFieldsJson);
+                await consentService.OverrideAsync(normalizedBucket, request.Email, permission, consentStatus, customFieldsJson, actorId);
             }
 
             await consentService.CommitTransactionAsync();
@@ -372,6 +382,7 @@ public static class AdminEndpoints
         var config = configService.Get();
         var emailProviderNormalized = config.EmailProvider?.Trim().ToLowerInvariant() ?? string.Empty;
         var responses = new List<GenerateTokenResponse>(requests.Count);
+        var actorId = context.User.Identity?.Name;
 
         try
         {
@@ -429,7 +440,7 @@ public static class AdminEndpoints
                     else
                     {
                         // Always upsert (insert or update)
-                        await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                        await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson, actorId);
                         hasChanges = true;
                     }
                 }
@@ -1406,6 +1417,43 @@ public static class AdminEndpoints
             TaskOperationOutcome.InvalidStatus => Results.BadRequest("Task is not pending approval."),
             _ => Results.Ok(result.Task)
         };
+    }
+
+    private static async Task<IResult> GetAuditLog(
+        [FromQuery] string? bucket,
+        [FromQuery] string? identity,
+        [FromQuery] int page = 1,
+        [FromQuery] int size = 25,
+        [FromServices] IConsentRepository repository = null!,
+        CancellationToken ct = default)
+    {
+        if (page < 1) page = 1;
+        size = Math.Clamp(size, 1, 100);
+        var normalizedBucket = string.IsNullOrWhiteSpace(bucket) ? null : bucket.Trim().ToLowerInvariant();
+        var normalizedHash = string.IsNullOrWhiteSpace(identity) ? null : identity.Trim().ToLowerInvariant();
+
+        var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct);
+
+        return Results.Ok(new
+        {
+            records = result.Records.Select(e => new
+            {
+                id = e.Id,
+                bucket = e.Bucket,
+                emailHash = e.EmailHash,
+                displayId = e.EmailHash[..Math.Min(16, e.EmailHash.Length)] + "...",
+                permission = e.Permission,
+                oldStatus = e.OldStatus?.ToString(),
+                newStatus = e.NewStatus.ToString(),
+                source = e.Source.ToString(),
+                actorId = e.ActorId,
+                changedAt = e.ChangedAt,
+                ipAddress = e.IpAddress
+            }),
+            total = result.Total,
+            page = result.Page,
+            pageSize = result.PageSize
+        });
     }
 
     private static bool IsPrivateOrReserved(IPAddress address)

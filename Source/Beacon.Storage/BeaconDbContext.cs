@@ -21,6 +21,7 @@ public class BeaconDbContext : DbContext
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
     public DbSet<User> Users => Set<User>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
+    public DbSet<ConsentAuditEntry> ConsentAuditEntries => Set<ConsentAuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -186,6 +187,19 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.TriggeredBy).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.HasIndex(e => e.ScheduledAt);
+        });
+
+        modelBuilder.Entity<ConsentAuditEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Bucket).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EmailHash).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Permission).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ActorId).HasMaxLength(100);
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+            entity.HasIndex(e => e.EmailHash);
+            entity.HasIndex(e => e.ChangedAt);
+            entity.HasIndex(e => new { e.Bucket, e.ChangedAt });
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>
