@@ -20,13 +20,15 @@ public sealed class ConsentRepository : IConsentRepository
             .FirstOrDefaultAsync(r => r.Bucket == bucket && r.EmailHash == emailHash && r.Permission == permission);
     }
 
-    public async Task UpsertAsync(ConsentRecord record)
+    public async Task UpsertAsync(ConsentRecord record, string? actorId = null)
     {
         var existing = await _context.ConsentRecords
-            .FirstOrDefaultAsync(r 
-                => r.Bucket == record.Bucket 
-                && r.EmailHash == record.EmailHash 
+            .FirstOrDefaultAsync(r
+                => r.Bucket == record.Bucket
+                && r.EmailHash == record.EmailHash
                 && r.Permission == record.Permission);
+
+        ConsentStatus? oldStatus = existing?.Status;
 
         if (existing is null)
         {
@@ -34,7 +36,6 @@ public sealed class ConsentRepository : IConsentRepository
         }
         else
         {
-            // Update only mutable properties on the tracked entity
             existing.Status = record.Status;
             existing.Source = record.Source;
             existing.ChangedAt = record.ChangedAt;
@@ -45,10 +46,51 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 existing.CustomFields = record.CustomFields;
             }
-            // EF Core tracks changes automatically, no need for Update()
+        }
+
+        if (oldStatus != record.Status)
+        {
+            _context.ConsentAuditEntries.Add(new ConsentAuditEntry
+            {
+                Id = Guid.NewGuid(),
+                Bucket = record.Bucket,
+                EmailHash = record.EmailHash,
+                Permission = record.Permission,
+                OldStatus = oldStatus,
+                NewStatus = record.Status,
+                Source = record.Source,
+                ActorId = actorId,
+                ChangedAt = record.ChangedAt,
+                IpAddress = record.IpAddress
+            });
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(
+        string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.ConsentAuditEntries.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(bucket))
+            query = query.Where(e => e.Bucket == bucket);
+        if (!string.IsNullOrWhiteSpace(emailHash))
+            query = query.Where(e => e.EmailHash == emailHash);
+
+        var total = await query.CountAsync(ct);
+        var records = await query
+            .OrderByDescending(e => e.ChangedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<ConsentAuditEntry>
+        {
+            Records = records,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IReadOnlyList<BucketInfo>> GetBucketsAsync()
@@ -398,10 +440,17 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default)
     {
-        return await _context.ConsentRecords
+        var records = await _context.ConsentRecords
             .Where(r => r.IpAddress != null && r.ChangedAt < cutoff)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.IpAddress, (string?)null), ct);
+
+        var audit = await _context.ConsentAuditEntries
+            .Where(e => e.IpAddress != null && e.ChangedAt < cutoff)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.IpAddress, (string?)null), ct);
+
+        return records + audit;
     }
 
     public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default)
@@ -421,8 +470,13 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)
     {
-        return await _context.ConsentRecords
+        var records = await _context.ConsentRecords
             .CountAsync(r => r.IpAddress != null && r.ChangedAt < cutoff, ct);
+
+        var audit = await _context.ConsentAuditEntries
+            .CountAsync(e => e.IpAddress != null && e.ChangedAt < cutoff, ct);
+
+        return records + audit;
     }
 
     public async Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default)

@@ -36,6 +36,7 @@ public static class StorageConfiguration
         services.AddScoped<IEmailQueueRepository, EmailQueueRepository>();
         services.AddScoped<IBucketOptionsRepository, BucketOptionsRepository>();
         services.AddScoped<IEmailSenderService, EmailSenderService>();
+
         services.AddSingleton<EmailDispatchTrigger>();
         services.AddHostedService<EmailQueueWorker>();
 
@@ -43,6 +44,8 @@ public static class StorageConfiguration
         services.AddScoped<IWorkflowTaskRepository, WorkflowTaskRepository>();
         services.AddScoped<DataPolicyService>();
         services.AddHostedService<DataPolicyWorker>();
+        
+        services.AddHostedService<ConsentAuditBackfillService>();
 
         return services;
     }

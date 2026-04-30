@@ -16,10 +16,13 @@ DOMAINS=(
   "azienda.it"
   "empresa.es"
   "organisatie.nl"
+  "bedrijf.be"
+  "korporacja.pl"
+  "foretag.se"
 )
 
 # ======================================
-# Permission Universe (6 total)
+# Permission Universe (10 total)
 # ======================================
 PERMISSION_KEYS=(
   "Marketing"
@@ -28,6 +31,10 @@ PERMISSION_KEYS=(
   "Alerts"
   "Promotions"
   "Compliance"
+  "Analytics"
+  "ThirdPartySharing"
+  "SMS_Notifications"
+  "Telemarketing"
 )
 
 # ======================================
@@ -36,9 +43,9 @@ PERMISSION_KEYS=(
 BUCKETS=(
   "marketing_campaign_dach_spring_2026"
   "marketing_campaign_nordics_sustainability_2026"
-  "marketing_campaign_nordics_sustainability_2027"
   "marketing_campaign_southern_europe_summer_2026"
   "product_update_eu_platform_q2_2026"
+  "product_update_eu_platform_q3_2026"
   "mobile_app_update_eu_release"
   "cloud_service_maintenance_eu"
   "internal_engineering_berlin"
@@ -50,6 +57,10 @@ BUCKETS=(
   "gdpr_mandatory_notifications_eu"
   "privacy_policy_updates_eu"
   "terms_of_service_changes_eu"
+  "webinar_series_q4_2026"
+  "trade_show_leads_berlin"
+  "ecommerce_cart_abandonment"
+  "user_research_panel"
 )
 
 # ======================================
@@ -57,25 +68,33 @@ BUCKETS=(
 # ======================================
 
 generate_email_permissions() {
-    local min=2
-    local max=6
-    local true_count=$(( RANDOM % (max - min + 1) + min ))
+    local bucket_perms=("$@")
+    local total_perms=${#bucket_perms[@]}
+    
+    # Randomly decide how many of the available bucket permissions will be true for this user
+    local true_count=$(( RANDOM % (total_perms + 1) ))
 
-    # Randomly select permissions to enable
-    mapfile -t ENABLED < <(
-        printf '%s\n' "${PERMISSION_KEYS[@]}" \
-        | shuf \
-        | head -n "$true_count"
-    )
+    if [[ $true_count -gt 0 ]]; then
+        mapfile -t ENABLED < <(
+            printf '%s\n' "${bucket_perms[@]}" \
+            | shuf \
+            | head -n "$true_count"
+        )
+    else
+        ENABLED=()
+    fi
 
-    # Build JSON true/false map
+    # Build JSON true/false map using only the bucket's assigned permissions
     local json=""
-    for perm in "${PERMISSION_KEYS[@]}"; do
-        if printf '%s\n' "${ENABLED[@]}" | grep -qx "$perm"; then
-            json+="\"$perm\": true,"
-        else
-            json+="\"$perm\": false,"
-        fi
+    for perm in "${bucket_perms[@]}"; do
+        local is_enabled="false"
+        for enabled_perm in "${ENABLED[@]}"; do
+            if [[ "$enabled_perm" == "$perm" ]]; then
+                is_enabled="true"
+                break
+            fi
+        done
+        json+="\"$perm\": $is_enabled,"
     done
 
     echo "${json%,}"
@@ -90,15 +109,23 @@ echo "Initialization: Generating ${#BUCKETS[@]} buckets..."
 for BUCKET_NAME in "${BUCKETS[@]}"; do
 
     NUM_EMAILS=$(( RANDOM % (MAX_EMAILS_PER_BUCKET - MIN_EMAILS_PER_BUCKET + 1) + MIN_EMAILS_PER_BUCKET ))
+    
+    # Randomly select between 3 and 7 permissions from the universe for this specific bucket
+    NUM_BUCKET_PERMS=$(( RANDOM % 5 + 3 ))
+    mapfile -t BUCKET_PERMISSIONS < <(
+        printf '%s\n' "${PERMISSION_KEYS[@]}" \
+        | shuf \
+        | head -n "$NUM_BUCKET_PERMS"
+    )
 
-    echo "Processing [$BUCKET_NAME]: $NUM_EMAILS users..."
+    echo "Processing [$BUCKET_NAME]: $NUM_EMAILS users with $NUM_BUCKET_PERMS available permissions..."
 
     for (( i=1; i<=NUM_EMAILS; i++ )); do
         USER_ID=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
         DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
         EMAIL="${USER_ID}@${DOMAIN}"
 
-        PERMISSIONS_JSON=$(generate_email_permissions)
+        PERMISSIONS_JSON=$(generate_email_permissions "${BUCKET_PERMISSIONS[@]}")
 
         PAYLOAD=$(cat <<EOF
 [{
@@ -178,6 +205,28 @@ DE_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
 DE_FORM_ID=$(echo "$DE_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 echo "Created newsletter_de form: $DE_FORM_ID"
 
+# Create newsletter_fr form
+FR_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
+    -H "X-Api-Key: $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "French Newsletter",
+        "bucket": "newsletter_fr",
+        "permission": "Newsletter",
+        "allowedOrigins": ["http://localhost:5000", "http://localhost:5001", "http://localhost:8070"],
+        "language": "fr",
+        "isEnabled": true,
+        "formConfig": {
+            "title": "Abonnez-vous à la newsletter",
+            "description": "Recevez des mises à jour dans votre boîte de réception.",
+            "buttonText": "S'\''abonner",
+            "successMessage": "Merci de vous être abonné !"
+        }
+    }')
+
+FR_FORM_ID=$(echo "$FR_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+echo "Created newsletter_fr form: $FR_FORM_ID"
+
 # Subscribe 2 emails to newsletter_nl
 if [[ -n "$NL_FORM_ID" ]]; then
     echo "Subscribing 2 emails to newsletter_nl..."
@@ -194,6 +243,17 @@ if [[ -n "$DE_FORM_ID" ]]; then
     echo "Subscribing 3 emails to newsletter_de..."
     for email in "hans.mueller@firma.de" "anna.schmidt@firma.de" "lukas.weber@unternehmen.eu"; do
         curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$DE_FORM_ID/subscribe" \
+            -H "Content-Type: application/json" \
+            -H "Origin: http://localhost:8070" \
+            -d "{\"email\": \"$email\", \"consent\": \"true\"}"
+    done
+fi
+
+# Subscribe 2 emails to newsletter_fr
+if [[ -n "$FR_FORM_ID" ]]; then
+    echo "Subscribing 2 emails to newsletter_fr..."
+    for email in "jean.dupont@societe.fr" "marie.curie@societe.fr"; do
+        curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$FR_FORM_ID/subscribe" \
             -H "Content-Type: application/json" \
             -H "Origin: http://localhost:8070" \
             -d "{\"email\": \"$email\", \"consent\": \"true\"}"

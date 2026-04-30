@@ -19,6 +19,7 @@ public static class DatabaseMigrator
         MigrateBucketOptions(db);
         MigrateUsers(db);
         MigrateWorkflowTasks(db);
+        MigrateConsentAuditEntries(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -231,6 +232,34 @@ public static class DatabaseMigrator
                 )
                 """);
             db.Database.ExecuteSqlRaw("CREATE INDEX IX_WorkflowTasks_ScheduledAt ON WorkflowTasks (ScheduledAt)");
+        }
+    }
+
+    private static void MigrateConsentAuditEntries(BeaconDbContext db)
+    {
+        if (!TableExists(db, "ConsentAuditEntries"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE ConsentAuditEntries (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Bucket TEXT NOT NULL,
+                    EmailHash TEXT NOT NULL,
+                    Permission TEXT NOT NULL,
+                    OldStatus INTEGER NULL,
+                    NewStatus INTEGER NOT NULL,
+                    Source INTEGER NOT NULL,
+                    ActorId TEXT NULL,
+                    ChangedAt TEXT NOT NULL,
+                    IpAddress TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw(
+                "CREATE INDEX IX_ConsentAuditEntries_EmailHash ON ConsentAuditEntries (EmailHash)");
+            db.Database.ExecuteSqlRaw(
+                "CREATE INDEX IX_ConsentAuditEntries_ChangedAt ON ConsentAuditEntries (ChangedAt)");
+            db.Database.ExecuteSqlRaw(
+                "CREATE INDEX IX_ConsentAuditEntries_Bucket_ChangedAt ON ConsentAuditEntries (Bucket, ChangedAt)");
+
         }
     }
 

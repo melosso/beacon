@@ -53,7 +53,7 @@ public sealed class EmailQueueWorker : BackgroundService
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
 
-        _logger.LogInformation("Email queue worker stopped");
+        _logger.LogDebug("Email queue worker stopped");
     }
 
     /// <summary>

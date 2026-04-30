@@ -61,6 +61,7 @@ body {
 }
 
 .select-none { user-select: none; }
+.muted { color: hsl(var(--muted-foreground)); }
 
 /* Toast Notifications */
 .toast-container {
@@ -501,6 +502,31 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     color: hsl(var(--muted-foreground) / 0.5);
 }
 
+/* Inline status chip — same tokens as status-badge but no block margin */
+.status-chip {
+    display: inline-flex;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    vertical-align: middle;
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+}
+.status-chip.opted-in {
+    background: hsl(var(--success) / 0.12);
+    color: hsl(var(--success));
+}
+.status-chip.opted-out {
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+}
+.status-chip.pending {
+    background: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
+}
+
 .bucket-actions { display: flex; gap: 0.75rem; align-items: center; }
 
 .webhook-errors-trigger {
@@ -677,6 +703,8 @@ thead { position: sticky; top: 0; background: hsl(var(--background)); z-index: 5
 th { text-align: left; padding: 0.875rem 1rem; color: hsl(var(--muted-foreground)); font-weight: 500; white-space: nowrap; }
 .sortable { cursor: pointer; user-select: none; }
 .sortable:hover { color: hsl(var(--foreground)); }
+.col-link { cursor: pointer; }
+.col-link:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .sortable .sort-icon { display: inline-block; margin-left: 0.25rem; opacity: 0.3; }
 .sortable.asc .sort-icon, .sortable.desc .sort-icon { opacity: 1; }
 .sortable.desc .sort-icon { transform: rotate(180deg); }

@@ -2,6 +2,9 @@
     const MAX_SIDEBAR_BUCKETS = 10;
     let currentBucket = '';
     let currentView = 'overview';
+    let auditCurrentPage = 1, auditPageSize = 25, auditTotalRecords = 0;
+    let auditFilterBucket = null, auditFilterIdentity = null;
+    let _auditClickTimer = null;
     let currentBucketArchived = false;
     let currentPage = 1;
     let pageSize = 10;
@@ -226,6 +229,11 @@
         showSettingsSection(section, false);
       } else if (view === 'workflow') {
         showView('workflow', false);
+      } else if (view === 'audit') {
+        auditFilterBucket = params.get('bucket') || null;
+        auditFilterIdentity = params.get('identity') || null;
+        auditCurrentPage = parseInt(params.get('page') || '1');
+        showView('audit', false);
       } else {
         showView('overview', false);
       }
@@ -649,6 +657,7 @@
       if (view === 'new-token') document.getElementById('tokenLanguage').value = appSettings.uiLanguage || 'en';
       if (view === 'settings') loadSettings();
       if (view === 'workflow') loadWorkflowPage();
+      if (view === 'audit') loadAudit();
       if (view === 'subscriptions') {
         loadIdentities(pushState);
       }
@@ -763,6 +772,7 @@
                 <div class="dropdown-menu" id="rowMenu-sub-${idx}">
                   <button class="dropdown-item" onclick="showBucket('${sanitize(s.bucket)}')">View Bucket</button>
                   <button class="dropdown-item" onclick="openEditFromSubscription('${sanitize(s.bucket)}', '${permKeys}', '${recordData}')">Edit Permissions</button>
+                  <button class="dropdown-item" onclick="showAuditForBucketAndIdentity('${sanitize(s.bucket)}', '${sanitize(subDetailHash)}')">View Audit</button>
                 </div>
               </div>
             </td>
@@ -911,19 +921,23 @@
         const msg = subSearchQuery ? `No identities matching "${sanitize(subSearchQuery)}"` : 'No consent records found across any bucket';
         body.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${msg}</td></tr>`;
       } else {
-        body.innerHTML = data.records.map(id => {
+        body.innerHTML = data.records.map((id, idx) => {
           const idDisplay = `<span class="tooltip-wrapper" ondblclick="event.stopPropagation();copyTextNow('${sanitize(id.emailHash)}')"><span class="email-hash">${sanitize(id.emailHash.substring(0, 16))}...</span><span class="tooltip">Double-click to copy ID</span></span>`;
           return `
             <tr style="cursor:pointer" onclick="showIdentityDetails('${sanitize(id.emailHash)}')">
               <td>${idDisplay}</td>
               <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? 's' : ''}</td>
-              <td>${sanitize(formatDate(id.lastChanged))}</td>
+              <td class="col-link" onclick="event.stopPropagation();showAuditForIdentity('${sanitize(id.emailHash)}')" title="View audit">${sanitize(formatDate(id.lastChanged))}</td>
               <td>
                 <div class="row-actions">
                   <span class="tooltip-wrapper">
-                    <button class="btn-actions" onclick="event.stopPropagation();showIdentityDetails('${sanitize(id.emailHash)}')">:</button>
-                    <span class="tooltip tooltip-above tooltip-right">View details</span>
+                    <button class="btn-actions" onclick="event.stopPropagation();toggleRowMenu(event, 'sid-${idx}')">:</button>
+                    <span class="tooltip tooltip-above tooltip-right">Actions</span>
                   </span>
+                  <div class="dropdown-menu" id="rowMenu-sid-${idx}">
+                    <button class="dropdown-item" onclick="showIdentityDetails('${sanitize(id.emailHash)}')">View Details</button>
+                    <button class="dropdown-item" onclick="showAuditForIdentity('${sanitize(id.emailHash)}')">View Audit</button>
+                  </div>
                 </div>
               </td>
             </tr>
@@ -1193,6 +1207,7 @@
                   <div class="dropdown-menu" id="rowMenu-${idx}">
                     <button class="dropdown-item" onclick="openEditPermissions('${recordData}')">Edit Permissions</button>
                     <button class="dropdown-item" onclick="openOptOutPage('${recordData}')">Open Consent Page <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></button>
+                    <button class="dropdown-item" onclick="showAuditForBucketAndIdentity('${sanitize(currentBucket)}', '${sanitize(r.emailHash)}')">View Audit</button>
                   </div>
                 </div>
               </td>
@@ -1602,18 +1617,22 @@
 
     let copyClickTimer = null;
 
+    function copyLabel(text) {
+      return text.length > 24 ? text.slice(0, 16) + '…' : text;
+    }
+
     function copyText(text) {
       clearTimeout(copyClickTimer);
       copyClickTimer = setTimeout(() => {
         clipboardWrite(text);
-        notify('success', 'Copied', text);
+        notify('success', 'Copied', copyLabel(text));
       }, 250);
     }
 
     function copyTextNow(text) {
       clearTimeout(copyClickTimer);
       clipboardWrite(text);
-      notify('success', 'Copied', text);
+      notify('success', 'Copied', copyLabel(text));
     }
 
     // HELPERS
@@ -3858,6 +3877,247 @@ ${bodyStr}
     let _workflowPage = 1;
     let _workflowPageSize = 25;
     let _workflowArchivedVisible = false;
+
+    // ── Audit ──────────────────────────────────────────────────────────────
+    async function loadAudit() {
+      const params = new URLSearchParams();
+      if (auditFilterBucket) params.set('bucket', auditFilterBucket);
+      if (auditFilterIdentity) params.set('emailHash', auditFilterIdentity);
+      params.set('page', auditCurrentPage);
+      params.set('size', auditPageSize);
+
+      const urlParams = { view: 'audit' };
+      if (auditFilterBucket) urlParams.bucket = auditFilterBucket;
+      if (auditFilterIdentity) urlParams.identity = auditFilterIdentity;
+      if (auditCurrentPage > 1) urlParams.page = auditCurrentPage;
+      updateUrl(urlParams);
+
+      renderAuditHeader();
+
+      const tbody = document.getElementById('auditBody');
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">Loading…</td></tr>';
+
+      const res = await apiRequest(`/api/admin/audit?${params}`);
+      if (!res.ok) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">Failed to load audit log.</td></tr>';
+        return;
+      }
+
+      auditTotalRecords = res.data.total;
+      if (res.data.records.length === 0) {
+        const msg = (auditFilterBucket || auditFilterIdentity)
+          ? 'No audit entries match the active filter'
+          : 'No audit entries yet';
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${msg}</td></tr>`;
+      } else {
+        tbody.innerHTML = res.data.records.map(renderAuditRow).join('');
+      }
+      updateAuditPagination();
+    }
+
+    function renderAuditHeader() {
+      const thead = document.getElementById('auditTableHead');
+      if (!thead) return;
+      const hasIdentity = auditFilterIdentity ? 'has-search' : '';
+      const hasBucket = auditFilterBucket ? 'has-search' : '';
+      thead.innerHTML = `
+        <th>Timestamp</th>
+        <th>
+          <div class="column-search">
+            <span>Identity</span>
+            <button class="search-trigger ${hasIdentity}" id="auditIdentitySearchTrigger" onclick="toggleAuditIdentityPopover(event)" title="Filter by identity">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+            <div class="search-popover" id="auditIdentityPopover" style="min-width:260px">
+              <label>Filter by identity hash (partial)</label>
+              <input type="text" id="auditIdentityInput" placeholder="e.g., a1b2c3d4" value="${sanitize(auditFilterIdentity || '')}" onkeydown="if(event.key==='Enter')applyAuditIdentityFilter()">
+              <div class="search-actions">
+                <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearAuditIdentityFilter()">Clear</button>
+                <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="applyAuditIdentityFilter()">Filter</button>
+              </div>
+            </div>
+          </div>
+        </th>
+        <th>
+          <div class="column-search">
+            <span>Bucket</span>
+            <button class="search-trigger ${hasBucket}" id="auditBucketSearchTrigger" onclick="toggleAuditBucketPopover(event)" title="Filter by bucket">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+            <div class="search-popover" id="auditBucketPopover" style="min-width:220px">
+              <label>Filter by bucket name</label>
+              <input type="text" id="auditBucketInput" placeholder="e.g., newsletter" value="${sanitize(auditFilterBucket || '')}" onkeydown="if(event.key==='Enter')applyAuditBucketFilter()">
+              <div class="search-actions">
+                <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearAuditBucketFilter()">Clear</button>
+                <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="applyAuditBucketFilter()">Filter</button>
+              </div>
+            </div>
+          </div>
+        </th>
+        <th>Permission</th>
+        <th>Change</th>
+        <th>Source</th>
+        <th>Actor</th>
+        <th>IP</th>
+      `;
+    }
+
+    function toggleAuditIdentityPopover(event) {
+      event.stopPropagation();
+      const popover = document.getElementById('auditIdentityPopover');
+      const trigger = document.getElementById('auditIdentitySearchTrigger');
+      const isOpen = popover?.classList.contains('open');
+      document.querySelectorAll('.search-popover.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.search-trigger.active').forEach(t => t.classList.remove('active'));
+      if (!isOpen) {
+        popover?.classList.add('open');
+        trigger?.classList.add('active');
+        setTimeout(() => document.getElementById('auditIdentityInput')?.focus(), 50);
+      }
+    }
+
+    function toggleAuditBucketPopover(event) {
+      event.stopPropagation();
+      const popover = document.getElementById('auditBucketPopover');
+      const trigger = document.getElementById('auditBucketSearchTrigger');
+      const isOpen = popover?.classList.contains('open');
+      document.querySelectorAll('.search-popover.open').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.search-trigger.active').forEach(t => t.classList.remove('active'));
+      if (!isOpen) {
+        popover?.classList.add('open');
+        trigger?.classList.add('active');
+        setTimeout(() => document.getElementById('auditBucketInput')?.focus(), 50);
+      }
+    }
+
+    function applyAuditIdentityFilter() {
+      const val = document.getElementById('auditIdentityInput')?.value.trim();
+      auditFilterIdentity = val || null;
+      auditCurrentPage = 1;
+      document.getElementById('auditIdentityPopover')?.classList.remove('open');
+      document.getElementById('auditIdentitySearchTrigger')?.classList.remove('active');
+      loadAudit();
+    }
+
+    function applyAuditBucketFilter() {
+      const val = document.getElementById('auditBucketInput')?.value.trim();
+      auditFilterBucket = val || null;
+      auditCurrentPage = 1;
+      document.getElementById('auditBucketPopover')?.classList.remove('open');
+      document.getElementById('auditBucketSearchTrigger')?.classList.remove('active');
+      loadAudit();
+    }
+
+    function clearAuditIdentityFilter() {
+      auditFilterIdentity = null;
+      auditCurrentPage = 1;
+      document.getElementById('auditIdentityPopover')?.classList.remove('open');
+      document.getElementById('auditIdentitySearchTrigger')?.classList.remove('active');
+      loadAudit();
+    }
+
+    function clearAuditBucketFilter() {
+      auditFilterBucket = null;
+      auditCurrentPage = 1;
+      document.getElementById('auditBucketPopover')?.classList.remove('open');
+      document.getElementById('auditBucketSearchTrigger')?.classList.remove('active');
+      loadAudit();
+    }
+
+    function auditStatusChip(status) {
+      if (!status) return '<span class="status-chip">None</span>';
+      const cls = status === 'OptedIn' ? 'opted-in' : status === 'OptedOut' ? 'opted-out' : 'pending';
+      const label = status === 'OptedIn' ? 'Opted in' : status === 'OptedOut' ? 'Opted out' : status;
+      return `<span class="status-chip ${cls}">${label}</span>`;
+    }
+
+    function renderAuditRow(e) {
+      const sourceLabel = { Url: 'User', Api: 'API', Admin: 'Admin' }[e.source] || e.source;
+      const nullCell = '<span class="muted">—</span>';
+      const oldChip = auditStatusChip(e.oldStatus);
+      const newChip = auditStatusChip(e.newStatus);
+      return `
+        <tr>
+          <td>${sanitize(formatDate(e.changedAt))}</td>
+          <td>
+            <span class="tooltip-wrapper"
+              onclick="auditIdentityClick('${sanitize(e.emailHash)}')"
+              ondblclick="auditIdentityDblClick('${sanitize(e.emailHash)}')">
+              <span class="email-hash" style="cursor:pointer">${sanitize(e.displayId)}</span>
+              <span class="tooltip">Click to filter · double-click to copy</span>
+            </span>
+          </td>
+          <td><span class="bucket-name" style="cursor:pointer" onclick="showAuditForBucket('${sanitize(e.bucket)}')">${sanitize(e.bucket)}</span></td>
+          <td><code>${sanitize(e.permission)}</code></td>
+          <td style="white-space:nowrap">${oldChip} → ${newChip}</td>
+          <td>${sanitize(sourceLabel)}</td>
+          <td>${e.actorId ? sanitize(e.actorId) : nullCell}</td>
+          <td>${e.ipAddress ? `<code>${sanitize(e.ipAddress)}</code>` : nullCell}</td>
+        </tr>`;
+    }
+
+    function auditIdentityClick(hash) {
+      clearTimeout(_auditClickTimer);
+      _auditClickTimer = setTimeout(() => showAuditForIdentity(hash), 250);
+    }
+
+    function auditIdentityDblClick(hash) {
+      clearTimeout(_auditClickTimer);
+      copyTextNow(hash);
+    }
+
+    function showAuditForBucket(bucket) {
+      auditFilterBucket = bucket;
+      auditFilterIdentity = null;
+      auditCurrentPage = 1;
+      showView('audit');
+    }
+
+    function showAuditForIdentity(hash) {
+      auditFilterBucket = null;
+      auditFilterIdentity = hash;
+      auditCurrentPage = 1;
+      showView('audit');
+    }
+
+    function showAuditForBucketAndIdentity(bucket, hash) {
+      auditFilterBucket = bucket;
+      auditFilterIdentity = hash;
+      auditCurrentPage = 1;
+      showView('audit');
+    }
+
+    function clearAuditFilter() {
+      auditFilterBucket = null;
+      auditFilterIdentity = null;
+      auditCurrentPage = 1;
+      loadAudit();
+    }
+
+    function updateAuditPageSize() {
+      auditPageSize = parseInt(document.getElementById('auditPageSizeSelect').value);
+      auditCurrentPage = 1;
+      loadAudit();
+    }
+
+    function changeAuditPage(delta) {
+      const maxPage = Math.ceil(auditTotalRecords / auditPageSize) || 1;
+      auditCurrentPage = Math.max(1, Math.min(auditCurrentPage + delta, maxPage));
+      loadAudit();
+    }
+
+    function updateAuditPagination() {
+      const maxPage = Math.ceil(auditTotalRecords / auditPageSize) || 1;
+      const start = auditTotalRecords === 0 ? 0 : (auditCurrentPage - 1) * auditPageSize + 1;
+      const end = Math.min(auditCurrentPage * auditPageSize, auditTotalRecords);
+      const info = document.getElementById('auditPaginationInfo');
+      if (info) info.textContent = auditTotalRecords === 0 ? 'No entries' : `${start}–${end} of ${auditTotalRecords}`;
+      const prev = document.getElementById('auditPrevBtn');
+      const next = document.getElementById('auditNextBtn');
+      if (prev) prev.disabled = auditCurrentPage <= 1;
+      if (next) next.disabled = auditCurrentPage >= maxPage;
+    }
+    // ── /Audit ─────────────────────────────────────────────────────────────
 
     const _workflowTypeLabels = {
       RetentionPurge: 'Opted-out anonymisation',

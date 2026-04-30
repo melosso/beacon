@@ -30,7 +30,7 @@ public sealed class ConsentService : IConsentService
         return record?.Status ?? ConsentStatus.OptedIn;
     }
 
-    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source)
+    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -51,14 +51,15 @@ public sealed class ConsentService : IConsentService
                 Status = ConsentStatus.OptedOut,
                 Source = source,
                 ChangedAt = DateTime.UtcNow,
-                TokenHash = tokenHash
+                TokenHash = tokenHash,
+                IpAddress = ipAddress
             };
 
             await _repository.UpsertAsync(record);
         }
     }
 
-    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null)
+    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? actorId = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -79,7 +80,7 @@ public sealed class ConsentService : IConsentService
             CustomFields = customFieldsJson
         };
 
-        await _repository.UpsertAsync(record);
+        await _repository.UpsertAsync(record, actorId);
     }
 
     public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? ipAddress = null, string? consentText = null)

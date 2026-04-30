@@ -111,6 +111,9 @@ try
     var normalizedSigningKey = NormalizeKey(signingKey, 32);
     var normalizedEncryptionKey = NormalizeKey(encryptionKey, 32);
 
+    builder.Services.Configure<Microsoft.Extensions.Hosting.HostOptions>(o =>
+        o.ShutdownTimeout = TimeSpan.FromSeconds(30));
+
     // Service Registration
     builder.Services.AddBeaconStorage(databaseProvider, connectionString);
 

@@ -5,7 +5,8 @@ namespace Beacon.Core.Services;
 public interface IConsentRepository
 {
     Task<ConsentRecord?> GetAsync(string bucket, string emailHash, string permission);
-    Task UpsertAsync(ConsentRecord record);
+    Task UpsertAsync(ConsentRecord record, string? actorId = null);
+    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default);
 
     // Admin queries
     Task<IReadOnlyList<BucketInfo>> GetBucketsAsync();
