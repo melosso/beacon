@@ -1421,7 +1421,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetAuditLog(
         [FromQuery] string? bucket,
-        [FromQuery] string? identity,
+        [FromQuery] string? emailHash,
         [FromQuery] int page = 1,
         [FromQuery] int size = 25,
         [FromServices] IConsentRepository repository = null!,
@@ -1430,7 +1430,7 @@ public static class AdminEndpoints
         if (page < 1) page = 1;
         size = Math.Clamp(size, 1, 100);
         var normalizedBucket = string.IsNullOrWhiteSpace(bucket) ? null : bucket.Trim().ToLowerInvariant();
-        var normalizedHash = string.IsNullOrWhiteSpace(identity) ? null : identity.Trim().ToLowerInvariant();
+        var normalizedHash = string.IsNullOrWhiteSpace(emailHash) ? null : emailHash.Trim().ToLowerInvariant();
 
         var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct);
 

@@ -703,6 +703,8 @@ thead { position: sticky; top: 0; background: hsl(var(--background)); z-index: 5
 th { text-align: left; padding: 0.875rem 1rem; color: hsl(var(--muted-foreground)); font-weight: 500; white-space: nowrap; }
 .sortable { cursor: pointer; user-select: none; }
 .sortable:hover { color: hsl(var(--foreground)); }
+.col-link { cursor: pointer; }
+.col-link:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .sortable .sort-icon { display: inline-block; margin-left: 0.25rem; opacity: 0.3; }
 .sortable.asc .sort-icon, .sortable.desc .sort-icon { opacity: 1; }
 .sortable.desc .sort-icon { transform: rotate(180deg); }

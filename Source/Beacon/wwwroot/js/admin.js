@@ -927,7 +927,7 @@
             <tr style="cursor:pointer" onclick="showIdentityDetails('${sanitize(id.emailHash)}')">
               <td>${idDisplay}</td>
               <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? 's' : ''}</td>
-              <td>${sanitize(formatDate(id.lastChanged))}</td>
+              <td class="col-link" onclick="event.stopPropagation();showAuditForIdentity('${sanitize(id.emailHash)}')" title="View audit">${sanitize(formatDate(id.lastChanged))}</td>
               <td>
                 <div class="row-actions">
                   <span class="tooltip-wrapper">
@@ -3882,7 +3882,7 @@ ${bodyStr}
     async function loadAudit() {
       const params = new URLSearchParams();
       if (auditFilterBucket) params.set('bucket', auditFilterBucket);
-      if (auditFilterIdentity) params.set('identity', auditFilterIdentity);
+      if (auditFilterIdentity) params.set('emailHash', auditFilterIdentity);
       params.set('page', auditCurrentPage);
       params.set('size', auditPageSize);
 

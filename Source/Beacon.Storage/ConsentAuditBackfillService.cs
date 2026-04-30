@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,14 +24,24 @@ public sealed class ConsentAuditBackfillService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
 
+        using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, stoppingToken);
+
         var auditCount = await db.Database
             .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM ConsentAuditEntries")
             .SingleAsync(stoppingToken);
 
-        if (auditCount > 0) return;
+        if (auditCount > 0)
+        {
+            await tx.RollbackAsync(stoppingToken);
+            return;
+        }
 
         var consentCount = await db.ConsentRecords.CountAsync(stoppingToken);
-        if (consentCount == 0) return;
+        if (consentCount == 0)
+        {
+            await tx.RollbackAsync(stoppingToken);
+            return;
+        }
 
         _logger.LogInformation(
             "Audit backfill: populating {Count} consent records into ConsentAuditEntries",
@@ -53,6 +64,7 @@ public sealed class ConsentAuditBackfillService : BackgroundService
             FROM ConsentRecords
             """, stoppingToken);
 
+        await tx.CommitAsync(stoppingToken);
         _logger.LogInformation("Audit backfill: complete");
     }
 }
