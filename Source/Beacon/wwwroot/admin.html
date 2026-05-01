@@ -1045,6 +1045,15 @@
               Users
             </a>
 
+            <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
+
+            <a href="#" class="settings-subnav-item" id="settingsNavApiKeys" data-section="api-keys" onclick="showSettingsSection('api-keys');return false;" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>
+              </svg>
+              API Keys
+            </a>
+
             <hr id="settingsNavSystemDivider" style="border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
             <a href="#" class="settings-subnav-item" id="settingsNavSystem" data-section="system" onclick="showSettingsSection('system');return false;">
@@ -1483,6 +1492,55 @@
               <div style="display:flex;gap:0.5rem">
                 <button class="btn btn-outline" id="usersPrevBtn" onclick="changeUsersPage(-1)">Previous</button>
                 <button class="btn btn-outline" id="usersNextBtn" onclick="changeUsersPage(1)">Next</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- API Keys section -->
+          <div id="settings-section-api-keys" class="settings-section">
+            <div class="settings-content-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+              <div>
+                <h3 class="select-none">API Keys</h3>
+                <p>Manage named API keys with granular permission scopes and optional validity windows.</p>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
+                <button class="btn btn-outline" onclick="loadApiKeys()">Refresh</button>
+                <button class="btn btn-primary" onclick="openAddApiKeyModal()">Add Key</button>
+              </div>
+            </div>
+            <hr class="settings-sep">
+            <div style="overflow-x:auto">
+              <table style="width:100%">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Permissions</th>
+                    <th>Status</th>
+                    <th>Valid Until</th>
+                    <th>Created</th>
+                    <th>Last Used</th>
+                    <th class="col-actions"></th>
+                  </tr>
+                </thead>
+                <tbody id="apiKeysBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination-container" id="apiKeysPaginationBar" style="display:none">
+              <div class="pagination-settings">
+                <div class="page-size-selector">
+                  <span>Show</span>
+                  <select class="page-size-input" id="apiKeysPageSize" onchange="updateApiKeysPageSize()">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                  </select>
+                  <span>per page</span>
+                </div>
+                <div class="pagination-info" id="apiKeysPaginationInfo"></div>
+              </div>
+              <div style="display:flex;gap:0.5rem">
+                <button class="btn btn-outline" id="apiKeysPrevBtn" onclick="changeApiKeysPage(-1)">Previous</button>
+                <button class="btn btn-outline" id="apiKeysNextBtn" onclick="changeApiKeysPage(1)">Next</button>
               </div>
             </div>
           </div>
@@ -2272,6 +2330,89 @@
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeAddUserModal()">Cancel</button>
         <button class="btn btn-primary" id="addUserBtn" onclick="createUser()"><span class="btn-label">Create User</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add API Key modal -->
+  <div class="modal-backdrop" id="addApiKeyModal" style="display:none">
+    <div class="modal" style="max-width:520px">
+      <h3 style="margin-bottom:1.5rem">Add API Key</h3>
+      <div class="form-group">
+        <label>Name <span class="required" title="Required">*</span></label>
+        <input type="text" id="newApiKeyName" placeholder="e.g., CI/CD pipeline" autocomplete="off" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label>Permissions <span class="required" title="Required">*</span></label>
+        <div id="newApiKeyPermissions" style="padding:0.625rem;border:1px solid hsl(var(--border));border-radius:var(--radius)"></div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-bottom:1rem">
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active From</label>
+          <input type="date" id="newApiKeyActiveFrom" style="width:100%">
+        </div>
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active Until</label>
+          <input type="date" id="newApiKeyActiveUntil" style="width:100%">
+        </div>
+      </div>
+      <div id="newApiKeyRevealSection" style="display:none;margin-bottom:1rem">
+        <p style="font-size:0.85rem;font-weight:500;color:hsl(var(--foreground));margin-bottom:0">API Key</p>
+        <div class="passphrase-box select-none" id="newApiKeyOutput" onclick="copyNewApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+        <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem">Click to copy · Will not be shown again</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="addApiKeyCancelBtn" onclick="closeAddApiKeyModal()">Cancel</button>
+        <button class="btn btn-primary" id="addApiKeyBtn" onclick="createApiKey()"><span class="btn-label">Create Key</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Key rotate/reveal modal -->
+  <div class="modal-backdrop" id="apiKeyRevealModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:0.5rem">New API Key</h3>
+      <p id="apiKeyRevealDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:0"></p>
+      <div class="passphrase-box select-none" id="apiKeyRevealOutput" onclick="copyRotatedApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+      <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem;margin-bottom:1.25rem;text-align:center">Click to copy · Will not be shown again</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeApiKeyRevealModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit API Key permissions modal -->
+  <div class="modal-backdrop" id="editApiKeyPermissionsModal" style="display:none">
+    <div class="modal" style="max-width:520px">
+      <h3 style="margin-bottom:0.5rem">Edit Permissions</h3>
+      <p id="editApiKeyPermissionsDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1rem"></p>
+      <div id="editApiKeyPermissionsList" style="padding:0.625rem;border:1px solid hsl(var(--border));border-radius:var(--radius);margin-bottom:1.25rem"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeEditApiKeyPermissionsModal()">Cancel</button>
+        <button class="btn btn-primary" id="editApiKeyPermissionsSaveBtn" onclick="saveApiKeyPermissions()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit API Key dates modal -->
+  <div class="modal-backdrop" id="editApiKeyDatesModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:0.5rem">Edit Validity Window</h3>
+      <p id="editApiKeyDatesDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1rem"></p>
+      <div style="display:flex;gap:1rem;margin-bottom:1.25rem">
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active From</label>
+          <input type="date" id="editApiKeyActiveFrom" style="width:100%">
+        </div>
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active Until</label>
+          <input type="date" id="editApiKeyActiveUntil" style="width:100%">
+        </div>
+      </div>
+      <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.5rem;margin-bottom:1.25rem">Leave both blank for no time restriction.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeEditApiKeyDatesModal()">Cancel</button>
+        <button class="btn btn-primary" id="editApiKeyDatesSaveBtn" onclick="saveApiKeyDates()"><span class="btn-label">Save</span><span class="spinner"></span></button>
       </div>
     </div>
   </div>

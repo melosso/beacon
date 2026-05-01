@@ -20,6 +20,7 @@ public static class DatabaseMigrator
         MigrateUsers(db);
         MigrateWorkflowTasks(db);
         MigrateConsentAuditEntries(db);
+        MigrateApiKeys(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -308,6 +309,28 @@ public static class DatabaseMigrator
             AddColumnIfMissing(db, "NewsletterForms", "RedirectJsEmbed", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfMissing(db, "NewsletterForms", "RedirectFormPost", "INTEGER NOT NULL DEFAULT 1");
             AddColumnIfMissing(db, "NewsletterForms", "DisableRedirects", "INTEGER NOT NULL DEFAULT 0");
+        }
+    }
+
+    private static void MigrateApiKeys(BeaconDbContext db)
+    {
+        if (!TableExists(db, "ApiKeys"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE ApiKeys (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Name TEXT NOT NULL,
+                    KeyHash TEXT NOT NULL,
+                    Permissions TEXT NOT NULL DEFAULT '[]',
+                    IsEnabled INTEGER NOT NULL DEFAULT 1,
+                    ActiveFrom TEXT NULL,
+                    ActiveUntil TEXT NULL,
+                    CreatedAt TEXT NOT NULL,
+                    UpdatedAt TEXT NULL,
+                    LastUsedAt TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_ApiKeys_KeyHash ON ApiKeys (KeyHash)");
         }
     }
 }

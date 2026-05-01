@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -15,6 +16,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
     private const string ApiKeyHeader = "X-Api-Key";
     private static readonly TimeSpan LoginWriteCooldown = TimeSpan.FromMinutes(5);
     private static readonly ConcurrentDictionary<Guid, DateTime> _lastLoginWrite = new();
+    private static readonly ConcurrentDictionary<Guid, DateTime> _lastKeyUsedWrite = new();
     private readonly IServiceScopeFactory _scopeFactory;
 
     public ApiKeyAuthHandler(
@@ -62,6 +64,30 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
             }
         }
 
+        // 3. Check named API keys table (RBAC with optional validity window)
+        var apiKeyRepo = scope.ServiceProvider.GetService<IApiKeyRepository>();
+        if (apiKeyRepo != null)
+        {
+            var keyHash = ApiKeyGenerator.ComputeHash(providedKey);
+            var apiKey = await apiKeyRepo.FindByKeyHashAsync(keyHash);
+            if (apiKey != null && apiKey.IsEnabled)
+            {
+                var now = DateTime.UtcNow;
+                if (apiKey.ActiveFrom.HasValue && now < apiKey.ActiveFrom.Value)
+                    return AuthenticateResult.Fail("API key not yet active");
+                if (apiKey.ActiveUntil.HasValue && now > apiKey.ActiveUntil.Value)
+                    return AuthenticateResult.Fail("API key expired");
+
+                var perms = JsonSerializer.Deserialize<string[]>(apiKey.Permissions) ?? [];
+                if (perms.Contains("_none"))
+                    return AuthenticateResult.Fail("API key has no permissions");
+
+                Logger.LogDebug("Named API key authenticated: {Name}", apiKey.Name);
+                UpdateLastKeyUsedWithCooldown(apiKey.Id);
+                return BuildSuccessWithPermissions(apiKey.Name, perms);
+            }
+        }
+
         Logger.LogWarning("Invalid API key attempt from {RemoteIp}", Context.Connection.RemoteIpAddress);
         return AuthenticateResult.Fail("Invalid API key");
     }
@@ -86,6 +112,26 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         });
     }
 
+    private void UpdateLastKeyUsedWithCooldown(Guid keyId)
+    {
+        var now = DateTime.UtcNow;
+        if (_lastKeyUsedWrite.TryGetValue(keyId, out var last) && now - last < LoginWriteCooldown)
+            return;
+
+        _lastKeyUsedWrite[keyId] = now;
+        var scopeFactory = _scopeFactory;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var r = scope.ServiceProvider.GetRequiredService<IApiKeyRepository>();
+                await r.UpdateLastUsedAsync(keyId);
+            }
+            catch { /* best-effort */ }
+        });
+    }
+
     private AuthenticateResult BuildSuccess(string name, string role)
     {
         var claims = new[]
@@ -93,6 +139,22 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
             new Claim(ClaimTypes.Name, name),
             new Claim(ClaimTypes.Role, role)
         };
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, Scheme.Name);
+        return AuthenticateResult.Success(ticket);
+    }
+
+    private AuthenticateResult BuildSuccessWithPermissions(string name, string[] permissions)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Name, name),
+            new(ClaimTypes.Role, "apikey")
+        };
+        foreach (var p in permissions)
+            claims.Add(new Claim("beacon:permission", p));
+
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
