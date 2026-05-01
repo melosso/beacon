@@ -20,6 +20,7 @@ public class BeaconDbContext : DbContext
     public DbSet<EmailQueueEntry> EmailQueueEntries => Set<EmailQueueEntry>();
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
     public DbSet<ConsentAuditEntry> ConsentAuditEntries => Set<ConsentAuditEntry>();
 
@@ -176,6 +177,25 @@ public class BeaconDbContext : DbContext
                 .IsUnique();
 
             entity.HasIndex(e => e.ApiKeyHash)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(e => e.KeyHash)
+                .HasMaxLength(64)
+                .IsRequired();
+
+            entity.Property(e => e.Permissions)
+                .IsRequired();
+
+            entity.HasIndex(e => e.KeyHash)
                 .IsUnique();
         });
 

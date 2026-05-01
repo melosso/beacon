@@ -1935,3 +1935,78 @@ label.settings-item-card .tooltip-wrapper,
     .settings-item-control .toggle-track::after { transition: transform 0.1s linear; }
     .btn { transition: none; }
 }
+
+/* ── Management page delight ─────────────────────────────── */
+
+/* Passphrase box: hover affordance */
+.passphrase-box[onclick] {
+    border: 1px solid transparent;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+.passphrase-box[onclick]:hover {
+    border-color: hsl(var(--border));
+}
+
+/* New key reveal: amber pulse — "this is precious, copy it now" */
+@keyframes keyReveal {
+    0%   { box-shadow: 0 0 0 0 hsl(var(--warning) / 0.55); }
+    60%  { box-shadow: 0 0 0 7px hsl(var(--warning) / 0.08); }
+    100% { box-shadow: 0 0 0 0 hsl(var(--warning) / 0); }
+}
+.passphrase-box.key-new {
+    animation: keyReveal 1s ease-out;
+}
+
+/* Copy: brief success flash on the box itself */
+@keyframes copyFlash {
+    0%   { background: hsl(var(--success) / 0.18); }
+    100% { background: hsl(var(--muted)); }
+}
+.passphrase-box.key-copied {
+    animation: copyFlash 0.55s ease-out;
+}
+
+/* Table row entry: staggered fade-up on render */
+@keyframes rowEntry {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+#apiKeysBody tr, #usersBody tr {
+    animation: rowEntry 0.15s ease-out both;
+}
+
+/* Checkbox cascade pulse when _all toggles siblings */
+@keyframes cbPulse {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+.cb-flash { animation: cbPulse 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Empty state inside table */
+.table-empty-state {
+    padding: 3rem 2rem;
+    text-align: center;
+}
+.table-empty-state svg {
+    display: block;
+    margin: 0 auto 0.75rem;
+    opacity: 0.25;
+}
+.table-empty-state p { margin: 0; }
+.table-empty-state .empty-title {
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+}
+.table-empty-state .empty-sub {
+    font-size: 0.8rem;
+    color: hsl(var(--muted-foreground));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .passphrase-box.key-new,
+    .passphrase-box.key-copied,
+    #apiKeysBody tr,
+    #usersBody tr,
+    .cb-flash { animation: none; }
+}

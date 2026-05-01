@@ -198,6 +198,28 @@ try
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("Admin", policy => policy.RequireRole("admin"));
+
+        foreach (var (policyName, scope) in new[]
+        {
+            ("ConsentRead",      "consent:read"),
+            ("ConsentWrite",     "consent:write"),
+            ("TokensWrite",      "tokens:write"),
+            ("BucketsRead",      "buckets:read"),
+            ("BucketsWrite",     "buckets:write"),
+            ("SubmissionsRead",  "submissions:read"),
+            ("SubmissionsWrite", "submissions:write"),
+            ("AuditRead",        "audit:read"),
+            ("WebhooksRead",     "webhooks:read"),
+            ("WebhooksWrite",    "webhooks:write"),
+        })
+        {
+            var capturedScope = scope;
+            options.AddPolicy(policyName, p => p.RequireAssertion(ctx =>
+                ctx.User.IsInRole("admin") ||
+                ctx.User.IsInRole("user") ||
+                ctx.User.HasClaim("beacon:permission", "_all") ||
+                ctx.User.HasClaim("beacon:permission", capturedScope)));
+        }
     });
     builder.Services.AddEndpointsApiExplorer();
 
@@ -391,6 +413,7 @@ try
     app.MapAdminEndpoints();
     app.MapAuthEndpoints();
     app.MapUserEndpoints();
+    app.MapApiKeyEndpoints();
     app.MapSubmissionEndpoints();
 
     // Health check endpoint

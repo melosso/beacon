@@ -33,6 +33,7 @@ public static class StorageConfiguration
             }
         });
 
+        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
         services.AddScoped<IEmailQueueRepository, EmailQueueRepository>();
         services.AddScoped<IBucketOptionsRepository, BucketOptionsRepository>();
         services.AddScoped<IEmailSenderService, EmailSenderService>();
