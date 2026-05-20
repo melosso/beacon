@@ -20,7 +20,7 @@ public sealed class AdminNotificationService : IAdminNotificationService
     private readonly List<Channel<WebhookErrorNotification>> _webhookSubscribers = [];
     private readonly List<Channel<object>> _allSubscribers = [];
 
-    public async Task PublishAsync(WebhookErrorNotification notification)
+    public Task PublishAsync(WebhookErrorNotification notification)
     {
         List<Channel<WebhookErrorNotification>> webhookSnapshot;
         List<Channel<object>> allSnapshot;
@@ -31,19 +31,15 @@ public sealed class AdminNotificationService : IAdminNotificationService
         }
 
         foreach (var channel in webhookSnapshot)
-        {
             channel.Writer.TryWrite(notification);
-        }
 
         foreach (var channel in allSnapshot)
-        {
             channel.Writer.TryWrite(notification);
-        }
 
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
-    public async Task PublishConsentUpdateAsync(ConsentUpdateNotification notification)
+    public Task PublishConsentUpdateAsync(ConsentUpdateNotification notification)
     {
         List<Channel<object>> snapshot;
         lock (_lock)
@@ -52,11 +48,9 @@ public sealed class AdminNotificationService : IAdminNotificationService
         }
 
         foreach (var channel in snapshot)
-        {
             channel.Writer.TryWrite(notification);
-        }
 
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<WebhookErrorNotification> SubscribeAsync(

@@ -36,36 +36,74 @@ public sealed class ConsentRepository : IConsentRepository
         }
         else
         {
-            existing.Status = record.Status;
-            existing.Source = record.Source;
-            existing.ChangedAt = record.ChangedAt;
-            existing.TokenHash = record.TokenHash;
-            existing.ExpiresAt = record.ExpiresAt;
-            existing.EncryptedEmail ??= record.EncryptedEmail;
-            if (record.CustomFields is not null)
-            {
-                existing.CustomFields = record.CustomFields;
-            }
+            ApplyUpdate(existing, record);
         }
 
         if (oldStatus != record.Status)
-        {
-            _context.ConsentAuditEntries.Add(new ConsentAuditEntry
-            {
-                Id = Guid.NewGuid(),
-                Bucket = record.Bucket,
-                EmailHash = record.EmailHash,
-                Permission = record.Permission,
-                OldStatus = oldStatus,
-                NewStatus = record.Status,
-                Source = record.Source,
-                ActorId = actorId,
-                ChangedAt = record.ChangedAt,
-                IpAddress = record.IpAddress
-            });
-        }
+            _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId));
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            // Lost the concurrent-insert race: reload and apply as update.
+            _context.ChangeTracker.Clear();
+
+            var winner = await _context.ConsentRecords
+                .FirstOrDefaultAsync(r
+                    => r.Bucket == record.Bucket
+                    && r.EmailHash == record.EmailHash
+                    && r.Permission == record.Permission);
+
+            if (winner is null) throw;
+
+            var prevStatus = winner.Status;
+            ApplyUpdate(winner, record);
+
+            if (prevStatus != record.Status)
+                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, prevStatus, actorId));
+
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private static void ApplyUpdate(ConsentRecord target, ConsentRecord src)
+    {
+        target.Status = src.Status;
+        target.Source = src.Source;
+        target.ChangedAt = src.ChangedAt;
+        target.TokenHash = src.TokenHash;
+        target.ExpiresAt = src.ExpiresAt;
+        target.EncryptedEmail ??= src.EncryptedEmail;
+        if (src.CustomFields is not null)
+            target.CustomFields = src.CustomFields;
+    }
+
+    private static ConsentAuditEntry BuildAuditEntry(ConsentRecord record, ConsentStatus? oldStatus, string? actorId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Bucket = record.Bucket,
+            EmailHash = record.EmailHash,
+            Permission = record.Permission,
+            OldStatus = oldStatus,
+            NewStatus = record.Status,
+            Source = record.Source,
+            ActorId = actorId,
+            ChangedAt = record.ChangedAt,
+            IpAddress = record.IpAddress
+        };
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    {
+        var msg = ex.InnerException?.Message;
+        if (msg is null) return false;
+        return msg.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)  // SQLite
+            || msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase)              // SQL Server
+            || msg.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase)            // MySQL
+            || msg.Contains("unique constraint", StringComparison.OrdinalIgnoreCase);         // PostgreSQL
     }
 
     public async Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(
