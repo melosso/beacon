@@ -18,6 +18,14 @@ public class RateLimitingMiddleware
     public async Task InvokeAsync(HttpContext context)
     {
         var clientIp = GetClientIdentifier(context);
+
+        // Loopback traffic is trusted dev/seed traffic; skip rate limiting.
+        if (IsLoopback(clientIp))
+        {
+            await _next(context);
+            return;
+        }
+
         var now = DateTime.UtcNow;
 
         // Check path-specific strict limits first
@@ -84,11 +92,12 @@ public class RateLimitingMiddleware
     {
         var forwarded = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrEmpty(forwarded))
-        {
             return forwarded.Split(',')[0].Trim();
-        }
         return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
+
+    private static bool IsLoopback(string ip) =>
+        ip is "127.0.0.1" or "::1" or "localhost" or "unknown";
 
     private void CleanupOldEntries(DateTime now)
     {
