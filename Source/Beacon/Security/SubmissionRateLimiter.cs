@@ -17,10 +17,10 @@ public sealed class SubmissionRateLimiter
             _ => [now],
             (_, existing) =>
             {
-                // Remove expired entries
-                existing.RemoveAll(t => now - t > window);
-                existing.Add(now);
-                return existing;
+                // New list per call: factory runs concurrently; List<T> is not thread-safe.
+                var filtered = existing.Where(t => now - t <= window).ToList();
+                filtered.Add(now);
+                return filtered;
             });
 
         // Cleanup old keys periodically

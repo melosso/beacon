@@ -563,24 +563,23 @@ public static class AdminEndpoints
     {
         var buckets = await repository.GetBucketsAsync();
         var explicitBucketNames = await bucketRepository.GetAllBucketNamesAsync();
+        var allExplicitPerms = await bucketRepository.GetAllPermissionsGroupedAsync();
+        var archivedBuckets = await bucketRepository.GetArchivedBucketsAsync();
         var result = new List<object>();
         var seen = new HashSet<string>();
 
         foreach (var b in buckets)
         {
             seen.Add(b.Name);
-            var explicitPerms = await bucketRepository.GetPermissionsAsync(b.Name);
+            var explicitPerms = allExplicitPerms.TryGetValue(b.Name, out var ep) ? ep : [];
             var mergedPerms = b.Permissions.Union(explicitPerms).OrderBy(p => p).ToList();
-            var isArchived = await bucketRepository.IsArchivedAsync(b.Name);
-            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, permissions = mergedPerms, isArchived });
+            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, permissions = mergedPerms, isArchived = archivedBuckets.Contains(b.Name) });
         }
 
-        // Include buckets that only exist in BucketPermissions (no consent records yet)
         foreach (var name in explicitBucketNames.Where(n => !seen.Contains(n)))
         {
-            var explicitPerms = await bucketRepository.GetPermissionsAsync(name);
-            var isArchived = await bucketRepository.IsArchivedAsync(name);
-            result.Add(new { name, totalEmails = 0, permissions = (IReadOnlyList<string>)explicitPerms, isArchived });
+            var explicitPerms = allExplicitPerms.TryGetValue(name, out var ep) ? ep : (IReadOnlyList<string>)[];
+            result.Add(new { name, totalEmails = 0, permissions = explicitPerms, isArchived = archivedBuckets.Contains(name) });
         }
 
         return Results.Ok(result.OrderBy(r => ((dynamic)r).name));
@@ -666,7 +665,7 @@ public static class AdminEndpoints
         {
             var searchLower = search.ToLowerInvariant();
             records = records.Where(r =>
-                r.Email != null && r.Email.ToLowerInvariant().Contains(searchLower)
+                r.Email != null && r.Email.Contains(searchLower, StringComparison.OrdinalIgnoreCase)
             ).ToList();
             total = records.Count;
         }

@@ -95,16 +95,26 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<IReadOnlyList<BucketInfo>> GetBucketsAsync()
     {
-        // Load data first, then group in memory (SQLite doesn't support APPLY)
-        var records = await _context.ConsentRecords.ToListAsync();
-
-        return records
+        var summaries = await _context.ConsentRecords
             .GroupBy(r => r.Bucket)
-            .Select(g => new BucketInfo
+            .Select(g => new { Name = g.Key, TotalEmails = g.Select(r => r.EmailHash).Distinct().Count() })
+            .ToListAsync();
+
+        var permRows = await _context.ConsentRecords
+            .Select(r => new { r.Bucket, r.Permission })
+            .Distinct()
+            .ToListAsync();
+
+        var permsByBucket = permRows
+            .GroupBy(x => x.Bucket)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(x => x.Permission).OrderBy(p => p).ToList());
+
+        return summaries
+            .Select(s => new BucketInfo
             {
-                Name = g.Key,
-                TotalEmails = g.Select(r => r.EmailHash).Distinct().Count(),
-                Permissions = g.Select(r => r.Permission).Distinct().OrderBy(p => p).ToList()
+                Name = s.Name,
+                TotalEmails = s.TotalEmails,
+                Permissions = permsByBucket.TryGetValue(s.Name, out var perms) ? perms : []
             })
             .OrderBy(b => b.Name)
             .ToList();
@@ -134,50 +144,62 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
     {
-        // Get all records for this bucket
-        var bucketRecords = await _context.ConsentRecords
-            .Where(r => r.Bucket == bucket)
+        var baseQuery = _context.ConsentRecords.Where(r => r.Bucket == bucket);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLowerInvariant();
+            baseQuery = baseQuery.Where(r => r.EmailHash.StartsWith(searchLower));
+        }
+
+        // Group at DB level to get one row per identity with a sort key.
+        var grouped = baseQuery
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new { EmailHash = g.Key, LastChanged = g.Max(r => r.ChangedAt) });
+
+        var total = await grouped.CountAsync();
+
+        var ordered = sortBy?.ToLowerInvariant() switch
+        {
+            "email" => sortDir == "asc"
+                ? grouped.OrderBy(g => g.EmailHash)
+                : grouped.OrderByDescending(g => g.EmailHash),
+            "lastchanged" => sortDir == "asc"
+                ? grouped.OrderBy(g => g.LastChanged)
+                : grouped.OrderByDescending(g => g.LastChanged),
+            _ => grouped.OrderByDescending(g => g.LastChanged)
+        };
+
+        var hashPage = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        // Group by email hash and build permission dictionary
-        var emailGroups = bucketRecords
+        if (hashPage.Count == 0)
+            return new PagedResult<EmailPermissions> { Records = [], Total = total, Page = page, PageSize = pageSize };
+
+        var emailHashes = hashPage.Select(h => h.EmailHash).ToList();
+
+        // Load records for this page only.
+        var pageRecords = await _context.ConsentRecords
+            .Where(r => r.Bucket == bucket && emailHashes.Contains(r.EmailHash))
+            .ToListAsync();
+
+        var emailGroups = pageRecords
             .GroupBy(r => r.EmailHash)
-            .Select(g => new EmailPermissions
+            .ToDictionary(g => g.Key, g => new EmailPermissions
             {
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
-            })
-            .ToList();
+            });
 
-        // Filter by search (matches emailHash prefix which is the ID shown in logs)
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLowerInvariant();
-            emailGroups = emailGroups
-                .Where(e => e.EmailHash.StartsWith(searchLower, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
-
-        // Apply sorting
-        IEnumerable<EmailPermissions> sorted = sortBy?.ToLowerInvariant() switch
-        {
-            "email" => sortDir == "asc"
-                ? emailGroups.OrderBy(e => e.EmailHash)
-                : emailGroups.OrderByDescending(e => e.EmailHash),
-            "lastchanged" => sortDir == "asc"
-                ? emailGroups.OrderBy(e => e.LastChanged)
-                : emailGroups.OrderByDescending(e => e.LastChanged),
-            _ => emailGroups.OrderByDescending(e => e.LastChanged) // Default sort
-        };
-
-        var sortedList = sorted.ToList();
-        var total = sortedList.Count;
-        var pagedRecords = sortedList
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+        // Preserve DB sort order.
+        var pagedRecords = hashPage
+            .Where(h => emailGroups.ContainsKey(h.EmailHash))
+            .Select(h => emailGroups[h.EmailHash])
             .ToList();
 
         return new PagedResult<EmailPermissions>
@@ -313,6 +335,8 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync()
     {
+        // Capped: encrypted values cannot be searched in SQL, so we decrypt in memory.
+        // 10k is a pragmatic upper bound to prevent unbounded work.
         var rows = await _context.ConsentRecords
             .GroupBy(r => r.EmailHash)
             .Select(g => new
@@ -320,6 +344,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EmailHash = g.Key,
                 EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
             })
+            .Take(10_000)
             .ToListAsync();
 
         return rows.Select(r => (r.EmailHash, r.EncryptedEmail)).ToList();

@@ -8,6 +8,8 @@ public interface IBucketRepository
     Task<bool> AddPermissionAsync(string bucket, string permission);
     Task<IReadOnlyList<string>> GetPermissionsAsync(string bucket);
     Task<IReadOnlyList<string>> GetAllBucketNamesAsync();
+    Task<Dictionary<string, List<string>>> GetAllPermissionsGroupedAsync();
+    Task<HashSet<string>> GetArchivedBucketsAsync();
     Task RemovePermissionAsync(string bucket, string permission);
     Task DeleteBucketAsync(string bucket);
     Task<IDisposable> BeginTransactionAsync();

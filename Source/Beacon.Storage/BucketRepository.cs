@@ -76,6 +76,26 @@ public class BucketRepository : IBucketRepository
             .ToListAsync();
     }
 
+    public async Task<Dictionary<string, List<string>>> GetAllPermissionsGroupedAsync()
+    {
+        var rows = await _db.BucketPermissions
+            .Select(bp => new { bp.Bucket, bp.Permission })
+            .OrderBy(bp => bp.Permission)
+            .ToListAsync();
+
+        return rows
+            .GroupBy(bp => bp.Bucket)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Permission).ToList());
+    }
+
+    public async Task<HashSet<string>> GetArchivedBucketsAsync()
+    {
+        return (await _db.ArchivedBuckets
+            .Select(a => a.Bucket)
+            .ToListAsync())
+            .ToHashSet();
+    }
+
     public async Task RemovePermissionAsync(string bucket, string permission)
     {
         var entry = await _db.BucketPermissions.FindAsync(bucket, permission);
