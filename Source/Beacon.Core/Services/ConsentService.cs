@@ -59,7 +59,9 @@ public sealed class ConsentService : IConsentService
         }
     }
 
-    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? actorId = null)
+    public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status,
+        string? customFieldsJson = null, string? actorId = null,
+        ConsentSource source = ConsentSource.Admin, string? ipAddress = null, string? consentText = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -75,46 +77,46 @@ public sealed class ConsentService : IConsentService
             EncryptedEmail = encryptedEmail,
             Permission = normalizedPermission,
             Status = status,
-            Source = ConsentSource.Admin,
-            ChangedAt = DateTime.UtcNow,
-            CustomFields = customFieldsJson
-        };
-
-        await _repository.UpsertAsync(record, actorId);
-    }
-
-    public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status, string? customFieldsJson = null, string? ipAddress = null, string? consentText = null)
-    {
-        var normalizedBucket = NormalizeBucket(bucket);
-        var normalizedEmail = email.Trim().ToLowerInvariant();
-        var emailHash = _emailHasher.Hash(normalizedEmail);
-        var normalizedPermission = NormalizePermission(permission);
-
-        // Check if record already exists, if so I'll preserve user's choice
-        var existing = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
-        if (existing is not null)
-        {
-            return false;
-        }
-
-        // Record doesn't exist, create it
-        var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
-        var record = new ConsentRecord
-        {
-            Id = Guid.NewGuid(),
-            Bucket = normalizedBucket,
-            EmailHash = emailHash,
-            EncryptedEmail = encryptedEmail,
-            Permission = normalizedPermission,
-            Status = status,
-            Source = ConsentSource.Admin,
+            Source = source,
             ChangedAt = DateTime.UtcNow,
             CustomFields = customFieldsJson,
             IpAddress = ipAddress,
             ConsentText = consentText
         };
 
-        await _repository.UpsertAsync(record);
+        await _repository.UpsertAsync(record, actorId);
+    }
+
+    public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status,
+        string? customFieldsJson = null, string? ipAddress = null, string? consentText = null,
+        ConsentSource source = ConsentSource.Admin, string? actorId = null)
+    {
+        var normalizedBucket = NormalizeBucket(bucket);
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var emailHash = _emailHasher.Hash(normalizedEmail);
+        var normalizedPermission = NormalizePermission(permission);
+
+        var existing = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
+        if (existing is not null)
+            return false;
+
+        var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
+        var record = new ConsentRecord
+        {
+            Id = Guid.NewGuid(),
+            Bucket = normalizedBucket,
+            EmailHash = emailHash,
+            EncryptedEmail = encryptedEmail,
+            Permission = normalizedPermission,
+            Status = status,
+            Source = source,
+            ChangedAt = DateTime.UtcNow,
+            CustomFields = customFieldsJson,
+            IpAddress = ipAddress,
+            ConsentText = consentText
+        };
+
+        await _repository.UpsertAsync(record, actorId);
         return true;
     }
 

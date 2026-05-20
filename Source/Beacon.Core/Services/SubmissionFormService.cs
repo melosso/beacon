@@ -105,7 +105,10 @@ public sealed class SubmissionFormService : ISubmissionFormService
                 normalizedEmail,
                 permission,
                 ConsentStatus.OptedIn,
-                customFieldsJson: resolvedCustomFields);
+                customFieldsJson: resolvedCustomFields,
+                source: ConsentSource.Api,
+                ipAddress: ipAddress,
+                consentText: consentText);
         }
 
         // Increment submission count

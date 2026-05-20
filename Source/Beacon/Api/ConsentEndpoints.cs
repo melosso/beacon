@@ -223,7 +223,9 @@ public static class ConsentEndpoints
                             result.Payload.Bucket,
                             result.Payload.Email,
                             permission,
-                            ConsentStatus.OptedIn);
+                            ConsentStatus.OptedIn,
+                            source: ConsentSource.Url,
+                            ipAddress: ipAddress);
                     }
                     keptIn.Add(permission);
                 }
@@ -315,7 +317,8 @@ public static class ConsentEndpoints
         var permissions = entry.Permission.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var permission in permissions)
         {
-            await consentService.OverrideAsync(entry.Bucket, email, permission, ConsentStatus.OptedIn);
+            await consentService.OverrideAsync(entry.Bucket, email, permission, ConsentStatus.OptedIn,
+                source: ConsentSource.Api);
         }
 
         await emailQueue.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);

@@ -434,13 +434,15 @@ public static class AdminEndpoints
                     if (request.SkipPermissionUpdate)
                     {
                         // Only insert if record doesn't exist, preserving existing user preferences
-                        var created = await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson);
+                        var created = await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson,
+                            source: ConsentSource.Api, actorId: actorId);
                         if (created) hasChanges = true;
                     }
                     else
                     {
                         // Always upsert (insert or update)
-                        await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson, actorId);
+                        await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson, actorId,
+                            source: ConsentSource.Api);
                         hasChanges = true;
                     }
                 }
