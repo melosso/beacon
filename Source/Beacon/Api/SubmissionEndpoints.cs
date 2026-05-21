@@ -451,7 +451,7 @@ public static class SubmissionEndpoints
         }
 
         var privacyHtml = "";
-        if (!string.IsNullOrWhiteSpace(form.PrivacyPolicyUrl))
+        if (InputValidator.IsHttpUrl(form.PrivacyPolicyUrl))
         {
             privacyHtml = $"""<div class="privacy-link"><a href="{WebUtility.HtmlEncode(form.PrivacyPolicyUrl)}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></div>""";
         }
@@ -467,8 +467,8 @@ public static class SubmissionEndpoints
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body {
                   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                  background: {{WebUtility.HtmlEncode(config.BackgroundColor ?? "#ffffff")}};
-                  color: {{WebUtility.HtmlEncode(config.TextColor ?? "#111111")}};
+                  background: {{InputValidator.SanitizeCssColor(config.BackgroundColor, "#ffffff")}};
+                  color: {{InputValidator.SanitizeCssColor(config.TextColor, "#111111")}};
                   padding: 20px;
                 }
                 .container { max-width: 480px; margin: 0 auto; }
@@ -479,17 +479,17 @@ public static class SubmissionEndpoints
                   flex: 1;
                   padding: 10px 14px;
                   border: 1px solid #d1d5db;
-                  border-radius: {{WebUtility.HtmlEncode(config.BorderRadius ?? "8px")}};
+                  border-radius: {{InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px")}};
                   font-size: 0.95rem;
                   outline: none;
                 }
-                input[type="email"]:focus { border-color: {{WebUtility.HtmlEncode(config.PrimaryColor ?? "#2563eb")}}; }
+                input[type="email"]:focus { border-color: {{InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb")}}; }
                 button {
                   padding: 10px 20px;
-                  background: {{WebUtility.HtmlEncode(config.PrimaryColor ?? "#2563eb")}};
+                  background: {{InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb")}};
                   color: #fff;
                   border: none;
-                  border-radius: {{WebUtility.HtmlEncode(config.BorderRadius ?? "8px")}};
+                  border-radius: {{InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px")}};
                   font-size: 0.95rem;
                   font-weight: 500;
                   cursor: pointer;
@@ -617,11 +617,16 @@ public static class SubmissionEndpoints
         }
 
         var privacyJs = "";
-        if (!string.IsNullOrWhiteSpace(form.PrivacyPolicyUrl))
+        if (InputValidator.IsHttpUrl(form.PrivacyPolicyUrl))
         {
             var escapedUrl = JsonSerializer.Serialize(form.PrivacyPolicyUrl).Trim('"');
             privacyJs = $"var pDiv=document.createElement('div');pDiv.className='privacy-link';var pA=document.createElement('a');pA.href=\"{escapedUrl}\";pA.target='_blank';pA.rel='noopener noreferrer';pA.textContent='Privacy Policy';pDiv.appendChild(pA);f.appendChild(pDiv);";
         }
+
+        var safeBg      = InputValidator.SanitizeCssColor(config.BackgroundColor, "#ffffff");
+        var safeText    = InputValidator.SanitizeCssColor(config.TextColor, "#111111");
+        var safePrimary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
+        var safeRadius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
 
         var js = $$"""
             (function(){
@@ -634,13 +639,13 @@ public static class SubmissionEndpoints
               style.textContent = `
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 :host { display: block; font-family: system-ui, -apple-system, sans-serif; }
-                .container { background: ${cfg.backgroundColor||'#ffffff'}; color: ${cfg.textColor||'#111111'}; padding: 16px; }
+                .container { background: {{safeBg}}; color: {{safeText}}; padding: 16px; }
                 h2 { font-size: 1.25rem; margin-bottom: 8px; font-weight: 600; }
                 .description { font-size: 0.9rem; opacity: 0.75; margin-bottom: 16px; }
                 .form-row { display: flex; gap: 8px; }
-                input[type="email"] { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: ${cfg.borderRadius||'8px'}; font-size: 0.95rem; outline: none; }
-                input[type="email"]:focus { border-color: ${cfg.primaryColor||'#2563eb'}; }
-                button { padding: 10px 20px; background: ${cfg.primaryColor||'#2563eb'}; color: #fff; border: none; border-radius: ${cfg.borderRadius||'8px'}; font-size: 0.95rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+                input[type="email"] { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: {{safeRadius}}; font-size: 0.95rem; outline: none; }
+                input[type="email"]:focus { border-color: {{safePrimary}}; }
+                button { padding: 10px 20px; background: {{safePrimary}}; color: #fff; border: none; border-radius: {{safeRadius}}; font-size: 0.95rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
                 button:hover { opacity: 0.9; }
                 button:disabled { opacity: 0.6; cursor: not-allowed; }
                 .message { margin-top: 12px; font-size: 0.9rem; }

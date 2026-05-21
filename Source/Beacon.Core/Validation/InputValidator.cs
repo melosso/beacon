@@ -250,6 +250,31 @@ public static partial class InputValidator
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex PermissionPattern();
 
+    /// <summary>
+    /// Returns true only when the URL uses http or https. Rejects javascript:, data:, and any other scheme
+    /// that could execute code when placed in an href attribute.
+    /// </summary>
+    public static bool IsHttpUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        return Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    /// <summary>
+    /// Returns <paramref name="value"/> if it passes the CSS color or border-radius allow-list regex;
+    /// otherwise returns <paramref name="fallback"/>. Use at render time to defend against stored CSS injection.
+    /// </summary>
+    public static string SanitizeCssColor(string? value, string fallback) =>
+        !string.IsNullOrWhiteSpace(value) && (HexColorPattern().IsMatch(value) || RgbFunctionPattern().IsMatch(value))
+            ? value
+            : fallback;
+
+    public static string SanitizeCssBorderRadius(string? value, string fallback) =>
+        !string.IsNullOrWhiteSpace(value) && BorderRadiusPattern().IsMatch(value)
+            ? value
+            : fallback;
+
     [GeneratedRegex(@"^#[0-9a-fA-F]{3,8}$")]
     private static partial Regex HexColorPattern();
 
