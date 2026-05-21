@@ -181,8 +181,7 @@ public class ApiKeyGeneratorTests
     }
 }
 
-// ── JwtAuthHandler — role claim ───────────────────────────────────────────────
-
+// JwtAuthHandler 
 public class JwtRoleTests
 {
     // 32-byte signing key (base64-encoded for NormalizeKey compatibility)

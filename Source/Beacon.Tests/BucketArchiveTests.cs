@@ -23,7 +23,7 @@ public class BucketArchiveTests : IDisposable
 
         _db = new BeaconDbContext(options);
         _db.Database.EnsureCreated();
-        _repository = new BucketRepository(_db);
+        _repository = new BucketRepository(_db, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService());
     }
 
     public void Dispose()

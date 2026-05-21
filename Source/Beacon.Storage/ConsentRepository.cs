@@ -93,7 +93,8 @@ public sealed class ConsentRepository : IConsentRepository
             Source = record.Source,
             ActorId = actorId,
             ChangedAt = record.ChangedAt,
-            IpAddress = record.IpAddress
+            IpAddress = record.IpAddress,
+            CustomFields = record.CustomFields
         };
 
     private static bool IsUniqueConstraintViolation(DbUpdateException ex)

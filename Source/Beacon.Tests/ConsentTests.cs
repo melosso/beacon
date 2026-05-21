@@ -16,7 +16,7 @@ public class ConsentTests
     {
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        return new ConsentService(repository, emailHasher, encryptor);
+        return new ConsentService(repository, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
     }
 
     [Fact]

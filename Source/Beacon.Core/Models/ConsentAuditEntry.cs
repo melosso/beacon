@@ -12,4 +12,5 @@ public sealed class ConsentAuditEntry
     public string? ActorId { get; set; }
     public DateTime ChangedAt { get; set; }
     public string? IpAddress { get; set; }
+    public string? CustomFields { get; set; }
 }

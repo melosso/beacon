@@ -191,7 +191,7 @@ public static class UserEndpoints
         var user = await repo.FindByUsernameAsync(username);
         if (user == null)
         {
-            // Global API key / legacy mode — return minimal profile
+            // Global API key / legacy mode
             var role = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
             return Results.Ok(new { id = (Guid?)null, username, role, lastLoginAt = (DateTime?)null });
         }

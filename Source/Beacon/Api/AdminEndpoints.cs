@@ -13,6 +13,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Api;
 
+internal sealed record ObjectStorageTestRequest(
+    string Provider,
+    string Endpoint,
+    string Bucket,
+    string Region,
+    string AccessKey,
+    string SecretKey);
+
 public static class AdminEndpoints
 {
     private const string PermissionTag = "Permission Management";
@@ -134,12 +142,28 @@ public static class AdminEndpoints
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/settings/object-storage/test", TestObjectStorageConnection)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapDelete("/api/admin/cache", FlushCache)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/cache/stats", GetCacheStats)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
         routes.MapGet("/api/admin/buckets/{bucket}/options", GetBucketOptions)
             .RequireAuthorization()
             .ExcludeFromDescription();
 
         routes.MapPut("/api/admin/buckets/{bucket}/options", SaveBucketOptions)
             .RequireAuthorization()
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/buckets/{bucket}/tokens/export", ExportBucketTokens)
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/data-policies/tasks", GetWorkflowTasks)
@@ -486,8 +510,7 @@ public static class AdminEndpoints
                             // Sort permissions so the key is stable regardless of input order.
                             var allPermissions = string.Join(",", optedInPermissions.OrderBy(p => p));
 
-                            // Cancel any previous pending entries — both the combined key and each
-                            // individual permission, to catch entries queued with a different set.
+                            // Cancel any previous pending entries, both the combined key and each individual permission, to catch entries queued with a different set.
                             foreach (var permission in optedInPermissions)
                                 await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
                             await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
@@ -1293,11 +1316,10 @@ public static class AdminEndpoints
         [FromServices] Encryptor encryptor)
     {
         var config = configService.Get();
-        
-        // Mask sensitive fields with descriptive hints
         config.EmailResendApiKey = MaskSecret(encryptor.Decrypt(config.EmailResendApiKey));
         config.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(config.EmailSmtpPassword));
-        
+        config.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageAccessKey));
+        config.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageSecretKey));
         return Results.Ok(config);
     }
 
@@ -1308,35 +1330,103 @@ public static class AdminEndpoints
     {
         var existing = configService.Get();
 
-        // Handle sensitive fields: only update if not submitted as a mask
-        // We compare the submitted value with what the display mask for the EXISTING secret would be
-        var existingResendMask = MaskSecret(encryptor.Decrypt(existing.EmailResendApiKey));
-        if (config.EmailResendApiKey == existingResendMask)
-        {
-            config.EmailResendApiKey = existing.EmailResendApiKey;
-        }
-        else if (!string.IsNullOrEmpty(config.EmailResendApiKey))
-        {
-            config.EmailResendApiKey = encryptor.Encrypt(config.EmailResendApiKey);
-        }
-
-        var existingSmtpMask = MaskSecret(encryptor.Decrypt(existing.EmailSmtpPassword));
-        if (config.EmailSmtpPassword == existingSmtpMask)
-        {
-            config.EmailSmtpPassword = existing.EmailSmtpPassword;
-        }
-        else if (!string.IsNullOrEmpty(config.EmailSmtpPassword))
-        {
-            config.EmailSmtpPassword = encryptor.Encrypt(config.EmailSmtpPassword);
-        }
+        HandleSecret(config, existing, encryptor,
+            c => c.EmailResendApiKey, (c, v) => c.EmailResendApiKey = v);
+        HandleSecret(config, existing, encryptor,
+            c => c.EmailSmtpPassword, (c, v) => c.EmailSmtpPassword = v);
+        HandleSecret(config, existing, encryptor,
+            c => c.ObjectStorageAccessKey, (c, v) => c.ObjectStorageAccessKey = v);
+        HandleSecret(config, existing, encryptor,
+            c => c.ObjectStorageSecretKey, (c, v) => c.ObjectStorageSecretKey = v);
 
         await configService.SaveAsync(config);
-        
+
         var saved = configService.Get();
         saved.EmailResendApiKey = MaskSecret(encryptor.Decrypt(saved.EmailResendApiKey));
         saved.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(saved.EmailSmtpPassword));
-        
+        saved.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageAccessKey));
+        saved.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageSecretKey));
+
         return Results.Ok(saved);
+    }
+
+    private static void HandleSecret(
+        SystemConfig incoming,
+        SystemConfig existing,
+        Encryptor encryptor,
+        Func<SystemConfig, string> getter,
+        Action<SystemConfig, string> setter)
+    {
+        var existingMask = MaskSecret(encryptor.Decrypt(getter(existing)));
+        var submitted = getter(incoming);
+        if (submitted == existingMask)
+            setter(incoming, getter(existing));
+        else if (!string.IsNullOrEmpty(submitted))
+            setter(incoming, encryptor.Encrypt(submitted));
+    }
+
+    private static async Task<IResult> TestObjectStorageConnection(
+        [FromBody] ObjectStorageTestRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            using var client = BuildTestS3Client(request);
+            await client.GetBucketLocationAsync(request.Bucket, ct);
+            sw.Stop();
+
+            return Results.Ok(new
+            {
+                success = true,
+                message = "Connection successful.",
+                latencyMs = (int)sw.ElapsedMilliseconds
+            });
+        }
+        catch (Exception ex)
+        {
+            return Results.Ok(new
+            {
+                success = false,
+                message = ex.Message,
+                latencyMs = 0
+            });
+        }
+    }
+
+    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req)
+    {
+        var credentials = new Amazon.Runtime.BasicAWSCredentials(req.AccessKey, req.SecretKey);
+        var s3Config = new Amazon.S3.AmazonS3Config
+        {
+            ForcePathStyle = req.Provider is "r2" or "minio"
+        };
+        if (!string.IsNullOrWhiteSpace(req.Endpoint))
+            s3Config.ServiceURL = req.Endpoint;
+        else if (!string.IsNullOrWhiteSpace(req.Region))
+            s3Config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(req.Region);
+        return new Amazon.S3.AmazonS3Client(credentials, s3Config);
+    }
+
+    private static async Task<IResult> FlushCache(
+        [FromServices] IBeaconCacheService cache,
+        CancellationToken ct)
+    {
+        await cache.FlushAsync(ct);
+        return Results.NoContent();
+    }
+
+    private static IResult GetCacheStats(
+        [FromServices] IBeaconCacheService cache,
+        [FromServices] ISystemConfigurationService configService)
+    {
+        var cfg = configService.Get();
+        return Results.Ok(new
+        {
+            enabled = cfg.EnableCaching,
+            provider = cfg.EnableCaching ? "memory" : "none",
+            approximateKeyCount = cache.KeyCount
+        });
     }
 
     private static string MaskSecret(string? decryptedValue)
@@ -1370,11 +1460,122 @@ public static class AdminEndpoints
         [FromBody] BucketOptionsRequest request,
         [FromServices] IBucketOptionsRepository repo)
     {
-        await repo.SaveAsync(new BucketOptions { Bucket = bucket, DoubleOptIn = request.DoubleOptIn, UpdatedAt = DateTime.UtcNow });
+        await repo.SaveAsync(new BucketOptions
+        {
+            Bucket = bucket,
+            DoubleOptIn = request.DoubleOptIn,
+            UtmCampaign = string.IsNullOrWhiteSpace(request.UtmCampaign) ? null : request.UtmCampaign.Trim(),
+            UpdatedAt = DateTime.UtcNow
+        });
         return Results.Ok();
     }
 
-    private sealed record BucketOptionsRequest(bool DoubleOptIn);
+    private sealed record BucketOptionsRequest(bool DoubleOptIn, string? UtmCampaign = null);
+
+    private static async Task<IResult> ExportBucketTokens(
+        string bucket,
+        [FromBody] ExportBucketTokensRequest request,
+        [FromServices] IConsentRepository repository,
+        [FromServices] TokenGenerator generator,
+        [FromServices] Encryptor encryptor,
+        [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
+        HttpContext context,
+        CancellationToken ct)
+    {
+        var normalized = bucket.Trim().ToLowerInvariant();
+        var records = await repository.GetAllBucketRecordsAsync(normalized);
+
+        var baseUrl = (instanceOptions.PublicUrl
+            ?? $"{context.Request.Scheme}://{context.Request.Host}").TrimEnd('/');
+
+        var utmParts = new List<string>(3);
+        if (!string.IsNullOrWhiteSpace(request.UtmCampaign))
+            utmParts.Add($"utm_campaign={Uri.EscapeDataString(request.UtmCampaign)}");
+        if (!string.IsNullOrWhiteSpace(request.UtmSource))
+            utmParts.Add($"utm_source={Uri.EscapeDataString(request.UtmSource)}");
+        if (!string.IsNullOrWhiteSpace(request.UtmMedium))
+            utmParts.Add($"utm_medium={Uri.EscapeDataString(request.UtmMedium)}");
+        var qs = utmParts.Count > 0 ? "?" + string.Join("&", utmParts) : string.Empty;
+
+        var tokenOptions = new Tokens.GenerateTokenRequest
+        {
+            AllowReplay = true,
+            ExpiryDays = request.ExpiryDays > 0 ? request.ExpiryDays : 30,
+            Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language
+        };
+
+        var rows = new List<(string Email, string Url)>(records.Count);
+
+        foreach (var record in records)
+        {
+            if (string.IsNullOrEmpty(record.EncryptedEmail)) continue;
+
+            string email;
+            try { email = encryptor.Decrypt(record.EncryptedEmail); }
+            catch { continue; }
+            if (string.IsNullOrWhiteSpace(email)) continue;
+
+            string[] permissionNames;
+            if (!string.IsNullOrEmpty(request.Permission))
+            {
+                if (!record.Permissions.ContainsKey(request.Permission)) continue;
+                permissionNames = [request.Permission];
+            }
+            else
+            {
+                permissionNames = [.. record.Permissions.Keys];
+            }
+
+            if (permissionNames.Length == 0) continue;
+
+            var token = generator.Generate(normalized, email, permissionNames, tokenOptions);
+            rows.Add((email, $"{baseUrl}/u/{token}{qs}"));
+        }
+
+        var format = (request.Format ?? "csv").ToLowerInvariant();
+        var filename = $"unsubscribe-links-{normalized}.{format}";
+        context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
+
+        return format switch
+        {
+            "json" => Results.Json(rows.Select(r => new { email = r.Email, url = r.Url })),
+            "xml"  => Results.Content(BuildXml(rows), "application/xml"),
+            _      => Results.Content(BuildCsv(rows), "text/csv")
+        };
+    }
+
+    private static string BuildCsv(IEnumerable<(string Email, string Url)> rows)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("email,url");
+        foreach (var (email, url) in rows)
+            sb.AppendLine($"{CsvEscape(email)},{CsvEscape(url)}");
+        return sb.ToString();
+    }
+
+    private static string BuildXml(IEnumerable<(string Email, string Url)> rows)
+    {
+        var doc = new System.Xml.Linq.XDocument(
+            new System.Xml.Linq.XElement("subscribers",
+                rows.Select(r => new System.Xml.Linq.XElement("subscriber",
+                    new System.Xml.Linq.XElement("email", r.Email),
+                    new System.Xml.Linq.XElement("url", r.Url)))));
+        return doc.ToString();
+    }
+
+    private static string CsvEscape(string value) =>
+        value.AsSpan().IndexOfAny(',', '"', '\n') >= 0
+            ? $"\"{value.Replace("\"", "\"\"")}\""
+            : value;
+
+    internal sealed record ExportBucketTokensRequest(
+        string? Permission = null,
+        string? UtmCampaign = null,
+        string? UtmSource = null,
+        string? UtmMedium = null,
+        int ExpiryDays = 30,
+        string? Language = null,
+        string Format = "csv"); // "csv" | "json" | "xml"
 
     private static async Task<IResult> GetWorkflowTasks(
         [FromQuery] int limit,
@@ -1449,7 +1650,8 @@ public static class AdminEndpoints
                 source = e.Source.ToString(),
                 actorId = e.ActorId,
                 changedAt = e.ChangedAt,
-                ipAddress = e.IpAddress
+                ipAddress = e.IpAddress,
+                customFields = e.CustomFields
             }),
             total = result.Total,
             page = result.Page,

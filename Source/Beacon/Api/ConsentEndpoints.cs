@@ -94,13 +94,16 @@ public static class ConsentEndpoints
 
         var tokens = antiforgery.GetAndStoreTokens(context);
 
+        var utmInputs = BuildUtmHiddenInputs(context.Request.Query);
+
         return Results.Content(GetPreferencePage(
             token,
             result.Payload.Email,
             permissionStates,
             tokens.RequestToken!,
             tokens.FormFieldName,
-            result.Payload.Language), "text/html");
+            result.Payload.Language,
+            utmInputs), "text/html");
     }
 
     private static async Task<IResult> ProcessPreferenceUpdate(
@@ -153,6 +156,7 @@ public static class ConsentEndpoints
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
         var ipAddress = context.Connection.RemoteIpAddress?.ToString();
+        var utmCustomFields = BuildUtmCustomFields(context);
 
         try
         {
@@ -170,7 +174,8 @@ public static class ConsentEndpoints
                     validPermissions,
                     token,
                     ConsentSource.Url,
-                    ipAddress);
+                    ipAddress,
+                    utmCustomFields);
 
                 await consentService.CommitTransactionAsync();
 
@@ -205,7 +210,8 @@ public static class ConsentEndpoints
                         [permission],
                         token,
                         ConsentSource.Url,
-                        ipAddress);
+                        ipAddress,
+                        utmCustomFields);
                     optedOut.Add(permission);
                 }
                 else
@@ -559,7 +565,7 @@ public static class ConsentEndpoints
         )
     };
 
-    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string antiforgeryToken, string formFieldName, string language = "en")
+    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string antiforgeryToken, string formFieldName, string language = "en", string utmHiddenInputs = "")
     {
         var lang = language?.ToLowerInvariant() ?? "en";
         if (!Translations.ContainsKey(lang))
@@ -682,6 +688,7 @@ public static class ConsentEndpoints
 
                   <form method="post" action="/u/{{WebUtility.HtmlEncode(token)}}">
                     <input name="{{formFieldName}}" type="hidden" value="{{antiforgeryToken}}" />
+                    {{utmHiddenInputs}}
                     <div class="preferences">
                       {{togglesHtml}}
                     </div>
@@ -772,6 +779,38 @@ public static class ConsentEndpoints
         if (keptIn?.Length > 0)
             parts.Add($"{t.UpdatedOptInPrefix} {FormatList(keptIn)}");
         return string.Join("<br><br>", parts);
+    }
+
+    private static readonly string[] UtmKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
+
+    private static string? BuildUtmCustomFields(HttpContext context)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Read from query string (GET) and form body (POST hidden inputs)
+        foreach (var key in UtmKeys)
+        {
+            var value = context.Request.Query[key].FirstOrDefault()
+                ?? context.Request.Form[key].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(value))
+                fields[key] = value;
+        }
+
+        return fields.Count > 0
+            ? System.Text.Json.JsonSerializer.Serialize(fields)
+            : null;
+    }
+
+    private static string BuildUtmHiddenInputs(IQueryCollection query)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var key in UtmKeys)
+        {
+            var value = query[key].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(value))
+                sb.Append($"<input type=\"hidden\" name=\"{key}\" value=\"{WebUtility.HtmlEncode(value)}\" />");
+        }
+        return sb.ToString();
     }
 }
 

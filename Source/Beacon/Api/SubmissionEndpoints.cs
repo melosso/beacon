@@ -417,8 +417,12 @@ public static class SubmissionEndpoints
     private static async Task<IResult> GetEmbedPage(
         Guid id,
         HttpContext context,
-        [FromServices] ISubmissionFormService service)
+        [FromServices] ISubmissionFormService service,
+        [FromServices] ISystemConfigurationService configService)
     {
+        if (!configService.Get().EnableSubmissionForms)
+            return Results.NotFound();
+
         var form = await service.GetFormAsync(id);
         if (form == null)
             return Results.Content(FormUnavailableHtml("en", null), "text/html");
@@ -567,8 +571,12 @@ public static class SubmissionEndpoints
     private static async Task<IResult> GetEmbedScript(
         Guid id,
         HttpContext context,
-        [FromServices] ISubmissionFormService service)
+        [FromServices] ISubmissionFormService service,
+        [FromServices] ISystemConfigurationService configService)
     {
+        if (!configService.Get().EnableSubmissionForms)
+            return Results.NotFound();
+
         var form = await service.GetFormAsync(id);
         if (form == null || !form.IsEnabled)
         {
@@ -716,8 +724,12 @@ public static class SubmissionEndpoints
         [FromServices] ISubmissionFormService service,
         [FromServices] IBucketRepository bucketRepository,
         [FromServices] SubmissionRateLimiter rateLimiter,
-        [FromServices] IAdminNotificationService notifications)
+        [FromServices] IAdminNotificationService notifications,
+        [FromServices] ISystemConfigurationService configService)
     {
+        if (!configService.Get().EnableSubmissionForms)
+            return Results.NotFound(new { error = "Form not found or disabled" });
+
         // 1. Check form exists and is enabled
         var form = await service.GetFormAsync(id);
         if (form == null || !form.IsEnabled)

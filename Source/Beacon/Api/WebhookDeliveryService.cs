@@ -270,7 +270,7 @@ public sealed class WebhookDeliveryService : BackgroundService
                 => $"Connection error: {se.Message}",
 
             HttpRequestException httpEx when httpEx.StatusCode.HasValue
-                => null, // unexpected HTTP status — keep full trace
+                => null, // unexpected HTTP status
 
             HttpRequestException
                 => $"Network error: {inner.Message}",

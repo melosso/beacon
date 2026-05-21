@@ -10,5 +10,7 @@ public sealed class BucketOptions
     /// </summary>
     public bool DoubleOptIn { get; set; } = true;
 
+    public string? UtmCampaign { get; set; }
+
     public DateTime? UpdatedAt { get; set; }
 }

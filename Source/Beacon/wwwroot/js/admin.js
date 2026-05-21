@@ -151,6 +151,7 @@
 
       renderBucketsSidebar();
       setupUserAuthNav(currentUserRole);
+      updateSidebarUser();
       restoreViewFromUrl();
       connectSSE();
       loadServerSettings();
@@ -749,7 +750,7 @@
       body.innerHTML = sorted.map((s, idx) => {
         const permsHtml = `<div style="display:flex;flex-wrap:wrap;gap:0.25rem 0.5rem">` +
           Object.entries(s.permissions).map(([p, optedIn]) => {
-            return `<span class="tooltip-wrapper select-none" style="display:inline-flex;align-items:center;gap:0.35rem"><span class="permission-name">${sanitize(formatPermission(p))}</span><label class="switch disabled"><input type="checkbox" ${optedIn ? 'checked' : ''} disabled><span class="slider"></span></label><span class="tooltip">${optedIn ? 'Opted-in' : 'Opted-out'}</span></span>`;
+            return `<span class="tooltip-wrapper select-none" style="display:inline-flex;align-items:center;gap:0.35rem"><span class="permission-name">${sanitize(formatPermission(p))}</span><label class="switch disabled"><input type="checkbox" ${optedIn ? 'checked' : ''} disabled><span class="slider"></span></label><span class="tooltip tooltip-above">${optedIn ? 'Opted-in' : 'Opted-out'}</span></span>`;
           }).join('') + `</div>`;
         const permKeys = encodeURIComponent(JSON.stringify(Object.keys(s.permissions)));
         const recordData = encodeURIComponent(JSON.stringify({
@@ -760,7 +761,7 @@
         }));
         return `
           <tr>
-            <td><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="showBucket('${sanitize(s.bucket)}')">${sanitize(formatPermission(s.bucket))}<span class="tooltip">${sanitize(s.bucket)}</span></span></td>
+            <td><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="showBucket('${sanitize(s.bucket)}')">${sanitize(formatPermission(s.bucket))}<span class="tooltip tooltip-above">${sanitize(s.bucket)}</span></span></td>
             <td>${permsHtml}</td>
             <td>${sanitize(formatDate(s.lastChanged))}</td>
             <td>
@@ -845,7 +846,7 @@
 
     function setSubSearchType(type) {
       subSearchType = type;
-      // Update toggle, label, placeholder in-place — no re-render or data refetch
+      // Update toggle, label, placeholder in-place
       document.querySelectorAll('#subSearchPopover .search-type-btn').forEach(btn => {
         btn.classList.toggle('active', btn.textContent.trim() === (type === 'id' ? 'By ID' : 'By Email'));
       });
@@ -1029,7 +1030,7 @@
       const body = document.getElementById('overviewBody');
 
       if (buckets.length === 0) {
-        body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No buckets yet — buckets are created automatically when a token makes its first API call.</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No buckets yet! Buckets are created automatically when a token makes its first API call.</td></tr>';
         return;
       }
 
@@ -1170,8 +1171,8 @@
 
       if (data.records.length === 0) {
         const noResultsMsg = searchQuery
-          ? `No records matching "${sanitize(searchQuery)}" — try a different identifier or search type`
-          : 'No consent records yet — they appear here after the first API call for this bucket';
+          ? `No records matching "${sanitize(searchQuery)}", please try a different identifier or search type`
+          : 'No consent records yet! They appear here after the first API call for this bucket';
         body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 3}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
       } else {
         body.innerHTML = data.records.map((r, idx) => {
@@ -1428,7 +1429,7 @@
     function renderNewBucketPerms() {
       const container = document.getElementById('newBucketPermsList');
       if (newBucketPerms.length === 0) {
-        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:0.5rem 0">No permissions yet — add one below.</div>';
+        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:0.5rem 0">No permissions yet! You can add one below.</div>';
         return;
       }
       container.innerHTML = newBucketPerms.map(p => `
@@ -1578,7 +1579,7 @@
           document.getElementById('tokenOutputWrapper').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           btn.textContent = 'Create new token';
 
-          // Use the server-confirmed doubleOptIn flag — eliminates the race with selectBucket()
+          // Use the server-confirmed doubleOptIn flag to determinee whether to show the confirmation email notice, not the client-side bucket setting which may be stalee
           const doubleOptInConfirmed = result.data[0].doubleOptIn ?? tokenDefaultOptOut;
           tokenDefaultOptOut = doubleOptInConfirmed;
           const hasOptIn = Object.values(permissions).some(v => v === true);
@@ -1839,7 +1840,7 @@
       }
 
       if (bucketPermsData.length === 0) {
-        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0">No permissions yet — add one below or generate a token to create them automatically.</div>';
+        container.innerHTML = '<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0">No permissions yet! You can add one below or generate a token to create them automatically.</div>';
         return;
       }
 
@@ -2130,15 +2131,30 @@
         const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/options`);
         if (result.ok && result.data) {
           if (toggle) toggle.checked = result.data.doubleOptIn ?? true;
+          const utmEl = document.getElementById('bucketUtmCampaign');
+          if (utmEl) utmEl.value = result.data.utmCampaign ?? '';
         }
       } catch {}
     }
 
+    async function saveBucketUtmCampaign() {
+      if (!currentBucket) return;
+      const utmEl = document.getElementById('bucketUtmCampaign');
+      const utmCampaign = utmEl?.value.trim() || null;
+      const doubleOptInToggle = document.getElementById('bucketDoubleOptIn');
+      await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/options`, {
+        method: 'PUT',
+        body: { doubleOptIn: doubleOptInToggle?.checked ?? true, utmCampaign }
+      });
+    }
+
     async function saveBucketDoubleOptIn(value) {
       if (!currentBucket) return;
+      const utmEl = document.getElementById('bucketUtmCampaign');
+      const utmCampaign = utmEl?.value.trim() || null;
       const res = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/options`, {
         method: 'PUT',
-        body: { doubleOptIn: value }
+        body: { doubleOptIn: value, utmCampaign }
       });
       if (res.ok) {
         notify('success', 'Saved', 'Bucket email settings updated.');
@@ -2221,7 +2237,7 @@
             document.getElementById('webhookSecretSection').style.display = 'block';
             document.getElementById('deleteWebhookBtn').style.display = 'block';
             setWebhookBadge(true);
-            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret now — it won\'t be shown again.');
+            notify('success', 'Webhook Saved', 'Configuration saved. Copy the signing secret now. It won\'t be shown again.');
           } else {
             setWebhookBadge(true);
             notify('success', 'Webhook Saved', 'Webhook configuration updated successfully');
@@ -2521,8 +2537,7 @@
       closeAllMenus();
     }
 
-    // Called from the subscriptions detail view — sets up the edit modal without
-    // changing the globally displayed bucket in the rest of the UI.
+    // Called from the subscriptions detail view to open the modal for a different bucket without changing the record being edited
     function openEditFromSubscription(bucket, permissionsEncoded, recordDataEncoded) {
       currentBucketPermissions = JSON.parse(decodeURIComponent(permissionsEncoded));
       openEditPermissions(recordDataEncoded);
@@ -2573,7 +2588,7 @@
 
     function showPermissionsConfirmModal() {
       if (!editingRecord || !editingRecord.email) {
-        notify('error', 'Update Failed', 'Record data is missing — try reloading the page.');
+        notify('error', 'Update Failed', 'Record data is missing, try reloading the page.');
         return;
       }
       document.getElementById('permissionsConfirmModal').style.display = 'flex';
@@ -2590,7 +2605,7 @@
 
     function showDeleteRecordModal() {
       if (!editingRecord || !editingRecord.emailHash) {
-        notify('error', 'Delete Failed', 'Record data is missing — try reloading the page.');
+        notify('error', 'Delete Failed', 'Record data is missing, try reloading the page.');
         return;
       }
       document.getElementById('deleteRecordEmail').textContent = editingRecord.email || editingRecord.emailHash;
@@ -2603,7 +2618,7 @@
 
     async function confirmDeleteRecord() {
       if (!editingRecord || !editingRecord.emailHash) {
-        notify('error', 'Delete Failed', 'Record data is missing — try reloading the page.');
+        notify('error', 'Delete Failed', 'Record data is missing, try reloading the page.');
         return;
       }
 
@@ -2626,7 +2641,7 @@
 
     async function savePermissions() {
       if (!editingRecord || !editingRecord.email) {
-        notify('error', 'Update Failed', 'Record data is missing — try reloading the page.');
+        notify('error', 'Update Failed', 'Record data is missing, try reloading the page.');
         return;
       }
 
@@ -2689,6 +2704,84 @@
         const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
         window.open(url, '_blank');
       } else { notify('error', 'Link Generation Failed', result.data?.error || 'Failed to generate opt-out link.'); }
+    }
+
+    function openShareUrlModal() {
+      const sel = document.getElementById('shareUrlPermission');
+      if (sel) {
+        sel.innerHTML = '<option value="">All permissions</option>' +
+          (currentBucketPermissions || []).map(p =>
+            `<option value="${sanitize(p)}">${sanitize(formatPermission(p))}</option>`
+          ).join('');
+      }
+      document.getElementById('shareUrlSource').value = '';
+      document.getElementById('shareUrlMedium').value = '';
+      const expEl = document.getElementById('shareUrlExpiry');
+      if (expEl) expEl.value = '30';
+      const statusEl = document.getElementById('exportTokensStatus');
+      if (statusEl) statusEl.textContent = '';
+      document.getElementById('shareUrlModal').style.display = 'flex';
+    }
+
+    function closeShareUrlModal() {
+      document.getElementById('shareUrlModal').style.display = 'none';
+    }
+
+    async function exportBucketTokens() {
+      const btn = document.getElementById('btnExportTokens');
+      const statusEl = document.getElementById('exportTokensStatus');
+      if (btn) btn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Generating…';
+
+      try {
+        const permission = document.getElementById('shareUrlPermission')?.value || null;
+        const source     = document.getElementById('shareUrlSource')?.value.trim() || null;
+        const medium     = document.getElementById('shareUrlMedium')?.value.trim() || null;
+        const alias      = document.getElementById('bucketUtmCampaign')?.value.trim() || null;
+        const expiry     = parseInt(document.getElementById('shareUrlExpiry')?.value, 10) || 30;
+        const format     = document.querySelector('input[name="shareUrlFormat"]:checked')?.value || 'csv';
+
+        const res = await fetch(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/tokens/export`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(typeof ADMIN_API_KEY !== 'undefined' && ADMIN_API_KEY
+              ? { 'X-Api-Key': ADMIN_API_KEY }
+              : {})
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            permission,
+            utmCampaign: alias,
+            utmSource:   source,
+            utmMedium:   medium,
+            expiryDays:  expiry,
+            format
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          if (statusEl) statusEl.textContent = err.error || 'Export failed.';
+          return;
+        }
+
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `unsubscribe-links-${currentBucket}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        if (statusEl) statusEl.textContent = 'Download started.';
+      } catch {
+        if (statusEl) statusEl.textContent = 'Request failed.';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     // SSE WEBHOOK ERROR NOTIFICATIONS
@@ -2834,7 +2927,7 @@
       const forms = result.data || [];
       const body = document.getElementById('submissionBody');
       if (forms.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No submission forms yet — use the button above to create your first embeddable form.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No submission forms yet! Use the button above to create your first embeddable form.</td></tr>';
         return;
       }
       body.innerHTML = forms.map((f, idx) => `
@@ -3585,8 +3678,25 @@ ${bodyStr}
         appSettings.emailSmtpPassword  = res.data.emailSmtpPassword  ?? '';
         appSettings.emailSmtpUseTls    = res.data.emailSmtpUseTls    ?? true;
         appSettings.emailQueueEnabled  = res.data.emailQueueEnabled  ?? false;
-        appSettings.objectStorage      = res.data.objectStorage      ?? false;
+        appSettings.objectStorage             = res.data.objectStorage             ?? false;
         document.getElementById('setting-objectStorage').checked = appSettings.objectStorage;
+        appSettings.objectStorageProvider     = res.data.objectStorageProvider     ?? 'none';
+        appSettings.objectStorageBucket       = res.data.objectStorageBucket       ?? '';
+        appSettings.objectStorageRegion       = res.data.objectStorageRegion       ?? 'us-east-1';
+        appSettings.objectStorageEndpoint     = res.data.objectStorageEndpoint     ?? '';
+        appSettings.objectStorageAccessKey    = res.data.objectStorageAccessKey    ?? '';
+        appSettings.objectStorageSecretKey    = res.data.objectStorageSecretKey    ?? '';
+        appSettings.objectStoragePublicUrl    = res.data.objectStoragePublicUrl    ?? '';
+        appSettings.enableSubmissionForms            = res.data.enableSubmissionForms            ?? true;
+        document.getElementById('setting-enableSubmissionForms').checked = appSettings.enableSubmissionForms;
+        appSettings.submissionDefaultRateLimitPerMinute = res.data.submissionDefaultRateLimitPerMinute ?? 10;
+        appSettings.submissionDefaultHoneypotEnabled    = res.data.submissionDefaultHoneypotEnabled    ?? true;
+        appSettings.submissionDefaultConsentRequired    = res.data.submissionDefaultConsentRequired    ?? true;
+        appSettings.enableCaching             = res.data.enableCaching             ?? false;
+        document.getElementById('setting-enableCaching').checked = appSettings.enableCaching;
+        appSettings.cacheTtlSeconds           = res.data.cacheTtlSeconds           ?? 300;
+        appSettings.cacheConsentRecords       = res.data.cacheConsentRecords       ?? true;
+        appSettings.cacheBucketData           = res.data.cacheBucketData           ?? true;
         appSettings.enableDoubleOptIn  = res.data.enableDoubleOptIn  ?? false;
         document.getElementById('setting-enableDoubleOptIn').checked = appSettings.enableDoubleOptIn;
         appSettings.perPermissionEmail = res.data.perPermissionEmail ?? false;
@@ -3670,8 +3780,23 @@ ${bodyStr}
           emailSmtpPassword:  appSettings.emailSmtpPassword,
           emailSmtpUseTls:    appSettings.emailSmtpUseTls,
           emailQueueEnabled:  appSettings.emailQueueEnabled,
-          objectStorage:      appSettings.objectStorage,
-          enableDoubleOptIn:  appSettings.enableDoubleOptIn,
+          objectStorage:             appSettings.objectStorage,
+          objectStorageProvider:     appSettings.objectStorageProvider,
+          objectStorageBucket:       appSettings.objectStorageBucket,
+          objectStorageRegion:       appSettings.objectStorageRegion,
+          objectStorageEndpoint:     appSettings.objectStorageEndpoint,
+          objectStorageAccessKey:    appSettings.objectStorageAccessKey,
+          objectStorageSecretKey:    appSettings.objectStorageSecretKey,
+          objectStoragePublicUrl:    appSettings.objectStoragePublicUrl,
+          enableSubmissionForms:               appSettings.enableSubmissionForms,
+          submissionDefaultRateLimitPerMinute: appSettings.submissionDefaultRateLimitPerMinute,
+          submissionDefaultHoneypotEnabled:    appSettings.submissionDefaultHoneypotEnabled,
+          submissionDefaultConsentRequired:    appSettings.submissionDefaultConsentRequired,
+          enableCaching:             appSettings.enableCaching,
+          cacheTtlSeconds:           appSettings.cacheTtlSeconds,
+          cacheConsentRecords:       appSettings.cacheConsentRecords,
+          cacheBucketData:           appSettings.cacheBucketData,
+          enableDoubleOptIn:         appSettings.enableDoubleOptIn,
           perPermissionEmail: appSettings.perPermissionEmail,
           emailQueueCron:     appSettings.emailQueueCron,
           dataPoliciesEnabled:             appSettings.dataPoliciesEnabled,
@@ -3872,14 +3997,14 @@ ${bodyStr}
       await loadWorkflowTasks();
     }
 
-    // Track tasks actioned in this session — they stay visible until next full reload
+    // Track tasks actioned in this session to prevent duplicate actions and enable instant UI updatess
     const _locallyActionedIds = new Set();
     let _workflowAllTasks = [];
     let _workflowPage = 1;
     let _workflowPageSize = 25;
     let _workflowArchivedVisible = false;
 
-    // ── Audit ──────────────────────────────────────────────────────────────
+    // Audit
     async function loadAudit() {
       const params = new URLSearchParams();
       if (auditFilterBucket) params.set('bucket', auditFilterBucket);
@@ -3960,6 +4085,7 @@ ${bodyStr}
         <th>Source</th>
         <th>Actor</th>
         <th>IP</th>
+        <th></th>
       `;
     }
 
@@ -4037,6 +4163,14 @@ ${bodyStr}
       const nullCell = '<span class="muted">—</span>';
       const oldChip = auditStatusChip(e.oldStatus);
       const newChip = auditStatusChip(e.newStatus);
+      const hasFields = !!e.customFields;
+      const encodedFields = hasFields ? encodeURIComponent(e.customFields) : '';
+      const actionsCell = `<div class="row-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn-actions" onclick="openAuditCustomFields('${encodedFields}')">:</button>
+            <span class="tooltip tooltip-above tooltip-right">Custom fields</span>
+          </span>
+         </div>`;
       return `
         <tr>
           <td>${sanitize(formatDate(e.changedAt))}</td>
@@ -4054,7 +4188,29 @@ ${bodyStr}
           <td>${sanitize(sourceLabel)}</td>
           <td>${e.actorId ? sanitize(e.actorId) : nullCell}</td>
           <td>${e.ipAddress ? `<code>${sanitize(e.ipAddress)}</code>` : nullCell}</td>
+          <td>${actionsCell}</td>
         </tr>`;
+    }
+
+    function openAuditCustomFields(encodedFields) {
+      let fields = {};
+      try { fields = JSON.parse(decodeURIComponent(encodedFields)); } catch {}
+      const list = document.getElementById('auditCustomFieldsList');
+      if (list) {
+        const entries = Object.entries(fields);
+        list.innerHTML = entries.length
+          ? entries.map(([k, v]) => `
+            <div class="custom-field-row">
+              <span class="custom-field-key">${sanitize(k)}</span>
+              <span class="custom-field-value">${sanitize(String(v))}</span>
+            </div>`).join('')
+          : '<p class="muted" style="font-size:0.85rem">No custom fields.</p>';
+      }
+      document.getElementById('auditCustomFieldsModal').style.display = 'flex';
+    }
+
+    function closeAuditCustomFieldsModal() {
+      document.getElementById('auditCustomFieldsModal').style.display = 'none';
     }
 
     function auditIdentityClick(hash) {
@@ -4372,7 +4528,52 @@ ${bodyStr}
     }
 
     function openCacheSettingsModal() {
-      notify('warning', 'Coming Soon', 'Cache configuration settings will be available in a future release.');
+      document.getElementById('setting-cacheTtlSeconds').value = appSettings.cacheTtlSeconds ?? 300;
+      document.getElementById('setting-cacheConsentRecords').checked = appSettings.cacheConsentRecords ?? true;
+      document.getElementById('setting-cacheBucketData').checked = appSettings.cacheBucketData ?? true;
+      document.getElementById('cacheStatsResult').textContent = '';
+      document.getElementById('cacheSettingsModal').style.display = 'flex';
+      loadCacheStats();
+    }
+
+    function closeCacheSettingsModal() {
+      document.getElementById('cacheSettingsModal').style.display = 'none';
+    }
+
+    async function saveCacheSettings() {
+      appSettings.cacheTtlSeconds = parseInt(document.getElementById('setting-cacheTtlSeconds').value, 10) || 300;
+      appSettings.cacheConsentRecords = document.getElementById('setting-cacheConsentRecords').checked;
+      appSettings.cacheBucketData = document.getElementById('setting-cacheBucketData').checked;
+      await saveCurrentSettings();
+      closeCacheSettingsModal();
+    }
+
+    async function flushCache() {
+      const btn = document.getElementById('btnFlushCache');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await apiRequest('/api/admin/cache', { method: 'DELETE' });
+        if (res.ok) {
+          notify('success', 'Cache flushed', 'All cached entries have been cleared.');
+          loadCacheStats();
+        } else {
+          notify('error', 'Failed', 'Could not flush cache.');
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function loadCacheStats() {
+      const el = document.getElementById('cacheStatsResult');
+      if (!el) return;
+      const res = await apiRequest('/api/admin/cache/stats');
+      if (res.ok && res.data) {
+        const { enabled, provider, approximateKeyCount } = res.data;
+        el.textContent = enabled
+          ? `Provider: ${provider} — ~${approximateKeyCount} key${approximateKeyCount !== 1 ? 's' : ''} tracked`
+          : 'Caching is disabled.';
+      }
     }
 
     // EMAIL SETTINGS MODAL
@@ -4488,8 +4689,99 @@ ${bodyStr}
     }
 
     function openObjectStorageModal() {
-      notify('warning', 'Coming Soon', 'Object storage configuration will be available in a future release.');
+      document.getElementById('objectStorageProvider').value    = appSettings.objectStorageProvider  || 'none';
+      document.getElementById('objectStorageBucket').value     = appSettings.objectStorageBucket    || '';
+      document.getElementById('objectStorageRegion').value     = appSettings.objectStorageRegion    || 'us-east-1';
+      document.getElementById('objectStorageEndpoint').value   = appSettings.objectStorageEndpoint  || '';
+      document.getElementById('objectStorageAccessKey').value  = appSettings.objectStorageAccessKey || '';
+      document.getElementById('objectStorageSecretKey').value  = appSettings.objectStorageSecretKey || '';
+      document.getElementById('objectStoragePublicUrl').value  = appSettings.objectStoragePublicUrl || '';
+      document.getElementById('objectStorageTestResult').textContent = '';
+      showObjectStorageProviderFields(appSettings.objectStorageProvider || 'none');
+      document.getElementById('objectStorageModal').style.display = 'flex';
     }
+
+    function closeObjectStorageModal() {
+      document.getElementById('objectStorageModal').style.display = 'none';
+    }
+
+    function showObjectStorageProviderFields(provider) {
+      const endpointRow = document.getElementById('objectStorageEndpointRow');
+      const regionRow   = document.getElementById('objectStorageRegionRow');
+      if (endpointRow) endpointRow.style.display = provider === 's3' || provider === 'none' ? 'none' : '';
+      if (regionRow)   regionRow.style.display   = provider === 'r2' ? 'none' : (provider === 'none' ? 'none' : '');
+    }
+
+    async function testObjectStorageConnection() {
+      const btn = document.getElementById('btnTestObjectStorage');
+      const result = document.getElementById('objectStorageTestResult');
+      if (btn) btn.disabled = true;
+      result.textContent = 'Testing…';
+      result.className = '';
+      try {
+        const res = await apiRequest('/api/admin/settings/object-storage/test', {
+          method: 'POST',
+          body: {
+            provider:  document.getElementById('objectStorageProvider').value,
+            endpoint:  document.getElementById('objectStorageEndpoint').value,
+            bucket:    document.getElementById('objectStorageBucket').value,
+            region:    document.getElementById('objectStorageRegion').value,
+            accessKey: document.getElementById('objectStorageAccessKey').value,
+            secretKey: document.getElementById('objectStorageSecretKey').value,
+          }
+        });
+        if (res.ok && res.data) {
+          result.textContent = res.data.success
+            ? `Connected (${res.data.latencyMs}ms)`
+            : res.data.message;
+          result.className = res.data.success ? 'test-result-ok' : 'test-result-fail';
+        }
+      } catch {
+        result.textContent = 'Request failed.';
+        result.className = 'test-result-fail';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function saveObjectStorageSettings() {
+      const provider = document.getElementById('objectStorageProvider').value;
+      const bucket   = document.getElementById('objectStorageBucket').value.trim();
+      if (appSettings.objectStorage && provider !== 'none' && !bucket) {
+        notify('error', 'Bucket required', 'Enter a bucket name before saving.');
+        return;
+      }
+      appSettings.objectStorageProvider  = provider;
+      appSettings.objectStorageBucket    = bucket;
+      appSettings.objectStorageRegion    = document.getElementById('objectStorageRegion').value.trim();
+      appSettings.objectStorageEndpoint  = document.getElementById('objectStorageEndpoint').value.trim();
+      appSettings.objectStorageAccessKey = document.getElementById('objectStorageAccessKey').value;
+      appSettings.objectStorageSecretKey = document.getElementById('objectStorageSecretKey').value;
+      appSettings.objectStoragePublicUrl = document.getElementById('objectStoragePublicUrl').value.trim();
+      await saveCurrentSettings();
+      closeObjectStorageModal();
+    }
+
+    function openSubmissionFormsSettingsModal() {
+      document.getElementById('setting-submissionDefaultRateLimitPerMinute').value = appSettings.submissionDefaultRateLimitPerMinute ?? 10;
+      document.getElementById('setting-submissionDefaultHoneypotEnabled').checked  = appSettings.submissionDefaultHoneypotEnabled ?? true;
+      document.getElementById('setting-submissionDefaultConsentRequired').checked  = appSettings.submissionDefaultConsentRequired ?? true;
+      document.getElementById('submissionFormsSettingsModal').style.display = 'flex';
+    }
+
+    function closeSubmissionFormsSettingsModal() {
+      document.getElementById('submissionFormsSettingsModal').style.display = 'none';
+    }
+
+    async function saveSubmissionFormsSettings() {
+      appSettings.submissionDefaultRateLimitPerMinute = parseInt(document.getElementById('setting-submissionDefaultRateLimitPerMinute').value, 10) || 10;
+      appSettings.submissionDefaultHoneypotEnabled    = document.getElementById('setting-submissionDefaultHoneypotEnabled').checked;
+      appSettings.submissionDefaultConsentRequired    = document.getElementById('setting-submissionDefaultConsentRequired').checked;
+      await saveCurrentSettings();
+      closeSubmissionFormsSettingsModal();
+    }
+
+    function updateSidebarUser() { /* name fixed to Administrator per product decision */ }
 
     function setupUserAuthNav(role) {
       const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';

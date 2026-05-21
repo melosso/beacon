@@ -7,10 +7,14 @@ namespace Beacon.Storage;
 public class BucketRepository : IBucketRepository
 {
     private readonly BeaconDbContext _db;
+    private readonly IBeaconCacheService _cache;
+    private readonly ISystemConfigurationService _config;
 
-    public BucketRepository(BeaconDbContext db)
+    public BucketRepository(BeaconDbContext db, IBeaconCacheService cache, ISystemConfigurationService config)
     {
         _db = db;
+        _cache = cache;
+        _config = config;
     }
 
     public async Task<bool> IsArchivedAsync(string bucket)
@@ -55,6 +59,7 @@ public class BucketRepository : IBucketRepository
             CreatedAt = DateTime.UtcNow
         });
         await _db.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.BucketPermissions);
         return true;
     }
 
@@ -78,10 +83,25 @@ public class BucketRepository : IBucketRepository
 
     public async Task<Dictionary<string, List<string>>> GetAllPermissionsGroupedAsync()
     {
+        var cfg = _config.Get();
+        if (cfg.EnableCaching && cfg.CacheBucketData)
+        {
+            var ttl = TimeSpan.FromSeconds(cfg.CacheTtlSeconds);
+            return await _cache.GetOrCreateAsync(
+                CacheKeys.BucketPermissions,
+                ct => FetchAllPermissionsGroupedAsync(ct),
+                ttl);
+        }
+
+        return await FetchAllPermissionsGroupedAsync();
+    }
+
+    private async Task<Dictionary<string, List<string>>> FetchAllPermissionsGroupedAsync(CancellationToken ct = default)
+    {
         var rows = await _db.BucketPermissions
             .Select(bp => new { bp.Bucket, bp.Permission })
             .OrderBy(bp => bp.Permission)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return rows
             .GroupBy(bp => bp.Bucket)
@@ -103,6 +123,7 @@ public class BucketRepository : IBucketRepository
         {
             _db.BucketPermissions.Remove(entry);
             await _db.SaveChangesAsync();
+            await _cache.RemoveAsync(CacheKeys.BucketPermissions);
         }
     }
 
@@ -125,6 +146,7 @@ public class BucketRepository : IBucketRepository
         if (entries.Count > 0 || archived != null)
         {
             await _db.SaveChangesAsync();
+            await _cache.RemoveAsync(CacheKeys.BucketPermissions);
         }
     }
 

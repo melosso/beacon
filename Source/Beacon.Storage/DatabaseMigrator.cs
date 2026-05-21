@@ -189,6 +189,8 @@ public static class DatabaseMigrator
                 )
                 """);
         }
+
+        AddColumnIfMissing(db, "BucketOptions", "UtmCampaign", "TEXT NULL");
     }
 
     private static void MigrateUsers(BeaconDbContext db)
@@ -260,8 +262,9 @@ public static class DatabaseMigrator
                 "CREATE INDEX IX_ConsentAuditEntries_ChangedAt ON ConsentAuditEntries (ChangedAt)");
             db.Database.ExecuteSqlRaw(
                 "CREATE INDEX IX_ConsentAuditEntries_Bucket_ChangedAt ON ConsentAuditEntries (Bucket, ChangedAt)");
-
         }
+
+        AddColumnIfMissing(db, "ConsentAuditEntries", "CustomFields", "TEXT NULL");
     }
 
     private static void MigrateSubmissionForms(BeaconDbContext db)

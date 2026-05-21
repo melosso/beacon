@@ -8,15 +8,21 @@ namespace Beacon.Core.Services;
 public sealed class ConsentService : IConsentService
 {
     private readonly IConsentRepository _repository;
+    private readonly IBeaconCacheService _cache;
+    private readonly ISystemConfigurationService _config;
     private readonly EmailHasher _emailHasher;
     private readonly Encryptor _encryptor;
 
     public ConsentService(
         IConsentRepository repository,
+        IBeaconCacheService cache,
+        ISystemConfigurationService config,
         EmailHasher emailHasher,
         Encryptor encryptor)
     {
         _repository = repository;
+        _cache = cache;
+        _config = config;
         _emailHasher = emailHasher;
         _encryptor = encryptor;
     }
@@ -26,11 +32,39 @@ public sealed class ConsentService : IConsentService
         var normalizedBucket = NormalizeBucket(bucket);
         var emailHash = _emailHasher.Hash(email);
         var normalizedPermission = NormalizePermission(permission);
-        var record = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
+
+        var cfg = _config.Get();
+        if (cfg.EnableCaching && cfg.CacheConsentRecords)
+        {
+            var key = CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission);
+            var ttl = TimeSpan.FromSeconds(cfg.CacheTtlSeconds);
+            var box = await _cache.GetOrCreateAsync(
+                key,
+                ct => FetchConsentStatusBoxAsync(normalizedBucket, emailHash, normalizedPermission, ct),
+                ttl);
+            return box.Status;
+        }
+
+        return await FetchConsentStatusAsync(normalizedBucket, emailHash, normalizedPermission);
+    }
+
+    private async Task<ConsentStatusBox> FetchConsentStatusBoxAsync(
+        string bucket, string emailHash, string permission, CancellationToken ct = default)
+    {
+        var record = await _repository.GetAsync(bucket, emailHash, permission);
+        return new ConsentStatusBox(record?.Status ?? ConsentStatus.OptedIn);
+    }
+
+    private async Task<ConsentStatus> FetchConsentStatusAsync(
+        string bucket, string emailHash, string permission, CancellationToken ct = default)
+    {
+        var record = await _repository.GetAsync(bucket, emailHash, permission);
         return record?.Status ?? ConsentStatus.OptedIn;
     }
 
-    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null)
+    private sealed record ConsentStatusBox(ConsentStatus Status);
+
+    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null, string? customFieldsJson = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -52,10 +86,12 @@ public sealed class ConsentService : IConsentService
                 Source = source,
                 ChangedAt = DateTime.UtcNow,
                 TokenHash = tokenHash,
-                IpAddress = ipAddress
+                IpAddress = ipAddress,
+                CustomFields = customFieldsJson
             };
 
             await _repository.UpsertAsync(record);
+            await _cache.RemoveAsync(CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission));
         }
     }
 
@@ -85,6 +121,7 @@ public sealed class ConsentService : IConsentService
         };
 
         await _repository.UpsertAsync(record, actorId);
+        await _cache.RemoveAsync(CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission));
     }
 
     public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status,
@@ -117,6 +154,7 @@ public sealed class ConsentService : IConsentService
         };
 
         await _repository.UpsertAsync(record, actorId);
+        await _cache.RemoveAsync(CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission));
         return true;
     }
 

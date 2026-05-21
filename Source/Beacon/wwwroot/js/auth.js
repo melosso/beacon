@@ -35,7 +35,7 @@
     }
 
     // AUTH FORM UI
-    let _authFormMode = 'password'; // 'password' | 'apikey' — only used in 'both' mode
+    let _authFormMode = 'password'; // 'password' | 'apikey', only used in 'both' mode
 
     function _applyAuthFormMode(isPassword) {
       const usernameInput = document.getElementById('usernameInput');
@@ -126,7 +126,7 @@
         }
 
         const data = await res.json();
-        // Store non-sensitive UI state (role, username, expiry) — token is in HttpOnly cookie
+        // Store non-sensitive UI state (role, username, expiry), but note token is in HttpOnly cookie
         sessionStorage.setItem('beacon_user_role', data.role || 'admin');
         sessionStorage.setItem('beacon_username', data.username || '');
         if (data.expiresAt) sessionStorage.setItem('beacon_jwt_exp', data.expiresAt);

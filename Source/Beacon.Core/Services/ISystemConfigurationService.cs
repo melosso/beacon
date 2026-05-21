@@ -10,7 +10,7 @@ public sealed class SystemConfig
     [JsonPropertyName("defaultLanguage")]
     public string DefaultLanguage { get; set; } = "en";
 
-    // Integration — Email
+    // Integration / Email
     [JsonPropertyName("emailNotifications")]
     public bool EmailNotifications { get; set; } = false;
 
@@ -44,11 +44,44 @@ public sealed class SystemConfig
     [JsonPropertyName("emailQueueEnabled")]
     public bool EmailQueueEnabled { get; set; } = false;
 
-    // Integration — Object storage
+    // Integration / Object storage
     [JsonPropertyName("objectStorage")]
     public bool ObjectStorage { get; set; } = false;
 
+    [JsonPropertyName("objectStorageProvider")]
+    public string ObjectStorageProvider { get; set; } = "none"; // "s3" | "r2" | "minio"
+
+    [JsonPropertyName("objectStorageBucket")]
+    public string ObjectStorageBucket { get; set; } = string.Empty;
+
+    [JsonPropertyName("objectStorageRegion")]
+    public string ObjectStorageRegion { get; set; } = "us-east-1";
+
+    [JsonPropertyName("objectStorageEndpoint")]
+    public string ObjectStorageEndpoint { get; set; } = string.Empty;
+
+    [JsonPropertyName("objectStorageAccessKey")]
+    public string ObjectStorageAccessKey { get; set; } = string.Empty;
+
+    [JsonPropertyName("objectStorageSecretKey")]
+    public string ObjectStorageSecretKey { get; set; } = string.Empty;
+
+    [JsonPropertyName("objectStoragePublicUrl")]
+    public string ObjectStoragePublicUrl { get; set; } = string.Empty;
+
     // Modules
+    [JsonPropertyName("enableSubmissionForms")]
+    public bool EnableSubmissionForms { get; set; } = true;
+
+    [JsonPropertyName("submissionDefaultRateLimitPerMinute")]
+    public int SubmissionDefaultRateLimitPerMinute { get; set; } = 10;
+
+    [JsonPropertyName("submissionDefaultHoneypotEnabled")]
+    public bool SubmissionDefaultHoneypotEnabled { get; set; } = true;
+
+    [JsonPropertyName("submissionDefaultConsentRequired")]
+    public bool SubmissionDefaultConsentRequired { get; set; } = true;
+
     [JsonPropertyName("enableDoubleOptIn")]
     public bool EnableDoubleOptIn { get; set; } = false;
 
@@ -95,6 +128,19 @@ public sealed class SystemConfig
 
     [JsonPropertyName("pendingConfirmationPurgeRequireApproval")]
     public bool PendingConfirmationPurgeRequireApproval { get; set; }
+
+    // Performance / Caching
+    [JsonPropertyName("enableCaching")]
+    public bool EnableCaching { get; set; } = false;
+
+    [JsonPropertyName("cacheTtlSeconds")]
+    public int CacheTtlSeconds { get; set; } = 300;
+
+    [JsonPropertyName("cacheConsentRecords")]
+    public bool CacheConsentRecords { get; set; } = true;
+
+    [JsonPropertyName("cacheBucketData")]
+    public bool CacheBucketData { get; set; } = true;
 }
 
 public interface ISystemConfigurationService

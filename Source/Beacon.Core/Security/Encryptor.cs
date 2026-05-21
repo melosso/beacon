@@ -97,7 +97,6 @@ public sealed class Encryptor
             if (hasPrefix)
             {
                 // The value was explicitly encrypted by this system (efx: prefix present).
-                // Failing here means the key is wrong or the data is corrupted — surface it loudly.
                 throw new CryptographicException(
                     "Failed to decrypt an 'efx:'-prefixed value. The encryption key may be incorrect or the stored data is corrupted.",
                     ex);

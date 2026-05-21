@@ -18,7 +18,7 @@ public class SubscriptionsTests
         var repository = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var service = new ConsentService(repository, emailHasher, encryptor);
+        var service = new ConsentService(repository, new NullBeaconCacheService(), new StubSystemConfigurationService(), emailHasher, encryptor);
 
         var email = "user@example.com";
         var emailHash = emailHasher.Hash(email);

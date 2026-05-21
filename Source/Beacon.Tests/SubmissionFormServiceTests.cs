@@ -21,7 +21,7 @@ public class SubmissionFormServiceTests
         webhookService ??= new InMemoryWebhookService();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
 
         return new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
     }
@@ -236,7 +236,7 @@ public class SubmissionFormServiceTests
         var consentRepo = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
         var formRepo = new InMemorySubmissionFormRepository();
         var webhookService = new InMemoryWebhookService();
         var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
@@ -278,7 +278,7 @@ public class SubmissionFormServiceTests
         var consentRepo = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
         var formRepo = new InMemorySubmissionFormRepository();
         var webhookService = new InMemoryWebhookService();
         var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
@@ -301,7 +301,7 @@ public class SubmissionFormServiceTests
         var consentRepo = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
         var formRepo = new InMemorySubmissionFormRepository();
         var webhookService = new InMemoryWebhookService();
         var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
@@ -341,7 +341,7 @@ public class SubmissionFormServiceTests
         var consentRepo = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
         var formRepo = new InMemorySubmissionFormRepository();
         var webhookService = new InMemoryWebhookService();
         var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
@@ -370,7 +370,7 @@ public class SubmissionFormServiceTests
         var consentRepo = new InMemoryConsentRepository();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
         var formRepo = new InMemorySubmissionFormRepository();
         var webhookService = new InMemoryWebhookService();
         var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
@@ -626,7 +626,7 @@ public class SubmissionFormServiceTests
         var webhookService = new InMemoryWebhookService();
         var emailHasher = new EmailHasher(TestPepper);
         var encryptor = new Encryptor(TestEncryptionKey);
-        var consentService = new ConsentService(consentRepo, emailHasher, encryptor);
+        var consentService = new ConsentService(consentRepo, new NullBeaconCacheService(), new Beacon.Tests.Fakes.StubSystemConfigurationService(), emailHasher, encryptor);
         var service = new SubmissionFormService(formRepo, consentService, consentRepo, webhookService, encryptor, emailHasher);
         return (service, formRepo, consentRepo, emailHasher);
     }

@@ -163,13 +163,13 @@ public sealed class DataPolicyWorker : BackgroundService
         var pending = await countCheck(consentRepo, stoppingToken);
         if (pending == 0)
         {
-            _logger.LogDebug("Data policy: {TaskType} skipped — nothing to process", taskType);
+            _logger.LogDebug("Data policy: {TaskType} skipped. Nothing to process", taskType);
             return;
         }
 
         if (requireApproval)
         {
-            // Queue for manual approval — do not execute yet
+            // Queue for manual approval
             await taskRepo.CreateAsync(new WorkflowTask
             {
                 Id = Guid.NewGuid(),

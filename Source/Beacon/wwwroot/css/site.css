@@ -359,6 +359,39 @@ aside {
     gap: 0.75rem;
 }
 
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius);
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    overflow: hidden;
+}
+
+.sidebar-user-avatar {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: hsl(var(--muted-foreground) / 0.35);
+    color: hsl(var(--background));
+    font-size: 0.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 8px;
+    text-transform: uppercase;
+}
+
+.sidebar-user-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .github-link {
     display: flex;
     align-items: center;
@@ -502,7 +535,7 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     color: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Inline status chip — same tokens as status-badge but no block margin */
+/* Inline status chip */
 .status-chip {
     display: inline-flex;
     font-size: 0.7rem;
@@ -1202,7 +1235,7 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 .modal-actions .tooltip-wrapper { flex: 1; }
 .modal-actions .btn { flex: 1; justify-content: center; width: 100%; }
 
-/* Frozen token form — shown after a successful generation */
+/* Frozen token form */
 #tokenFormFields.frozen {
     opacity: 0.45;
     pointer-events: none;
@@ -1658,7 +1691,7 @@ label.settings-item-card:hover {
     gap: 0.5rem;
 }
 
-/* Multi-row card body (for cards with sub-toggles) — no cursor/hover bleed */
+/* Multi-row card body (for cards with sub-toggles) */
 .settings-item-card-body {
     flex: 1;
     display: flex;
@@ -1936,8 +1969,6 @@ label.settings-item-card .tooltip-wrapper,
     .btn { transition: none; }
 }
 
-/* ── Management page delight ─────────────────────────────── */
-
 /* Passphrase box: hover affordance */
 .passphrase-box[onclick] {
     border: 1px solid transparent;
@@ -1947,7 +1978,7 @@ label.settings-item-card .tooltip-wrapper,
     border-color: hsl(var(--border));
 }
 
-/* New key reveal: amber pulse — "this is precious, copy it now" */
+/* New key reveal: amber pulse */
 @keyframes keyReveal {
     0%   { box-shadow: 0 0 0 0 hsl(var(--warning) / 0.55); }
     60%  { box-shadow: 0 0 0 7px hsl(var(--warning) / 0.08); }
@@ -2010,3 +2041,21 @@ label.settings-item-card .tooltip-wrapper,
     #usersBody tr,
     .cb-flash { animation: none; }
 }
+
+.format-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+.format-option:has(input:checked) {
+    border-color: hsl(var(--foreground));
+    background: hsl(var(--foreground) / 0.05);
+}
+.format-option input[type="radio"] { display: none; }

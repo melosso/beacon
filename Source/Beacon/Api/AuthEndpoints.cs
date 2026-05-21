@@ -19,7 +19,7 @@ public static class AuthEndpoints
             .RequireAuthorization()
             .ExcludeFromDescription();
 
-        // No auth required — always safe to clear the cookie
+        // No auth required, always safe to clear the cookie
         routes.MapPost("/api/admin/auth/logout", Logout)
             .ExcludeFromDescription();
 
@@ -166,7 +166,7 @@ public static class AuthEndpoints
         return Results.Ok(new { role, username = sub, expiresAt = expiresAt?.ToString("o") });
     }
 
-    // Sets the HttpOnly auth cookie and returns {role, username, expiresAt} — no token in body.
+    // Sets the HttpOnly auth cookie and returns {role, username, expiresAt}
     private static IResult OkWithCookie(
         HttpContext httpContext,
         IWebHostEnvironment env,
@@ -179,8 +179,8 @@ public static class AuthEndpoints
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
             HttpOnly = true,
-            Secure   = !env.IsDevelopment(),   // HTTPS-only in production
-            SameSite = SameSiteMode.Lax,        // CSRF protection; works same-site (incl. different ports on localhost)
+            Secure   = !env.IsDevelopment(),     // HTTPS-only in production
+            SameSite = SameSiteMode.Lax,         // CSRF protection; works same-site (incl. different ports on localhost)
             Path     = "/",
             Expires  = expiresAt
         });

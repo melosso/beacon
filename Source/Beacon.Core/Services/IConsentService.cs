@@ -5,7 +5,7 @@ namespace Beacon.Core.Services;
 public interface IConsentService
 {
     Task<ConsentStatus> CheckAsync(string bucket, string email, string permission);
-    Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null);
+    Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null, string? customFieldsJson = null);
     Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status,
         string? customFieldsJson = null, string? actorId = null,
         ConsentSource source = ConsentSource.Admin, string? ipAddress = null, string? consentText = null);

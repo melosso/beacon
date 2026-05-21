@@ -125,7 +125,7 @@
         </a>
       </div>
 
-      <div id="bucketsList"></div>
+      <div id="bucketsList" class="select-none"></div>
     </div>
 
     <div class="nav-group select-none">
@@ -161,7 +161,12 @@
       </a>
     </div>
 
-    <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid hsl(var(--border));">
+    <div class="sidebar-footer select-none" style="display: flex; flex-direction: column; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid hsl(var(--border));">
+
+      <div class="sidebar-user" id="sidebarUser">
+        <div class="sidebar-user-avatar" id="sidebarUserAvatar">A</div>
+        <span class="sidebar-user-name" id="sidebarUserName">Administrator</span>
+      </div>
 
       <a href="#" class="nav-item sidebar-settings-item" data-view="settings" onclick="showView('settings')" style="margin: 0; padding: 0.5rem 0.75rem; justify-content: flex-start;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
@@ -324,6 +329,15 @@
             <span class="tooltip">Create token for this bucket</span>
           </span>
           <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
+          <span class="tooltip-wrapper">
+            <button class="webhook-errors-trigger" onclick="openShareUrlModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </button>
+            <span class="tooltip">Generate unsubscribe links</span>
+          </span>
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadBucket(currentBucket)">Refresh</button>
             <span class="tooltip">Reload overview</span>
@@ -951,6 +965,7 @@
                 <th>Source</th>
                 <th>Actor</th>
                 <th>IP</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="auditBody"></tbody>
@@ -1128,13 +1143,12 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)" disabled checked>
+                      <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)">
                       <span class="toggle-track"></span>
                     </div>
-                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
                   </span>
                 </label>
-                <button class="btn-settings-gear" onclick="notify('warning', 'Coming soon', 'Submission form configuration settings will be available in a future release.')" aria-label="Submission forms settings">
+                <button class="btn-settings-gear" onclick="openSubmissionFormsSettingsModal()" aria-label="Submission forms settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -1303,7 +1317,7 @@
                       </tr>
                     </thead>
                     <tbody id="workflowTasksTbody">
-                      <tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No runs yet — enable a policy, then click Run Now.</td></tr>
+                      <tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No runs yet! Enable a policy, then click Run Now.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1421,21 +1435,17 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-objectStorage" onchange="saveSetting('objectStorage', this.checked)" disabled>
+                      <input type="checkbox" id="setting-objectStorage" onchange="saveSetting('objectStorage', this.checked)">
                       <span class="toggle-track"></span>
                     </div>
-                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
                   </span>
                 </label>
-                <span class="tooltip-wrapper">
-                  <button class="btn-settings-gear" onclick="openObjectStorageModal()" aria-label="Object storage settings">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                  </button>
-                  <span class="tooltip tooltip-above tooltip-right">Object storage settings (coming soon)</span>
-                </span>
+                <button class="btn-settings-gear" onclick="openObjectStorageModal()" aria-label="Object storage settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
               </div>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
@@ -1638,21 +1648,17 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableCaching" onchange="saveSetting('enableCaching', this.checked)" disabled>
+                      <input type="checkbox" id="setting-enableCaching" onchange="saveSetting('enableCaching', this.checked)">
                       <span class="toggle-track"></span>
                     </div>
-                    <span class="tooltip tooltip-above tooltip-right">Just a placeholder as we'll add this in our next release</span>
                   </span>
                 </label>
-                <span class="tooltip-wrapper">
-                  <button class="btn-settings-gear" onclick="openCacheSettingsModal()" aria-label="Cache configuration">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                  </button>
-                  <span class="tooltip tooltip-above tooltip-right">Cache settings (coming soon)</span>
-                </span>
+                <button class="btn-settings-gear" onclick="openCacheSettingsModal()" aria-label="Cache configuration">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
               </div>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
@@ -1773,11 +1779,14 @@
       <h3>Custom Fields</h3>
       <p>Add key-value pairs to store alongside consent records.</p>
       <div class="form-group">
+        <label>Custom Fields</label>
         <div class="custom-fields-list" id="customFieldsGrid"></div>
-        <div class="custom-fields-add-row" style="display:flex;gap:0.5rem;margin-top:0.75rem">
-          <input type="text" id="newFieldKey" placeholder="Key" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
-          <input type="text" id="newFieldValue" placeholder="Value" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
-          <button type="button" class="btn btn-outline" onclick="addCustomField('token')">Add</button>
+        <div class="form-group" style="margin-bottom:0">
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+            <input type="text" id="newFieldKey" placeholder="Key" style="flex:1;width:auto" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
+            <input type="text" id="newFieldValue" placeholder="Value" style="flex:1;width:auto" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomField('token')}">
+            <button type="button" class="btn btn-outline" onclick="addCustomField('token')">Add</button>
+          </div>
         </div>
       </div>
       <div class="modal-actions">
@@ -2043,6 +2052,14 @@
               <span class="toggle-track"></span>
             </label>
           </div>
+          <div style="padding:0.5rem 0 0.25rem">
+            <label style="font-weight:500;font-size:0.9rem;display:block;margin-bottom:0.375rem">UTM campaign alias</label>
+            <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin:0 0 0.5rem;line-height:1.4">Default <code>utm_campaign</code> value pre-filled when generating tracked unsubscribe links for this bucket.</p>
+            <div style="display:flex;gap:0.5rem">
+              <input type="text" id="bucketUtmCampaign" placeholder="e.g. VK-Deals" style="flex:1;font-family:monospace;font-size:0.85rem" autocomplete="off">
+              <button class="btn btn-outline" onclick="saveBucketUtmCampaign()">Save</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2177,6 +2194,219 @@
 
       <div class="modal-actions" style="margin-top:1.5rem">
         <button class="btn btn-primary" onclick="closeDoubleOptInSettingsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submission Forms Settings Modal -->
+  <div class="modal-backdrop" id="submissionFormsSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Submission form defaults</h3>
+      <p>Set default values applied to newly created submission forms.</p>
+
+      <div class="settings-items" style="margin-top:1.25rem">
+        <div class="settings-item-block" style="align-items:center">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Default rate limit</span>
+            <p class="settings-item-desc">Max submissions per minute per IP address for new forms.</p>
+          </div>
+          <input type="number" id="setting-submissionDefaultRateLimitPerMinute" min="1" max="600" style="width:80px;text-align:right" class="input-auth" value="10">
+        </div>
+        <label class="settings-item-card-label" for="setting-submissionDefaultHoneypotEnabled" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Enable honeypot by default</span>
+            <p class="settings-item-desc">Hidden field that traps bots. Recommended for public forms.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-submissionDefaultHoneypotEnabled">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+        <label class="settings-item-card-label" for="setting-submissionDefaultConsentRequired" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Require consent checkbox by default</span>
+            <p class="settings-item-desc">Show a consent checkbox on newly created forms.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-submissionDefaultConsentRequired">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeSubmissionFormsSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSubmissionFormsSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Object Storage Modal -->
+  <div class="modal-backdrop" id="objectStorageModal">
+    <div class="modal modal--lg">
+      <h3>Object storage</h3>
+      <p>Connect an S3-compatible bucket to store exports and attachments externally.</p>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="objectStorageProvider">Provider</label>
+        <select id="objectStorageProvider" onchange="showObjectStorageProviderFields(this.value)" style="width:100%">
+          <option value="none">None</option>
+          <option value="s3">AWS S3</option>
+          <option value="r2">Cloudflare R2</option>
+          <option value="minio">MinIO</option>
+        </select>
+      </div>
+
+      <div id="objectStorageEndpointRow" style="display:none">
+        <div class="form-group">
+          <label for="objectStorageEndpoint">Endpoint URL</label>
+          <input type="url" id="objectStorageEndpoint" placeholder="https://account.r2.cloudflarestorage.com" style="width:100%">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label for="objectStorageBucket">Bucket name</label>
+          <input type="text" id="objectStorageBucket" placeholder="my-bucket" autocomplete="off">
+        </div>
+        <div class="form-group" id="objectStorageRegionRow">
+          <label for="objectStorageRegion">Region</label>
+          <input type="text" id="objectStorageRegion" placeholder="us-east-1" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="objectStorageAccessKey">Access key ID</label>
+        <input type="text" id="objectStorageAccessKey" placeholder="Access key" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="objectStorageSecretKey">Secret access key</label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="objectStorageSecretKey" placeholder="Secret key" autocomplete="off">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('objectStorageSecretKey', this)" aria-label="Show/hide secret key">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="objectStoragePublicUrl">Public URL <span style="font-weight:400;color:hsl(var(--muted-foreground))">(optional CDN prefix)</span></label>
+        <input type="url" id="objectStoragePublicUrl" placeholder="https://cdn.example.com" autocomplete="off">
+      </div>
+
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.25rem">
+        <button id="btnTestObjectStorage" class="btn btn-outline" onclick="testObjectStorageConnection()">Test connection</button>
+        <span id="objectStorageTestResult" style="font-size:0.875rem"></span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeObjectStorageModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveObjectStorageSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cache Settings Modal -->
+  <div class="modal-backdrop" id="cacheSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Cache settings</h3>
+      <p>Configure in-memory caching for consent lookups and bucket data.</p>
+
+      <div class="settings-items" style="margin-top:1.25rem">
+        <div class="settings-item-block" style="align-items:center">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">TTL (seconds)</span>
+            <p class="settings-item-desc">How long cached entries remain valid before being refreshed from the database.</p>
+          </div>
+          <input type="number" id="setting-cacheTtlSeconds" min="10" max="86400" style="width:90px;text-align:right" class="input-auth" value="300">
+        </div>
+        <label class="settings-item-card-label" for="setting-cacheConsentRecords" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Cache consent lookups</span>
+            <p class="settings-item-desc">Cache per-email consent status checks.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-cacheConsentRecords">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+        <label class="settings-item-card-label" for="setting-cacheBucketData" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Cache bucket permissions</span>
+            <p class="settings-item-desc">Cache bucket and permission metadata read on every request.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-cacheBucketData">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-top:1rem">
+        <button id="btnFlushCache" class="btn btn-outline" onclick="flushCache()">Flush cache</button>
+        <span id="cacheStatsResult" style="font-size:0.875rem;color:hsl(var(--muted-foreground))"></span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeCacheSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCacheSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Unsubscribe Links Modal -->
+  <div class="modal-backdrop" id="shareUrlModal">
+    <div class="modal modal--lg">
+      <h3>Generate unsubscribe links</h3>
+      <p>Generates a personalised URL per identity and packages the result for download. Scoping to a permission excludes identities that don't hold it.</p>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="shareUrlPermission">Permission scope</label>
+        <select id="shareUrlPermission">
+          <option value="">All permissions</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label for="shareUrlSource">utm_source</label>
+          <input type="text" id="shareUrlSource" placeholder="e.g. newsletter" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label for="shareUrlMedium">utm_medium</label>
+          <input type="text" id="shareUrlMedium" placeholder="e.g. email" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:96px 1fr;gap:0 0.75rem;margin-bottom:1rem">
+        <label for="shareUrlExpiry" style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.5rem">Expiry (days)</label>
+        <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.5rem">Format</label>
+        <input type="number" id="shareUrlExpiry" value="30" min="1" max="365">
+        <div style="display:flex;gap:0.5rem">
+          <label class="format-option"><input type="radio" name="shareUrlFormat" value="csv" checked> CSV</label>
+          <label class="format-option"><input type="radio" name="shareUrlFormat" value="json"> JSON</label>
+          <label class="format-option"><input type="radio" name="shareUrlFormat" value="xml"> XML</label>
+        </div>
+      </div>
+
+      <p id="exportTokensStatus" style="margin:0.75rem 0 0;font-size:0.875rem;color:hsl(var(--muted-foreground));min-height:1.25em"></p>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeShareUrlModal()">Close</button>
+        <button id="btnExportTokens" class="btn btn-primary" onclick="exportBucketTokens()">Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Custom Fields Modal -->
+  <div class="modal-backdrop" id="auditCustomFieldsModal">
+    <div class="modal">
+      <h3>Custom fields</h3>
+      <p>Additional data captured at the time of this consent change.</p>
+      <div class="custom-fields-list" id="auditCustomFieldsList" style="margin-top:1rem"></div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-primary" onclick="closeAuditCustomFieldsModal()">Done</button>
       </div>
     </div>
   </div>
@@ -2435,7 +2665,7 @@
   <div class="modal-backdrop" id="ipAnonymizationModal" style="display:none">
     <div class="modal" style="max-width:420px">
       <h3>IP anonymisation</h3>
-      <p>IP addresses are nulled out on all records — regardless of consent status — once they exceed the threshold.</p>
+      <p>IP addresses are nulled out on all records.</p>
       <div class="form-group" style="margin-top:1.25rem">
         <label for="setting-ipAnonymizationDays">Anonymise after (days)</label>
         <input type="number" id="setting-ipAnonymizationDays" min="1" max="3650" value="90" style="width:100%">

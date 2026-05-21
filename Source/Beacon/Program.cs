@@ -8,6 +8,7 @@ using Beacon.Security;
 using Beacon.Storage;
 using Beacon.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.OpenApi;
 using Serilog;
 
@@ -154,10 +155,36 @@ try
         using var scope = sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         var entity = db.SystemConfigurations.Find(1);
-        var config = entity is not null
+        var systemConfig = entity is not null
             ? JsonSerializer.Deserialize<SystemConfig>(entity.Configuration) ?? new SystemConfig()
             : new SystemConfig();
-        return new SystemConfigurationService(sp.GetRequiredService<IServiceScopeFactory>(), config);
+        return new SystemConfigurationService(sp.GetRequiredService<IServiceScopeFactory>(), systemConfig);
+    });
+
+    // Caching: resolved after SystemConfiguration is registered
+    builder.Services.AddSingleton<IBeaconCacheService>(sp =>
+    {
+        var sysConfig = sp.GetRequiredService<ISystemConfigurationService>().Get();
+        if (sysConfig.EnableCaching)
+        {
+            var memCache = sp.GetRequiredService<IMemoryCache>();
+            return new Beacon.Services.MemoryBeaconCacheService(
+                memCache,
+                TimeSpan.FromSeconds(sysConfig.CacheTtlSeconds));
+        }
+        return new NullBeaconCacheService();
+    });
+
+    if (builder.Services.All(s => s.ServiceType != typeof(IMemoryCache)))
+        builder.Services.AddMemoryCache();
+
+    // Object storage: factory selects provider based on SystemConfiguration
+    builder.Services.AddSingleton<IObjectStorageService>(sp =>
+    {
+        var sysConfig = sp.GetRequiredService<ISystemConfigurationService>().Get();
+        return sysConfig is { ObjectStorage: true, ObjectStorageProvider: "s3" or "r2" or "minio" }
+            ? ActivatorUtilities.CreateInstance<Beacon.Storage.S3ObjectStorageService>(sp)
+            : ActivatorUtilities.CreateInstance<Beacon.Storage.LocalObjectStorageService>(sp);
     });
 
     builder.Services.AddHttpClient();
@@ -437,7 +464,7 @@ try
     // UI Endpoints (access controlled by HostRoutingMiddleware)
     app.MapGet("/admin", async (HttpContext context) =>
     {
-        // Validate auth cookie — redirect to login if missing or expired
+        // Validate auth cookie; redirect to login if missing or expired
         if (!context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) ||
             !JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
         {
@@ -451,7 +478,7 @@ try
 
     app.MapGet("/admin/login", async (HttpContext context) =>
     {
-        // Already authenticated — skip the login page
+        // Already authenticated; skip the login page
         if (context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) &&
             JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
         {
@@ -492,11 +519,18 @@ try
         }
 
         var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
-        var js = $"const API_BASE = '{apiBase}';\nconst PUBLIC_URL = '{publicUrl}';\nconst DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};\nconst DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};\nconst USER_AUTH_METHOD = '{userAuthentication}';";
-        
+        var js = string.Join("\n", [
+            $"const API_BASE = {JsonSerializer.Serialize(apiBase)};",
+            $"const PUBLIC_URL = {JsonSerializer.Serialize(publicUrl)};",
+            $"const DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};",
+            $"const DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};",
+            $"const USER_AUTH_METHOD = {JsonSerializer.Serialize(userAuthentication)};"
+        ]);
+
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
         context.Response.Headers.Append("Expires", "0");
-        
+        context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
 
