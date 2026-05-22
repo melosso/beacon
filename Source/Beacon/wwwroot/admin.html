@@ -2369,14 +2369,18 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:96px 1fr;gap:0 0.75rem;margin-bottom:1rem">
-        <label for="shareUrlExpiry" style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.5rem">Expiry (days)</label>
-        <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.5rem">Format</label>
-        <input type="number" id="shareUrlExpiry" value="30" min="1" max="365">
-        <div style="display:flex;gap:0.5rem">
-          <label class="format-option"><input type="radio" name="shareUrlFormat" value="csv" checked> CSV</label>
-          <label class="format-option"><input type="radio" name="shareUrlFormat" value="json"> JSON</label>
-          <label class="format-option"><input type="radio" name="shareUrlFormat" value="xml"> XML</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label for="shareUrlExpiry">Expiry (days)</label>
+          <input type="number" id="shareUrlExpiry" value="30" min="1" max="365">
+        </div>
+        <div class="form-group">
+          <label>Format</label>
+          <div style="display:flex;gap:0.5rem;padding-top:0.25rem">
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="csv" checked> CSV</label>
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="json"> JSON</label>
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="xml"> XML</label>
+          </div>
         </div>
       </div>
 

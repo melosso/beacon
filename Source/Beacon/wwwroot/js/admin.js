@@ -1567,7 +1567,7 @@
         });
 
         if (result.ok) {
-          const tokenUrl = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
+          const tokenUrl = `${PUBLIC_URL || API_BASE}/u/${result.data[0].token}`;
           document.getElementById('tokenOutput').textContent = tokenUrl;
           document.getElementById('tokenOutputWrapper').style.display = 'block';
           document.getElementById('tokenOutput').style.display = 'block';
@@ -2705,7 +2705,7 @@
       });
 
       if (result.ok) {
-        const url = PUBLIC_URL ? `${PUBLIC_URL}/u/${result.data[0].token}` : `${window.location.origin}/u/${result.data[0].token}`;
+        const url = `${PUBLIC_URL || API_BASE}/u/${result.data[0].token}`;
         window.open(url, '_blank');
       } else { notify('error', 'Link Generation Failed', result.data?.error || 'Failed to generate opt-out link.'); }
     }

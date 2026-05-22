@@ -6,6 +6,7 @@ using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Beacon.Middleware;
 using Beacon.Core.Validation;
 using Beacon.Storage;
 using Beacon.Tokens;
@@ -1484,14 +1485,16 @@ public static class AdminEndpoints
         [FromServices] TokenGenerator generator,
         [FromServices] Encryptor encryptor,
         [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
+        [FromServices] HostRoutingOptions routingOptions,
         HttpContext context,
         CancellationToken ct)
     {
         var normalized = bucket.Trim().ToLowerInvariant();
         var records = await repository.GetAllBucketRecordsAsync(normalized);
 
-        var baseUrl = (instanceOptions.PublicUrl
-            ?? $"{context.Request.Scheme}://{context.Request.Host}").TrimEnd('/');
+        var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
+            ? instanceOptions.PublicUrl.TrimEnd('/')
+            : $"{context.Request.Scheme}://{context.Request.Host.Host}:{routingOptions.ApiPort}";
 
         var utmParts = new List<string>(3);
         if (!string.IsNullOrWhiteSpace(request.UtmCampaign))
