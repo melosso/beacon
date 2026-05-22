@@ -120,11 +120,7 @@
 
     // INIT
     async function init() {
-      console.log(
-        '%cBeacon%c  admin panel',
-        'background:#0a0a0f;color:#FF64B4;font-weight:700;padding:2px 6px;border-radius:3px;font-size:13px',
-        'color:#888;font-size:12px'
-      );
+      console.log('%c@melosso/beacon', 'background:#0a0a0f;color:#FF64B4;font-weight:700;padding:2px 6px;border-radius:3px;font-size:13px');
       console.log('%cAPI docs → /openapi   Source → https://github.com/melosso/beacon', 'color:#555;font-size:11px');
 
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;

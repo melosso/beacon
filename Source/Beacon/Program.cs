@@ -562,6 +562,20 @@ try
         }
     });
 
+    app.MapGet("/fonts/inter.woff2", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "fonts", "inter.woff2");
+        if (File.Exists(path)) { context.Response.ContentType = "font/woff2"; await context.Response.SendFileAsync(path); }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
+
+    app.MapGet("/fonts/manrope.woff2", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "fonts", "manrope.woff2");
+        if (File.Exists(path)) { context.Response.ContentType = "font/woff2"; await context.Response.SendFileAsync(path); }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
+
     // include   <link href="/css/site.css" rel="stylesheet" />
     app.MapGet("/css/site.css", async context =>
     {
