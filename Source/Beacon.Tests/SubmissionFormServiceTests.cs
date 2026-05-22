@@ -532,7 +532,7 @@ public class SubmissionFormServiceTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_ResolvesIpHashCustomField()
+    public async Task SubscribeAsync_IpHashVariableIsNotResolved()
     {
         var (service, formRepo, consentRepo, emailHasher) = CreateFullService();
         var form = CreateTestForm();
@@ -541,14 +541,13 @@ public class SubmissionFormServiceTests
         form.CustomFields = JsonSerializer.Serialize(new Dictionary<string, string> { { "client", "{{ip_hash}}" } });
         await formRepo.CreateAsync(form);
 
-        await service.SubscribeAsync(form, "user@example.com", ipAddress: "192.168.1.1");
+        await service.SubscribeAsync(form, "user@example.com");
 
         var emailHash = emailHasher.Hash("user@example.com");
         var records = await consentRepo.GetByEmailAsync(form.Bucket.ToLowerInvariant(), emailHash);
         var fields = JsonSerializer.Deserialize<Dictionary<string, string>>(records[0].CustomFields!);
         Assert.NotNull(fields);
-        Assert.Equal(64, fields!["client"].Length); // SHA256 hex = 64 chars
-        Assert.Matches(@"^[0-9a-f]{64}$", fields["client"]);
+        Assert.Equal("{{ip_hash}}", fields!["client"]);
     }
 
     [Fact]

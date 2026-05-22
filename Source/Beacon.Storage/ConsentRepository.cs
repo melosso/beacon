@@ -502,21 +502,6 @@ public sealed class ConsentRepository : IConsentRepository
                 .SetProperty(r => r.ConsentText, (string?)null), ct);
     }
 
-    public async Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default)
-    {
-        var records = await _context.ConsentRecords
-            .Where(r => r.IpAddress != null && r.ChangedAt < cutoff)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.IpAddress, (string?)null), ct);
-
-        var audit = await _context.ConsentAuditEntries
-            .Where(e => e.IpAddress != null && e.ChangedAt < cutoff)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(e => e.IpAddress, (string?)null), ct);
-
-        return records + audit;
-    }
-
     public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default)
     {
         return await _context.ConsentRecords
@@ -530,17 +515,6 @@ public sealed class ConsentRepository : IConsentRepository
             .CountAsync(r => r.Status == ConsentStatus.OptedOut
                           && r.ChangedAt < cutoff
                           && r.EncryptedEmail != null, ct);
-    }
-
-    public async Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)
-    {
-        var records = await _context.ConsentRecords
-            .CountAsync(r => r.IpAddress != null && r.ChangedAt < cutoff, ct);
-
-        var audit = await _context.ConsentAuditEntries
-            .CountAsync(e => e.IpAddress != null && e.ChangedAt < cutoff, ct);
-
-        return records + audit;
     }
 
     public async Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default)

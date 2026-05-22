@@ -64,7 +64,7 @@ public sealed class ConsentService : IConsentService
 
     private sealed record ConsentStatusBox(ConsentStatus Status);
 
-    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? ipAddress = null, string? customFieldsJson = null)
+    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? customFieldsJson = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -86,7 +86,6 @@ public sealed class ConsentService : IConsentService
                 Source = source,
                 ChangedAt = DateTime.UtcNow,
                 TokenHash = tokenHash,
-                IpAddress = ipAddress,
                 CustomFields = customFieldsJson
             };
 
@@ -97,7 +96,7 @@ public sealed class ConsentService : IConsentService
 
     public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status,
         string? customFieldsJson = null, string? actorId = null,
-        ConsentSource source = ConsentSource.Admin, string? ipAddress = null, string? consentText = null)
+        ConsentSource source = ConsentSource.Admin, string? consentText = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -116,7 +115,6 @@ public sealed class ConsentService : IConsentService
             Source = source,
             ChangedAt = DateTime.UtcNow,
             CustomFields = customFieldsJson,
-            IpAddress = ipAddress,
             ConsentText = consentText
         };
 
@@ -125,7 +123,7 @@ public sealed class ConsentService : IConsentService
     }
 
     public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status,
-        string? customFieldsJson = null, string? ipAddress = null, string? consentText = null,
+        string? customFieldsJson = null, string? consentText = null,
         ConsentSource source = ConsentSource.Admin, string? actorId = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
@@ -149,7 +147,6 @@ public sealed class ConsentService : IConsentService
             Source = source,
             ChangedAt = DateTime.UtcNow,
             CustomFields = customFieldsJson,
-            IpAddress = ipAddress,
             ConsentText = consentText
         };
 

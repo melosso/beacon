@@ -49,7 +49,7 @@ public sealed class ConsentAuditBackfillService : BackgroundService
 
         await db.Database.ExecuteSqlRawAsync("""
             INSERT INTO ConsentAuditEntries
-                (Id, Bucket, EmailHash, Permission, OldStatus, NewStatus, Source, ActorId, ChangedAt, IpAddress)
+                (Id, Bucket, EmailHash, Permission, OldStatus, NewStatus, Source, ActorId, ChangedAt)
             SELECT
                 lower(
                     hex(randomblob(4)) || '-' ||
@@ -60,7 +60,7 @@ public sealed class ConsentAuditBackfillService : BackgroundService
                     hex(randomblob(6))
                 ),
                 Bucket, EmailHash, Permission,
-                NULL, Status, Source, NULL, ChangedAt, IpAddress
+                NULL, Status, Source, NULL, ChangedAt
             FROM ConsentRecords
             """, stoppingToken);
 

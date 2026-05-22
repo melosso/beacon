@@ -87,7 +87,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         }
     }
 
-    public async Task SubscribeAsync(SubmissionForm form, string email, string? ipAddress = null, string? consentText = null, string? origin = null)
+    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
@@ -96,7 +96,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         var permissions = form.Permission
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        var resolvedCustomFields = ResolveCustomFieldVariables(form.CustomFields, form, ipAddress, origin);
+        var resolvedCustomFields = ResolveCustomFieldVariables(form.CustomFields, form, origin);
 
         foreach (var permission in permissions)
         {
@@ -107,7 +107,6 @@ public sealed class SubmissionFormService : ISubmissionFormService
                 ConsentStatus.OptedIn,
                 customFieldsJson: resolvedCustomFields,
                 source: ConsentSource.Api,
-                ipAddress: ipAddress,
                 consentText: consentText);
         }
 
@@ -144,7 +143,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         }
     }
 
-    private static string? ResolveCustomFieldVariables(string? customFieldsJson, SubmissionForm form, string? ipAddress, string? origin)
+    private static string? ResolveCustomFieldVariables(string? customFieldsJson, SubmissionForm form, string? origin)
     {
         if (string.IsNullOrEmpty(customFieldsJson))
             return null;
@@ -163,7 +162,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
                 if (value is null) continue;
                 var trimmed = value.Trim();
 
-                var newValue = ResolveVariable(trimmed, form, ipAddress, origin, now);
+                var newValue = ResolveVariable(trimmed, form, origin, now);
                 if (newValue != null)
                 {
                     fields[key] = newValue;
@@ -179,7 +178,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         }
     }
 
-    private static string? ResolveVariable(string variable, SubmissionForm form, string? ipAddress, string? origin, DateTime now)
+    private static string? ResolveVariable(string variable, SubmissionForm form, string? origin, DateTime now)
     {
         // Case-insensitive match on the variable name
         if (string.Equals(variable, "{{uuid}}", StringComparison.OrdinalIgnoreCase))
@@ -217,14 +216,6 @@ public sealed class SubmissionFormService : ISubmissionFormService
 
         if (string.Equals(variable, "{{form_name}}", StringComparison.OrdinalIgnoreCase))
             return form.Name;
-
-        if (string.Equals(variable, "{{ip_hash}}", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrEmpty(ipAddress))
-                return "";
-            var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(ipAddress));
-            return Convert.ToHexStringLower(bytes);
-        }
 
         return null; // Not a recognized variable
     }

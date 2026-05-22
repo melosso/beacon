@@ -870,9 +870,8 @@ public static class SubmissionEndpoints
         }
 
         // Subscribe
-        var subscriberIp = SubmissionRateLimiter.GetClientIp(context);
         var effectiveConsentText = form.ConsentText ?? "I agree to receive emails and understand I can unsubscribe at any time.";
-        await service.SubscribeAsync(form, email!, subscriberIp, form.ConsentRequired ? effectiveConsentText : null, origin);
+        await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(form.Bucket));
 
         if (isFormPost && IsValidRedirectUrl(redirectSuccess))

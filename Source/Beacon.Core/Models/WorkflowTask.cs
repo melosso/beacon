@@ -19,7 +19,6 @@ public enum WorkflowTrigger
 public enum WorkflowTaskType
 {
     RetentionPurge,
-    IpAnonymization,
     PendingConfirmationPurge
 }
 

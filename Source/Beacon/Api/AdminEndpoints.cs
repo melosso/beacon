@@ -1650,7 +1650,6 @@ public static class AdminEndpoints
                 source = e.Source.ToString(),
                 actorId = e.ActorId,
                 changedAt = e.ChangedAt,
-                ipAddress = e.IpAddress,
                 customFields = e.CustomFields
             }),
             total = result.Total,

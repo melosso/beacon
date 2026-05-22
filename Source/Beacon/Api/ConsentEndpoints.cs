@@ -155,7 +155,6 @@ public static class ConsentEndpoints
 
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
-        var ipAddress = context.Connection.RemoteIpAddress?.ToString();
         var utmCustomFields = BuildUtmCustomFields(context);
 
         try
@@ -174,7 +173,6 @@ public static class ConsentEndpoints
                     validPermissions,
                     token,
                     ConsentSource.Url,
-                    ipAddress,
                     utmCustomFields);
 
                 await consentService.CommitTransactionAsync();
@@ -210,7 +208,6 @@ public static class ConsentEndpoints
                         [permission],
                         token,
                         ConsentSource.Url,
-                        ipAddress,
                         utmCustomFields);
                     optedOut.Add(permission);
                 }
@@ -230,8 +227,7 @@ public static class ConsentEndpoints
                             result.Payload.Email,
                             permission,
                             ConsentStatus.OptedIn,
-                            source: ConsentSource.Url,
-                            ipAddress: ipAddress);
+                            source: ConsentSource.Url);
                     }
                     keptIn.Add(permission);
                 }

@@ -27,10 +27,8 @@ public interface IConsentRepository
 
     // Data policy operations
     Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default);
-    Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
-    Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default);
 }
 

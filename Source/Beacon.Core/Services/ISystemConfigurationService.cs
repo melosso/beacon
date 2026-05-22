@@ -108,12 +108,6 @@ public sealed class SystemConfig
     [JsonPropertyName("retentionPurgeDays")]
     public int RetentionPurgeDays { get; set; } = 1095;
 
-    [JsonPropertyName("ipAnonymizationEnabled")]
-    public bool IpAnonymizationEnabled { get; set; }
-
-    [JsonPropertyName("ipAnonymizationDays")]
-    public int IpAnonymizationDays { get; set; } = 90;
-
     [JsonPropertyName("pendingConfirmationPurgeEnabled")]
     public bool PendingConfirmationPurgeEnabled { get; set; }
 
@@ -122,9 +116,6 @@ public sealed class SystemConfig
 
     [JsonPropertyName("retentionPurgeRequireApproval")]
     public bool RetentionPurgeRequireApproval { get; set; }
-
-    [JsonPropertyName("ipAnonymizationRequireApproval")]
-    public bool IpAnonymizationRequireApproval { get; set; }
 
     [JsonPropertyName("pendingConfirmationPurgeRequireApproval")]
     public bool PendingConfirmationPurgeRequireApproval { get; set; }

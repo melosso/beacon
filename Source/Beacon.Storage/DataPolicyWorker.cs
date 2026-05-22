@@ -120,17 +120,6 @@ public sealed class DataPolicyWorker : BackgroundService
                 stoppingToken);
         }
 
-        if (config.IpAnonymizationEnabled && !stoppingToken.IsCancellationRequested)
-        {
-            await RunPolicyAsync(
-                tasks, consent, triggeredBy, WorkflowTaskType.IpAnonymization, now,
-                (repo, ct) => repo.CountIpAddressesToAnonymiseAsync(now.AddDays(-config.IpAnonymizationDays), ct),
-                (repo, ct) => repo.AnonymiseIpAddressesAsync(now.AddDays(-config.IpAnonymizationDays), ct),
-                $"Anonymised IP addresses older than {config.IpAnonymizationDays} days",
-                requireApproval: config.IpAnonymizationRequireApproval,
-                stoppingToken);
-        }
-
         if (config.PendingConfirmationPurgeEnabled && !stoppingToken.IsCancellationRequested)
         {
             await RunPolicyAsync(
@@ -142,7 +131,7 @@ public sealed class DataPolicyWorker : BackgroundService
                 stoppingToken);
         }
 
-        if (!config.RetentionPurgeEnabled && !config.IpAnonymizationEnabled && !config.PendingConfirmationPurgeEnabled)
+        if (!config.RetentionPurgeEnabled && !config.PendingConfirmationPurgeEnabled)
         {
             _logger.LogDebug("Data policy worker: no individual policies are enabled, nothing to run");
         }

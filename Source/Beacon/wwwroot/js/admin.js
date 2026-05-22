@@ -3584,12 +3584,9 @@ ${bodyStr}
       dataPolicyCron: '0 0 * * *',
       retentionPurgeEnabled: false,
       retentionPurgeDays: 1095,
-      ipAnonymizationEnabled: false,
-      ipAnonymizationDays: 90,
       pendingConfirmationPurgeEnabled: false,
       pendingConfirmationPurgeDays: 30,
       retentionPurgeRequireApproval: false,
-      ipAnonymizationRequireApproval: false,
       pendingConfirmationPurgeRequireApproval: false
     };
     let appSettings = (() => {
@@ -3708,12 +3705,9 @@ ${bodyStr}
         appSettings.dataPolicyCron                 = res.data.dataPolicyCron                 ?? '0 0 * * *';
         appSettings.retentionPurgeEnabled          = res.data.retentionPurgeEnabled          ?? false;
         appSettings.retentionPurgeDays             = res.data.retentionPurgeDays             ?? 1095;
-        appSettings.ipAnonymizationEnabled         = res.data.ipAnonymizationEnabled         ?? false;
-        appSettings.ipAnonymizationDays            = res.data.ipAnonymizationDays            ?? 90;
         appSettings.pendingConfirmationPurgeEnabled = res.data.pendingConfirmationPurgeEnabled ?? false;
         appSettings.pendingConfirmationPurgeDays   = res.data.pendingConfirmationPurgeDays   ?? 30;
         appSettings.retentionPurgeRequireApproval            = res.data.retentionPurgeRequireApproval            ?? false;
-        appSettings.ipAnonymizationRequireApproval           = res.data.ipAnonymizationRequireApproval           ?? false;
         appSettings.pendingConfirmationPurgeRequireApproval  = res.data.pendingConfirmationPurgeRequireApproval  ?? false;
       }
     }
@@ -3803,12 +3797,9 @@ ${bodyStr}
           dataPolicyCron:                  appSettings.dataPolicyCron,
           retentionPurgeEnabled:           appSettings.retentionPurgeEnabled,
           retentionPurgeDays:              appSettings.retentionPurgeDays,
-          ipAnonymizationEnabled:          appSettings.ipAnonymizationEnabled,
-          ipAnonymizationDays:             appSettings.ipAnonymizationDays,
           pendingConfirmationPurgeEnabled:            appSettings.pendingConfirmationPurgeEnabled,
           pendingConfirmationPurgeDays:               appSettings.pendingConfirmationPurgeDays,
           retentionPurgeRequireApproval:              appSettings.retentionPurgeRequireApproval,
-          ipAnonymizationRequireApproval:             appSettings.ipAnonymizationRequireApproval,
           pendingConfirmationPurgeRequireApproval:    appSettings.pendingConfirmationPurgeRequireApproval
         }
       });
@@ -3986,10 +3977,6 @@ ${bodyStr}
       if (rpe) rpe.checked = !!appSettings.retentionPurgeEnabled;
       const rpra = document.getElementById('setting-retentionPurgeRequireApproval');
       if (rpra) rpra.checked = !!appSettings.retentionPurgeRequireApproval;
-      const iae = document.getElementById('setting-ipAnonymizationEnabled');
-      if (iae) iae.checked = !!appSettings.ipAnonymizationEnabled;
-      const iara = document.getElementById('setting-ipAnonymizationRequireApproval');
-      if (iara) iara.checked = !!appSettings.ipAnonymizationRequireApproval;
       const pce = document.getElementById('setting-pendingConfirmationPurgeEnabled');
       if (pce) pce.checked = !!appSettings.pendingConfirmationPurgeEnabled;
       const pcra = document.getElementById('setting-pendingConfirmationPurgeRequireApproval');
@@ -4084,7 +4071,6 @@ ${bodyStr}
         <th>Change</th>
         <th>Source</th>
         <th>Actor</th>
-        <th>IP</th>
         <th></th>
       `;
     }
@@ -4187,7 +4173,6 @@ ${bodyStr}
           <td style="white-space:nowrap">${oldChip} → ${newChip}</td>
           <td>${sanitize(sourceLabel)}</td>
           <td>${e.actorId ? sanitize(e.actorId) : nullCell}</td>
-          <td>${e.ipAddress ? `<code>${sanitize(e.ipAddress)}</code>` : nullCell}</td>
           <td>${actionsCell}</td>
         </tr>`;
     }
@@ -4278,13 +4263,12 @@ ${bodyStr}
 
     const _workflowTypeLabels = {
       RetentionPurge: 'Opted-out anonymisation',
-      IpAnonymization: 'IP anonymisation',
       PendingConfirmationPurge: 'Pending confirmation cleanup'
     };
 
     async function loadWorkflowPage() {
       const notice = document.getElementById('workflow-policy-notice');
-      const noPolicies = !appSettings.retentionPurgeEnabled && !appSettings.ipAnonymizationEnabled && !appSettings.pendingConfirmationPurgeEnabled;
+      const noPolicies = !appSettings.retentionPurgeEnabled && !appSettings.pendingConfirmationPurgeEnabled;
       if (notice) notice.style.display = noPolicies ? '' : 'none';
       _locallyActionedIds.clear();
       _workflowArchivedVisible = false;
@@ -4497,20 +4481,6 @@ ${bodyStr}
       if (isNaN(days) || days < 1) { notify('warning', 'Invalid value', 'Enter a number greater than 0.'); return; }
       saveSetting('retentionPurgeDays', days);
       closeRetentionPurgeModal();
-    }
-
-    // IP ANONYMISATION MODAL
-    function openIpAnonymizationModal() {
-      const el = document.getElementById('setting-ipAnonymizationDays');
-      if (el) el.value = appSettings.ipAnonymizationDays ?? 90;
-      document.getElementById('ipAnonymizationModal').style.display = 'flex';
-    }
-    function closeIpAnonymizationModal() { document.getElementById('ipAnonymizationModal').style.display = 'none'; }
-    function saveIpAnonymizationDays() {
-      const days = parseInt(document.getElementById('setting-ipAnonymizationDays').value, 10);
-      if (isNaN(days) || days < 1) { notify('warning', 'Invalid value', 'Enter a number greater than 0.'); return; }
-      saveSetting('ipAnonymizationDays', days);
-      closeIpAnonymizationModal();
     }
 
     // PENDING CONFIRMATION MODAL

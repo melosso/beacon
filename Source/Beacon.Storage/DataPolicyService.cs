@@ -44,9 +44,6 @@ public sealed class DataPolicyService
                 WorkflowTaskType.RetentionPurge => (
                     await _consentRepo.AnonymiseOptedOutAsync(now.AddDays(-config.RetentionPurgeDays), ct),
                     $"Anonymised opted-out records older than {config.RetentionPurgeDays} days"),
-                WorkflowTaskType.IpAnonymization => (
-                    await _consentRepo.AnonymiseIpAddressesAsync(now.AddDays(-config.IpAnonymizationDays), ct),
-                    $"Anonymised IP addresses older than {config.IpAnonymizationDays} days"),
                 WorkflowTaskType.PendingConfirmationPurge => (
                     await _consentRepo.PurgePendingConfirmationAsync(now.AddDays(-config.PendingConfirmationPurgeDays), ct),
                     $"Purged pending confirmation records older than {config.PendingConfirmationPurgeDays} days"),
