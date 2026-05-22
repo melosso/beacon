@@ -270,8 +270,19 @@ public sealed class ConsentRepository : IConsentRepository
             .ToList();
     }
 
+    public async Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default)
+    {
+        await _context.ConsentAuditEntries
+            .Where(e => e.EmailHash == emailHash && e.Bucket == bucket)
+            .ExecuteDeleteAsync(ct);
+    }
+
     public async Task<int> DeleteBucketAsync(string bucket)
     {
+        await _context.ConsentAuditEntries
+            .Where(e => e.Bucket == bucket)
+            .ExecuteDeleteAsync();
+
         var records = await _context.ConsentRecords
             .Where(r => r.Bucket == bucket)
             .ToListAsync();
@@ -296,6 +307,10 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
     {
+        await _context.ConsentAuditEntries
+            .Where(e => e.EmailHash == emailHash && e.Bucket == bucket)
+            .ExecuteDeleteAsync();
+
         var records = await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
             .ToListAsync();

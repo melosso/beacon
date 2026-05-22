@@ -25,6 +25,9 @@ public interface IConsentRepository
     Task<IDisposable> BeginTransactionAsync();
     Task CommitTransactionAsync();
 
+    // Erasure
+    Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default);
+
     // Data policy operations
     Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default);

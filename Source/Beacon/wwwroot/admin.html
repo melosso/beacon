@@ -4,9 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/inter.woff2') format('woff2'); }
+    @font-face { font-family: 'Manrope'; font-style: normal; font-weight: 200 800; font-display: swap; src: url('/fonts/manrope.woff2') format('woff2'); }
+  </style>
   <link href="/css/site.css" rel="stylesheet" />
   <script>
     (function() {
@@ -1172,6 +1173,18 @@
                   </svg>
                 </button>
               </div>
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-enableUtmTracking">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Enable UTM tracking</span>
+                    <p class="settings-item-desc">When enabled, UTM parameters (utm_source, utm_medium, utm_campaign, etc.) from the preference page URL are stored alongside consent records. Only enable if disclosed in your privacy policy.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-enableUtmTracking" onchange="saveSetting('enableUtmTracking', this.checked)">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+              </div>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
               </div>
@@ -1975,7 +1988,10 @@
                 </div>
               </div>
             </div>
-            <textarea id="webhookBody" class="input-auth" rows="8" style="font-family:monospace;font-size:0.813rem;tab-size:2;line-height:1.5"></textarea>
+            <textarea id="webhookBody" class="input-auth" rows="8" style="font-family:monospace;font-size:0.813rem;tab-size:2;line-height:1.5" oninput="checkWebhookEmailVar(this.value)" onblur="checkWebhookEmailVar(this.value)"></textarea>
+            <div id="webhookEmailWarning" style="display:none;margin-top:0.5rem;padding:0.625rem 0.75rem;background:hsl(var(--destructive)/0.08);border:1px solid hsl(var(--destructive)/0.3);border-radius:6px;font-size:0.8rem;color:hsl(var(--destructive))">
+              <strong>Data processing notice:</strong> Your template includes <code>{{email}}</code> (plaintext address). Ensure you have a Data Processing Agreement with the webhook recipient and have disclosed this in your privacy policy. Use <code>{{emailHash}}</code> to avoid sending personal data to third parties.
+            </div>
             <div style="display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.125rem">
               <p style="width:100%;margin:0">
                 <span style="font-size:0.75rem;color:hsl(var(--muted-foreground));line-height:1.8;margin-right:0.125rem">Insert:</span>
@@ -2333,7 +2349,7 @@
   <div class="modal-backdrop" id="shareUrlModal">
     <div class="modal modal--lg">
       <h3>Generate unsubscribe links</h3>
-      <p>Generates a personalised URL per identity and packages the result for download. Scoping to a permission excludes identities that don't hold it.</p>
+      <p>Generate custom download links for your users. You can easily filter the list by permissions to only include the right people.</p>
 
       <div class="form-group" style="margin-top:1.25rem">
         <label for="shareUrlPermission">Permission scope</label>
@@ -2353,14 +2369,18 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:96px 1fr;gap:0 0.75rem;margin-bottom:1rem">
-        <label for="shareUrlExpiry" style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.5rem">Expiry (days)</label>
-        <label style="display:block;font-size:0.875rem;font-weight:500;margin-bottom:0.5rem">Format</label>
-        <input type="number" id="shareUrlExpiry" value="30" min="1" max="365">
-        <div style="display:flex;gap:0.5rem">
-          <label class="format-option"><input type="radio" name="shareUrlFormat" value="csv" checked> CSV</label>
-          <label class="format-option"><input type="radio" name="shareUrlFormat" value="json"> JSON</label>
-          <label class="format-option"><input type="radio" name="shareUrlFormat" value="xml"> XML</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label for="shareUrlExpiry">Expiry (days)</label>
+          <input type="number" id="shareUrlExpiry" value="30" min="1" max="365">
+        </div>
+        <div class="form-group">
+          <label>Format</label>
+          <div style="display:flex;gap:0.5rem;padding-top:0.25rem">
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="csv" checked> CSV</label>
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="json"> JSON</label>
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="xml"> XML</label>
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# ======================================
 # Configuration
-# ======================================
 API_URL="http://localhost:5000/api/tokens/generate"
 API_KEY="INSECURE-CHANGE-ME-api-key"
 
@@ -21,9 +19,7 @@ DOMAINS=(
   "foretag.se"
 )
 
-# ======================================
 # Permission Universe (10 total)
-# ======================================
 PERMISSION_KEYS=(
   "Marketing"
   "Services"
@@ -37,9 +33,7 @@ PERMISSION_KEYS=(
   "Telemarketing"
 )
 
-# ======================================
 # Buckets
-# ======================================
 BUCKETS=(
   "marketing_campaign_dach_spring_2026"
   "marketing_campaign_nordics_sustainability_2026"
@@ -63,10 +57,7 @@ BUCKETS=(
   "user_research_panel"
 )
 
-# ======================================
 # Functions
-# ======================================
-
 generate_email_permissions() {
     local bucket_perms=("$@")
     local total_perms=${#bucket_perms[@]}
@@ -100,10 +91,8 @@ generate_email_permissions() {
     echo "${json%,}"
 }
 
-# ======================================
-# Processing
-# ======================================
 
+# Processing
 echo "Initialization: Generating ${#BUCKETS[@]} buckets..."
 
 for BUCKET_NAME in "${BUCKETS[@]}"; do
@@ -152,9 +141,9 @@ EOF
     echo "--------------------------------------"
 done
 
-# ======================================
+
 # Submission Forms
-# ======================================
+
 
 ADMIN_URL="http://localhost:5001/api/admin/submissions"
 SUBSCRIBE_BASE="http://localhost:5000/api/submission"

@@ -61,6 +61,7 @@ try
     var adminApiKey = decryptedConfig.GetValueOrDefault("AdminApiKey") ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
     var tokenExpiryDays = int.TryParse(config["TokenExpiryDays"], out var days) ? days : 30;
     var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
+    var enforceHttps = config.GetValue<bool>("EnforceHttps", false);
     var disableEmailNotifications = config.GetValue<bool>("DisableEmailNotifications", false);
     var publicUrl = config["PublicUrl"];
     var userAuthentication = config["UserAuthentication"] ?? "";
@@ -410,6 +411,12 @@ try
     });
 
     // Middleware pipeline
+    if (enforceHttps)
+    {
+        app.UseHttpsRedirection();
+        app.UseHsts();
+    }
+
     if (trustForwardedHeaders)
     {
         app.UseForwardedHeaders();
@@ -554,6 +561,20 @@ try
             context.Response.StatusCode = 404;
         }
     });
+
+    app.MapGet("/fonts/inter.woff2", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "fonts", "inter.woff2");
+        if (File.Exists(path)) { context.Response.ContentType = "font/woff2"; await context.Response.SendFileAsync(path); }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
+
+    app.MapGet("/fonts/manrope.woff2", async context =>
+    {
+        var path = Path.Combine(app.Environment.WebRootPath, "fonts", "manrope.woff2");
+        if (File.Exists(path)) { context.Response.ContentType = "font/woff2"; await context.Response.SendFileAsync(path); }
+        else { context.Response.StatusCode = 404; }
+    }).ExcludeFromDescription();
 
     // include   <link href="/css/site.css" rel="stylesheet" />
     app.MapGet("/css/site.css", async context =>
