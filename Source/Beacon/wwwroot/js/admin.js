@@ -3564,7 +3564,7 @@ ${bodyStr}
 
     // SETTINGS
     const settingsDefaults = {
-      allowDbLookup: false,
+      allowDbLookup: true,
       enableCaching: false,
       theme: 'system',
       font: 'inter',
@@ -3662,7 +3662,7 @@ ${bodyStr}
       if (mode && currentUserRole !== 'admin') return;
       const res = await apiRequest('/api/admin/settings');
       if (res.ok && res.data) {
-        appSettings.allowDbLookup = res.data.allowDbLookup ?? false;
+        appSettings.allowDbLookup = res.data.allowDbLookup ?? true;
         document.getElementById('setting-allowDbLookup').checked = appSettings.allowDbLookup;
         appSettings.defaultLanguage = res.data.defaultLanguage ?? 'en';
         const langEl = document.getElementById('setting-defaultLanguage');
