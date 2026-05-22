@@ -88,6 +88,9 @@ public sealed class SystemConfig
     [JsonPropertyName("perPermissionEmail")]
     public bool PerPermissionEmail { get; set; } = false;
 
+    [JsonPropertyName("enableUtmTracking")]
+    public bool EnableUtmTracking { get; set; } = false;
+
     // System
     [JsonPropertyName("emailQueueCron")]
     public string EmailQueueCron { get; set; } = "*/5 * * * *";

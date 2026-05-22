@@ -61,6 +61,7 @@ try
     var adminApiKey = decryptedConfig.GetValueOrDefault("AdminApiKey") ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
     var tokenExpiryDays = int.TryParse(config["TokenExpiryDays"], out var days) ? days : 30;
     var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
+    var enforceHttps = config.GetValue<bool>("EnforceHttps", false);
     var disableEmailNotifications = config.GetValue<bool>("DisableEmailNotifications", false);
     var publicUrl = config["PublicUrl"];
     var userAuthentication = config["UserAuthentication"] ?? "";
@@ -410,6 +411,12 @@ try
     });
 
     // Middleware pipeline
+    if (enforceHttps)
+    {
+        app.UseHttpsRedirection();
+        app.UseHsts();
+    }
+
     if (trustForwardedHeaders)
     {
         app.UseForwardedHeaders();

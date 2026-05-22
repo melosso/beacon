@@ -14,4 +14,5 @@ public interface IEmailQueueRepository
     Task CancelPendingAsync(string bucket, string emailHash, string permission);
     Task PruneExpiredAsync();
     Task<int> DeleteOldAsync(DateTime olderThan);
+    Task<int> DeleteByEmailHashAsync(string emailHash, CancellationToken ct = default);
 }

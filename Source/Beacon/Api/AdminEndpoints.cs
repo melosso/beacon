@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
@@ -254,16 +255,16 @@ public static class AdminEndpoints
         {
             if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
             {
-                logger.LogWarning("Unique constraint violation during consent override for bucket={Bucket}, email={Email}, permission={Permission}: {ErrorMessage}", request.Bucket, request.Email, request.Permission, ex.InnerException?.Message);
+                logger.LogWarning("Unique constraint violation during consent override for bucket={Bucket}, emailHash={EmailHash}, permission={Permission}: {ErrorMessage}", request.Bucket, emailHasher.Hash(request.Email), request.Permission, ex.InnerException?.Message);
                 return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
             }
 
-            logger.LogError(ex, "Database update error during consent override for bucket={Bucket}, email={Email}, permission={Permission}", request.Bucket, request.Email, request.Permission);
+            logger.LogError(ex, "Database update error during consent override for bucket={Bucket}, emailHash={EmailHash}, permission={Permission}", request.Bucket, emailHash, request.Permission);
             return Results.StatusCode(500); // Generic 500 for other database errors
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An unexpected error occurred during consent override for bucket={Bucket}, email={Email}, permission={Permission}", request.Bucket, request.Email, request.Permission);
+            logger.LogError(ex, "An unexpected error occurred during consent override for bucket={Bucket}, emailHash={EmailHash}, permission={Permission}", request.Bucket, emailHash, request.Permission);
             return Results.StatusCode(500); // Generic 500 for other unexpected errors
         }
     }
@@ -491,7 +492,8 @@ public static class AdminEndpoints
                             {
                                 await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
 
-                                var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                                var confirmationTokenPlain = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                                var confirmationTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(confirmationTokenPlain))).ToLowerInvariant();
                                 await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
                                 {
                                     Bucket = normalizedBucket,
@@ -499,8 +501,8 @@ public static class AdminEndpoints
                                     EmailHash = emailHash,
                                     Permission = permission,
                                     Language = tokenOptions.Language,
-                                    ConfirmationToken = confirmationToken,
-                                    ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                                    ConfirmationToken = confirmationTokenHash,
+                                    ConfirmationUrl = $"{baseUrl}/confirm/{confirmationTokenPlain}",
                                     ExpiresAt = DateTime.UtcNow.AddDays(7)
                                 });
                             }
@@ -515,7 +517,8 @@ public static class AdminEndpoints
                                 await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
                             await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
 
-                            var confirmationToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                            var confirmationTokenPlain = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+                            var confirmationTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(confirmationTokenPlain))).ToLowerInvariant();
                             await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
                             {
                                 Bucket = normalizedBucket,
@@ -523,8 +526,8 @@ public static class AdminEndpoints
                                 EmailHash = emailHash,
                                 Permission = allPermissions,
                                 Language = tokenOptions.Language,
-                                ConfirmationToken = confirmationToken,
-                                ConfirmationUrl = $"{baseUrl}/confirm/{confirmationToken}",
+                                ConfirmationToken = confirmationTokenHash,
+                                ConfirmationUrl = $"{baseUrl}/confirm/{confirmationTokenPlain}",
                                 ExpiresAt = DateTime.UtcNow.AddDays(7)
                             });
                         }
@@ -745,6 +748,7 @@ public static class AdminEndpoints
         string bucket,
         string emailHash,
         [FromServices] IConsentRepository repository,
+        [FromServices] IEmailQueueRepository emailQueueRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -766,6 +770,7 @@ public static class AdminEndpoints
             emailHash[..Math.Min(12, emailHash.Length)],
             DateTime.UtcNow);
 
+        await emailQueueRepository.DeleteByEmailHashAsync(emailHash);
         var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
 
         return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });

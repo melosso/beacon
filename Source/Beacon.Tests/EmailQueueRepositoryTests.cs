@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Beacon.Core.Models;
 using Beacon.Storage;
 using Microsoft.Data.Sqlite;
@@ -239,12 +241,14 @@ public class EmailQueueRepositoryTests : IDisposable
     [Fact]
     public async Task GetByConfirmationTokenAsync_ReturnsEntry_WhenTokenExists()
     {
-        await _repository.EnqueueAsync(MakeEntry("secret-token"));
+        var plainToken = "secret-token";
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(plainToken))).ToLowerInvariant();
+        await _repository.EnqueueAsync(MakeEntry(tokenHash));
 
-        var result = await _repository.GetByConfirmationTokenAsync("secret-token");
+        var result = await _repository.GetByConfirmationTokenAsync(plainToken);
 
         Assert.NotNull(result);
-        Assert.Equal("secret-token", result.ConfirmationToken);
+        Assert.Equal(tokenHash, result.ConfirmationToken);
     }
 
     [Fact]

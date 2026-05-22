@@ -117,7 +117,8 @@ public static class ConsentEndpoints
         [FromServices] IBucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
         [FromServices] ITokenUsageRepository tokenUsageRepository,
-        [FromServices] IAdminNotificationService notifications)
+        [FromServices] IAdminNotificationService notifications,
+        [FromServices] ISystemConfigurationService sysConfig)
     {
         if (!await antiforgery.IsRequestValidAsync(context))
         {
@@ -155,7 +156,7 @@ public static class ConsentEndpoints
 
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
-        var utmCustomFields = BuildUtmCustomFields(context);
+        var utmCustomFields = sysConfig.Get().EnableUtmTracking ? BuildUtmCustomFields(context) : null;
 
         try
         {

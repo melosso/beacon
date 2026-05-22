@@ -16,7 +16,7 @@
     let searchType = 'id';
     let buckets = [];
 
-    // SESSION STATE (non-sensitive UI state; token lives in HttpOnly cookie)
+    // SESSION STATE (token lives in HttpOnly cookie)
     let currentUserRole = sessionStorage.getItem('beacon_user_role') || 'admin';
     let currentUsername  = sessionStorage.getItem('beacon_username')  || '';
     let tokenExpiresAt   = sessionStorage.getItem('beacon_jwt_exp') ? new Date(sessionStorage.getItem('beacon_jwt_exp')) : null;
@@ -1977,6 +1977,12 @@
 
     function resetWebhookBodyTemplate() {
       document.getElementById('webhookBody').value = WEBHOOK_DEFAULT_BODY;
+      checkWebhookEmailVar(WEBHOOK_DEFAULT_BODY);
+    }
+
+    function checkWebhookEmailVar(body) {
+      const warning = document.getElementById('webhookEmailWarning');
+      if (warning) warning.style.display = /\{\{\s*email\s*\}\}/i.test(body) ? '' : 'none';
     }
 
     function toggleWebhookTemplateMenu(trigger) {
@@ -2071,7 +2077,9 @@
           const config = result.data;
           document.getElementById('webhookUrl').value = config.url || '';
           document.getElementById('webhookMethod').value = config.method || 'POST';
-          document.getElementById('webhookBody').value = formatBodyTemplate(config.bodyTemplate) || WEBHOOK_DEFAULT_BODY;
+          const webhookBodyVal = formatBodyTemplate(config.bodyTemplate) || WEBHOOK_DEFAULT_BODY;
+          document.getElementById('webhookBody').value = webhookBodyVal;
+          checkWebhookEmailVar(webhookBodyVal);
           webhookHeaders = config.headers || {};
           renderWebhookHeaders();
           document.getElementById('deleteWebhookBtn').style.display = 'block';
@@ -3579,6 +3587,7 @@ ${bodyStr}
       emailQueueEnabled: false,
       objectStorage: false,
       enableDoubleOptIn: false,
+      enableUtmTracking: false,
       emailQueueCron: '*/5 * * * *',
       dataPoliciesEnabled: false,
       dataPolicyCron: '0 0 * * *',
@@ -3696,6 +3705,9 @@ ${bodyStr}
         appSettings.cacheBucketData           = res.data.cacheBucketData           ?? true;
         appSettings.enableDoubleOptIn  = res.data.enableDoubleOptIn  ?? false;
         document.getElementById('setting-enableDoubleOptIn').checked = appSettings.enableDoubleOptIn;
+        appSettings.enableUtmTracking  = res.data.enableUtmTracking  ?? false;
+        const utmToggle = document.getElementById('setting-enableUtmTracking');
+        if (utmToggle) utmToggle.checked = appSettings.enableUtmTracking;
         appSettings.perPermissionEmail = res.data.perPermissionEmail ?? false;
         appSettings.emailQueueCron     = res.data.emailQueueCron     ?? '*/5 * * * *';
         const cronEl = document.getElementById('setting-emailQueueCron');
@@ -3791,6 +3803,7 @@ ${bodyStr}
           cacheConsentRecords:       appSettings.cacheConsentRecords,
           cacheBucketData:           appSettings.cacheBucketData,
           enableDoubleOptIn:         appSettings.enableDoubleOptIn,
+          enableUtmTracking:         appSettings.enableUtmTracking,
           perPermissionEmail: appSettings.perPermissionEmail,
           emailQueueCron:     appSettings.emailQueueCron,
           dataPoliciesEnabled:             appSettings.dataPoliciesEnabled,

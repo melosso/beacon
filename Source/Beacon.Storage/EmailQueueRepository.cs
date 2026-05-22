@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Beacon.Core.Models;
 using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +52,10 @@ public sealed class EmailQueueRepository : IEmailQueueRepository
     }
 
     public async Task<EmailQueueEntry?> GetByConfirmationTokenAsync(string token)
-        => await _db.EmailQueueEntries.FirstOrDefaultAsync(e => e.ConfirmationToken == token);
+    {
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+        return await _db.EmailQueueEntries.FirstOrDefaultAsync(e => e.ConfirmationToken == tokenHash);
+    }
 
     public async Task MarkConfirmedAsync(Guid id, DateTime confirmedAt)
     {
@@ -95,5 +100,12 @@ public sealed class EmailQueueRepository : IEmailQueueRepository
                       || e.Status == EmailQueueStatus.Expired
                       || e.Status == EmailQueueStatus.Cancelled))
             .ExecuteDeleteAsync();
+    }
+
+    public async Task<int> DeleteByEmailHashAsync(string emailHash, CancellationToken ct = default)
+    {
+        return await _db.EmailQueueEntries
+            .Where(e => e.EmailHash == emailHash)
+            .ExecuteDeleteAsync(ct);
     }
 }
