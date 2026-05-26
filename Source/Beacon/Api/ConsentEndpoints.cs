@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
@@ -42,11 +43,13 @@ public static class ConsentEndpoints
     private static async Task<IResult> ShowPreferencePage(
         string token,
         HttpContext context,
+        CancellationToken ct,
         [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
         [FromServices] IConsentService consentService,
         [FromServices] ITokenUsageRepository tokenUsageRepository,
-        [FromServices] ISystemConfigurationService configService)
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] IBrandIdentityService brandService)
     {
         var result = validator.Validate(token);
 
@@ -54,7 +57,8 @@ public static class ConsentEndpoints
 
         if (result.IsExpired)
         {
-            return Results.Content(GetStatusPage("expired", lang), "text/html");
+            var expiredBrand = result.Payload is not null ? await ResolveBrandAsync(brandService, result.Payload.Bucket, ct) : null;
+            return Results.Content(GetStatusPage("expired", lang, brand: expiredBrand), "text/html");
         }
 
         if (!result.IsValid || result.Payload is null)
@@ -62,13 +66,15 @@ public static class ConsentEndpoints
             return Results.Content(GetStatusPage("invalid", "en"), "text/html");
         }
 
+        var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
+
         // Only check token usage if replay is not allowed
         if (!result.Payload.AllowReplay)
         {
             var tokenHash = ComputeTokenHash(token);
             if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
             {
-                return Results.Content(GetStatusPage("already_processed", lang), "text/html");
+                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
             }
         }
 
@@ -103,12 +109,14 @@ public static class ConsentEndpoints
             tokens.RequestToken!,
             tokens.FormFieldName,
             result.Payload.Language,
-            utmInputs), "text/html");
+            utmInputs,
+            brand), "text/html");
     }
 
     private static async Task<IResult> ProcessPreferenceUpdate(
         string token,
         HttpContext context,
+        CancellationToken ct,
         [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
         [FromServices] IConsentService consentService,
@@ -118,7 +126,8 @@ public static class ConsentEndpoints
         [FromServices] EmailHasher emailHasher,
         [FromServices] ITokenUsageRepository tokenUsageRepository,
         [FromServices] IAdminNotificationService notifications,
-        [FromServices] ISystemConfigurationService sysConfig)
+        [FromServices] ISystemConfigurationService sysConfig,
+        [FromServices] IBrandIdentityService brandService)
     {
         if (!await antiforgery.IsRequestValidAsync(context))
         {
@@ -139,19 +148,21 @@ public static class ConsentEndpoints
             return Results.Content(GetStatusPage("invalid", "en"), "text/html");
         }
 
+        var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
+
         // Only check token usage if replay is not allowed
         if (!result.Payload.AllowReplay)
         {
             var tokenHash = ComputeTokenHash(token);
             if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
             {
-                return Results.Content(GetStatusPage("already_processed", lang), "text/html");
+                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
             }
         }
 
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Content(GetStatusPage("invalid", lang), "text/html");
+            return Results.Content(GetStatusPage("invalid", lang, brand: brand), "text/html");
         }
 
         var form = await context.Request.ReadFormAsync();
@@ -189,7 +200,7 @@ public static class ConsentEndpoints
                     var tokenHash = ComputeTokenHash(token);
                     await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
                 }
-                return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions), "text/html");
+                return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions, brand: brand), "text/html");
             }
 
             // Process individual toggle states
@@ -247,7 +258,7 @@ public static class ConsentEndpoints
                 var tokenHash = ComputeTokenHash(token);
                 await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
             }
-            return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn]), "text/html");
+            return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn], brand), "text/html");
         }
         catch
         {
@@ -298,21 +309,24 @@ public static class ConsentEndpoints
 
     private static async Task<IResult> ConfirmSubscription(
         string token,
+        CancellationToken ct,
         [FromServices] IEmailQueueRepository emailQueue,
         [FromServices] IConsentService consentService,
-        [FromServices] Encryptor encryptor)
+        [FromServices] Encryptor encryptor,
+        [FromServices] IBrandIdentityService brandService)
     {
         var entry = await emailQueue.GetByConfirmationTokenAsync(token);
         if (entry is null)
             return Results.Content(GetStatusPage("invalid", "en"), "text/html");
 
         var lang = entry.Language ?? "en";
+        var brand = await ResolveBrandAsync(brandService, entry.Bucket, ct);
 
         if (entry.Status == EmailQueueStatus.Confirmed)
-            return Results.Content(GetStatusPage("already_processed", lang), "text/html");
+            return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
 
         if (entry.ExpiresAt < DateTime.UtcNow || entry.Status == EmailQueueStatus.Expired)
-            return Results.Content(GetStatusPage("expired", lang), "text/html");
+            return Results.Content(GetStatusPage("expired", lang, brand: brand), "text/html");
 
         var email = encryptor.Decrypt(entry.EncryptedEmail);
 
@@ -326,7 +340,7 @@ public static class ConsentEndpoints
 
         await emailQueue.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
 
-        return Results.Content(GetStatusPage("confirmed", lang), "text/html");
+        return Results.Content(GetStatusPage("confirmed", lang, brand: brand), "text/html");
     }
 
     private static async Task<IResult> CheckConsent(
@@ -378,7 +392,8 @@ public static class ConsentEndpoints
         :root {
           --bg: #ffffff;
           --fg: #111111;
-          --accent: #2563eb;
+          --accent: var(--fg);
+          --accent-fg: var(--bg);
           --success: #22c55e;
           --warning: #f59e0b;
           --error: #ef4444;
@@ -391,7 +406,6 @@ public static class ConsentEndpoints
           :root {
             --bg: #0f0f0f;
             --fg: #e7e7e7;
-            --accent: #7aa2ff;
           }
         }
 
@@ -444,7 +458,18 @@ public static class ConsentEndpoints
         .icon.error { color: var(--error); }
         .icon.info { color: var(--info); }
 
-        .center { text-align: center; }
+        .status-brand { margin: 0; padding: 0; }
+        .status-brand:not(:empty) { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid color-mix(in srgb, var(--fg) 10%, transparent); }
+        .status-body { text-align: center; }
+
+        .brand-logo {
+          display: block;
+          max-width: 140px;
+          max-height: 52px;
+          width: auto;
+          height: auto;
+          margin: 0 0 20px;
+        }
         """;
 
     private static readonly Dictionary<string, (string Title, string Description, string SaveButton, string UnsubscribeButton, string PreferencesFor)> Translations = new()
@@ -562,14 +587,25 @@ public static class ConsentEndpoints
         )
     };
 
-    private static string GetPreferencePage(string token, string email, List<(string permission, bool optedIn)> permissions, string antiforgeryToken, string formFieldName, string language = "en", string utmHiddenInputs = "")
+    private static string GetPreferencePage(
+        string token,
+        string email,
+        List<(string permission, bool optedIn)> permissions,
+        string antiforgeryToken,
+        string formFieldName,
+        string language = "en",
+        string utmHiddenInputs = "",
+        BrandIdentitySettings? brand = null)
     {
         var lang = language?.ToLowerInvariant() ?? "en";
         if (!Translations.ContainsKey(lang))
-        {
             lang = "en";
-        }
         var t = Translations[lang];
+
+        var title = brand?.PageTitle is { Length: > 0 } pt ? pt : t.Title;
+        var description = brand?.PageBody is { Length: > 0 } pb ? pb : t.Description;
+        var footerText = brand?.Footer is { Length: > 0 } ft ? ft : t.PreferencesFor;
+        var browserTitle = brand?.BrowserTitle is { Length: > 0 } bt ? bt : t.Title;
 
         var togglesHtml = new StringBuilder();
         foreach (var (permission, optedIn) in permissions)
@@ -587,16 +623,25 @@ public static class ConsentEndpoints
 
         var maskedEmail = MaskEmail(email);
 
-        return $$"""
+        var theme = brand?.Theme ?? "system";
+        var colorScheme = theme == "light" ? "light" : theme == "dark" ? "dark" : "light dark";
+        var dataThemeAttr = theme is "light" or "dark" ? $" data-theme=\"{theme}\"" : "";
+
+        // Brand CSS overrides injected after GetBaseStyles()
+        var brandCss = BuildBrandCssOverrides(brand);
+        var logoHtml = BuildPageLogoHtml(brand?.Logo);
+
+        return Minify($$"""
             <!DOCTYPE html>
-            <html lang="{{lang}}">
+            <html lang="{{lang}}"{{dataThemeAttr}}>
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
-              <title>{{WebUtility.HtmlEncode(t.Title)}}</title>
-              <meta name="color-scheme" content="light dark" />
+              <title>{{WebUtility.HtmlEncode(browserTitle)}}</title>
+              <meta name="color-scheme" content="{{colorScheme}}" />
               <style>
                 {{GetBaseStyles()}}
+                {{brandCss}}
 
                 .preferences { margin-bottom: 24px; }
 
@@ -623,6 +668,7 @@ public static class ConsentEndpoints
                   background: color-mix(in srgb, var(--fg) 20%, transparent);
                   position: relative;
                   cursor: pointer;
+                  transition: background 0.2s, filter 0.15s;
                 }
 
                 .toggle input::after {
@@ -637,9 +683,11 @@ public static class ConsentEndpoints
                   transition: transform 0.2s ease;
                 }
 
-                .toggle input:checked { background: var(--fg); }
+                .toggle input:checked { background: var(--accent); }
                 .toggle input:checked::after { transform: translateX(18px); }
                 .toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+                .toggle input:not(:checked):hover { background: color-mix(in srgb, var(--fg) 30%, transparent); }
+                .toggle input:checked:hover { filter: brightness(0.88); }
 
                 button {
                   appearance: none;
@@ -647,18 +695,31 @@ public static class ConsentEndpoints
                   width: 100%;
                   padding: 14px 16px;
                   border-radius: 10px;
-                  background: var(--fg);
-                  color: var(--bg);
+                  background: var(--accent);
+                  color: var(--accent-fg);
                   font-size: 1rem;
                   font-weight: 500;
                   cursor: pointer;
+                  transition: filter 0.15s;
                 }
+
+                button:not(.secondary):hover { filter: brightness(0.88); }
+                button:not(.secondary):active { filter: brightness(0.78); }
 
                 button.secondary {
                   margin-top: 12px;
                   background: transparent;
                   color: var(--fg);
                   border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent);
+                  transition: background 0.15s;
+                }
+
+                button.secondary:hover {
+                  background: color-mix(in srgb, var(--fg) 8%, transparent);
+                }
+
+                button.secondary:active {
+                  background: color-mix(in srgb, var(--fg) 14%, transparent);
                 }
 
                 footer {
@@ -680,8 +741,9 @@ public static class ConsentEndpoints
             <body>
               <main>
                 <section class="card">
-                  <h1 class="select-none">{{WebUtility.HtmlEncode(t.Title)}}</h1>
-                  <p>{{WebUtility.HtmlEncode(t.Description)}}</p>
+                  {{logoHtml}}
+                  <h1 class="select-none">{{WebUtility.HtmlEncode(title)}}</h1>
+                  <p>{{WebUtility.HtmlEncode(description)}}</p>
 
                   <form method="post" action="/u/{{WebUtility.HtmlEncode(token)}}">
                     <input name="{{formFieldName}}" type="hidden" value="{{antiforgeryToken}}" />
@@ -695,17 +757,121 @@ public static class ConsentEndpoints
                   </form>
 
                   <footer class="select-none">
-                    {{WebUtility.HtmlEncode(t.PreferencesFor)}}<br />
+                    {{WebUtility.HtmlEncode(footerText)}}<br />
                     <span class="email">{{WebUtility.HtmlEncode(maskedEmail)}}</span>
                   </footer>
                 </section>
               </main>
             </body>
             </html>
-            """;
+            """);
     }
 
-    private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null)
+    private static string BuildBrandCssOverrides(BrandIdentitySettings? brand)
+    {
+        if (brand is null) return string.Empty;
+        var sb = new StringBuilder();
+
+        var hasAccent = brand.PrimaryAccent is { Length: > 0 };
+        var hasSurface = brand.SurfaceColour is { Length: > 0 };
+        var hasFont = brand.Font is { Length: > 0 };
+        var theme = brand.Theme;
+
+        if (hasAccent || hasSurface || hasFont)
+        {
+            sb.AppendLine(":root {");
+            if (hasAccent)
+            {
+                sb.AppendLine($"  --accent: {brand.PrimaryAccent};");
+                sb.AppendLine($"  --accent-fg: {ContrastForeground(brand.PrimaryAccent!)};");
+            }
+            if (hasSurface)
+            {
+                sb.AppendLine($"  --bg: {brand.SurfaceColour};");
+                sb.AppendLine($"  --fg: {ContrastForeground(brand.SurfaceColour!)};");
+            }
+            if (hasFont) sb.AppendLine($"  font-family: \"{brand.Font}\", system-ui, -apple-system, sans-serif;");
+            sb.AppendLine("}");
+        }
+
+        // Force theme: override media query with explicit values
+        if (theme == "dark")
+        {
+            sb.AppendLine("@media (prefers-color-scheme: light) {");
+            sb.AppendLine("  :root {");
+            sb.AppendLine($"    --bg: {brand.SurfaceColour ?? "#0f0f0f"};");
+            sb.AppendLine($"    --fg: {(hasSurface ? ContrastForeground(brand.SurfaceColour!) : "#e7e7e7")};");
+            if (hasAccent)
+            {
+                sb.AppendLine($"    --accent: {brand.PrimaryAccent};");
+                sb.AppendLine($"    --accent-fg: {ContrastForeground(brand.PrimaryAccent!)};");
+            }
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+        }
+        else if (theme == "light" && (hasSurface || hasAccent))
+        {
+            // Already set in :root, no dark override needed
+            sb.AppendLine("@media (prefers-color-scheme: dark) {");
+            sb.AppendLine("  :root {");
+            if (hasSurface)
+            {
+                sb.AppendLine($"    --bg: {brand.SurfaceColour} !important;");
+                sb.AppendLine($"    --fg: {ContrastForeground(brand.SurfaceColour!)} !important;");
+            }
+            if (hasAccent)
+            {
+                sb.AppendLine($"    --accent: {brand.PrimaryAccent} !important;");
+                sb.AppendLine($"    --accent-fg: {ContrastForeground(brand.PrimaryAccent!)} !important;");
+            }
+            sb.AppendLine("  }");
+            sb.AppendLine("}");
+        }
+
+        return sb.ToString();
+    }
+
+    internal static string Minify(string content) =>
+        string.Join("", content.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0));
+
+    private static string ContrastForeground(string hexBg)
+    {
+        // Simple luminance check: if bg is dark, use light fg; otherwise dark fg
+        try
+        {
+            var hex = hexBg.TrimStart('#');
+            if (hex.Length < 6) return "#111111";
+            var r = Convert.ToInt32(hex[..2], 16);
+            var g = Convert.ToInt32(hex[2..4], 16);
+            var b = Convert.ToInt32(hex[4..6], 16);
+            var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance > 0.5 ? "#111111" : "#ffffff";
+        }
+        catch { return "#111111"; }
+    }
+
+    private static string BuildPageLogoHtml(AssetObject? logo)
+    {
+        if (logo is null) return "";
+        var src = logo.Type switch
+        {
+            "base64" => logo.Data,
+            "url" or "objectStorage" => logo.Url,
+            _ => null
+        };
+        if (string.IsNullOrEmpty(src)) return "";
+        return $"<img src=\"{WebUtility.HtmlEncode(src)}\" class=\"brand-logo\" alt=\"Logo\" />";
+    }
+
+    private static async Task<BrandIdentitySettings?> ResolveBrandAsync(IBrandIdentityService brandService, string bucket, CancellationToken ct = default)
+    {
+        var identity = await brandService.GetForBucketAsync(bucket, ct);
+        if (string.IsNullOrEmpty(identity.Settings) || identity.Settings == "{}") return null;
+        try { return JsonSerializer.Deserialize<BrandIdentitySettings>(identity.Settings); }
+        catch { return null; }
+    }
+
+    private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
     {
         var lang = language?.ToLowerInvariant() ?? "en";
         if (!StatusTranslations.ContainsKey(lang))
@@ -721,31 +887,41 @@ public static class ConsentEndpoints
             "already_processed" => ("ℹ", "info", t.ProcessedTitle, t.ProcessedMsg),
             "unsubscribed" => ("✓", "success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
             "updated" => ("✓", "success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
-            "confirmed" => ("✓", "success", t.ConfirmedTitle, t.ConfirmedMsg),
+            "confirmed" => ("✓", "success",
+                brand?.ConfirmTitle is { Length: > 0 } ct ? ct : t.ConfirmedTitle,
+                brand?.ConfirmMsg   is { Length: > 0 } cm ? cm : t.ConfirmedMsg),
             _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
         };
 
-        return $$"""
+        var brandCss = BuildBrandCssOverrides(brand);
+        var logoHtml = BuildPageLogoHtml(brand?.Logo);
+        var dataThemeAttr = brand?.Theme switch { "dark" => " data-theme=\"dark\"", "light" => " data-theme=\"light\"", _ => "" };
+        var colorSchemeMeta = brand?.Theme switch { "dark" => "dark", "light" => "light", _ => "light dark" };
+
+        return Minify($$"""
             <!DOCTYPE html>
-            <html lang="{{lang}}">
+            <html lang="{{lang}}"{{dataThemeAttr}}>
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
               <title>{{WebUtility.HtmlEncode(title)}}</title>
-              <meta name="color-scheme" content="light dark" />
-              <style>{{GetBaseStyles()}}</style>
+              <meta name="color-scheme" content="{{colorSchemeMeta}}" />
+              <style>{{GetBaseStyles()}}{{brandCss}}</style>
             </head>
             <body>
               <main>
-                <section class="card center">
-                  <div class="icon {{iconClass}}">{{icon}}</div>
-                  <h1>{{WebUtility.HtmlEncode(title)}}</h1>
-                  <p>{{message}}</p>
+                <section class="card">
+                  <div class="status-brand">{{logoHtml}}</div>
+                  <div class="status-body">
+                    <div class="icon {{iconClass}}">{{icon}}</div>
+                    <h1>{{WebUtility.HtmlEncode(title)}}</h1>
+                    <p>{{message}}</p>
+                  </div>
                 </section>
               </main>
             </body>
             </html>
-            """;
+            """);
     }
 
     private static string MaskEmail(string email)

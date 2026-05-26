@@ -187,6 +187,30 @@ public static class AdminEndpoints
         routes.MapGet("/api/admin/audit", GetAuditLog)
             .RequireAuthorization()
             .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/brand-identities", GetBrandIdentities)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/brand-identities", CreateBrandIdentity)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/brand-identities/{id:int}", UpdateBrandIdentity)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapDelete("/api/admin/brand-identities/{id:int}", DeleteBrandIdentity)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/brand-identities/{id:int}/buckets", AssignBrandIdentityBuckets)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/assets/logo", UploadLogo)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
     }
 
     private static async Task<IResult> OverrideConsent(
@@ -1702,6 +1726,151 @@ public static class AdminEndpoints
 
         return false;
     }
+
+    // Brand Identities
+
+    private static IResult GetBrandIdentities([FromServices] IBrandIdentityService brandService)
+    {
+        var identities = brandService.GetAll().Select(i => new
+        {
+            id = i.Id,
+            name = i.Name,
+            isDefault = i.IsDefault,
+            settings = JsonSerializer.Deserialize<object>(i.Settings) ?? new { },
+            buckets = i.BucketMappings.Select(b => b.Bucket).ToList(),
+            updatedAt = i.UpdatedAt
+        });
+        return Results.Ok(identities);
+    }
+
+    private static async Task<IResult> CreateBrandIdentity(
+        [FromBody] BrandIdentityCreateRequest request,
+        [FromServices] IBrandIdentityService brandService,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
+            return Results.BadRequest(new { error = "Name is required and must be 100 characters or fewer." });
+
+        var identity = await brandService.CreateAsync(request.Name.Trim(), ct);
+        return Results.Ok(new { id = identity.Id, name = identity.Name, isDefault = identity.IsDefault });
+    }
+
+    private static async Task<IResult> UpdateBrandIdentity(
+        int id,
+        [FromBody] BrandIdentityUpdateRequest request,
+        [FromServices] IBrandIdentityService brandService,
+        CancellationToken ct)
+    {
+        var existing = brandService.GetById(id);
+        if (existing is null)
+            return Results.NotFound(new { error = "Brand identity not found." });
+
+        if (existing.IsDefault && request.Name.Trim() != existing.Name)
+            return Results.BadRequest(new { error = "The Default identity cannot be renamed." });
+
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
+            return Results.BadRequest(new { error = "Name is required and must be 100 characters or fewer." });
+
+        string settingsJson;
+        if (request.Settings is JsonElement je)
+        {
+            if (existing.IsDefault)
+            {
+                var parsed = JsonSerializer.Deserialize<BrandIdentitySettings>(je.GetRawText())
+                    ?? new BrandIdentitySettings();
+                settingsJson = JsonSerializer.Serialize(parsed with { PrimaryAccent = null, SurfaceColour = null });
+            }
+            else
+            {
+                settingsJson = je.GetRawText();
+            }
+        }
+        else
+        {
+            settingsJson = "{}";
+        }
+
+        var updated = await brandService.UpdateAsync(id, request.Name.Trim(), settingsJson, ct);
+        return Results.Ok(new { id = updated.Id, name = updated.Name, updatedAt = updated.UpdatedAt });
+    }
+
+    private static async Task<IResult> DeleteBrandIdentity(
+        int id,
+        [FromServices] IBrandIdentityService brandService,
+        CancellationToken ct)
+    {
+        if (brandService.GetById(id) is null)
+            return Results.NotFound(new { error = "Brand identity not found." });
+
+        try
+        {
+            await brandService.DeleteAsync(id, ct);
+            return Results.Ok(new { message = "Brand identity deleted." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static async Task<IResult> AssignBrandIdentityBuckets(
+        int id,
+        [FromBody] BrandIdentityBucketsRequest request,
+        [FromServices] IBrandIdentityService brandService,
+        CancellationToken ct)
+    {
+        if (brandService.GetById(id) is null)
+            return Results.NotFound(new { error = "Brand identity not found." });
+
+        await brandService.AssignBucketsAsync(id, request.Buckets ?? [], ct);
+        return Results.Ok(new { message = "Buckets assigned." });
+    }
+
+    private static async Task<IResult> UploadLogo(
+        HttpContext context,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] IObjectStorageService objectStorage)
+    {
+        if (!context.Request.HasFormContentType)
+            return Results.BadRequest(new { error = "Multipart form required." });
+
+        var form = await context.Request.ReadFormAsync();
+        var file = form.Files.GetFile("file");
+        var base64Data = form["base64"].FirstOrDefault();
+
+        const long maxBytes = 2 * 1024 * 1024;
+
+        // Object storage path
+        var sysConfig = configService.Get();
+        if (sysConfig.ObjectStorage && file is not null)
+        {
+            if (file.Length > maxBytes)
+                return Results.BadRequest(new { error = "File exceeds 2 MB limit." });
+
+            if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "Only image files are accepted." });
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var key = $"logos/{Guid.NewGuid():N}{ext}";
+            using var stream = file.OpenReadStream();
+            var url = await objectStorage.UploadAsync(key, stream, file.ContentType);
+            return Results.Ok(new { type = "objectStorage", url });
+        }
+
+        // Base64 path (no object storage configured)
+        if (!string.IsNullOrEmpty(base64Data))
+        {
+            if (base64Data.Length > maxBytes * 2)
+                return Results.BadRequest(new { error = "Image data exceeds 2 MB limit." });
+
+            if (!base64Data.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "Only image data URIs are accepted." });
+
+            return Results.Ok(new { type = "base64", data = base64Data });
+        }
+
+        return Results.BadRequest(new { error = "Provide a file (with object storage) or a base64 data URI." });
+    }
 }
 
 public sealed class OverrideConsentRequest
@@ -1781,7 +1950,7 @@ public sealed class BatchOverrideRequest
     /// <summary>
     /// Permission states: {"newsletter": "OptedIn", "marketing": "OptedOut"}
     /// </summary>
-    public Dictionary<string, string> Permissions { get; set; } = new();
+    public Dictionary<string, string> Permissions { get; set; } = [];
     public Dictionary<string, string>? CustomFields { get; set; }
 }
 
@@ -1796,4 +1965,20 @@ public sealed class WebhookConfigRequest
     public string Method { get; set; } = "POST";
     public Dictionary<string, string>? Headers { get; set; }
     public string? BodyTemplate { get; set; }
+}
+
+public sealed class BrandIdentityCreateRequest
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+public sealed class BrandIdentityUpdateRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public object? Settings { get; set; }
+}
+
+public sealed class BrandIdentityBucketsRequest
+{
+    public List<string>? Buckets { get; set; }
 }

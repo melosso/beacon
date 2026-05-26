@@ -50,13 +50,6 @@
               </svg>
               Policies
             </a>
-            <a href="#" class="settings-subnav-item" id="settingsNavIntegration" data-section="integration" onclick="showSettingsSection('integration');return false;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
-              Integration
-            </a>
             <a href="#" class="settings-subnav-item" id="settingsNavUsers" data-section="users" onclick="showSettingsSection('users');return false;" style="display:none">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -71,7 +64,33 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>
               </svg>
-              API Keys
+              Tokens
+            </a>
+
+            <hr id="settingsNavDivider" style="border-right: medium; border-bottom: medium; border-left: medium; border-image: none; border-top: 1px solid hsl(var(--border)); margin: 0.5rem 0.75rem;">
+
+            <a href="#" class="settings-subnav-item" id="settingsNavIntegration" data-section="integration" onclick="showSettingsSection('integration');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              Integration
+            </a>
+            
+            <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
+
+            <a href="#" class="settings-subnav-item" id="settingsNavConnectors" data-section="connectors" onclick="showSettingsSection('connectors');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/> 
+              </svg>
+              Connectors
+            </a>
+
+            <a href="#" class="settings-subnav-item" id="settingsNavPersonalisation" data-section="personalisation" onclick="showSettingsSection('personalisation');return false;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              Personalisation
             </a>
 
             <hr id="settingsNavSystemDivider" style="border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
@@ -434,7 +453,7 @@
           <div id="settings-section-integration" class="settings-section">
             <div class="settings-content-hd">
               <h3 class="select-none">Integration</h3>
-              <p>Connect Beacon to external services for notifications and storage.</p>
+              <p>Connect outside platforms to handle everything from backups to email.</p>
             </div>
             <hr class="settings-sep">
             <div id="email-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
@@ -544,8 +563,8 @@
           <div id="settings-section-api-keys" class="settings-section">
             <div class="settings-content-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
               <div>
-                <h3 class="select-none">API Keys</h3>
-                <p>Manage named API keys with granular permission scopes and optional validity windows.</p>
+                <h3 class="select-none">Access Tokens</h3>
+                <p>Manage your API keys and tokens with custom permissions and expiration dates.</p>
               </div>
               <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
                 <button class="btn btn-outline" onclick="loadApiKeys()">Refresh</button>
@@ -633,7 +652,7 @@
                 </div>
               </div>
               <p id="accountGlobalAdminNotice" class="select-none" style="display:none;font-size:0.875rem;color:hsl(var(--muted-foreground));margin:0.75rem 0 0">
-                Signed in with the global admin API key. Password and API key management are configured via environment variables.
+                Signed in via global admin API key. To update your password or keys, please check your environment configuration.
               </p>
             </div>
           </div>
@@ -696,6 +715,29 @@
               </div>
               <div class="settings-save-row">
                 <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Personalisation section -->
+          <div id="settings-section-personalisation" class="settings-section">
+            <div class="settings-content-hd">
+              <h3 class="select-none">Personalisation</h3>
+              <p>Brand your emails and unsubscribe pages.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items" style="max-width:100%">
+              <div id="brand-identities-list">
+                <!-- Populated by loadBrandIdentities() -->
+                <div class="settings-empty-state" style="padding:2rem 0;text-align:center;color:hsl(var(--muted-foreground))">
+                  <span style="font-size:0.875rem">Loading identities...</span>
+                </div>
+              </div>
+              <div style="margin-top:1rem">
+                <button class="btn btn-outline" onclick="createBrandIdentity()" style="font-size:0.875rem">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:6px;vertical-align:-2px"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                  New identity
+                </button>
               </div>
             </div>
           </div>

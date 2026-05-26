@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Beacon.Tests;
 
-// ── PasswordHasher ────────────────────────────────────────────────────────────
+// ── PasswordHasher─────────
 
 public class PasswordHasherTests
 {
@@ -98,7 +98,7 @@ public class PasswordHasherTests
     }
 }
 
-// ── ApiKeyGenerator ───────────────────────────────────────────────────────────
+// ── ApiKeyGenerator────────
 
 public class ApiKeyGeneratorTests
 {
@@ -271,7 +271,7 @@ public class JwtRoleTests
     }
 }
 
-// ── UserRepository ────────────────────────────────────────────────────────────
+// ── UserRepository─────────
 
 public class UserRepositoryTests : IDisposable
 {
@@ -306,7 +306,7 @@ public class UserRepositoryTests : IDisposable
         return await _repository.CreateAsync(username, hash, salt, role, keyHash);
     }
 
-    // ── CreateAsync ──────────────────────────────────────────────────────────
+    // CreateAsync───────
 
     [Fact]
     public async Task CreateAsync_StoresUser_InDatabase()
@@ -360,7 +360,7 @@ public class UserRepositoryTests : IDisposable
         Assert.NotEqual(u1.Id, u2.Id);
     }
 
-    // ── FindByUsernameAsync ──────────────────────────────────────────────────
+    // FindByUsernameAsync ──────────────────────────────────────────────────
 
     [Fact]
     public async Task FindByUsernameAsync_ReturnsUser_WhenExists()
@@ -402,7 +402,7 @@ public class UserRepositoryTests : IDisposable
         Assert.Equal("alice", result!.Username);
     }
 
-    // ── FindByApiKeyHashAsync ────────────────────────────────────────────────
+    // FindByApiKeyHashAsync ────────────────────────────────────────────────
 
     [Fact]
     public async Task FindByApiKeyHashAsync_ReturnsUser_WhenHashMatches()
@@ -427,7 +427,7 @@ public class UserRepositoryTests : IDisposable
         Assert.Null(result);
     }
 
-    // ── CountAsync ───────────────────────────────────────────────────────────
+    // CountAsync────────
 
     [Fact]
     public async Task CountAsync_ReturnsZero_WhenEmpty()
@@ -445,7 +445,7 @@ public class UserRepositoryTests : IDisposable
         Assert.Equal(3, await _repository.CountAsync());
     }
 
-    // ── GetAllAsync ──────────────────────────────────────────────────────────
+    // GetAllAsync───────
 
     [Fact]
     public async Task GetAllAsync_ReturnsEmpty_WhenNoUsers()
@@ -479,7 +479,7 @@ public class UserRepositoryTests : IDisposable
         Assert.Equal("first", result[1].Username);
     }
 
-    // ── UpdatePasswordAsync ──────────────────────────────────────────────────
+    // UpdatePasswordAsync ──────────────────────────────────────────────────
 
     [Fact]
     public async Task UpdatePasswordAsync_UpdatesHashAndSalt()
@@ -517,7 +517,7 @@ public class UserRepositoryTests : IDisposable
         await _repository.UpdatePasswordAsync(Guid.NewGuid(), "hash", "salt"); // must not throw
     }
 
-    // ── UpdateApiKeyAsync ────────────────────────────────────────────────────
+    // UpdateApiKeyAsync─
 
     [Fact]
     public async Task UpdateApiKeyAsync_UpdatesHash()
@@ -546,7 +546,7 @@ public class UserRepositoryTests : IDisposable
         Assert.InRange(updated.UpdatedAt!.Value, before, after);
     }
 
-    // ── UpdateRoleAsync ──────────────────────────────────────────────────────
+    // UpdateRoleAsync───
 
     [Fact]
     public async Task UpdateRoleAsync_ChangesRole_AdminToUser()
@@ -570,7 +570,7 @@ public class UserRepositoryTests : IDisposable
         Assert.Equal("admin", updated!.Role);
     }
 
-    // ── SetLastLoginAsync ────────────────────────────────────────────────────
+    // SetLastLoginAsync─
 
     [Fact]
     public async Task SetLastLoginAsync_SetsLastLoginAt()
@@ -601,7 +601,7 @@ public class UserRepositoryTests : IDisposable
         Assert.True(secondLogin >= firstLogin);
     }
 
-    // ── DeleteAsync ──────────────────────────────────────────────────────────
+    // DeleteAsync───────
 
     [Fact]
     public async Task DeleteAsync_RemovesUser()

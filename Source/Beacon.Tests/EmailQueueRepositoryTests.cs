@@ -51,8 +51,7 @@ public class EmailQueueRepositoryTests : IDisposable
         ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(7)
     };
 
-    // ── EnqueueAsync ─────────────────────────────────────────────────────────
-
+    // EnqueueAsync
     [Fact]
     public async Task EnqueueAsync_AddsEntryWithPendingStatus()
     {
@@ -79,8 +78,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.Equal("tk1", stored.ConfirmationToken);
     }
 
-    // ── GetPendingBatchAsync ─────────────────────────────────────────────────
-
+    // GetPendingBatchAsync
     [Fact]
     public async Task GetPendingBatchAsync_ReturnsPendingEntries()
     {
@@ -139,8 +137,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.Equal("second", batch[1].ConfirmationToken);
     }
 
-    // ── MarkSentAsync ────────────────────────────────────────────────────────
-
+    // MarkSentAsync
     [Fact]
     public async Task MarkSentAsync_SetsSentStatus()
     {
@@ -182,8 +179,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.True(updated.SentAt >= before);
     }
 
-    // ── MarkFailedAsync ──────────────────────────────────────────────────────
-
+    // MarkFailedAsync
     [Fact]
     public async Task MarkFailedAsync_WithNextAttempt_RemainsPending()
     {
@@ -236,7 +232,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.Equal(1, updated!.AttemptCount);
     }
 
-    // ── GetByConfirmationTokenAsync ──────────────────────────────────────────
+    // GetByConfirmationTokenAsync ──────────────────────────────────────────
 
     [Fact]
     public async Task GetByConfirmationTokenAsync_ReturnsEntry_WhenTokenExists()
@@ -259,7 +255,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.Null(result);
     }
 
-    // ── MarkConfirmedAsync ───────────────────────────────────────────────────
+    // MarkConfirmedAsync
 
     [Fact]
     public async Task MarkConfirmedAsync_SetsConfirmedStatus()
@@ -289,7 +285,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.True(updated.ConfirmedAt >= before);
     }
 
-    // ── HasPendingAsync ──────────────────────────────────────────────────────
+    // HasPendingAsync───
 
     [Fact]
     public async Task HasPendingAsync_ReturnsTrue_ForPendingEntry()
@@ -335,7 +331,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.False(await _repository.HasPendingAsync("b", "h", "p"));
     }
 
-    // ── PruneExpiredAsync ────────────────────────────────────────────────────
+    // PruneExpiredAsync─
 
     [Fact]
     public async Task PruneExpiredAsync_MarksExpiredPendingEntries()
@@ -377,7 +373,7 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.Equal(EmailQueueStatus.Confirmed, updated!.Status);
     }
 
-    // ── CancelPendingAsync ───────────────────────────────────────────────────
+    // CancelPendingAsync
 
     [Fact]
     public async Task CancelPendingAsync_CancelsOnlyPendingEmailsForSameKey()

@@ -993,11 +993,13 @@
         renderBucketsSidebar();
       }
 
-      // Fetch which buckets have webhooks configured
-      const whResult = await apiRequest('/api/admin/webhooks/buckets');
-      if (whResult.ok) {
-        webhookBuckets = new Set(whResult.data || []);
-      }
+      // Fetch which buckets have webhooks configured; also refresh brand identities if needed
+      const [whResult, biResult] = await Promise.all([
+        apiRequest('/api/admin/webhooks/buckets'),
+        _brandIdentities.length === 0 ? apiRequest('/api/admin/brand-identities') : Promise.resolve({ ok: true, data: _brandIdentities })
+      ]);
+      if (whResult.ok) webhookBuckets = new Set(whResult.data || []);
+      if (biResult.ok && biResult.data) _brandIdentities = biResult.data;
 
       // Fetch errors for webhook-enabled buckets
       const webhookErrorBuckets = new Set();
@@ -1027,7 +1029,10 @@
         return;
       }
 
-      body.innerHTML = buckets.map((b, idx) => `
+      body.innerHTML = buckets.map((b, idx) => {
+        const brandId = getBrandIdentityForBucket(b.name);
+        const brandAccent = brandId?.settings?.primaryAccent || null;
+        return `
         <tr>
           <td style="cursor:pointer" onclick="showBucket('${sanitize(b.name)}')"><strong>${sanitize(b.name) || 'N/A'}</strong>${b.isArchived ? ' <span class="status-badge" style="background:hsl(var(--muted));color:hsl(var(--muted-foreground));font-size:0.7rem">Archived</span>' : ''}</td>
           <td>${b.totalEmails != null ? Number(b.totalEmails).toLocaleString() : 'N/A'}</td>
@@ -1049,6 +1054,16 @@
                   </svg>
                   <span class="tooltip tooltip-above tooltip-right">Webhook configured</span>
                 </span>` : ''}
+                ${brandId ? `<span class="tooltip-wrapper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${brandAccent || 'hsl(var(--muted-foreground))'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle">
+                    <circle cx="13.5" cy="6.5" r=".5" fill="${brandAccent || 'hsl(var(--muted-foreground))'}"/>
+                    <circle cx="17.5" cy="10.5" r=".5" fill="${brandAccent || 'hsl(var(--muted-foreground))'}"/>
+                    <circle cx="8.5" cy="7.5" r=".5" fill="${brandAccent || 'hsl(var(--muted-foreground))'}"/>
+                    <circle cx="6.5" cy="12.5" r=".5" fill="${brandAccent || 'hsl(var(--muted-foreground))'}"/>
+                    <path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+                  </svg>
+                  <span class="tooltip tooltip-above tooltip-right">${escHtml(brandId.name)}</span>
+                </span>` : ''}
               </span>
               <span class="tooltip-wrapper">
                 <button class="btn-actions" onclick="toggleOverviewMenu(event, ${idx})">:</button>
@@ -1062,32 +1077,19 @@
             </div>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     let currentBucketPermissions = [];
 
     async function copyBucketName() {
+        if (!currentBucket) return;
         const tooltipElement = document.getElementById('bucketTooltip');
-        const bucketName = tooltipElement.innerText;
-
-        if (!bucketName || bucketName === "-") {
-            console.error("Source text is empty or invalid.");
-            return;
-        }
-
         try {
-            // Utilizing the Asynchronous Clipboard API
-            await clipboardWrite(bucketName);
-            
-            // Optional: Provide visual confirmation
-            const originalText = tooltipElement.innerText;
+            await clipboardWrite(currentBucket);
             tooltipElement.innerText = "Copied!";
-            
-            setTimeout(() => {
-                tooltipElement.innerText = originalText;
-            }, 2000);
-            
+            setTimeout(() => { tooltipElement.innerText = currentBucket; }, 2000);
         } catch (err) {
             console.error("Failed to copy text: ", err);
         }
@@ -1113,6 +1115,18 @@
         badge.textContent = 'Read-Only';
         badge.style.background = '';
         badge.style.color = '';
+      }
+
+      const brandBadge = document.getElementById('bucketBrandBadge');
+      const brandIdentity = getBrandIdentityForBucket(bucket);
+      if (brandIdentity) {
+        const accent = brandIdentity.settings?.primaryAccent;
+        brandBadge.textContent = brandIdentity.name;
+        brandBadge.style.background = accent || '';
+        brandBadge.style.color = accent ? contrastFg(accent) : '';
+        brandBadge.style.display = '';
+      } else {
+        brandBadge.style.display = 'none';
       }
 
       // Fetch webhook errors for this bucket
@@ -3752,7 +3766,7 @@ ${bodyStr}
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
     }
 
-    const _adminOnlySections = new Set(['general', 'modules', 'data-policies', 'integration', 'system', 'users', 'api-keys']);
+    const _adminOnlySections = new Set(['general', 'modules', 'data-policies', 'integration', 'system', 'users', 'api-keys', 'connectors', 'personalisation']);
 
     function showSettingsSection(section, pushState = true) {
       const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
@@ -3763,8 +3777,7 @@ ${bodyStr}
       document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.settings-subnav-item').forEach(i => i.classList.remove('active'));
       document.getElementById(`settings-section-${section}`)?.classList.add('active');
-      document.querySelector(`.settings-subnav-item[data-section="${section}"]`)?.classList.add('active');
-      const labels = { general: 'General', modules: 'Modules', 'data-policies': 'Data Policies', appearance: 'Appearance', system: 'System', integration: 'Integration', users: 'Users', 'api-keys': 'API Keys', account: 'Account' };
+      const labels = { general: 'General settings', modules: 'General settings', 'data-policies': 'General settings', appearance: 'Preferences', system: 'System settings', integration: 'Customisation', users: 'General settings', 'api-keys': 'General settings', account: 'Preferences', personalisation: 'Customisation', connectors: 'Customisation' };
       const badge = document.getElementById('settingsSectionBadge');
       if (badge) badge.textContent = labels[section] || section;
       if (pushState) updateUrl({ view: 'settings', section });
@@ -3772,6 +3785,7 @@ ${bodyStr}
       if (section === 'api-keys') loadApiKeys();
       if (section === 'account') loadAccount();
       if (section === 'data-policies') loadDataPoliciesSection();
+      if (section === 'personalisation') loadBrandIdentities();
     }
 
     function saveSetting(key, value) {
@@ -4188,7 +4202,7 @@ ${bodyStr}
     }
 
     function renderAuditRow(e) {
-      const sourceLabel = { Url: 'User', Api: 'API', Admin: 'Admin' }[e.source] || e.source;
+      const sourceLabel = { Url: 'User', Api: 'API', Admin: 'Administrator' }[e.source] || e.source;
       const nullCell = '<span class="muted">—</span>';
       const oldChip = auditStatusChip(e.oldStatus);
       const newChip = auditStatusChip(e.newStatus);
@@ -4302,7 +4316,7 @@ ${bodyStr}
       if (prev) prev.disabled = auditCurrentPage <= 1;
       if (next) next.disabled = auditCurrentPage >= maxPage;
     }
-    // ── /Audit ─────────────────────────────────────────────────────────────
+    // /Audit 
 
     const _workflowTypeLabels = {
       RetentionPurge: 'Opted-out anonymisation',
@@ -4940,11 +4954,697 @@ ${bodyStr}
       const navWorkflow = document.getElementById('navWorkflow');
       if (navWorkflow) navWorkflow.style.display = isAdmin ? '' : 'none';
       if (!isAdmin) {
-        for (const id of ['settingsNavGeneral', 'settingsNavModules', 'settingsNavDataPolicies', 'settingsNavIntegration', 'settingsNavSystem', 'settingsNavSystemDivider']) {
+        for (const id of ['settingsNavGeneral', 'settingsNavModules', 'settingsNavDataPolicies', 'settingsNavIntegration', 'settingsNavSystem', 'settingsNavSystemDivider', 'settingsNavConnectors', 'settingsNavPersonalisation']) {
           const el = document.getElementById(id);
           if (el) el.style.display = 'none';
         }
       }
     }
+
+    // ── Personalisation / Brand Identities ────────────────────────────────────
+
+    function escHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    const NON_EMAIL_SAFE_FONTS = new Set(['inter', 'manrope', 'system']);
+
+    let _brandIdentities = [];
+
+    function getBrandIdentityForBucket(bucket) {
+      return _brandIdentities.find(i => !i.isDefault && (i.buckets || []).includes(bucket)) || null;
+    }
+
+    async function loadBrandIdentities() {
+      const list = document.getElementById('brand-identities-list');
+      if (!list) return;
+      try {
+        const res = await apiRequest('/api/admin/brand-identities');
+        _brandIdentities = res.data || [];
+        renderBrandIdentities();
+      } catch (e) {
+        list.innerHTML = '<div style="padding:1rem;color:hsl(var(--destructive));font-size:0.875rem">Failed to load identities.</div>';
+      }
+    }
+
+    function renderBrandIdentities() {
+      const list = document.getElementById('brand-identities-list');
+      if (!list) return;
+      if (!_brandIdentities.length) {
+        list.innerHTML = '<div style="padding:1rem 0;font-size:0.875rem;color:hsl(var(--muted-foreground))">No identities found.</div>';
+        return;
+      }
+      list.innerHTML = _brandIdentities.map(identity => buildIdentityCardHtml(identity)).join('');
+    }
+
+    function buildIdentityCardHtml(identity) {
+      const id = identity.id;
+      const s = identity.settings || {};
+      const buckets = identity.buckets || [];
+      const isDefault = identity.isDefault;
+
+      return `
+        <div class="identity-card" id="identity-card-${id}">
+          <div class="identity-card-header" onclick="toggleIdentityCard(${id})" role="button" tabindex="0"
+               onkeydown="if(event.key==='Enter'||event.key===' ')toggleIdentityCard(${id})">
+            <div style="display:flex;align-items:center;gap:0.625rem;flex:1;min-width:0">
+              <span class="identity-card-name">${escHtml(identity.name)}</span>
+              ${isDefault ? '<span class="identity-default-badge">Default</span>' : ''}
+            </div>
+            <span class="identity-card-meta">${buckets.length ? `${buckets.length} bucket${buckets.length !== 1 ? 's' : ''}` : 'No buckets'}</span>
+            <svg class="identity-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <div class="identity-card-body" hidden>
+
+            <!-- Name -->
+            <div>
+              <p class="identity-section-hd">Identity name</p>
+              ${isDefault
+                ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">The Default identity cannot be renamed.</p>`
+                : `<div class="identity-field-row" style="align-items:center">
+                <div class="settings-item-info" style="flex:1">
+                  <p class="identity-field-desc">Display name for this brand identity.</p>
+                </div>
+                <input type="text" class="identity-input" style="max-width:220px"
+                  id="bi-name-${id}" value="${escHtml(identity.name)}"
+                  oninput="updateIdentityPreview(${id})" />
+              </div>`}
+            </div>
+
+            <!-- Colours -->
+            <div>
+              <p class="identity-section-hd">Colours</p>
+              ${isDefault ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Colours are not configurable on the Default identity.</p>` : `
+              <div class="identity-field-row" style="margin-bottom:0.75rem">
+                <div class="settings-item-info">
+                  <span class="identity-field-label">Accent colour</span>
+                  <p class="identity-field-desc">Buttons and interactive elements.</p>
+                </div>
+                <div class="identity-field-control">
+                  <div class="colour-picker-row">
+                    <input type="color" id="bi-accent-picker-${id}" value="${s.primaryAccent || '#6366f1'}"
+                      oninput="syncColourInput(${id},'accent')" />
+                    <input type="text" class="colour-hex-input" id="bi-accent-hex-${id}" value="${s.primaryAccent || '#6366f1'}"
+                      maxlength="7" placeholder="#6366f1"
+                      oninput="syncColourPicker(${id},'accent');updateIdentityPreview(${id})" />
+                  </div>
+                </div>
+              </div>
+              <div class="identity-field-row">
+                <div class="settings-item-info">
+                  <span class="identity-field-label">Surface colour</span>
+                  <p class="identity-field-desc">Page and email background.</p>
+                </div>
+                <div class="identity-field-control">
+                  <div class="colour-picker-row">
+                    <input type="color" id="bi-surface-picker-${id}" value="${s.surfaceColour || '#ffffff'}"
+                      oninput="syncColourInput(${id},'surface')" />
+                    <input type="text" class="colour-hex-input" id="bi-surface-hex-${id}" value="${s.surfaceColour || '#ffffff'}"
+                      maxlength="7" placeholder="#ffffff"
+                      oninput="syncColourPicker(${id},'surface');updateIdentityPreview(${id})" />
+                  </div>
+                </div>
+              </div>`}
+            </div>
+
+            <!-- Logo -->
+            <div>
+              <p class="identity-section-hd">Logo</p>
+              <div class="identity-field-row" style="align-items:flex-start">
+                <div class="settings-item-info">
+                  <p class="identity-field-desc">Displayed above the heading in emails and on the opt-out page. Max 2 MB.</p>
+                </div>
+                <div class="identity-field-control" style="min-width:240px">
+                  <div class="logo-upload-area" onclick="triggerLogoUpload(${id})" id="bi-logo-area-${id}">
+                    ${buildLogoPreviewHtml(id, s.logo)}
+                    <span class="logo-upload-text">
+                      <strong>Upload image</strong><br />or paste a URL below
+                    </span>
+                    ${s.logo ? `<button class="logo-remove-btn" type="button" onclick="event.stopPropagation();removeLogo(${id})">Remove</button>` : ''}
+                  </div>
+                  <input type="file" id="bi-logo-file-${id}" accept="image/*" style="display:none"
+                    onchange="handleLogoFileChange(${id}, this)" />
+                  <input type="text" class="identity-input" id="bi-logo-url-${id}"
+                    value="${s.logo && s.logo.type === 'url' ? escHtml(s.logo.url || '') : ''}"
+                    placeholder="https://example.com/logo.png"
+                    oninput="handleLogoUrlInput(${id}, this.value)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Theme -->
+            <div>
+              <p class="identity-section-hd">Theme — opt-out page &amp; email</p>
+              <div class="identity-field-row" style="align-items:flex-start">
+                <div class="settings-item-info">
+                  <p class="identity-field-desc">Controls the colour scheme of outgoing emails and the opt-out page seen by recipients.</p>
+                </div>
+                <div class="identity-field-control">
+                  <div class="theme-radio-group">
+                    ${['light','dark','system'].map(th => `
+                      <label class="theme-option" for="bi-theme-${id}-${th}">
+                        <input type="radio" name="bi-theme-${id}" id="bi-theme-${id}-${th}" value="${th}"
+                          ${(s.theme || 'system') === th ? 'checked' : ''}
+                          onchange="updateIdentityPreview(${id})" />
+                        <div class="theme-card">
+                          <div class="theme-preview-inner ${th === 'system' ? 'theme-preview--system' : `theme-preview--${th}`}">
+                            ${th === 'system' ? '<div class="tp-half tp-half--light"></div><div class="tp-half tp-half--dark"></div>' : ''}
+                          </div>
+                        </div>
+                        <span class="theme-option-label">${th.charAt(0).toUpperCase() + th.slice(1)}</span>
+                      </label>`).join('')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Typography -->
+            <div>
+              <p class="identity-section-hd">Typography</p>
+              <div class="identity-field-row" style="align-items:center">
+                <div class="settings-item-info">
+                  <p class="identity-field-desc">Font applied to emails and the opt-out page.</p>
+                </div>
+                <div class="identity-field-control">
+                  <select class="appearance-select" id="bi-font-${id}"
+                    onchange="onIdentityFontChange(${id})" style="min-width:160px">
+                    <option value="">System default</option>
+                    <option value="Arial" ${s.font === 'Arial' ? 'selected' : ''}>Arial</option>
+                    <option value="Helvetica" ${s.font === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+                    <option value="Georgia" ${s.font === 'Georgia' ? 'selected' : ''}>Georgia</option>
+                    <option value="Tahoma" ${s.font === 'Tahoma' ? 'selected' : ''}>Tahoma</option>
+                    <option value="Verdana" ${s.font === 'Verdana' ? 'selected' : ''}>Verdana</option>
+                    <option value="Trebuchet MS" ${s.font === 'Trebuchet MS' ? 'selected' : ''}>Trebuchet MS</option>
+                    <option value="Courier New" ${s.font === 'Courier New' ? 'selected' : ''}>Courier New</option>
+                    <option value="Inter" ${s.font === 'Inter' ? 'selected' : ''}>Inter</option>
+                    <option value="Manrope" ${s.font === 'Manrope' ? 'selected' : ''}>Manrope</option>
+                  </select>
+                  <span class="font-warning-badge" id="bi-font-warn-${id}" ${NON_EMAIL_SAFE_FONTS.has((s.font || '').toLowerCase()) ? '' : 'style="display:none"'}>
+                    &#9888; May not render in all email clients
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Copy — opt-out page -->
+            ${(() => {
+              if (isDefault) return `<div><p class="identity-section-hd">Copy — opt-out page</p><p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p></div>`;
+              const hasPageCopy = !!(s.pageTitle || s.pageBody || s.browserTitle);
+              return `<div>
+              <p class="identity-section-hd">Copy — opt-out page</p>
+              <div id="bi-copy-page-gate-${id}" style="${hasPageCopy ? 'display:none' : ''}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.5);border:1px solid hsl(var(--border));border-radius:var(--radius)">
+                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Custom copy disables automatic locale translations.</span>
+                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="unlockCopySection(${id},'page')">Customise</button>
+                </div>
+              </div>
+              <div id="bi-copy-page-fields-${id}" style="${hasPageCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.75rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+                  <p style="font-size:0.8125rem;color:hsl(var(--warning));margin:0">Locale translations disabled for this section.</p>
+                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="resetCopySection(${id},'page')">Reset</button>
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-browser-title-${id}">Browser tab title</label>
+                  <input type="text" class="identity-input" id="bi-browser-title-${id}"
+                    value="${escHtml(s.browserTitle || '')}" placeholder="Email Preferences"
+                    oninput="updateIdentityPreview(${id})" />
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-page-title-${id}">Page heading</label>
+                  <input type="text" class="identity-input" id="bi-page-title-${id}"
+                    value="${escHtml(s.pageTitle || '')}" placeholder="Email preferences"
+                    oninput="updateIdentityPreview(${id})" />
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-page-body-${id}">Page body text</label>
+                  <textarea class="identity-textarea" id="bi-page-body-${id}" rows="2"
+                    placeholder="You're receiving these emails because you previously opted in."
+                    oninput="updateIdentityPreview(${id})">${escHtml(s.pageBody || '')}</textarea>
+                </div>
+              </div>
+            </div>`;
+            })()}
+
+            <!-- Copy — email -->
+            ${(() => {
+              if (isDefault) return `<div><p class="identity-section-hd">Copy — email</p><p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p></div>`;
+              const hasEmailCopy = !!(s.emailTitle || s.emailBody);
+              return `<div>
+              <p class="identity-section-hd">Copy — email</p>
+              <div id="bi-copy-email-gate-${id}" style="${hasEmailCopy ? 'display:none' : ''}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.5);border:1px solid hsl(var(--border));border-radius:var(--radius)">
+                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Custom copy disables automatic locale translations.</span>
+                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="unlockCopySection(${id},'email')">Customise</button>
+                </div>
+              </div>
+              <div id="bi-copy-email-fields-${id}" style="${hasEmailCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.75rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+                  <p style="font-size:0.8125rem;color:hsl(var(--warning));margin:0">Locale translations disabled for this section.</p>
+                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="resetCopySection(${id},'email')">Reset</button>
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-email-title-${id}">Email heading</label>
+                  <input type="text" class="identity-input" id="bi-email-title-${id}"
+                    value="${escHtml(s.emailTitle || '')}" placeholder="One more step to complete your sign-up"
+                    oninput="updateIdentityPreview(${id})" />
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-email-body-${id}">Email body text</label>
+                  <textarea class="identity-textarea" id="bi-email-body-${id}" rows="2"
+                    placeholder="Click the button below to confirm."
+                    oninput="updateIdentityPreview(${id})">${escHtml(s.emailBody || '')}</textarea>
+                </div>
+              </div>
+            </div>`;
+            })()}
+
+            <!-- Copy — confirmation -->
+            ${(() => {
+              if (isDefault) return `<div><p class="identity-section-hd">Copy — confirmation</p><p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p></div>`;
+              const hasConfirmCopy = !!(s.confirmTitle || s.confirmMsg);
+              return `<div>
+              <p class="identity-section-hd">Copy — confirmation</p>
+              <div id="bi-copy-confirm-gate-${id}" style="${hasConfirmCopy ? 'display:none' : ''}">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.5);border:1px solid hsl(var(--border));border-radius:var(--radius)">
+                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Custom copy disables automatic locale translations.</span>
+                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="unlockCopySection(${id},'confirm')">Customise</button>
+                </div>
+              </div>
+              <div id="bi-copy-confirm-fields-${id}" style="${hasConfirmCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.75rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+                  <p style="font-size:0.8125rem;color:hsl(var(--warning));margin:0">Locale translations disabled for this section.</p>
+                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="resetCopySection(${id},'confirm')">Reset</button>
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-confirm-title-${id}">Confirmation heading</label>
+                  <input type="text" class="identity-input" id="bi-confirm-title-${id}"
+                    value="${escHtml(s.confirmTitle || '')}" placeholder="Subscription confirmed" />
+                </div>
+                <div>
+                  <label class="identity-field-label" for="bi-confirm-msg-${id}">Confirmation message</label>
+                  <textarea class="identity-textarea" id="bi-confirm-msg-${id}" rows="2"
+                    placeholder="Your subscription has been confirmed. You're now opted in.">${escHtml(s.confirmMsg || '')}</textarea>
+                </div>
+              </div>
+            </div>`;
+            })()}
+
+            <!-- Footer -->
+            <div>
+              <p class="identity-section-hd">Footer</p>
+              ${isDefault
+                ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p>`
+                : `<p style="margin:0.25rem 0 0.5rem;font-size:0.8125rem;color:hsl(var(--muted-foreground))">Shown at the bottom of both the email and opt-out page.</p>
+              <textarea class="identity-textarea" id="bi-footer-${id}" rows="2"
+                placeholder="&#169; 2025 Your Company"
+                oninput="updateIdentityPreview(${id})">${escHtml(s.footer || '')}</textarea>`}
+            </div>
+
+            <!-- Bucket assignment -->
+            <div>
+              <p class="identity-section-hd">Bucket assignment</p>
+              ${isDefault
+                ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">The Default identity applies to all unassigned buckets.</p>`
+                : `<div class="identity-field-row" style="align-items:flex-start">
+                <div class="settings-item-info">
+                  <p class="identity-field-desc">Buckets assigned to this identity. Unassigned buckets use the Default.</p>
+                </div>
+                <div class="identity-bucket-list" id="bi-buckets-${id}">
+                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Loading...</span>
+                </div>
+              </div>`}
+            </div>
+
+            <!-- Live preview -->
+            <div class="personalisation-preview">
+              <p class="personalisation-preview-hd">Preview</p>
+              <div class="personalisation-preview-grid">
+                <div class="preview-frame">
+                  <div class="preview-frame-label">Email</div>
+                  <div class="preview-frame-body">
+                    <div class="preview-email-mock" id="bi-preview-email-${id}">
+                      <div id="bi-preview-logo-email-${id}"></div>
+                      <div class="preview-mock-title" id="bi-preview-email-title-${id}">One more step to complete your sign-up</div>
+                      <div class="preview-mock-body" id="bi-preview-email-body-${id}">Click the button below to confirm.</div>
+                      <div class="preview-mock-btn" id="bi-preview-email-btn-${id}" ${isDefault ? '' : `style="background:${s.primaryAccent||'#6366f1'};color:${contrastFg(s.primaryAccent||'#6366f1')}"`}>Yes, sign me up</div>
+                      <div class="preview-mock-footer" id="bi-preview-email-footer-${id}"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="preview-frame">
+                  <div class="preview-frame-label">Opt-out page</div>
+                  <div class="preview-frame-body">
+                    <div class="preview-page-mock" id="bi-preview-page-${id}">
+                      <div id="bi-preview-logo-page-${id}"></div>
+                      <div class="preview-mock-title" id="bi-preview-page-title-${id}">Email preferences</div>
+                      <div class="preview-mock-body" id="bi-preview-page-body-${id}">You're receiving these emails because you previously opted in.</div>
+                      <div class="preview-mock-btn" id="bi-preview-page-btn-${id}" ${isDefault ? '' : `style="background:${s.primaryAccent||'#6366f1'};color:${contrastFg(s.primaryAccent||'#6366f1')}"`}>Save preferences</div>
+                      <div class="preview-mock-footer" id="bi-preview-page-footer-${id}"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="identity-actions-row">
+              <button class="btn btn-primary" onclick="saveBrandIdentity(${id})" style="font-size:0.875rem">Save</button>
+              ${!isDefault ? `<button class="btn btn-outline" onclick="deleteBrandIdentity(${id})" style="font-size:0.875rem;color:hsl(var(--destructive));border-color:hsl(var(--destructive)/0.4)">Delete</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function buildLogoPreviewHtml(id, logo) {
+      if (!logo) {
+        return `<div class="logo-upload-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 9 3-3 3 3"/><path d="M12 6v12"/></svg></div>`;
+      }
+      const src = logo.type === 'base64' ? logo.data : logo.url;
+      return `<img class="logo-thumbnail" src="${escHtml(src || '')}" alt="Logo" />`;
+    }
+
+    function toggleIdentityCard(id) {
+      const body = document.querySelector(`#identity-card-${id} .identity-card-body`);
+      if (!body) return;
+      const wasHidden = body.hidden;
+      body.hidden = !wasHidden;
+      if (wasHidden) {
+        renderBucketAssignment(id);
+        updateIdentityPreview(id);
+      }
+    }
+
+    async function renderBucketAssignment(identityId) {
+      const container = document.getElementById(`bi-buckets-${identityId}`);
+      if (!container) return;
+      try {
+        const res = await apiRequest('/api/admin/buckets');
+        const allBuckets = (res.data || []).map(b => typeof b === 'string' ? b : (b.bucket || b.name || String(b)));
+        const identity = _brandIdentities.find(i => i.id === identityId);
+        const assigned = new Set(identity ? (identity.buckets || []) : []);
+        if (!allBuckets.length) {
+          container.innerHTML = '<span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">No buckets configured.</span>';
+          return;
+        }
+        container.innerHTML = allBuckets.map(bucket => `
+          <label class="identity-bucket-item">
+            <input type="checkbox" value="${escHtml(bucket)}" ${assigned.has(bucket) ? 'checked' : ''} />
+            ${escHtml(bucket)}
+          </label>`).join('');
+      } catch {
+        container.innerHTML = '<span style="font-size:0.8125rem;color:hsl(var(--destructive))">Failed to load buckets.</span>';
+      }
+    }
+
+    function syncColourInput(id, type) {
+      const isAccent = type === 'accent';
+      const picker = document.getElementById(`bi-${isAccent ? 'accent-picker' : 'surface-picker'}-${id}`);
+      const hex = document.getElementById(`bi-${isAccent ? 'accent-hex' : 'surface-hex'}-${id}`);
+      if (picker && hex) hex.value = picker.value;
+      updateIdentityPreview(id);
+    }
+
+    function syncColourPicker(id, type) {
+      const isAccent = type === 'accent';
+      const picker = document.getElementById(`bi-${isAccent ? 'accent-picker' : 'surface-picker'}-${id}`);
+      const hex = document.getElementById(`bi-${isAccent ? 'accent-hex' : 'surface-hex'}-${id}`);
+      if (picker && hex && /^#[0-9a-fA-F]{6}$/.test(hex.value)) picker.value = hex.value;
+    }
+
+    function onIdentityFontChange(id) {
+      const select = document.getElementById(`bi-font-${id}`);
+      const warn = document.getElementById(`bi-font-warn-${id}`);
+      if (select && warn) warn.style.display = NON_EMAIL_SAFE_FONTS.has(select.value.toLowerCase()) ? '' : 'none';
+      updateIdentityPreview(id);
+    }
+
+    function triggerLogoUpload(id) {
+      document.getElementById(`bi-logo-file-${id}`)?.click();
+    }
+
+    async function handleLogoFileChange(id, input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { notify('error', 'File too large', 'Maximum logo size is 2 MB.'); return; }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        const formData = new FormData();
+        formData.append('base64', base64Data);
+        if (file) formData.append('file', file);
+        try {
+          const res = await fetch('/api/admin/assets/logo', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+          });
+          if (!res.ok) throw new Error(await res.text());
+          const asset = await res.json();
+          applyLogoAsset(id, asset);
+        } catch (err) {
+          notify('error', 'Upload failed', String(err));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleLogoUrlInput(id, url) {
+      if (!url) { applyLogoAsset(id, null); return; }
+      if (/^https?:\/\/.+/.test(url)) applyLogoAsset(id, { type: 'url', url });
+    }
+
+    function applyLogoAsset(id, asset) {
+      const identity = _brandIdentities.find(i => i.id === id);
+      if (identity) {
+        if (!identity.settings) identity.settings = {};
+        identity.settings.logo = asset;
+      }
+      const area = document.getElementById(`bi-logo-area-${id}`);
+      if (!area) return;
+      const existing = area.querySelector('.logo-thumbnail, .logo-upload-placeholder');
+      if (existing) existing.remove();
+      const removeBtn = area.querySelector('.logo-remove-btn');
+      if (!asset) { if (removeBtn) removeBtn.remove(); return; }
+      const img = document.createElement('img');
+      img.className = 'logo-thumbnail';
+      img.src = asset.type === 'base64' ? asset.data : asset.url;
+      img.alt = 'Logo';
+      area.prepend(img);
+      if (!removeBtn) {
+        const btn = document.createElement('button');
+        btn.className = 'logo-remove-btn';
+        btn.type = 'button';
+        btn.textContent = 'Remove';
+        btn.onclick = (ev) => { ev.stopPropagation(); removeLogo(id); };
+        area.append(btn);
+      }
+      updateIdentityPreview(id);
+    }
+
+    function removeLogo(id) {
+      const urlInput = document.getElementById(`bi-logo-url-${id}`);
+      if (urlInput) urlInput.value = '';
+      applyLogoAsset(id, null);
+    }
+
+    function updateIdentityPreview(id) {
+      const accent = (document.getElementById(`bi-accent-hex-${id}`) || {}).value || '#6366f1';
+      const surface = (document.getElementById(`bi-surface-hex-${id}`) || {}).value || '#ffffff';
+      const emailTitle = (document.getElementById(`bi-email-title-${id}`) || {}).value || 'One more step to complete your sign-up';
+      const emailBody = (document.getElementById(`bi-email-body-${id}`) || {}).value || 'Click the button below to confirm.';
+      const pageTitle = (document.getElementById(`bi-page-title-${id}`) || {}).value || 'Email preferences';
+      const pageBody = (document.getElementById(`bi-page-body-${id}`) || {}).value || "You're receiving these emails because you previously opted in.";
+      const footer = (document.getElementById(`bi-footer-${id}`) || {}).value || '';
+
+      const themeInput = document.querySelector(`input[name="bi-theme-${id}"]:checked`);
+      const theme = themeInput ? themeInput.value : 'system';
+      const isDark = theme === 'dark';
+      const bg = isDark ? (surface !== '#ffffff' ? surface : '#0f0f0f') : surface;
+      const fg = isDark ? '#e7e7e7' : contrastFg(bg);
+
+      const identity = _brandIdentities.find(i => i.id === id);
+      const logo = identity && identity.settings ? identity.settings.logo : null;
+      const logoSrc = logo ? (logo.type === 'base64' ? logo.data : logo.url) : null;
+      const logoHtml = logoSrc ? `<img class="preview-mock-logo" src="${escHtml(logoSrc)}" alt="Logo" style="max-width:80px;max-height:32px;display:block;margin:0 0 0.5rem;object-fit:contain" />` : '';
+
+      const emailMock = document.getElementById(`bi-preview-email-${id}`);
+      if (emailMock) {
+        emailMock.style.background = bg;
+        emailMock.style.color = fg;
+        document.getElementById(`bi-preview-logo-email-${id}`).innerHTML = logoHtml;
+        document.getElementById(`bi-preview-email-title-${id}`).textContent = emailTitle;
+        document.getElementById(`bi-preview-email-body-${id}`).textContent = emailBody;
+        const btn = document.getElementById(`bi-preview-email-btn-${id}`);
+        if (btn && !identity?.isDefault) { btn.style.background = accent; btn.style.color = contrastFg(accent); }
+        document.getElementById(`bi-preview-email-footer-${id}`).textContent = footer;
+      }
+
+      const pageMock = document.getElementById(`bi-preview-page-${id}`);
+      if (pageMock) {
+        pageMock.style.background = bg;
+        pageMock.style.color = fg;
+        document.getElementById(`bi-preview-logo-page-${id}`).innerHTML = logoHtml;
+        document.getElementById(`bi-preview-page-title-${id}`).textContent = pageTitle;
+        document.getElementById(`bi-preview-page-body-${id}`).textContent = pageBody;
+        const btn2 = document.getElementById(`bi-preview-page-btn-${id}`);
+        if (btn2 && !identity?.isDefault) { btn2.style.background = accent; btn2.style.color = contrastFg(accent); }
+        document.getElementById(`bi-preview-page-footer-${id}`).textContent = footer;
+      }
+    }
+
+    function contrastFg(hexBg) {
+      try {
+        const hex = hexBg.replace('#', '');
+        if (hex.length < 6) return '#111111';
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#111111' : '#ffffff';
+      } catch (e) { return '#111111'; }
+    }
+
+    function collectIdentitySettings(id) {
+      const identity = _brandIdentities.find(i => i.id === id);
+      const themeInput = document.querySelector(`input[name="bi-theme-${id}"]:checked`);
+      return {
+        primaryAccent: (document.getElementById(`bi-accent-hex-${id}`) || {}).value || null,
+        surfaceColour: (document.getElementById(`bi-surface-hex-${id}`) || {}).value || null,
+        theme: themeInput ? themeInput.value : 'system',
+        logo: identity && identity.settings ? (identity.settings.logo || null) : null,
+        emailTitle: (document.getElementById(`bi-email-title-${id}`) || {}).value || null,
+        emailBody: (document.getElementById(`bi-email-body-${id}`) || {}).value || null,
+        pageTitle: (document.getElementById(`bi-page-title-${id}`) || {}).value || null,
+        pageBody: (document.getElementById(`bi-page-body-${id}`) || {}).value || null,
+        confirmTitle: (document.getElementById(`bi-confirm-title-${id}`) || {}).value || null,
+        confirmMsg: (document.getElementById(`bi-confirm-msg-${id}`) || {}).value || null,
+        footer: (document.getElementById(`bi-footer-${id}`) || {}).value || null,
+        browserTitle: (document.getElementById(`bi-browser-title-${id}`) || {}).value || null,
+        font: (document.getElementById(`bi-font-${id}`) || {}).value || null,
+      };
+    }
+
+    function collectAssignedBuckets(id) {
+      const container = document.getElementById(`bi-buckets-${id}`);
+      if (!container) return [];
+      return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+    }
+
+    async function saveBrandIdentity(id) {
+      const identity = _brandIdentities.find(i => i.id === id);
+      if (!identity) return;
+      const nameEl = document.getElementById(`bi-name-${id}`);
+      const name = nameEl ? (nameEl.value || '').trim() : identity.name;
+      const settings = collectIdentitySettings(id);
+      const buckets = collectAssignedBuckets(id);
+
+      const r1 = await apiRequest(`/api/admin/brand-identities/${id}`, {
+        method: 'PUT',
+        body: { name, settings }
+      });
+      if (!r1.ok) return;
+      const r2 = await apiRequest(`/api/admin/brand-identities/${id}/buckets`, {
+        method: 'PUT',
+        body: { buckets }
+      });
+      if (!r2.ok) return;
+      notify('success', 'Saved', `Brand identity "${name}" updated.`);
+      await loadBrandIdentities();
+    }
+
+    function unlockCopySection(id, section) {
+      document.getElementById(`bi-copy-${section}-gate-${id}`).style.display = 'none';
+      document.getElementById(`bi-copy-${section}-fields-${id}`).style.display = 'flex';
+      const first = document.querySelector(`#bi-copy-${section}-fields-${id} input, #bi-copy-${section}-fields-${id} textarea`);
+      if (first) first.focus();
+    }
+
+    function resetCopySection(id, section) {
+      const fields = document.getElementById(`bi-copy-${section}-fields-${id}`);
+      fields.querySelectorAll('input, textarea').forEach(el => { el.value = ''; });
+      fields.style.display = 'none';
+      document.getElementById(`bi-copy-${section}-gate-${id}`).style.display = '';
+      updateIdentityPreview(id);
+    }
+
+    function showCreateBrandIdentityModal() {
+      const input = document.getElementById('newBrandIdentityName');
+      const err = document.getElementById('newBrandIdentityError');
+      input.value = '';
+      err.style.display = 'none';
+      document.getElementById('createBrandIdentityModal').style.display = 'flex';
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function closeCreateBrandIdentityModal() {
+      document.getElementById('createBrandIdentityModal').style.display = 'none';
+    }
+
+    function validateBrandIdentityName() {
+      const val = (document.getElementById('newBrandIdentityName').value || '').trim();
+      const err = document.getElementById('newBrandIdentityError');
+      if (!val) {
+        err.textContent = 'Name is required.';
+        err.style.display = 'block';
+        return false;
+      }
+      if (val.length > 100) {
+        err.textContent = 'Name must be 100 characters or fewer.';
+        err.style.display = 'block';
+        return false;
+      }
+      err.style.display = 'none';
+      return true;
+    }
+
+    async function confirmCreateBrandIdentity() {
+      if (!validateBrandIdentityName()) return;
+      const name = document.getElementById('newBrandIdentityName').value.trim();
+      const btn = document.getElementById('createBrandIdentityBtn');
+      btn.classList.add('is-loading'); btn.disabled = true;
+      try {
+        await apiRequest('/api/admin/brand-identities', {
+          method: 'POST',
+          body: { name }
+        });
+        closeCreateBrandIdentityModal();
+        await loadBrandIdentities();
+        notify('success', 'Created', `Brand identity "${name}" created.`);
+      } catch (e) {
+        notify('error', 'Create failed', String(e));
+      } finally {
+        btn.classList.remove('is-loading'); btn.disabled = false;
+      }
+    }
+
+    function createBrandIdentity() {
+      showCreateBrandIdentityModal();
+    }
+
+    async function deleteBrandIdentity(id) {
+      const identity = _brandIdentities.find(i => i.id === id);
+      if (!identity) return;
+      openConfirmModal(
+        'Delete Identity',
+        `Delete <strong>${escHtml(identity.name)}</strong>? Buckets assigned to it will revert to Default.`,
+        'Delete',
+        async () => {
+          const result = await apiRequest(`/api/admin/brand-identities/${id}`, { method: 'DELETE' });
+          if (result.ok) {
+            await loadBrandIdentities();
+            notify('success', 'Deleted', 'Brand identity deleted.');
+          } else {
+            notify('error', 'Delete failed', result.data?.error || 'Failed to delete identity.');
+          }
+        }
+      );
+    }
+
+    // ── End Personalisation ───────────────────────────────────────────────────
 
     init();

@@ -32,8 +32,7 @@ public class BucketOptionsRepositoryTests : IDisposable
         _connection.Dispose();
     }
 
-    // ── GetAsync ─────────────────────────────────────────────────────────────
-
+    // GetAsync
     [Fact]
     public async Task GetAsync_ReturnsDefault_WhenNoBucketRecordExists()
     {
@@ -66,8 +65,7 @@ public class BucketOptionsRepositoryTests : IDisposable
         Assert.True(b.DoubleOptIn);  // default
     }
 
-    // ── SaveAsync ────────────────────────────────────────────────────────────
-
+    // SaveAsync
     [Fact]
     public async Task SaveAsync_InsertsNewRecord()
     {

@@ -425,9 +425,9 @@ public static class SubmissionEndpoints
 
         var form = await service.GetFormAsync(id);
         if (form == null)
-            return Results.Content(FormUnavailableHtml("en", null), "text/html");
+            return Results.Content(Minify(FormUnavailableHtml("en", null)), "text/html");
         if (!form.IsEnabled)
-            return Results.Content(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig)), "text/html");
+            return Results.Content(Minify(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig))), "text/html");
 
         var origins = DeserializeOrigins(form.AllowedOrigins);
         var cspOrigins = string.Join(" ", origins);
@@ -565,7 +565,7 @@ public static class SubmissionEndpoints
             </html>
             """;
 
-        return Results.Content(html, "text/html");
+        return Results.Content(Minify(html), "text/html");
     }
 
     private static async Task<IResult> GetEmbedScript(
@@ -597,7 +597,7 @@ public static class SubmissionEndpoints
                   s.appendChild(d);
                 })();
                 """;
-            return Results.Content(unavailableJs, "application/javascript");
+            return Results.Content(Minify(unavailableJs), "application/javascript");
         }
 
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
@@ -720,7 +720,7 @@ public static class SubmissionEndpoints
             })();
             """;
 
-        return Results.Content(js, "application/javascript");
+        return Results.Content(Minify(js), "application/javascript");
     }
 
     private static async Task<IResult> Subscribe(
@@ -929,8 +929,11 @@ public static class SubmissionEndpoints
             </html>
             """;
 
-        return Results.Content(html, "text/html");
+        return Results.Content(Minify(html), "text/html");
     }
+
+    private static string Minify(string content) =>
+        ConsentEndpoints.Minify(content);
 
     private static bool IsValidRedirectUrl(string? url)
     {

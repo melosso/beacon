@@ -20,11 +20,13 @@ public sealed class EmailSenderService : IEmailSenderService
 
     private readonly Encryptor _encryptor;
     private readonly ILogger<EmailSenderService> _logger;
+    private readonly IBrandIdentityService _brandService;
 
-    public EmailSenderService(Encryptor encryptor, ILogger<EmailSenderService> logger)
+    public EmailSenderService(Encryptor encryptor, ILogger<EmailSenderService> logger, IBrandIdentityService brandService)
     {
         _encryptor = encryptor;
         _logger = logger;
+        _brandService = brandService;
     }
 
     public async Task<bool> SendConfirmationAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken = default)
@@ -64,16 +66,25 @@ public sealed class EmailSenderService : IEmailSenderService
         }
     }
 
+    private async Task<BrandIdentitySettings?> GetBrandSettingsAsync(string bucket, CancellationToken ct)
+    {
+        var identity = await _brandService.GetForBucketAsync(bucket, ct);
+        if (string.IsNullOrEmpty(identity.Settings) || identity.Settings == "{}") return null;
+        try { return JsonSerializer.Deserialize<BrandIdentitySettings>(identity.Settings); }
+        catch { return null; }
+    }
+
     private async Task<bool> SendViaResendAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken)
     {
         var apiKey = _encryptor.Decrypt(config.EmailResendApiKey);
+        var brand = await GetBrandSettingsAsync(entry.Bucket, cancellationToken);
 
         var payload = JsonSerializer.Serialize(new
         {
             from    = BuildFrom(config),
             to      = new[] { toEmail },
             subject = ConfirmationEmailTemplate.GetSubject(entry.Language),
-            html    = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language, toEmail)
+            html    = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language, toEmail, brand)
         });
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
@@ -105,6 +116,7 @@ public sealed class EmailSenderService : IEmailSenderService
     private async Task<bool> SendViaSmtpAsync(string toEmail, EmailQueueEntry entry, SystemConfig config, CancellationToken cancellationToken)
     {
         var password = _encryptor.Decrypt(config.EmailSmtpPassword);
+        var brand = await GetBrandSettingsAsync(entry.Bucket, cancellationToken);
 
         using var client = new SmtpClient(config.EmailSmtpHost, config.EmailSmtpPort)
         {
@@ -120,7 +132,7 @@ public sealed class EmailSenderService : IEmailSenderService
         {
             From       = from,
             Subject    = ConfirmationEmailTemplate.GetSubject(entry.Language),
-            Body       = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language, toEmail),
+            Body       = ConfirmationEmailTemplate.Render(entry.Bucket, entry.Permission, entry.ConfirmationUrl, entry.Language, toEmail, brand),
             IsBodyHtml = true
         };
         message.To.Add(toEmail);

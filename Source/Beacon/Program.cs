@@ -9,6 +9,7 @@ using Beacon.Security;
 using Beacon.Storage;
 using Beacon.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.OpenApi;
 using Serilog;
@@ -160,6 +161,21 @@ try
             ? JsonSerializer.Deserialize<SystemConfig>(entity.Configuration) ?? new SystemConfig()
             : new SystemConfig();
         return new SystemConfigurationService(sp.GetRequiredService<IServiceScopeFactory>(), systemConfig);
+    });
+
+    // BrandIdentities: singleton cache loaded from DB on startup
+    builder.Services.AddSingleton<IBrandIdentityService>(sp =>
+    {
+        using var scope = sp.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
+        var service = new BrandIdentityService(sp.GetRequiredService<IServiceScopeFactory>());
+        var identities = db.BrandIdentities
+            .Include(i => i.BucketMappings)
+            .OrderBy(i => i.IsDefault ? 0 : 1)
+            .ThenBy(i => i.Name)
+            .ToList();
+        service.LoadInitialCache(identities);
+        return service;
     });
 
     // Caching: resolved after SystemConfiguration is registered
@@ -499,6 +515,7 @@ try
             "modals/system-settings.html",
             "modals/share-audit.html",
             "modals/users-apikeys.html",
+            "modals/brand-identity.html",
             "_footer.html",
         ];
         var ct = context.RequestAborted;

@@ -23,6 +23,8 @@ public class BeaconDbContext : DbContext
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
     public DbSet<ConsentAuditEntry> ConsentAuditEntries => Set<ConsentAuditEntry>();
+    public DbSet<BrandIdentity> BrandIdentities => Set<BrandIdentity>();
+    public DbSet<BucketIdentity> BucketIdentities => Set<BucketIdentity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -220,6 +222,22 @@ public class BeaconDbContext : DbContext
             entity.HasIndex(e => e.EmailHash);
             entity.HasIndex(e => e.ChangedAt);
             entity.HasIndex(e => new { e.Bucket, e.ChangedAt });
+        });
+
+        modelBuilder.Entity<BrandIdentity>(entity =>
+        {
+            entity.ToTable("BrandIdentities");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Settings).IsRequired();
+            entity.HasMany(e => e.BucketMappings).WithOne(b => b.BrandIdentity).HasForeignKey(b => b.BrandIdentityId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BucketIdentity>(entity =>
+        {
+            entity.ToTable("BucketIdentities");
+            entity.HasKey(e => e.Bucket);
+            entity.Property(e => e.Bucket).HasMaxLength(100).IsRequired();
         });
 
         modelBuilder.Entity<SubmissionForm>(entity =>

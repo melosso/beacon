@@ -5,8 +5,7 @@ namespace Beacon.Tests;
 
 public class ConfirmationEmailTemplateTests
 {
-    // ── GetSubject ────────────────────────────────────────────────────────────
-
+    // GetSubject
     [Theory]
     [InlineData("en", "Confirm your sign-up")]
     [InlineData("de", "Anmeldung bestätigen")]
@@ -43,7 +42,7 @@ public class ConfirmationEmailTemplateTests
         Assert.Equal("Confirm your sign-up", result);
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    // Render
 
     [Fact]
     public void Render_ContainsConfirmationUrl()

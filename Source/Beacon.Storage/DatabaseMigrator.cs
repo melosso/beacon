@@ -21,6 +21,7 @@ public static class DatabaseMigrator
         MigrateWorkflowTasks(db);
         MigrateConsentAuditEntries(db);
         MigrateApiKeys(db);
+        MigrateBrandIdentities(db);
     }
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
@@ -335,5 +336,44 @@ public static class DatabaseMigrator
                 """);
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_ApiKeys_KeyHash ON ApiKeys (KeyHash)");
         }
+    }
+
+    private static void MigrateBrandIdentities(BeaconDbContext db)
+    {
+        if (!TableExists(db, "BrandIdentities"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE BrandIdentities (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    Settings TEXT NOT NULL DEFAULT '{{}}',
+                    IsDefault INTEGER NOT NULL DEFAULT 0,
+                    CreatedAt TEXT NOT NULL,
+                    UpdatedAt TEXT NOT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("""
+                INSERT INTO BrandIdentities (Id, Name, Settings, IsDefault, CreatedAt, UpdatedAt)
+                VALUES (1, 'Default', '{{}}', 1, datetime('now'), datetime('now'))
+                """);
+        }
+
+        if (!TableExists(db, "BucketIdentities"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE BucketIdentities (
+                    Bucket TEXT NOT NULL PRIMARY KEY,
+                    BrandIdentityId INTEGER NOT NULL REFERENCES BrandIdentities(Id) ON DELETE CASCADE
+                )
+                """);
+        }
+
+        db.Database.ExecuteSqlRaw("""
+            UPDATE BrandIdentities
+            SET Settings = json_remove(json_remove(Settings, '$.primaryAccent'), '$.surfaceColour')
+            WHERE IsDefault = 1
+              AND (json_extract(Settings, '$.primaryAccent') IS NOT NULL
+                OR json_extract(Settings, '$.surfaceColour') IS NOT NULL)
+            """);
     }
 }

@@ -1,0 +1,18 @@
+  <!-- Create Brand Identity Modal -->
+  <div class="modal-backdrop" id="createBrandIdentityModal" style="display:none">
+    <div class="modal" style="max-width:400px">
+      <h3 style="margin-bottom:0.5rem">New Identity</h3>
+      <p style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem">Give this brand identity a name to identify it in the admin panel.</p>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Name <span class="required" title="Required">*</span></label>
+        <input type="text" id="newBrandIdentityName" placeholder="e.g., Acme Corp" autocomplete="off" maxlength="100"
+          onkeydown="if(event.key==='Enter')confirmCreateBrandIdentity()" oninput="validateBrandIdentityName()">
+        <p id="newBrandIdentityError" style="display:none;color:hsl(var(--destructive));font-size:0.8rem;margin-top:0.375rem"></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeCreateBrandIdentityModal()">Cancel</button>
+        <button class="btn btn-primary" id="createBrandIdentityBtn" onclick="confirmCreateBrandIdentity()"><span class="btn-label">Create</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
