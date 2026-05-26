@@ -653,6 +653,22 @@ try
         else { context.Response.StatusCode = 404; }
     }).ExcludeFromDescription();
 
+    foreach (var jsFile in new[] { "users.js", "api-keys.js", "account.js" })
+    {
+        var captured = jsFile;
+        app.MapGet($"/js/{captured}", async context =>
+        {
+            var path = Path.Combine(app.Environment.WebRootPath, "js", captured);
+            if (File.Exists(path))
+            {
+                context.Response.ContentType = "application/javascript";
+                context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+                await context.Response.SendFileAsync(path);
+            }
+            else { context.Response.StatusCode = 404; }
+        }).ExcludeFromDescription();
+    }
+
     app.MapGet("/", async context =>
     {
         var routingOptions = context.RequestServices.GetRequiredService<HostRoutingOptions>();
