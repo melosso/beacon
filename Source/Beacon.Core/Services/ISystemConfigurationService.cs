@@ -135,6 +135,25 @@ public sealed class SystemConfig
 
     [JsonPropertyName("cacheBucketData")]
     public bool CacheBucketData { get; set; } = true;
+
+    // Appearance / Branding
+    [JsonPropertyName("loginFooterEnabled")]
+    public bool LoginFooterEnabled { get; set; } = false;
+
+    [JsonPropertyName("loginFooter")]
+    public string LoginFooter { get; set; } = string.Empty;
+
+    [JsonPropertyName("promoBarEnabled")]
+    public bool PromoBarEnabled { get; set; } = false;
+
+    [JsonPropertyName("promoBar")]
+    public string PromoBar { get; set; } = string.Empty;
+
+    [JsonPropertyName("promoBarDismissable")]
+    public bool PromoBarDismissable { get; set; } = true;
+
+    [JsonPropertyName("promoBarShowOnLogin")]
+    public bool PromoBarShowOnLogin { get; set; } = false;
 }
 
 public interface ISystemConfigurationService

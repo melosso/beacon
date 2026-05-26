@@ -120,9 +120,6 @@
 
     // INIT
     async function init() {
-      console.log('%c@melosso/beacon', 'background:#0a0a0f;color:#FF64B4;font-weight:700;padding:2px 6px;border-radius:3px;font-size:13px');
-      console.log('%cAPI docs → /openapi   Source → https://github.com/melosso/beacon', 'color:#555;font-size:11px');
-
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
 
       // Track user activity for refresh decisions
@@ -3570,6 +3567,12 @@ ${bodyStr}
       font: 'inter',
       defaultLanguage: 'en',
       uiLanguage: 'en',
+      loginFooterEnabled: false,
+      loginFooter: '',
+      promoBarEnabled: false,
+      promoBar: '',
+      promoBarDismissable: true,
+      promoBarShowOnLogin: false,
       emailNotifications: false,
       emailProvider: 'none',
       emailResendApiKey: '',
@@ -3717,6 +3720,17 @@ ${bodyStr}
         appSettings.pendingConfirmationPurgeDays   = res.data.pendingConfirmationPurgeDays   ?? 30;
         appSettings.retentionPurgeRequireApproval            = res.data.retentionPurgeRequireApproval            ?? false;
         appSettings.pendingConfirmationPurgeRequireApproval  = res.data.pendingConfirmationPurgeRequireApproval  ?? false;
+        appSettings.loginFooterEnabled = res.data.loginFooterEnabled ?? false;
+        appSettings.loginFooter = res.data.loginFooter ?? '';
+        const footerToggle = document.getElementById('setting-loginFooterEnabled');
+        if (footerToggle) footerToggle.checked = appSettings.loginFooterEnabled;
+        appSettings.promoBarEnabled = res.data.promoBarEnabled ?? false;
+        appSettings.promoBar = res.data.promoBar ?? '';
+        appSettings.promoBarDismissable = res.data.promoBarDismissable ?? true;
+        appSettings.promoBarShowOnLogin = res.data.promoBarShowOnLogin ?? false;
+        const promoToggle = document.getElementById('setting-promoBarEnabled');
+        if (promoToggle) promoToggle.checked = appSettings.promoBarEnabled;
+        initPromoBar();
       }
     }
 
@@ -3764,6 +3778,20 @@ ${bodyStr}
       appSettings[key] = value;
     }
 
+    async function saveSettingImmediate(key, value) {
+      saveSetting(key, value);
+      await saveCurrentSettings();
+    }
+
+    async function onObjectStorageToggle(checkbox) {
+      if (checkbox.checked && (appSettings.objectStorageProvider ?? 'none') === 'none') {
+        checkbox.checked = false;
+        notify('error', 'No provider configured', 'Select an object storage provider via the settings gear before enabling.');
+        return;
+      }
+      await saveSettingImmediate('objectStorage', checkbox.checked);
+    }
+
     async function saveCurrentSettings() {
       try { localStorage.setItem('beacon_settings', JSON.stringify(appSettings)); } catch {}
       const res = await apiRequest('/api/admin/settings', {
@@ -3809,7 +3837,13 @@ ${bodyStr}
           pendingConfirmationPurgeEnabled:            appSettings.pendingConfirmationPurgeEnabled,
           pendingConfirmationPurgeDays:               appSettings.pendingConfirmationPurgeDays,
           retentionPurgeRequireApproval:              appSettings.retentionPurgeRequireApproval,
-          pendingConfirmationPurgeRequireApproval:    appSettings.pendingConfirmationPurgeRequireApproval
+          pendingConfirmationPurgeRequireApproval:    appSettings.pendingConfirmationPurgeRequireApproval,
+          loginFooterEnabled:                        appSettings.loginFooterEnabled,
+          loginFooter:                               appSettings.loginFooter,
+          promoBarEnabled:                           appSettings.promoBarEnabled,
+          promoBar:                                  appSettings.promoBar,
+          promoBarDismissable:                       appSettings.promoBarDismissable,
+          promoBarShowOnLogin:                       appSettings.promoBarShowOnLogin
         }
       });
       if (res.ok) {
@@ -4506,6 +4540,128 @@ ${bodyStr}
       closePendingConfirmationModal();
     }
 
+    function parsePromoMarkdown(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/__(.*?)__/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/_(.*?)_/g, '<em>$1</em>')
+        .replace(/\[(.*?)\]\(([^)]*)\)/g, (_, linkText, url) => {
+          // Decode entities added by the HTML-escape pass so we inspect the real URL
+          const decoded = url.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+          // Reject URLs with characters that break out of a double-quoted href attribute
+          if (/["'<>]/.test(decoded)) return linkText;
+          const external = /^(https?:\/\/|\/\/)/i.test(decoded);
+          const safe = external || /^(\/|#|mailto:|tel:)/i.test(decoded);
+          if (!safe) return linkText;
+          // Re-encode only & for valid HTML; " is already rejected
+          const safeUrl = decoded.replace(/&/g, '&amp;');
+          const attrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+          return `<a href="${safeUrl}"${attrs}>${linkText}</a>`;
+        });
+    }
+
+    function initPromoBar() {
+      if (sessionStorage.getItem('beacon_promo_dismissed')) return;
+      updatePromoBar();
+    }
+
+    function updatePromoBar() {
+      let bar = document.getElementById('adminPromoBar');
+      if (!appSettings.promoBarEnabled || !appSettings.promoBar.trim()) {
+        if (bar) bar.classList.remove('is-visible');
+        return;
+      }
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'adminPromoBar';
+        bar.className = 'admin-promo-bar';
+        const appShell = document.querySelector('.app-shell');
+        if (appShell) document.body.insertBefore(bar, appShell);
+      }
+      const html = parsePromoMarkdown(appSettings.promoBar);
+      const dismissable = appSettings.promoBarDismissable ?? true;
+      bar.innerHTML = `<div class="admin-promo-bar-content">${html}</div>${dismissable ? '<button class="promo-bar-close" onclick="dismissPromoBar()" title="Close"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' : ''}`;
+      requestAnimationFrame(() => bar.classList.add('is-visible'));
+    }
+
+    function dismissPromoBar() {
+      const bar = document.getElementById('adminPromoBar');
+      if (bar) bar.classList.remove('is-visible');
+      sessionStorage.setItem('beacon_promo_dismissed', '1');
+    }
+
+    async function onPromoBarToggle(checkbox) {
+      if (checkbox.checked && !appSettings.promoBar.trim()) {
+        checkbox.checked = false;
+        notify('error', 'No announcement content', 'Add announcement text via the settings gear before enabling.');
+        return;
+      }
+      saveSetting('promoBarEnabled', checkbox.checked);
+      await saveCurrentSettings();
+      updatePromoBar();
+    }
+
+    function openPromoBarModal() {
+      const el = document.getElementById('modal-promoBar');
+      el.value = appSettings.promoBar;
+      document.getElementById('modal-promoBar-count').textContent = `${el.value.length} / 500`;
+      document.getElementById('modal-promoBarDismissable').checked = appSettings.promoBarDismissable ?? true;
+      document.getElementById('modal-promoBarShowOnLogin').checked = appSettings.promoBarShowOnLogin ?? false;
+      document.getElementById('promoBarModal').style.display = 'flex';
+    }
+
+    function closePromoBarModal() {
+      document.getElementById('promoBarModal').style.display = 'none';
+    }
+
+    async function savePromoBarSettings() {
+      const val = document.getElementById('modal-promoBar').value;
+      appSettings.promoBar = val;
+      appSettings.promoBarDismissable = document.getElementById('modal-promoBarDismissable').checked;
+      appSettings.promoBarShowOnLogin = document.getElementById('modal-promoBarShowOnLogin').checked;
+      if (!val.trim()) appSettings.promoBarEnabled = false;
+      const toggle = document.getElementById('setting-promoBarEnabled');
+      if (toggle) toggle.checked = appSettings.promoBarEnabled;
+      await saveCurrentSettings();
+      sessionStorage.removeItem('beacon_promo_dismissed');
+      updatePromoBar();
+      closePromoBarModal();
+    }
+
+    async function onLoginFooterToggle(checkbox) {
+      if (checkbox.checked && !appSettings.loginFooter.trim()) {
+        checkbox.checked = false;
+        notify('error', 'No footer content', 'Add footer text via the settings icon before enabling.');
+        return;
+      }
+      saveSetting('loginFooterEnabled', checkbox.checked);
+      await saveCurrentSettings();
+    }
+
+    function openLoginFooterModal() {
+      const el = document.getElementById('modal-loginFooter');
+      el.value = appSettings.loginFooter;
+      document.getElementById('modal-loginFooter-count').textContent = `${el.value.length} / 500`;
+      document.getElementById('loginFooterModal').style.display = 'flex';
+    }
+
+    function closeLoginFooterModal() {
+      document.getElementById('loginFooterModal').style.display = 'none';
+    }
+
+    async function saveLoginFooterSettings() {
+      const val = document.getElementById('modal-loginFooter').value;
+      appSettings.loginFooter = val;
+      if (!val.trim()) appSettings.loginFooterEnabled = false;
+      const toggle = document.getElementById('setting-loginFooterEnabled');
+      if (toggle) toggle.checked = appSettings.loginFooterEnabled;
+      await saveCurrentSettings();
+      closeLoginFooterModal();
+    }
+
     function openCacheSettingsModal() {
       document.getElementById('setting-cacheTtlSeconds').value = appSettings.cacheTtlSeconds ?? 300;
       document.getElementById('setting-cacheConsentRecords').checked = appSettings.cacheConsentRecords ?? true;
@@ -4760,7 +4916,13 @@ ${bodyStr}
       closeSubmissionFormsSettingsModal();
     }
 
-    function updateSidebarUser() { /* name fixed to Administrator per product decision */ }
+    function updateSidebarUser() {
+      const name = currentUsername || 'Admin';
+      const nameEl = document.getElementById('sidebarUserName');
+      const avatarEl = document.getElementById('sidebarUserAvatar');
+      if (nameEl) nameEl.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+      if (avatarEl) avatarEl.textContent = name.charAt(0).toUpperCase();
+    }
 
     function setupUserAuthNav(role) {
       const mode = (typeof USER_AUTH_METHOD !== 'undefined') ? USER_AUTH_METHOD : '';
@@ -4769,7 +4931,7 @@ ${bodyStr}
       const settingsNavDivider = document.getElementById('settingsNavDivider');
       const settingsNavUsers = document.getElementById('settingsNavUsers');
       if (settingsNavAccount) settingsNavAccount.style.display = '';
-      if (settingsNavDivider) settingsNavDivider.style.display = '';
+      if (isAdmin && settingsNavDivider) settingsNavDivider.style.display = '';
       if (isAdmin && settingsNavUsers) settingsNavUsers.style.display = '';
       const settingsNavApiKeys = document.getElementById('settingsNavApiKeys');
       if (isAdmin && settingsNavApiKeys) settingsNavApiKeys.style.display = '';
@@ -4778,7 +4940,7 @@ ${bodyStr}
       const navWorkflow = document.getElementById('navWorkflow');
       if (navWorkflow) navWorkflow.style.display = isAdmin ? '' : 'none';
       if (!isAdmin) {
-        for (const id of ['settingsNavGeneral', 'settingsNavModules', 'settingsNavIntegration', 'settingsNavSystem', 'settingsNavSystemDivider']) {
+        for (const id of ['settingsNavGeneral', 'settingsNavModules', 'settingsNavDataPolicies', 'settingsNavIntegration', 'settingsNavSystem', 'settingsNavSystemDivider']) {
           const el = document.getElementById(id);
           if (el) el.style.display = 'none';
         }

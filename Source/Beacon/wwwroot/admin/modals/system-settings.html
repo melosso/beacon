@@ -155,6 +155,77 @@
     </div>
   </div>
 
+  <!-- Promo Bar Modal -->
+  <div class="modal-backdrop" id="promoBarModal">
+    <div class="modal modal--lg">
+      <h3>Admin announcement bar</h3>
+      <p>Shown at the top of the dashboard after login. Supports <strong>**bold**</strong>, <em>_italic_</em>, and <code>[text](url)</code> links. Max 500 characters.</p>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <textarea
+          id="modal-promoBar"
+          rows="3"
+          maxlength="500"
+          placeholder="e.g. Scheduled maintenance on [Saturday 14:00 UTC](https://status.example.com)."
+          oninput="document.getElementById('modal-promoBar-count').textContent = this.value.length + ' / 500'"
+          style="width:100%;resize:vertical;font-family:var(--font-mono);font-size:0.8125rem;padding:0.625rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);background:transparent;color:inherit;line-height:1.5"
+        ></textarea>
+        <p style="font-size:0.75rem;color:hsl(var(--muted-foreground));margin-top:0.25rem" id="modal-promoBar-count">0 / 500</p>
+      </div>
+
+      <label class="settings-item-card-label" for="modal-promoBarDismissable" style="padding:0.75rem 0;margin-top:0.5rem">
+        <div class="settings-item-info">
+          <span class="settings-item-title select-none">Allow users to dismiss</span>
+          <p class="settings-item-desc">When enabled, users can close the bar. Dismissed state resets each new session.</p>
+        </div>
+        <div class="settings-item-control">
+          <input type="checkbox" id="modal-promoBarDismissable">
+          <span class="toggle-track"></span>
+        </div>
+      </label>
+      <label class="settings-item-card-label" for="modal-promoBarShowOnLogin" style="padding:0.75rem 0">
+        <div class="settings-item-info">
+          <span class="settings-item-title select-none">Show on login page</span>
+          <p class="settings-item-desc">Also display the bar on the sign-in page before authentication.</p>
+        </div>
+        <div class="settings-item-control">
+          <input type="checkbox" id="modal-promoBarShowOnLogin">
+          <span class="toggle-track"></span>
+        </div>
+      </label>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closePromoBarModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePromoBarSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Footer Modal -->
+  <div class="modal-backdrop" id="loginFooterModal">
+    <div class="modal modal--lg">
+      <h3>Login page footer</h3>
+      <p>Custom message shown below the sign-in box. Supports <strong>**bold**</strong>, <em>_italic_</em>, and <code>[text](url)</code> links. Max 500 characters.</p>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <textarea
+          id="modal-loginFooter"
+          rows="4"
+          maxlength="500"
+          placeholder="e.g. Contact your [administrator](mailto:admin@example.com) for access."
+          oninput="document.getElementById('modal-loginFooter-count').textContent = this.value.length + ' / 500'"
+          style="width:100%;resize:vertical;font-family:var(--font-mono);font-size:0.8125rem;padding:0.625rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);background:transparent;color:inherit;line-height:1.5"
+        ></textarea>
+        <p style="font-size:0.75rem;color:hsl(var(--muted-foreground));margin-top:0.25rem" id="modal-loginFooter-count">0 / 500</p>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeLoginFooterModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveLoginFooterSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Cache Settings Modal -->
   <div class="modal-backdrop" id="cacheSettingsModal">
     <div class="modal modal--lg">

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Beacon;
 using Beacon.Api;
 using Beacon.Configuration;
 using Beacon.Core.Security;
@@ -70,15 +71,14 @@ try
     var hostOptions = HostRoutingOptionsFactory.Create(builder.Configuration);
     builder.Services.AddSingleton(hostOptions);
 
-    // Resolve the public base URL for building absolute confirmation links in emails.
-    // Priority: explicit Beacon:PublicUrl → first entry in Beacon:ApiHosts (assumed https) → null (falls back to request-derived URL at runtime).
+    // Resolves public base URL for absolute email links. Priority: Beacon:PublicUrl > Beacon:ApiHosts (https) > request-derived.
     var resolvedPublicUrl = !string.IsNullOrWhiteSpace(publicUrl)
         ? publicUrl.TrimEnd('/')
         : hostOptions.ApiHosts.FirstOrDefault() is { } apiHost
             ? $"https://{apiHost.TrimEnd('/')}"
             : null;
 
-    // Instance-level options (sourced from appsettings, not the DB)
+    // Instance-level options (sourced from appsettings, not the db)
     var instanceOptions = new Beacon.Core.Services.InstanceOptions
     {
         DisableEmailNotifications = disableEmailNotifications,
@@ -189,7 +189,6 @@ try
     });
 
     builder.Services.AddHttpClient();
-
     builder.Services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = "CompositeScheme";
@@ -300,7 +299,7 @@ try
         });
     });
 
-    // CORS Configuration - supports both localhost and configured origins
+    // CORS Configuration
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("Default", policy =>
@@ -508,18 +507,44 @@ try
                 await File.ReadAllTextAsync(Path.Combine(adminDir, part), ct), ct);
     }).ExcludeFromDescription();
 
-    app.MapGet("/admin/login", async context =>
+    app.MapGet("/admin/login", async (HttpContext context, ISystemConfigurationService configService) =>
     {
         if (IsAuthenticated(context, jwtSigningKeyBytes))
         {
             context.Response.Redirect("/admin");
             return;
         }
-        await ServeFile(context, Path.Combine(webRoot, "login.html"), "text/html", ct: context.RequestAborted);
+        var ct = context.RequestAborted;
+        var html = await File.ReadAllTextAsync(Path.Combine(webRoot, "login.html"), ct);
+        var loginCfg = configService.Get();
+        if (loginCfg.LoginFooterEnabled && !string.IsNullOrWhiteSpace(loginCfg.LoginFooter))
+            html = html.Replace("<!-- LOGIN_FOOTER_PLACEHOLDER -->", LoginFooterParser.ParseMarkdown(loginCfg.LoginFooter));
+        if (loginCfg.PromoBarEnabled && loginCfg.PromoBarShowOnLogin && !string.IsNullOrWhiteSpace(loginCfg.PromoBar))
+            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", $"<div class=\"login-promo-bar\">{LoginFooterParser.ParseMarkdown(loginCfg.PromoBar)}</div>");
+        else
+            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", string.Empty);
+        context.Response.ContentType = "text/html";
+        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+        context.Response.Headers.Append("Pragma", "no-cache");
+        await context.Response.WriteAsync(html, ct);
     }).ExcludeFromDescription();
 
-    app.MapGet("/admin/logout", ctx => ServeFile(ctx, Path.Combine(webRoot, "logout.html"), "text/html"))
-       .ExcludeFromDescription();
+    app.MapGet("/admin/logout", async (HttpContext context, ISystemConfigurationService configService) =>
+    {
+        var ct = context.RequestAborted;
+        var html = await File.ReadAllTextAsync(Path.Combine(webRoot, "logout.html"), ct);
+        var cfg = configService.Get();
+        if (cfg.PromoBarEnabled && cfg.PromoBarShowOnLogin && !string.IsNullOrWhiteSpace(cfg.PromoBar))
+            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", $"<div class=\"login-promo-bar\">{LoginFooterParser.ParseMarkdown(cfg.PromoBar)}</div>");
+        else
+            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", string.Empty);
+        if (cfg.LoginFooterEnabled && !string.IsNullOrWhiteSpace(cfg.LoginFooter))
+            html = html.Replace("<!-- LOGIN_FOOTER_PLACEHOLDER -->", LoginFooterParser.ParseMarkdown(cfg.LoginFooter));
+        context.Response.ContentType = "text/html";
+        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+        context.Response.Headers.Append("Pragma", "no-cache");
+        await context.Response.WriteAsync(html, ct);
+    }).ExcludeFromDescription();
 
     app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
     {

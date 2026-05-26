@@ -117,7 +117,7 @@
                   <p class="settings-item-desc">When enabled, the (user) consent page loads permissions from the database instead of the token.</p>
                 </div>
                 <div class="settings-item-control">
-                  <input type="checkbox" id="setting-allowDbLookup" onchange="saveSetting('allowDbLookup', this.checked)">
+                  <input type="checkbox" id="setting-allowDbLookup" onchange="saveSettingImmediate('allowDbLookup', this.checked)">
                   <span class="toggle-track"></span>
                 </div>
               </label>
@@ -148,7 +148,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSetting('enableSubmissionForms', this.checked)">
+                      <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSettingImmediate('enableSubmissionForms', this.checked)">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -167,7 +167,7 @@
                     <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active. Requires email notifications to be configured.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableDoubleOptIn" onchange="saveSetting('enableDoubleOptIn', this.checked)">
+                    <input type="checkbox" id="setting-enableDoubleOptIn" onchange="saveSettingImmediate('enableDoubleOptIn', this.checked)">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -185,7 +185,7 @@
                     <p class="settings-item-desc">When enabled, UTM parameters (utm_source, utm_medium, utm_campaign, etc.) from the preference page URL are stored alongside consent records. Only enable if disclosed in your privacy policy.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableUtmTracking" onchange="saveSetting('enableUtmTracking', this.checked)">
+                    <input type="checkbox" id="setting-enableUtmTracking" onchange="saveSettingImmediate('enableUtmTracking', this.checked)">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -241,14 +241,14 @@
                         <p class="settings-item-desc">Removes personal data from opted-out records after a set period. The email hash and opt-out status are retained for suppression.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeEnabled" onchange="saveSetting('retentionPurgeEnabled', this.checked)">
+                        <input type="checkbox" id="setting-retentionPurgeEnabled" onchange="saveSettingImmediate('retentionPurgeEnabled', this.checked)">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-retentionPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" onchange="saveSetting('retentionPurgeRequireApproval', this.checked)">
+                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" onchange="saveSettingImmediate('retentionPurgeRequireApproval', this.checked)">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
@@ -266,14 +266,14 @@
                         <p class="settings-item-desc">Deletes unconfirmed double opt-in attempts after a set period.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" onchange="saveSetting('pendingConfirmationPurgeEnabled', this.checked)">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" onchange="saveSettingImmediate('pendingConfirmationPurgeEnabled', this.checked)">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-pendingConfirmationPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" onchange="saveSetting('pendingConfirmationPurgeRequireApproval', this.checked)">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" onchange="saveSettingImmediate('pendingConfirmationPurgeRequireApproval', this.checked)">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
@@ -385,6 +385,48 @@
                 </div>
               </div>
 
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-promoBarEnabled">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Announcement bar</span>
+                    <p class="settings-item-desc">Show a message at the top of the dashboard after login.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-promoBarEnabled" onchange="onPromoBarToggle(this)">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" onclick="openPromoBarModal()" aria-label="Announcement bar settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+              </div>
+
+
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-loginFooterEnabled">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Page footer</span>
+                    <p class="settings-item-desc">Show a custom message below the sign-in box.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-loginFooterEnabled" onchange="onLoginFooterToggle(this)">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" onclick="openLoginFooterModal()" aria-label="Login footer settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+              </div>
+
+            </div>
+            <div class="settings-save-row">
+              <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
             </div>
           </div>
 
@@ -427,7 +469,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-objectStorage" onchange="saveSetting('objectStorage', this.checked)">
+                      <input type="checkbox" id="setting-objectStorage" onchange="onObjectStorageToggle(this)">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -585,7 +627,7 @@
                 <div class="settings-item-block" style="align-items:center">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">API Key</span>
-                    <p class="settings-item-desc">Personal key for programmatic access. Regenerating immediately invalidates the old key.</p>
+                    <p class="settings-item-desc">Use this for programmatic access. If you regenerate it, your previous key will stop working immediately.</p>
                   </div>
                   <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
                 </div>
@@ -640,7 +682,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableCaching" onchange="saveSetting('enableCaching', this.checked)">
+                      <input type="checkbox" id="setting-enableCaching" onchange="saveSettingImmediate('enableCaching', this.checked)">
                       <span class="toggle-track"></span>
                     </div>
                   </span>

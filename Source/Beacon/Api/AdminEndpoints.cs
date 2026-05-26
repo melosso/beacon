@@ -1334,6 +1334,11 @@ public static class AdminEndpoints
         [FromServices] ISystemConfigurationService configService,
         [FromServices] Encryptor encryptor)
     {
+        if (config.LoginFooter != null && config.LoginFooter.Length > 500)
+            return Results.BadRequest(new { error = "Login footer must be 500 characters or less." });
+        if (config.PromoBar != null && config.PromoBar.Length > 500)
+            return Results.BadRequest(new { error = "Announcement bar must be 500 characters or less." });
+
         var existing = configService.Get();
 
         HandleSecret(config, existing, encryptor,

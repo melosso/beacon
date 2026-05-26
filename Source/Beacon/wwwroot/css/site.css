@@ -55,8 +55,15 @@ body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     display: flex;
+    flex-direction: column;
     height: 100vh;
     width: 100vw;
+    overflow: hidden;
+}
+.app-shell {
+    display: flex;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -205,6 +212,100 @@ body {
 
 .auth-box .btn.is-loading .spinner { display: inline-block; }
 .auth-box .btn.is-loading .btn-label { display: none; }
+
+.auth-footer {
+    margin-top: 1.25rem;
+    font-size: 0.8125rem;
+    color: hsl(var(--muted-foreground));
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.5;
+}
+.auth-footer:empty { display: none; }
+.auth-footer a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.auth-footer a:hover { opacity: 0.8; }
+
+/* Login page announcement bar */
+.login-promo-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5rem 1.5rem;
+    background: hsl(var(--muted));
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    z-index: 2100;
+}
+.login-promo-bar a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.login-promo-bar a:hover { opacity: 0.8; }
+
+/* Admin announcement bar */
+.admin-promo-bar {
+    padding: 0 1.5rem;
+    background: hsl(var(--muted));
+    border-bottom: 1px solid hsl(var(--border));
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.2s ease, opacity 0.15s ease;
+}
+.admin-promo-bar.is-visible {
+    max-height: 3rem;
+    opacity: 1;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+.admin-promo-bar a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.admin-promo-bar a:hover { opacity: 0.8; }
+.admin-promo-bar .promo-bar-close {
+    position: relative;
+    background: none;
+    border: none;
+    color: hsl(var(--muted-foreground));
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    margin-left: 0.25rem;
+}
+.admin-promo-bar .promo-bar-close:hover {
+    opacity: 1;
+    background: hsl(var(--foreground) / 0.05);
+    color: hsl(var(--foreground));
+    border-radius: 4px;
+}
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
