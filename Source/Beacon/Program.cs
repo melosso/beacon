@@ -468,18 +468,18 @@ try
     // Resolve the JWT signing key bytes once for reuse in route handlers below
     var jwtSigningKeyBytes = Convert.FromBase64String(normalizedSigningKey);
 
+    var webRoot = app.Environment.WebRootPath;
+
     // UI Endpoints (access controlled by HostRoutingMiddleware)
-    app.MapGet("/admin", async (HttpContext context) =>
+    app.MapGet("/admin", async context =>
     {
-        // Validate auth cookie; redirect to login if missing or expired
-        if (!context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) ||
-            !JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
+        if (!IsAuthenticated(context, jwtSigningKeyBytes))
         {
             context.Response.Redirect("/admin/login");
             return;
         }
         context.Response.ContentType = "text/html";
-        var adminDir = Path.Combine(app.Environment.WebRootPath, "admin");
+        var adminDir = Path.Combine(webRoot, "admin");
         string[] parts =
         [
             "_shell.html",
@@ -502,31 +502,24 @@ try
             "modals/users-apikeys.html",
             "_footer.html",
         ];
+        var ct = context.RequestAborted;
         foreach (var part in parts)
             await context.Response.WriteAsync(
-                await File.ReadAllTextAsync(Path.Combine(adminDir, part)));
+                await File.ReadAllTextAsync(Path.Combine(adminDir, part), ct), ct);
     }).ExcludeFromDescription();
 
-    app.MapGet("/admin/login", async (HttpContext context) =>
+    app.MapGet("/admin/login", async context =>
     {
-        // Already authenticated; skip the login page
-        if (context.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var cookieToken) &&
-            JwtAuthHandler.TryValidateToken(jwtSigningKeyBytes, cookieToken, out _, out _, out _))
+        if (IsAuthenticated(context, jwtSigningKeyBytes))
         {
             context.Response.Redirect("/admin");
             return;
         }
-        context.Response.ContentType = "text/html";
-        await context.Response.SendFileAsync(
-            Path.Combine(app.Environment.WebRootPath, "login.html"));
+        await ServeFile(context, Path.Combine(webRoot, "login.html"), "text/html", ct: context.RequestAborted);
     }).ExcludeFromDescription();
 
-    app.MapGet("/admin/logout", async (HttpContext context) =>
-    {
-        context.Response.ContentType = "text/html";
-        await context.Response.SendFileAsync(
-            Path.Combine(app.Environment.WebRootPath, "logout.html"));
-    }).ExcludeFromDescription();
+    app.MapGet("/admin/logout", ctx => ServeFile(ctx, Path.Combine(webRoot, "logout.html"), "text/html"))
+       .ExcludeFromDescription();
 
     app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
     {
@@ -565,108 +558,25 @@ try
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
 
-    app.MapGet("/openapi", async context =>
-    {
-        context.Response.ContentType = "text/html";
-        await context.Response.SendFileAsync(
-            Path.Combine(app.Environment.WebRootPath, "openapi.html"));
-    }).ExcludeFromDescription();
+    app.MapGet("/openapi",            ctx => ServeFile(ctx, Path.Combine(webRoot, "openapi.html"),           "text/html"))               .ExcludeFromDescription();
+    app.MapGet("/favicon.ico",        ctx => ServeFile(ctx, Path.Combine(webRoot, "favicon.ico"),            "image/x-icon"))            .ExcludeFromDescription();
+    app.MapGet("/fonts/inter.woff2",  ctx => ServeFile(ctx, Path.Combine(webRoot, "fonts", "inter.woff2"),   "font/woff2"))              .ExcludeFromDescription();
+    app.MapGet("/fonts/manrope.woff2",ctx => ServeFile(ctx, Path.Combine(webRoot, "fonts", "manrope.woff2"), "font/woff2"))              .ExcludeFromDescription();
+    app.MapGet("/css/site.css",       ctx => ServeFile(ctx, Path.Combine(webRoot, "css", "site.css"),        "text/css"))                .ExcludeFromDescription();
+    app.MapGet("/robots.txt",         ctx => ServeFile(ctx, Path.Combine(webRoot, "robots.txt"),             "text/plain"))              .ExcludeFromDescription();
 
-    app.MapGet("/favicon.ico", async context =>
+    foreach (var (route, file) in new (string, string)[]
     {
-        var path = Path.Combine(app.Environment.WebRootPath, "favicon.ico");
-        if (File.Exists(path))
-        {
-            context.Response.ContentType = "image/x-icon";
-            await context.Response.SendFileAsync(path);
-        }
-        else
-        {
-            context.Response.StatusCode = 404;
-        }
-    });
-
-    app.MapGet("/fonts/inter.woff2", async context =>
+        ("/js/auth.js",     "js/auth.js"),
+        ("/js/admin.js",    "js/admin.js"),
+        ("/js/users.js",    "js/users.js"),
+        ("/js/api-keys.js", "js/api-keys.js"),
+        ("/js/account.js",  "js/account.js"),
+    })
     {
-        var path = Path.Combine(app.Environment.WebRootPath, "fonts", "inter.woff2");
-        if (File.Exists(path)) { context.Response.ContentType = "font/woff2"; await context.Response.SendFileAsync(path); }
-        else { context.Response.StatusCode = 404; }
-    }).ExcludeFromDescription();
-
-    app.MapGet("/fonts/manrope.woff2", async context =>
-    {
-        var path = Path.Combine(app.Environment.WebRootPath, "fonts", "manrope.woff2");
-        if (File.Exists(path)) { context.Response.ContentType = "font/woff2"; await context.Response.SendFileAsync(path); }
-        else { context.Response.StatusCode = 404; }
-    }).ExcludeFromDescription();
-
-    // include   <link href="/css/site.css" rel="stylesheet" />
-    app.MapGet("/css/site.css", async context =>
-    {
-        var path = Path.Combine(app.Environment.WebRootPath, "css", "site.css");
-        if (File.Exists(path))
-        {
-            context.Response.ContentType = "text/css";
-            await context.Response.SendFileAsync(path);
-        }   
-        else
-        {
-            context.Response.StatusCode = 404;
-        }
-    });
-
-    app.MapGet("/robots.txt", async context =>
-    {
-        var path = Path.Combine(app.Environment.WebRootPath, "robots.txt");
-        if (File.Exists(path))
-        {
-            context.Response.ContentType = "text/plain";
-            await context.Response.SendFileAsync(path);
-        }
-        else
-        {
-            context.Response.StatusCode = 404;
-        }
-    });
-
-    app.MapGet("/js/auth.js", async context =>
-    {
-        var path = Path.Combine(app.Environment.WebRootPath, "js", "auth.js");
-        if (File.Exists(path))
-        {
-            context.Response.ContentType = "application/javascript";
-            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
-            await context.Response.SendFileAsync(path);
-        }
-        else { context.Response.StatusCode = 404; }
-    }).ExcludeFromDescription();
-
-    app.MapGet("/js/admin.js", async context =>
-    {
-        var path = Path.Combine(app.Environment.WebRootPath, "js", "admin.js");
-        if (File.Exists(path))
-        {
-            context.Response.ContentType = "application/javascript";
-            context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
-            await context.Response.SendFileAsync(path);
-        }
-        else { context.Response.StatusCode = 404; }
-    }).ExcludeFromDescription();
-
-    foreach (var jsFile in new[] { "users.js", "api-keys.js", "account.js" })
-    {
-        var captured = jsFile;
-        app.MapGet($"/js/{captured}", async context =>
-        {
-            var path = Path.Combine(app.Environment.WebRootPath, "js", captured);
-            if (File.Exists(path))
-            {
-                context.Response.ContentType = "application/javascript";
-                context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
-                await context.Response.SendFileAsync(path);
-            }
-            else { context.Response.StatusCode = 404; }
-        }).ExcludeFromDescription();
+        var (r, f) = (route, file);
+        app.MapGet(r, ctx => ServeFile(ctx, Path.Combine(webRoot, f), "application/javascript", noCache: true))
+           .ExcludeFromDescription();
     }
 
     app.MapGet("/", async context =>
@@ -800,4 +710,21 @@ static string NormalizeKey(string key, int requiredBytes)
     using var sha256 = System.Security.Cryptography.SHA256.Create();
     var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key));
     return Convert.ToBase64String(hash);
+}
+
+static bool IsAuthenticated(HttpContext ctx, byte[] jwtKey) =>
+    ctx.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var token) &&
+    JwtAuthHandler.TryValidateToken(jwtKey, token, out _, out _, out _);
+
+static Task ServeFile(HttpContext ctx, string path, string contentType, bool noCache = false, CancellationToken ct = default)
+{
+    if (!File.Exists(path))
+    {
+        ctx.Response.StatusCode = 404;
+        return Task.CompletedTask;
+    }
+    ctx.Response.ContentType = contentType;
+    if (noCache)
+        ctx.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+    return ctx.Response.SendFileAsync(path, ct);
 }
