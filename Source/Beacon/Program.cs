@@ -479,8 +479,32 @@ try
             return;
         }
         context.Response.ContentType = "text/html";
-        await context.Response.SendFileAsync(
-            Path.Combine(app.Environment.WebRootPath, "admin.html"));
+        var adminDir = Path.Combine(app.Environment.WebRootPath, "admin");
+        string[] parts =
+        [
+            "_shell.html",
+            "views/overview.html",
+            "views/subscriptions.html",
+            "views/bucket.html",
+            "views/new-token.html",
+            "views/new-bucket.html",
+            "views/submissions.html",
+            "views/submission-create.html",
+            "views/submission-preview.html",
+            "views/workflow.html",
+            "views/audit.html",
+            "views/settings.html",
+            "modals/bucket-settings.html",
+            "modals/bucket-mgmt.html",
+            "modals/permissions.html",
+            "modals/system-settings.html",
+            "modals/share-audit.html",
+            "modals/users-apikeys.html",
+            "_footer.html",
+        ];
+        foreach (var part in parts)
+            await context.Response.WriteAsync(
+                await File.ReadAllTextAsync(Path.Combine(adminDir, part)));
     }).ExcludeFromDescription();
 
     app.MapGet("/admin/login", async (HttpContext context) =>

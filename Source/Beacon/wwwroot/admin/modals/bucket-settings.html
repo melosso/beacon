@@ -1,0 +1,102 @@
+  <!-- Email Settings Modal -->
+  <div class="modal-backdrop" id="emailSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Email notifications</h3>
+      <p>Configure how Beacon sends outgoing emails, such as opt-in confirmations.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="emailProvider">Provider</label>
+        <select id="emailProvider" onchange="showEmailProviderFields(this.value)" style="width:100%">
+          <option value="none">None</option>
+          <option value="resend">Resend</option>
+          <option value="smtp">SMTP</option>
+        </select>
+      </div>
+
+      <!-- Resend-specific fields -->
+      <div id="email-fields-resend" style="display:none">
+        <div class="form-group">
+          <label for="emailResendApiKey">API Key</label>
+          <div class="input-reveal-wrapper">
+            <input type="password" id="emailResendApiKey" placeholder="re_••••••••••••••••••••••••" autocomplete="off">
+            <button type="button" class="btn-reveal" onclick="toggleReveal('emailResendApiKey', this)" aria-label="Show/hide API key">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMTP-specific fields -->
+      <div id="email-fields-smtp" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 100px;gap:0.75rem">
+          <div class="form-group">
+            <label for="emailSmtpHost">Host</label>
+            <input type="text" id="emailSmtpHost" placeholder="smtp.example.com" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="emailSmtpPort">Port</label>
+            <input type="number" id="emailSmtpPort" placeholder="587" min="1" max="65535">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label for="emailSmtpUsername">Username</label>
+            <input type="text" id="emailSmtpUsername" placeholder="username" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="emailSmtpPassword">Password</label>
+            <div class="input-reveal-wrapper">
+              <input type="password" id="emailSmtpPassword" placeholder="••••••••" autocomplete="new-password">
+              <button type="button" class="btn-reveal" onclick="toggleReveal('emailSmtpPassword', this)" aria-label="Show/hide password">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <label class="settings-item-card" for="emailSmtpUseTls" style="margin-bottom:0.75rem">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none" style="font-size:0.875rem">Use TLS / STARTTLS</span>
+            <p class="settings-item-desc">Encrypt the connection to the mail server.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="emailSmtpUseTls">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Shared sender fields (Resend + SMTP) -->
+      <div id="email-fields-sender" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label for="emailFromAddress">From address</label>
+            <input type="email" id="emailFromAddress" placeholder="noreply@example.com" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="emailFromName">From name</label>
+            <input type="text" id="emailFromName" placeholder="Beacon" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <!-- Queue section (Resend + SMTP) -->
+      <div id="email-fields-queue" style="display:none">
+        <hr class="settings-sep" style="margin:1rem 0">
+        <label class="settings-item-card" for="emailQueueEnabled">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none" style="font-size:0.875rem">Built-in email queue</span>
+            <p class="settings-item-desc">Queue outgoing emails within Beacon and retry on delivery failure. Recommended when not using a managed e-mail platform.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="emailQueueEnabled">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeEmailSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEmailSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+

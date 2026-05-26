@@ -1,0 +1,205 @@
+  <!-- Error Detail Modal -->
+  <div class="modal-backdrop" id="errorDetailModal" onclick="closeErrorDetailModal()">
+    <div class="modal" style="width:560px;max-width:95vw" onclick="event.stopPropagation()">
+      <h3>Error Details</h3>
+      <div class="error-detail-meta">
+        <span id="errorDetailTime">-</span>
+        <span id="errorDetailBadge"></span>
+      </div>
+      <div id="errorDetailRequest" style="margin-bottom:1rem;font-size:0.8rem;color:hsl(var(--muted-foreground))"></div>
+      <label style="display:block;font-size:0.75rem;font-weight:600;color:hsl(var(--muted-foreground));margin-bottom:0.35rem">Error Message</label>
+      <div class="error-detail-message" id="errorDetailMessage">-</div>
+      <div id="errorDetailStackWrap" style="display:none">
+        <label style="display:block;font-size:0.75rem;font-weight:600;color:hsl(var(--muted-foreground));margin-bottom:0.35rem">Stack Trace</label>
+        <div class="error-detail-message" id="errorDetailStack" style="font-size:0.7rem;max-height:200px;color:hsl(var(--muted-foreground))"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeErrorDetailModal()">Close</button>
+        <button class="btn btn-outline" onclick="copyErrorMessage()">Copy</button>
+        <button class="btn btn-destructive" onclick="removeWebhookError()">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Double Opt-In Settings Modal -->
+  <div class="modal-backdrop" id="doubleOptInSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Double opt-in settings</h3>
+      <p>Configure how confirmation emails are sent when double opt-in is active.</p>
+      
+      <div class="settings-items" style="margin-top:1.25rem">
+        <div class="settings-item-block" style="align-items: center">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Email grouping</span>
+            <p class="settings-item-desc">Choose whether to send separate emails for each permission or one combined email.</p>
+          </div>
+          <select id="setting-perPermissionEmail" class="appearance-select" onchange="saveSetting('perPermissionEmail', this.value === 'true')">
+            <option value="false">Single email for all permissions</option>
+            <option value="true">Separate email per permission</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-primary" onclick="closeDoubleOptInSettingsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submission Forms Settings Modal -->
+  <div class="modal-backdrop" id="submissionFormsSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Submission form defaults</h3>
+      <p>Set default values applied to newly created submission forms.</p>
+
+      <div class="settings-items" style="margin-top:1.25rem">
+        <div class="settings-item-block" style="align-items:center">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Default rate limit</span>
+            <p class="settings-item-desc">Max submissions per minute per IP address for new forms.</p>
+          </div>
+          <input type="number" id="setting-submissionDefaultRateLimitPerMinute" min="1" max="600" style="width:80px;text-align:right" class="input-auth" value="10">
+        </div>
+        <label class="settings-item-card-label" for="setting-submissionDefaultHoneypotEnabled" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Enable honeypot by default</span>
+            <p class="settings-item-desc">Hidden field that traps bots. Recommended for public forms.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-submissionDefaultHoneypotEnabled">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+        <label class="settings-item-card-label" for="setting-submissionDefaultConsentRequired" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Require consent checkbox by default</span>
+            <p class="settings-item-desc">Show a consent checkbox on newly created forms.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-submissionDefaultConsentRequired">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeSubmissionFormsSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSubmissionFormsSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Object Storage Modal -->
+  <div class="modal-backdrop" id="objectStorageModal">
+    <div class="modal modal--lg">
+      <h3>Object storage</h3>
+      <p>Connect an S3-compatible bucket to store exports and attachments externally.</p>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="objectStorageProvider">Provider</label>
+        <select id="objectStorageProvider" onchange="showObjectStorageProviderFields(this.value)" style="width:100%">
+          <option value="none">None</option>
+          <option value="s3">AWS S3</option>
+          <option value="r2">Cloudflare R2</option>
+          <option value="minio">MinIO</option>
+        </select>
+      </div>
+
+      <div id="objectStorageEndpointRow" style="display:none">
+        <div class="form-group">
+          <label for="objectStorageEndpoint">Endpoint URL</label>
+          <input type="url" id="objectStorageEndpoint" placeholder="https://account.r2.cloudflarestorage.com" style="width:100%">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label for="objectStorageBucket">Bucket name</label>
+          <input type="text" id="objectStorageBucket" placeholder="my-bucket" autocomplete="off">
+        </div>
+        <div class="form-group" id="objectStorageRegionRow">
+          <label for="objectStorageRegion">Region</label>
+          <input type="text" id="objectStorageRegion" placeholder="us-east-1" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="objectStorageAccessKey">Access key ID</label>
+        <input type="text" id="objectStorageAccessKey" placeholder="Access key" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="objectStorageSecretKey">Secret access key</label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="objectStorageSecretKey" placeholder="Secret key" autocomplete="off">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('objectStorageSecretKey', this)" aria-label="Show/hide secret key">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="objectStoragePublicUrl">Public URL <span style="font-weight:400;color:hsl(var(--muted-foreground))">(optional CDN prefix)</span></label>
+        <input type="url" id="objectStoragePublicUrl" placeholder="https://cdn.example.com" autocomplete="off">
+      </div>
+
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-top:0.25rem">
+        <button id="btnTestObjectStorage" class="btn btn-outline" onclick="testObjectStorageConnection()">Test connection</button>
+        <span id="objectStorageTestResult" style="font-size:0.875rem"></span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeObjectStorageModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveObjectStorageSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cache Settings Modal -->
+  <div class="modal-backdrop" id="cacheSettingsModal">
+    <div class="modal modal--lg">
+      <h3>Cache settings</h3>
+      <p>Configure in-memory caching for consent lookups and bucket data.</p>
+
+      <div class="settings-items" style="margin-top:1.25rem">
+        <div class="settings-item-block" style="align-items:center">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">TTL (seconds)</span>
+            <p class="settings-item-desc">How long cached entries remain valid before being refreshed from the database.</p>
+          </div>
+          <input type="number" id="setting-cacheTtlSeconds" min="10" max="86400" style="width:90px;text-align:right" class="input-auth" value="300">
+        </div>
+        <label class="settings-item-card-label" for="setting-cacheConsentRecords" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Cache consent lookups</span>
+            <p class="settings-item-desc">Cache per-email consent status checks.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-cacheConsentRecords">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+        <label class="settings-item-card-label" for="setting-cacheBucketData" style="padding:0.75rem 0">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Cache bucket permissions</span>
+            <p class="settings-item-desc">Cache bucket and permission metadata read on every request.</p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-cacheBucketData">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-top:1rem">
+        <button id="btnFlushCache" class="btn btn-outline" onclick="flushCache()">Flush cache</button>
+        <span id="cacheStatsResult" style="font-size:0.875rem;color:hsl(var(--muted-foreground))"></span>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeCacheSettingsModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCacheSettings()">Save changes</button>
+      </div>
+    </div>
+  </div>
+

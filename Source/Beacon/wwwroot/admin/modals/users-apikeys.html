@@ -1,0 +1,253 @@
+  <!-- Change Role Modal -->
+  <div class="modal-backdrop" id="userRoleModal" style="display:none">
+    <div class="modal" style="max-width:380px">
+      <h3 style="margin-bottom:0.5rem">Change Role</h3>
+      <p id="userRoleModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Role</label>
+        <select id="userRoleSelect">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeUserRoleModal()">Cancel</button>
+        <button class="btn btn-primary" id="userRoleSaveBtn" onclick="saveUserRole()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename User Modal -->
+  <div class="modal-backdrop" id="renameUserModal" style="display:none">
+    <div class="modal" style="max-width:400px">
+      <h3 style="margin-bottom:0.5rem">Rename User</h3>
+      <p id="renameUserModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>New Username <span class="required" title="Required">*</span></label>
+        <input type="text" id="renameUserInput" placeholder="e.g., user@domain.local" autocomplete="off" maxlength="100" onkeydown="if(event.key==='Enter')saveRenameUser()">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeRenameUserModal()">Cancel</button>
+        <button class="btn btn-primary" id="renameUserSaveBtn" onclick="saveRenameUser()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Password Modal -->
+  <div class="modal-backdrop" id="accountPasswordModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3 style="margin-bottom:0.5rem">Change Password</h3>
+      <p style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem">Update your login password. Minimum 12 characters.</p>
+      <div id="accountCurrentPasswordGroup" class="form-group">
+        <label>Current Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="accountCurrentPassword" placeholder="Current password" autocomplete="current-password">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('accountCurrentPassword',this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>New Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="accountNewPassword" placeholder="Min. 12 characters" autocomplete="new-password">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('accountNewPassword',this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:1.5rem">
+        <label>Confirm New Password <span class="required" title="Required">*</span></label>
+        <input type="password" id="accountConfirmPassword" placeholder="Repeat new password" autocomplete="new-password">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeAccountPasswordModal()">Cancel</button>
+        <button class="btn btn-primary" id="accountPasswordSaveBtn" onclick="saveAccountPassword()"><span class="btn-label">Update Password</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Modals -->
+  <div class="modal-backdrop" id="userPasswordModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3 style="margin-bottom:0.5rem">Change Password</h3>
+      <p id="userPasswordModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
+      <div class="form-group">
+        <label>New Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="userPasswordInput" placeholder="Min. 12 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveUserPassword()">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('userPasswordInput', this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeUserPasswordModal()">Cancel</button>
+        <button class="btn btn-primary" id="userPasswordSaveBtn" onclick="saveUserPassword()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="userApiKeyRevealModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:0.5rem">New API Key Generated</h3>
+      <p id="userApiKeyRevealDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:0"></p>
+      <div class="passphrase-box select-none" id="userApiKeyRevealOutput" onclick="copyUserApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+      <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem;margin-bottom:1.25rem;text-align:center">Click to copy · Will not be shown again</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeUserApiKeyRevealModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="addUserModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:1.5rem">Add User</h3>
+      <div class="form-group">
+        <label>Username <span class="required" title="Required">*</span></label>
+        <input type="text" id="newUserUsername" placeholder="e.g., user@domain.local" autocomplete="off" maxlength="100">
+      </div>
+      <div class="form-group">
+        <label>Password <span class="required" title="Required">*</span></label>
+        <div class="input-reveal-wrapper">
+          <input type="password" id="newUserPassword" placeholder="Min. 12 characters" autocomplete="new-password">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('newUserPassword', this)" tabindex="-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password <span class="required" title="Required">*</span></label>
+        <input type="password" id="newUserConfirmPassword" placeholder="Repeat password" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="newUserRole">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div id="newUserApiKeySection" style="display:none;margin-bottom:1rem">
+        <p style="font-size:0.85rem;font-weight:500;color:hsl(var(--foreground));margin-bottom:0">API Key</p>
+        <div class="passphrase-box select-none" id="newUserApiKeyOutput" onclick="copyNewUserApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+        <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem">Click to copy · Will not be shown again</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeAddUserModal()">Cancel</button>
+        <button class="btn btn-primary" id="addUserBtn" onclick="createUser()"><span class="btn-label">Create User</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add API Key modal -->
+  <div class="modal-backdrop" id="addApiKeyModal" style="display:none">
+    <div class="modal" style="max-width:520px">
+      <h3 style="margin-bottom:1.5rem">Add API Key</h3>
+      <div class="form-group">
+        <label>Name <span class="required" title="Required">*</span></label>
+        <input type="text" id="newApiKeyName" placeholder="e.g., CI/CD pipeline" autocomplete="off" maxlength="200">
+      </div>
+      <div class="form-group">
+        <label>Permissions <span class="required" title="Required">*</span></label>
+        <div id="newApiKeyPermissions" style="padding:0.625rem;border:1px solid hsl(var(--border));border-radius:var(--radius)"></div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-bottom:1rem">
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active From</label>
+          <input type="date" id="newApiKeyActiveFrom" style="width:100%">
+        </div>
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active Until</label>
+          <input type="date" id="newApiKeyActiveUntil" style="width:100%">
+        </div>
+      </div>
+      <div id="newApiKeyRevealSection" style="display:none;margin-bottom:1rem">
+        <p style="font-size:0.85rem;font-weight:500;color:hsl(var(--foreground));margin-bottom:0">API Key</p>
+        <div class="passphrase-box select-none" id="newApiKeyOutput" onclick="copyNewApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+        <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem">Click to copy · Will not be shown again</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" id="addApiKeyCancelBtn" onclick="closeAddApiKeyModal()">Cancel</button>
+        <button class="btn btn-primary" id="addApiKeyBtn" onclick="createApiKey()"><span class="btn-label">Create Key</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Key rotate/reveal modal -->
+  <div class="modal-backdrop" id="apiKeyRevealModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:0.5rem">New API Key</h3>
+      <p id="apiKeyRevealDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:0"></p>
+      <div class="passphrase-box select-none" id="apiKeyRevealOutput" onclick="copyRotatedApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
+      <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem;margin-bottom:1.25rem;text-align:center">Click to copy · Will not be shown again</p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeApiKeyRevealModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit API Key permissions modal -->
+  <div class="modal-backdrop" id="editApiKeyPermissionsModal" style="display:none">
+    <div class="modal" style="max-width:520px">
+      <h3 style="margin-bottom:0.5rem">Edit Permissions</h3>
+      <p id="editApiKeyPermissionsDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1rem"></p>
+      <div id="editApiKeyPermissionsList" style="padding:0.625rem;border:1px solid hsl(var(--border));border-radius:var(--radius);margin-bottom:1.25rem"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeEditApiKeyPermissionsModal()">Cancel</button>
+        <button class="btn btn-primary" id="editApiKeyPermissionsSaveBtn" onclick="saveApiKeyPermissions()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit API Key dates modal -->
+  <div class="modal-backdrop" id="editApiKeyDatesModal" style="display:none">
+    <div class="modal" style="max-width:480px">
+      <h3 style="margin-bottom:0.5rem">Edit Validity Window</h3>
+      <p id="editApiKeyDatesDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1rem"></p>
+      <div style="display:flex;gap:1rem;margin-bottom:1.25rem">
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active From</label>
+          <input type="date" id="editApiKeyActiveFrom" style="width:100%">
+        </div>
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label>Active Until</label>
+          <input type="date" id="editApiKeyActiveUntil" style="width:100%">
+        </div>
+      </div>
+      <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.5rem;margin-bottom:1.25rem">Leave both blank for no time restriction.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeEditApiKeyDatesModal()">Cancel</button>
+        <button class="btn btn-primary" id="editApiKeyDatesSaveBtn" onclick="saveApiKeyDates()"><span class="btn-label">Save</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="retentionPurgeModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3>Opted-out anonymisation</h3>
+      <p>PII is removed from opted-out records once they exceed the threshold. The email hash and status are kept as a permanent suppression list entry.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
+        <input type="number" id="setting-retentionPurgeDays" min="1" max="3650" value="1095" style="width:100%">
+      </div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closeRetentionPurgeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveRetentionPurgeDays()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="pendingConfirmationModal" style="display:none">
+    <div class="modal" style="max-width:420px">
+      <h3>Pending confirmation cleanup</h3>
+      <p>Unconfirmed double opt-in records are deleted once they exceed the threshold. No consent was established, so no suppression list entry is required.</p>
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="setting-pendingConfirmationPurgeDays">Delete after (days)</label>
+        <input type="number" id="setting-pendingConfirmationPurgeDays" min="1" max="365" value="30" style="width:100%">
+      </div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-outline" onclick="closePendingConfirmationModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="savePendingConfirmationPurgeDays()">Save</button>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,87 @@
+    <!-- Bucket View -->
+    <div id="view-bucket" class="view">
+      <section class="header-container">
+        <div>
+          <h1 class="tooltip-wrapper" style="display:block; cursor:pointer;" onclick="copyBucketName()">
+            <span id="bucketTitle">-</span>
+            <span class="tooltip select-none" id="bucketTooltip">example-bucket-name</span>
+          </h1>
+          <span class="status-badge select-none" id="readOnlyBadge">Read-Only</span>
+        </div>
+        <div class="bucket-actions">
+          <span class="tooltip-wrapper" id="webhookErrorsContainer">
+            <button class="webhook-errors-trigger" id="webhookErrorsTrigger" onclick="toggleWebhookErrors(event)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+            <span class="tooltip">Notifications</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="webhook-errors-trigger" onclick="newTokenForBucket(currentBucket)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <span class="tooltip">Create token for this bucket</span>
+          </span>
+          <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
+          <span class="tooltip-wrapper">
+            <button class="webhook-errors-trigger" onclick="openShareUrlModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </button>
+            <span class="tooltip">Generate unsubscribe links</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="loadBucket(currentBucket)">Refresh</button>
+            <span class="tooltip">Reload overview</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="showOptionsModal()">Options</button>
+            <span class="tooltip">Bucket settings</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-destructive" onclick="initiateRemoval()">Remove Bucket</button>
+            <span class="tooltip tooltip-right">Permanently delete this bucket</span>
+          </span>
+        </div>
+      </section>
+      <div class="table-wrapper">
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr id="bucketTableHead">
+                <th>Email</th>
+                <th>Loading...</th>
+              </tr>
+            </thead>
+            <tbody id="bucketBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-container">
+          <div class="pagination-settings">
+            <div class="page-size-selector">
+              <span>Show</span>
+              <select class="page-size-input" id="pageSize" onchange="updatePageSize()">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>per page</span>
+            </div>
+            <div class="pagination-info" id="paginationInfo"></div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" id="prevBtn" onclick="changePage(-1)">Previous</button>
+            <button class="btn btn-outline" id="nextBtn" onclick="changePage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+

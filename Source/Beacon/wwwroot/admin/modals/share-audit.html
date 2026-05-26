@@ -1,0 +1,72 @@
+  <!-- Generate Unsubscribe Links Modal -->
+  <div class="modal-backdrop" id="shareUrlModal">
+    <div class="modal modal--lg">
+      <h3>Generate unsubscribe links</h3>
+      <p>Generate custom download links for your users. You can easily filter the list by permissions to only include the right people.</p>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label for="shareUrlPermission">Permission scope</label>
+        <select id="shareUrlPermission">
+          <option value="">All permissions</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="form-group">
+          <label for="shareUrlSource">utm_source</label>
+          <input type="text" id="shareUrlSource" placeholder="e.g. newsletter" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label for="shareUrlMedium">utm_medium</label>
+          <input type="text" id="shareUrlMedium" placeholder="e.g. email" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label for="shareUrlExpiry">Expiry (days)</label>
+          <input type="number" id="shareUrlExpiry" value="30" min="1" max="365">
+        </div>
+        <div class="form-group">
+          <label>Format</label>
+          <div style="display:flex;gap:0.5rem;padding-top:0.25rem">
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="csv" checked> CSV</label>
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="json"> JSON</label>
+            <label class="format-option"><input type="radio" name="shareUrlFormat" value="xml"> XML</label>
+          </div>
+        </div>
+      </div>
+
+      <p id="exportTokensStatus" style="margin:0.75rem 0 0;font-size:0.875rem;color:hsl(var(--muted-foreground));min-height:1.25em"></p>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeShareUrlModal()">Close</button>
+        <button id="btnExportTokens" class="btn btn-primary" onclick="exportBucketTokens()">Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Custom Fields Modal -->
+  <div class="modal-backdrop" id="auditCustomFieldsModal">
+    <div class="modal">
+      <h3>Custom fields</h3>
+      <p>Additional data captured at the time of this consent change.</p>
+      <div class="custom-fields-list" id="auditCustomFieldsList" style="margin-top:1rem"></div>
+      <div class="modal-actions" style="margin-top:1.5rem">
+        <button class="btn btn-primary" onclick="closeAuditCustomFieldsModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-backdrop" id="confirmModal" style="display:none">
+    <div class="modal" style="max-width:400px">
+      <h3 id="confirmModalTitle" style="margin-bottom:0.5rem"></h3>
+      <p id="confirmModalMessage" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.5rem"></p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn btn-destructive" id="confirmModalBtn" onclick="executeConfirmAction()"><span class="btn-label"></span></button>
+      </div>
+    </div>
+  </div>
+

@@ -1,0 +1,38 @@
+    <!-- Submission List View -->
+    <div id="view-submissions" class="view">
+      <section class="header-container">
+        <div>
+          <h1 class="select-none">Submission Forms</h1>
+          <span class="status-badge select-none">Configuration</span>
+        </div>
+        <div class="bucket-actions">
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="loadSubmissionForms()">Refresh</button>
+            <span class="tooltip tooltip-right">Reload overview</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="showView('submission-create')">Create Form</button>
+            <span class="tooltip tooltip-right">Create a new submission form</span>
+          </span>
+        </div>
+      </section>
+      <div class="table-wrapper">
+        <div class="scroll-area" style="overflow-x:hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Bucket</th>
+                <th>Permissions</th>
+                <th>Origins</th>
+                <th>Submissions</th>
+                <th>Status</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="submissionBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+

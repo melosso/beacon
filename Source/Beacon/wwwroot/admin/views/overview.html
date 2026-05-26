@@ -1,0 +1,41 @@
+    <!-- Overview View -->
+    <div id="view-overview" class="view">
+      <section class="header-container">
+        <div>
+          <h1 class="select-none">Overview</h1>
+          <span class="status-badge">Buckets</span>
+        </div>
+        <div class="bucket-actions">
+          <span class="tooltip-wrapper" id="overviewWebhookErrorsContainer">
+            <button class="webhook-errors-trigger" id="overviewWebhookErrorsTrigger" onclick="toggleOverviewWebhookErrors(event)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+            <span class="tooltip">Notifications</span>
+          </span>
+          <div class="webhook-errors-dropdown" id="overviewWebhookErrorsDropdown"></div>
+          <span class="tooltip-wrapper">
+            <button class="btn btn-outline" onclick="loadOverview(true)">Refresh</button>
+            <span class="tooltip tooltip-right">Reload overview</span>
+          </span>
+        </div>
+      </section>
+      <div class="table-wrapper">
+        <div class="scroll-area" style="overflow-x:hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Bucket</th>
+                <th>Records</th>
+                <th>Permissions</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="overviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+

@@ -1,0 +1,52 @@
+    <!-- Subscriptions View -->
+    <div id="view-subscriptions" class="view">
+      <section class="header-container">
+        <div>
+          <h1 class="select-none" id="subTitle">Subscriptions</h1>
+          <span class="status-badge select-none" id="subBadge">Global Identities</span>
+        </div>
+        <div class="bucket-actions">
+          <button class="btn btn-outline" id="subBackBtn" style="display:none" onclick="loadIdentities()">&larr; Back</button>
+          <span class="tooltip-wrapper" id="subRefreshWrapper">
+            <button class="btn btn-outline" onclick="loadIdentities()">Refresh</button>
+            <span class="tooltip tooltip-right">Reload identities</span>
+          </span>
+        </div>
+      </section>
+      
+      <div class="table-wrapper">
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr id="subscriptionsTableHead">
+                <th>Identity (ID)</th>
+                <th>Buckets</th>
+                <th>Last Changed</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="subscriptionsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination-container">
+          <div class="pagination-settings">
+            <div class="page-size-selector">
+              <span>Show</span>
+              <select class="page-size-input" id="subPageSize" onchange="updateSubPageSize()">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>per page</span>
+            </div>
+            <div class="pagination-info" id="subPaginationInfo"></div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" id="subPrevBtn" onclick="changeSubPage(-1)">Previous</button>
+            <button class="btn btn-outline" id="subNextBtn" onclick="changeSubPage(1)">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+

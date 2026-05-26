@@ -310,7 +310,7 @@ aside {
 
 .nav-item:hover { background-color: hsl(var(--muted)); }
 .nav-item:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: -2px; }
-.nav-item.active { background-color: hsl(var(--muted)); font-weight: 600; box-shadow: inset 2px 0 0 hsl(var(--foreground)); }
+.nav-item.active { background-color: hsl(var(--muted)); font-weight: 600; box-shadow: inset 0px 0 0 hsl(var(--foreground)); }
 
 .nav-item.show-more {
     color: hsl(var(--muted-foreground));
