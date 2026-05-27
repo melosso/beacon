@@ -88,7 +88,7 @@
               <div class="dropdown-menu" id="overviewMenu-${idx}">
                 <button class="dropdown-item" onclick="showBucket('${sanitize(b.name)}')">View Records</button>
                 <button class="dropdown-item" onclick="${b.isArchived ? `showUnarchiveModal('${sanitize(b.name)}')` : `showArchiveModal('${sanitize(b.name)}')`}">${b.isArchived ? 'Unarchive Bucket' : 'Archive Bucket'}</button>
-                <button class="dropdown-item" onclick="initiateBucketRemoval('${sanitize(b.name)}')">Remove Bucket</button>
+                <button class="dropdown-item${b.isArchived ? '' : ' disabled'}" ${b.isArchived ? `onclick="initiateBucketRemoval('${sanitize(b.name)}')"` : 'onclick="notify(\'error\',\'Archive first\',\'Archive this bucket before removing it.\')"'}>Remove Bucket</button>
               </div>
             </div>
           </td>
@@ -122,15 +122,15 @@
       const details = detailsResult.data;
       currentBucketPermissions = details.permissions || [];
       currentBucketArchived = details.isArchived || false;
-      const badge = document.getElementById('readOnlyBadge');
-      if (currentBucketArchived) {
-        badge.textContent = 'This bucket is archived';
-        badge.style.background = 'hsl(var(--muted))';
-        badge.style.color = 'hsl(var(--muted-foreground))';
-      } else {
-        badge.textContent = 'Overview';
-        badge.style.background = '';
-        badge.style.color = '';
+      const archivedBadge = document.getElementById('archivedBadge');
+      if (archivedBadge) archivedBadge.style.display = currentBucketArchived ? '' : 'none';
+
+      const removeBtn = document.getElementById('removeBucketBtn');
+      const removeTip = document.getElementById('removeBucketTooltip');
+      if (removeBtn) {
+        removeBtn.disabled = !currentBucketArchived;
+        removeBtn.style.opacity = currentBucketArchived ? '' : '0.4';
+        if (removeTip) removeTip.textContent = currentBucketArchived ? 'Permanently delete this bucket' : 'Archive this bucket first to enable removal';
       }
 
       const brandBadge = document.getElementById('bucketBrandBadge');

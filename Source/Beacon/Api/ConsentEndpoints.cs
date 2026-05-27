@@ -441,6 +441,7 @@ public static class ConsentEndpoints
           margin: 0 0 8px;
           font-weight: 600;
           letter-spacing: -0.01em;
+          user-select: none;
         }
 
         p {
@@ -451,6 +452,7 @@ public static class ConsentEndpoints
         .icon {
           font-size: 3rem;
           margin-bottom: 16px;
+          user-select: none;
         }
 
         .icon.success { color: var(--success); }
@@ -469,6 +471,7 @@ public static class ConsentEndpoints
           width: auto;
           height: auto;
           margin: 0 0 20px;
+          user-select: none;
         }
         """;
 

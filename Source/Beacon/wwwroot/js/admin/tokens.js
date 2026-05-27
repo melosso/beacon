@@ -220,10 +220,6 @@
         notify('success', 'Archived', `Bucket "${bucket}" has been archived`);
         if (currentBucket === bucket) {
           currentBucketArchived = true;
-          const badge = document.getElementById('readOnlyBadge');
-          badge.textContent = 'This bucket is archived';
-          badge.style.background = 'hsl(var(--muted))';
-          badge.style.color = 'hsl(var(--muted-foreground))';
           loadBucket(currentBucket);
         }
         await loadOverview(true);
@@ -253,10 +249,6 @@
         notify('success', 'Unarchived', `Bucket "${bucket}" has been unarchived`);
         if (currentBucket === bucket) {
           currentBucketArchived = false;
-          const badge = document.getElementById('readOnlyBadge');
-          badge.textContent = 'Read-Only';
-          badge.style.background = '';
-          badge.style.color = '';
           loadBucket(currentBucket);
         }
         await loadOverview(true);
@@ -276,6 +268,10 @@
 
     function initiateRemoval() {
       if (!currentBucket) return;
+      if (!currentBucketArchived) {
+        notify('error', 'Archive first', 'A bucket must be archived before it can be removed. Open Options → Archive Bucket, then try again.');
+        return;
+      }
       bucketToRemove = currentBucket;
       showRemoveModal();
     }

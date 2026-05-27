@@ -271,6 +271,7 @@ body {
     max-height: 0;
     opacity: 0;
     transition: max-height 0.2s ease, opacity 0.15s ease;
+    user-select: none;
 }
 .admin-promo-bar.is-visible {
     max-height: 3rem;
@@ -635,6 +636,10 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     background: hsl(var(--muted));
     color: hsl(var(--muted-foreground) / 0.5);
 }
+.status-badge.archived {
+    background: hsl(var(--warning) / 0.12);
+    color: hsl(var(--warning));
+}
 
 /* Inline status chip */
 .status-chip {
@@ -811,7 +816,7 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
 .btn-destructive:hover { background: hsl(var(--destructive)); color: hsl(var(--primary-foreground)); }
 .btn-destructive:focus-visible { outline: 2px solid hsl(var(--destructive)); outline-offset: 2px; }
 .btn-sm { height: 1.875rem; padding: 0 0.625rem; font-size: 0.8125rem; }
-.btn-icon { background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); transition: background 0.15s; }
+.btn-icon { background: none; border: none; color: hsl(var(--foreground)); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); transition: background 0.15s; }
 .btn-icon:hover { background: hsl(var(--muted)); }
 .btn-icon:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 2px; }
 
@@ -1539,6 +1544,8 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 }
 
 .dropdown-item:hover { background: hsl(var(--muted)); }
+.dropdown-item.disabled { opacity: 0.4; cursor: default; }
+.dropdown-item.disabled:hover { background: transparent; }
 .dropdown-item + .dropdown-item { border-top: 1px solid hsl(var(--border)); }
 
 /* View containers */

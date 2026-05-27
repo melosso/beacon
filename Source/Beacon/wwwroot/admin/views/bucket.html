@@ -7,6 +7,7 @@
             <span class="tooltip select-none" id="bucketTooltip">example-bucket-name</span>
           </h1>
           <span class="status-badge select-none" id="readOnlyBadge">Overview</span>
+          <span class="status-badge archived select-none" id="archivedBadge" style="display:none">Archived</span>
           <span class="status-badge select-none" id="bucketBrandBadge" style="display:none"></span>
         </div>
         <div class="bucket-actions">
@@ -47,8 +48,8 @@
             <span class="tooltip">Bucket settings</span>
           </span>
           <span class="tooltip-wrapper">
-            <button class="btn btn-destructive" onclick="initiateRemoval()">Remove Bucket</button>
-            <span class="tooltip tooltip-right">Permanently delete this bucket</span>
+            <button class="btn btn-destructive" id="removeBucketBtn" onclick="initiateRemoval()">Remove Bucket</button>
+            <span class="tooltip tooltip-right" id="removeBucketTooltip">Permanently delete this bucket</span>
           </span>
         </div>
       </section>

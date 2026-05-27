@@ -79,23 +79,14 @@
         <button class="btn btn-icon" onclick="closeArchiveModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <p>
-        Archiving <strong id="archiveBucketName">-</strong> will prevent new submissions, (user) consent updates, and token generation.  
-        Existing records will remain available for viewing.
-      </p>      
-      <p>
-        Anyone with an active token for this bucket will <strong>no longer</strong> be able to submit or update consent. 
-      <p>
-        Are you sure you want to archive this bucket? You can unarchive it later if needed.
+        <strong id="archiveBucketName">-</strong> will become read-only. New submissions, consent updates, and token usage will be rejected — existing records remain accessible.
+      </p>
+      <p style="color:hsl(var(--muted-foreground));font-size:0.875rem">
+        This can be undone. You can unarchive this bucket at any time from its settings.
       </p>
       <div class="modal-actions">
-        <span class="tooltip-wrapper">
-          <button class="btn btn-outline" onclick="closeArchiveModal()">Cancel</button>
-          <span class="tooltip tooltip-above">Close without archiving</span>
-        </span>
-        <span class="tooltip-wrapper">
-          <button class="btn btn-primary" id="confirmArchiveBtn" onclick="confirmArchive()">Archive Bucket</button>
-          <span class="tooltip tooltip-above">Bucket will become read-only</span>
-        </span>
+        <button class="btn btn-outline" onclick="closeArchiveModal()">Cancel</button>
+        <button class="btn btn-primary" id="confirmArchiveBtn" onclick="confirmArchive()">Archive Bucket</button>
       </div>
     </div>
   </div>
