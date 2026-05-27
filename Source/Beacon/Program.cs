@@ -709,7 +709,7 @@ try
         Log.Information("Beacon is spinning up on http://localhost:{ApiPort} (API) and http://localhost:{AdminPort} (Admin)",
             hostOptions.ApiPort, hostOptions.AdminPort);
     }
-    Log.Information("Endpoints online: /api/consent and /admin");
+    Log.Information("Endpoints online: /api and /admin");
     Log.Information("");
 
     // Register shutdown handlers
