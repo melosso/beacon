@@ -1,7 +1,10 @@
   <!-- Email Settings Modal -->
-  <div class="modal-backdrop" id="emailSettingsModal">
+  <div class="modal-backdrop" id="emailSettingsModal" onclick="if(event.target===this)closeEmailSettingsModal()">
     <div class="modal modal--lg">
-      <h3>Email notifications</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Email notifications</h3>
+        <button class="btn btn-icon" onclick="closeEmailSettingsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Configure how Beacon sends outgoing emails, such as opt-in confirmations.</p>
       <div class="form-group" style="margin-top:1.25rem">
         <label for="emailProvider">Provider</label>

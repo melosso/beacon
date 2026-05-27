@@ -853,9 +853,9 @@
       const thead = document.getElementById('subscriptionsTableHead');
       const body = document.getElementById('subscriptionsBody');
 
-      document.getElementById('subTitle').textContent = 'Subscriptions';
+      document.getElementById('subTitle').textContent = 'Subscribers';
       const badge = document.getElementById('subBadge');
-      badge.textContent = 'Global Identities';
+      badge.textContent = 'Overview';
       badge.classList.remove('tooltip-wrapper');
       badge.removeAttribute('data-hash');
       badge.style.cursor = '';
@@ -1112,15 +1112,15 @@
         badge.style.background = 'hsl(var(--muted))';
         badge.style.color = 'hsl(var(--muted-foreground))';
       } else {
-        badge.textContent = 'Read-Only';
+        badge.textContent = 'Overview';
         badge.style.background = '';
         badge.style.color = '';
       }
 
       const brandBadge = document.getElementById('bucketBrandBadge');
-      const brandIdentity = getBrandIdentityForBucket(bucket);
+      const brandIdentity = details.brandIdentity;
       if (brandIdentity) {
-        const accent = brandIdentity.settings?.primaryAccent;
+        const accent = brandIdentity.accent;
         brandBadge.textContent = brandIdentity.name;
         brandBadge.style.background = accent || '';
         brandBadge.style.color = accent ? contrastFg(accent) : '';
@@ -2098,6 +2098,24 @@
         }
       } catch (err) {
         // No webhook configured
+      }
+
+      // Populate brand identity section
+      const biContent = document.getElementById('optionsBrandIdentityContent');
+      const biBadge = document.getElementById('optionsBrandBadge');
+      const identity = getBrandIdentityForBucket(currentBucket);
+      if (biContent) {
+        if (identity) {
+          const accent = identity.settings?.primaryAccent || null;
+          const swatchHtml = accent
+            ? `<span style="display:inline-block;width:0.875rem;height:0.875rem;border-radius:50%;background:${escHtml(accent)};border:1px solid hsl(var(--border));vertical-align:middle;margin-right:0.375rem;flex-shrink:0"></span>`
+            : '';
+          biContent.innerHTML = `<div style="display:flex;align-items:center;padding:0.625rem 0.75rem;background:hsl(var(--muted));border-radius:var(--radius);font-size:0.875rem">${swatchHtml}<span>${escHtml(identity.name)}</span></div>`;
+          if (biBadge) { biBadge.textContent = identity.name; biBadge.style.display = ''; }
+        } else {
+          biContent.innerHTML = `<p style="font-size:0.875rem;color:hsl(var(--muted-foreground));margin:0">Using default identity.</p>`;
+          if (biBadge) biBadge.style.display = 'none';
+        }
       }
 
       document.getElementById('optionsModal').style.display = 'flex';
@@ -5002,322 +5020,376 @@ ${bodyStr}
       list.innerHTML = _brandIdentities.map(identity => buildIdentityCardHtml(identity)).join('');
     }
 
+    let _editingIdentityId = null;
+
+    const _beaconAvatarHtml = `<div class="brand-avatar" style="width:36px;height:36px;min-width:36px;flex-shrink:0" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-avatar-bg">
+        <g clip-path="url(#beacon-avatar-clip)">
+          <rect width="20" height="20" fill="#000" rx="5.5"/>
+          <rect width="20" height="20" fill="url(#beacon-avatar-gradient)" fill-opacity="0.2" rx="5.5"/>
+          <g filter="url(#beacon-avatar-blur-1)" opacity="0.3"><circle cx="16" cy="17" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+          <g filter="url(#beacon-avatar-blur-2)" opacity="0.1"><circle cx="16" cy="16" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+          <g filter="url(#beacon-avatar-blur-3)" opacity="0.4"><circle cx="17" cy="19" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
+          <rect width="20" height="20" fill="#FF64B4" fill-opacity="0.15" rx="5.5"/>
+          <g style="mix-blend-mode:hard-light"><rect width="20" height="20" fill="#6A62FF" fill-opacity="0.1" rx="5.5"/></g>
+        </g>
+        <rect width="19" height="19" x="0.5" y="0.5" stroke="#FDFDFD" stroke-opacity="0.1" rx="5"/>
+      </svg>
+      <svg class="brand-avatar-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FDFDFD" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>`;
+
     function buildIdentityCardHtml(identity) {
       const id = identity.id;
-      const s = identity.settings || {};
       const buckets = identity.buckets || [];
       const isDefault = identity.isDefault;
-
+      const s = identity.settings || {};
+      const logo = s.logo;
+      const accent = s.primaryAccent;
+      let avatarHtml;
+      if (logo?.type === 'base64' && logo.data) {
+        avatarHtml = `<img src="${escHtml(logo.data)}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid hsl(var(--border)/0.5)">`;
+      } else if ((logo?.type === 'url' || logo?.type === 'objectStorage') && logo.url) {
+        avatarHtml = `<img src="${escHtml(logo.url)}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid hsl(var(--border)/0.5)">`;
+      } else if (isDefault) {
+        avatarHtml = _beaconAvatarHtml;
+      } else {
+        const bg = accent
+          ? `linear-gradient(135deg,${escHtml(accent)},${escHtml(accent)}55)`
+          : `linear-gradient(135deg,hsl(var(--primary)/0.7),hsl(var(--primary)/0.25))`;
+        avatarHtml = `<div style="width:36px;height:36px;border-radius:6px;flex-shrink:0;background:${bg}"></div>`;
+      }
       return `
-        <div class="identity-card" id="identity-card-${id}">
-          <div class="identity-card-header" onclick="toggleIdentityCard(${id})" role="button" tabindex="0"
-               onkeydown="if(event.key==='Enter'||event.key===' ')toggleIdentityCard(${id})">
-            <div style="display:flex;align-items:center;gap:0.625rem;flex:1;min-width:0">
-              <span class="identity-card-name">${escHtml(identity.name)}</span>
-              ${isDefault ? '<span class="identity-default-badge">Default</span>' : ''}
+        <div class="settings-item-card settings-item-card--split" id="identity-card-${id}">
+          <div style="flex:1;padding:1rem;display:flex;align-items:center;gap:1rem">
+            ${avatarHtml}
+            <div class="settings-item-info" style="flex:1">
+              <span class="settings-item-title select-none">${escHtml(identity.name)}${isDefault ? '<span class="identity-default-badge" style="margin-left:0.5rem">Default</span>' : ''}</span>
+              <p class="settings-item-desc">${isDefault ? 'All unassigned buckets' : buckets.length ? `${buckets.length} bucket${buckets.length !== 1 ? 's' : ''}` : 'No buckets assigned'}</p>
             </div>
-            <span class="identity-card-meta">${buckets.length ? `${buckets.length} bucket${buckets.length !== 1 ? 's' : ''}` : 'No buckets'}</span>
-            <svg class="identity-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </div>
-          <div class="identity-card-body" hidden>
+          <button class="btn-settings-gear" onclick="openEditBrandIdentityModal(${id})" aria-label="Edit identity">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>`;
+    }
 
-            <!-- Name -->
-            <div>
-              <p class="identity-section-hd">Identity name</p>
-              ${isDefault
-                ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">The Default identity cannot be renamed.</p>`
-                : `<div class="identity-field-row" style="align-items:center">
-                <div class="settings-item-info" style="flex:1">
-                  <p class="identity-field-desc">Display name for this brand identity.</p>
-                </div>
-                <input type="text" class="identity-input" style="max-width:220px"
-                  id="bi-name-${id}" value="${escHtml(identity.name)}"
-                  oninput="updateIdentityPreview(${id})" />
-              </div>`}
-            </div>
+    function buildIdentityEditBodyHtml(identity) {
+      const id = identity.id;
+      const s = identity.settings || {};
+      const isDefault = identity.isDefault;
 
-            <!-- Colours -->
-            <div>
-              <p class="identity-section-hd">Colours</p>
-              ${isDefault ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Colours are not configurable on the Default identity.</p>` : `
-              <div class="identity-field-row" style="margin-bottom:0.75rem">
-                <div class="settings-item-info">
-                  <span class="identity-field-label">Accent colour</span>
-                  <p class="identity-field-desc">Buttons and interactive elements.</p>
-                </div>
-                <div class="identity-field-control">
-                  <div class="colour-picker-row">
-                    <input type="color" id="bi-accent-picker-${id}" value="${s.primaryAccent || '#6366f1'}"
-                      oninput="syncColourInput(${id},'accent')" />
-                    <input type="text" class="colour-hex-input" id="bi-accent-hex-${id}" value="${s.primaryAccent || '#6366f1'}"
-                      maxlength="7" placeholder="#6366f1"
-                      oninput="syncColourPicker(${id},'accent');updateIdentityPreview(${id})" />
-                  </div>
-                </div>
-              </div>
-              <div class="identity-field-row">
-                <div class="settings-item-info">
-                  <span class="identity-field-label">Surface colour</span>
-                  <p class="identity-field-desc">Page and email background.</p>
-                </div>
-                <div class="identity-field-control">
-                  <div class="colour-picker-row">
-                    <input type="color" id="bi-surface-picker-${id}" value="${s.surfaceColour || '#ffffff'}"
-                      oninput="syncColourInput(${id},'surface')" />
-                    <input type="text" class="colour-hex-input" id="bi-surface-hex-${id}" value="${s.surfaceColour || '#ffffff'}"
-                      maxlength="7" placeholder="#ffffff"
-                      oninput="syncColourPicker(${id},'surface');updateIdentityPreview(${id})" />
-                  </div>
-                </div>
-              </div>`}
-            </div>
-
-            <!-- Logo -->
-            <div>
-              <p class="identity-section-hd">Logo</p>
-              <div class="identity-field-row" style="align-items:flex-start">
-                <div class="settings-item-info">
-                  <p class="identity-field-desc">Displayed above the heading in emails and on the opt-out page. Max 2 MB.</p>
-                </div>
-                <div class="identity-field-control" style="min-width:240px">
-                  <div class="logo-upload-area" onclick="triggerLogoUpload(${id})" id="bi-logo-area-${id}">
-                    ${buildLogoPreviewHtml(id, s.logo)}
-                    <span class="logo-upload-text">
-                      <strong>Upload image</strong><br />or paste a URL below
-                    </span>
-                    ${s.logo ? `<button class="logo-remove-btn" type="button" onclick="event.stopPropagation();removeLogo(${id})">Remove</button>` : ''}
-                  </div>
-                  <input type="file" id="bi-logo-file-${id}" accept="image/*" style="display:none"
-                    onchange="handleLogoFileChange(${id}, this)" />
-                  <input type="text" class="identity-input" id="bi-logo-url-${id}"
-                    value="${s.logo && s.logo.type === 'url' ? escHtml(s.logo.url || '') : ''}"
-                    placeholder="https://example.com/logo.png"
-                    oninput="handleLogoUrlInput(${id}, this.value)" />
+      const previewHtml = `
+        <div class="personalisation-preview">
+          <p class="personalisation-preview-hd">Preview</p>
+          <div class="personalisation-preview-grid">
+            <div class="preview-frame">
+              <div class="preview-frame-label">Email</div>
+              <div class="preview-frame-body">
+                <div class="preview-email-mock" id="bi-preview-email-${id}">
+                  <div id="bi-preview-logo-email-${id}"></div>
+                  <div class="preview-mock-title" id="bi-preview-email-title-${id}">One more step to complete your sign-up</div>
+                  <div class="preview-mock-body" id="bi-preview-email-body-${id}">Click the button below to confirm.</div>
+                  <div class="preview-mock-btn" id="bi-preview-email-btn-${id}" ${isDefault ? '' : `style="background:${s.primaryAccent||'#6366f1'};color:${contrastFg(s.primaryAccent||'#6366f1')}"`}>Yes, sign me up</div>
+                  <div class="preview-mock-footer" id="bi-preview-email-footer-${id}"></div>
                 </div>
               </div>
             </div>
-
-            <!-- Theme -->
-            <div>
-              <p class="identity-section-hd">Theme — opt-out page &amp; email</p>
-              <div class="identity-field-row" style="align-items:flex-start">
-                <div class="settings-item-info">
-                  <p class="identity-field-desc">Controls the colour scheme of outgoing emails and the opt-out page seen by recipients.</p>
-                </div>
-                <div class="identity-field-control">
-                  <div class="theme-radio-group">
-                    ${['light','dark','system'].map(th => `
-                      <label class="theme-option" for="bi-theme-${id}-${th}">
-                        <input type="radio" name="bi-theme-${id}" id="bi-theme-${id}-${th}" value="${th}"
-                          ${(s.theme || 'system') === th ? 'checked' : ''}
-                          onchange="updateIdentityPreview(${id})" />
-                        <div class="theme-card">
-                          <div class="theme-preview-inner ${th === 'system' ? 'theme-preview--system' : `theme-preview--${th}`}">
-                            ${th === 'system' ? '<div class="tp-half tp-half--light"></div><div class="tp-half tp-half--dark"></div>' : ''}
-                          </div>
-                        </div>
-                        <span class="theme-option-label">${th.charAt(0).toUpperCase() + th.slice(1)}</span>
-                      </label>`).join('')}
-                  </div>
+            <div class="preview-frame">
+              <div class="preview-frame-label">Opt-out page</div>
+              <div class="preview-frame-body">
+                <div class="preview-page-mock" id="bi-preview-page-${id}">
+                  <div id="bi-preview-logo-page-${id}"></div>
+                  <div class="preview-mock-title" id="bi-preview-page-title-${id}">Email preferences</div>
+                  <div class="preview-mock-body" id="bi-preview-page-body-${id}">You're receiving these emails because you previously opted in.</div>
+                  <div class="preview-mock-btn" id="bi-preview-page-btn-${id}" ${isDefault ? '' : `style="background:${s.primaryAccent||'#6366f1'};color:${contrastFg(s.primaryAccent||'#6366f1')}"`}>Save preferences</div>
+                  <div class="preview-mock-footer" id="bi-preview-page-footer-${id}"></div>
                 </div>
               </div>
-            </div>
-
-            <!-- Typography -->
-            <div>
-              <p class="identity-section-hd">Typography</p>
-              <div class="identity-field-row" style="align-items:center">
-                <div class="settings-item-info">
-                  <p class="identity-field-desc">Font applied to emails and the opt-out page.</p>
-                </div>
-                <div class="identity-field-control">
-                  <select class="appearance-select" id="bi-font-${id}"
-                    onchange="onIdentityFontChange(${id})" style="min-width:160px">
-                    <option value="">System default</option>
-                    <option value="Arial" ${s.font === 'Arial' ? 'selected' : ''}>Arial</option>
-                    <option value="Helvetica" ${s.font === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
-                    <option value="Georgia" ${s.font === 'Georgia' ? 'selected' : ''}>Georgia</option>
-                    <option value="Tahoma" ${s.font === 'Tahoma' ? 'selected' : ''}>Tahoma</option>
-                    <option value="Verdana" ${s.font === 'Verdana' ? 'selected' : ''}>Verdana</option>
-                    <option value="Trebuchet MS" ${s.font === 'Trebuchet MS' ? 'selected' : ''}>Trebuchet MS</option>
-                    <option value="Courier New" ${s.font === 'Courier New' ? 'selected' : ''}>Courier New</option>
-                    <option value="Inter" ${s.font === 'Inter' ? 'selected' : ''}>Inter</option>
-                    <option value="Manrope" ${s.font === 'Manrope' ? 'selected' : ''}>Manrope</option>
-                  </select>
-                  <span class="font-warning-badge" id="bi-font-warn-${id}" ${NON_EMAIL_SAFE_FONTS.has((s.font || '').toLowerCase()) ? '' : 'style="display:none"'}>
-                    &#9888; May not render in all email clients
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Copy — opt-out page -->
-            ${(() => {
-              if (isDefault) return `<div><p class="identity-section-hd">Copy — opt-out page</p><p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p></div>`;
-              const hasPageCopy = !!(s.pageTitle || s.pageBody || s.browserTitle);
-              return `<div>
-              <p class="identity-section-hd">Copy — opt-out page</p>
-              <div id="bi-copy-page-gate-${id}" style="${hasPageCopy ? 'display:none' : ''}">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.5);border:1px solid hsl(var(--border));border-radius:var(--radius)">
-                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Custom copy disables automatic locale translations.</span>
-                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="unlockCopySection(${id},'page')">Customise</button>
-                </div>
-              </div>
-              <div id="bi-copy-page-fields-${id}" style="${hasPageCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.75rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-                  <p style="font-size:0.8125rem;color:hsl(var(--warning));margin:0">Locale translations disabled for this section.</p>
-                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="resetCopySection(${id},'page')">Reset</button>
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-browser-title-${id}">Browser tab title</label>
-                  <input type="text" class="identity-input" id="bi-browser-title-${id}"
-                    value="${escHtml(s.browserTitle || '')}" placeholder="Email Preferences"
-                    oninput="updateIdentityPreview(${id})" />
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-page-title-${id}">Page heading</label>
-                  <input type="text" class="identity-input" id="bi-page-title-${id}"
-                    value="${escHtml(s.pageTitle || '')}" placeholder="Email preferences"
-                    oninput="updateIdentityPreview(${id})" />
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-page-body-${id}">Page body text</label>
-                  <textarea class="identity-textarea" id="bi-page-body-${id}" rows="2"
-                    placeholder="You're receiving these emails because you previously opted in."
-                    oninput="updateIdentityPreview(${id})">${escHtml(s.pageBody || '')}</textarea>
-                </div>
-              </div>
-            </div>`;
-            })()}
-
-            <!-- Copy — email -->
-            ${(() => {
-              if (isDefault) return `<div><p class="identity-section-hd">Copy — email</p><p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p></div>`;
-              const hasEmailCopy = !!(s.emailTitle || s.emailBody);
-              return `<div>
-              <p class="identity-section-hd">Copy — email</p>
-              <div id="bi-copy-email-gate-${id}" style="${hasEmailCopy ? 'display:none' : ''}">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.5);border:1px solid hsl(var(--border));border-radius:var(--radius)">
-                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Custom copy disables automatic locale translations.</span>
-                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="unlockCopySection(${id},'email')">Customise</button>
-                </div>
-              </div>
-              <div id="bi-copy-email-fields-${id}" style="${hasEmailCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.75rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-                  <p style="font-size:0.8125rem;color:hsl(var(--warning));margin:0">Locale translations disabled for this section.</p>
-                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="resetCopySection(${id},'email')">Reset</button>
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-email-title-${id}">Email heading</label>
-                  <input type="text" class="identity-input" id="bi-email-title-${id}"
-                    value="${escHtml(s.emailTitle || '')}" placeholder="One more step to complete your sign-up"
-                    oninput="updateIdentityPreview(${id})" />
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-email-body-${id}">Email body text</label>
-                  <textarea class="identity-textarea" id="bi-email-body-${id}" rows="2"
-                    placeholder="Click the button below to confirm."
-                    oninput="updateIdentityPreview(${id})">${escHtml(s.emailBody || '')}</textarea>
-                </div>
-              </div>
-            </div>`;
-            })()}
-
-            <!-- Copy — confirmation -->
-            ${(() => {
-              if (isDefault) return `<div><p class="identity-section-hd">Copy — confirmation</p><p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p></div>`;
-              const hasConfirmCopy = !!(s.confirmTitle || s.confirmMsg);
-              return `<div>
-              <p class="identity-section-hd">Copy — confirmation</p>
-              <div id="bi-copy-confirm-gate-${id}" style="${hasConfirmCopy ? 'display:none' : ''}">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.5);border:1px solid hsl(var(--border));border-radius:var(--radius)">
-                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Custom copy disables automatic locale translations.</span>
-                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="unlockCopySection(${id},'confirm')">Customise</button>
-                </div>
-              </div>
-              <div id="bi-copy-confirm-fields-${id}" style="${hasConfirmCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.75rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
-                  <p style="font-size:0.8125rem;color:hsl(var(--warning));margin:0">Locale translations disabled for this section.</p>
-                  <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem;white-space:nowrap" onclick="resetCopySection(${id},'confirm')">Reset</button>
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-confirm-title-${id}">Confirmation heading</label>
-                  <input type="text" class="identity-input" id="bi-confirm-title-${id}"
-                    value="${escHtml(s.confirmTitle || '')}" placeholder="Subscription confirmed" />
-                </div>
-                <div>
-                  <label class="identity-field-label" for="bi-confirm-msg-${id}">Confirmation message</label>
-                  <textarea class="identity-textarea" id="bi-confirm-msg-${id}" rows="2"
-                    placeholder="Your subscription has been confirmed. You're now opted in.">${escHtml(s.confirmMsg || '')}</textarea>
-                </div>
-              </div>
-            </div>`;
-            })()}
-
-            <!-- Footer -->
-            <div>
-              <p class="identity-section-hd">Footer</p>
-              ${isDefault
-                ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">Not configurable on the Default identity.</p>`
-                : `<p style="margin:0.25rem 0 0.5rem;font-size:0.8125rem;color:hsl(var(--muted-foreground))">Shown at the bottom of both the email and opt-out page.</p>
-              <textarea class="identity-textarea" id="bi-footer-${id}" rows="2"
-                placeholder="&#169; 2025 Your Company"
-                oninput="updateIdentityPreview(${id})">${escHtml(s.footer || '')}</textarea>`}
-            </div>
-
-            <!-- Bucket assignment -->
-            <div>
-              <p class="identity-section-hd">Bucket assignment</p>
-              ${isDefault
-                ? `<p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0">The Default identity applies to all unassigned buckets.</p>`
-                : `<div class="identity-field-row" style="align-items:flex-start">
-                <div class="settings-item-info">
-                  <p class="identity-field-desc">Buckets assigned to this identity. Unassigned buckets use the Default.</p>
-                </div>
-                <div class="identity-bucket-list" id="bi-buckets-${id}">
-                  <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Loading...</span>
-                </div>
-              </div>`}
-            </div>
-
-            <!-- Live preview -->
-            <div class="personalisation-preview">
-              <p class="personalisation-preview-hd">Preview</p>
-              <div class="personalisation-preview-grid">
-                <div class="preview-frame">
-                  <div class="preview-frame-label">Email</div>
-                  <div class="preview-frame-body">
-                    <div class="preview-email-mock" id="bi-preview-email-${id}">
-                      <div id="bi-preview-logo-email-${id}"></div>
-                      <div class="preview-mock-title" id="bi-preview-email-title-${id}">One more step to complete your sign-up</div>
-                      <div class="preview-mock-body" id="bi-preview-email-body-${id}">Click the button below to confirm.</div>
-                      <div class="preview-mock-btn" id="bi-preview-email-btn-${id}" ${isDefault ? '' : `style="background:${s.primaryAccent||'#6366f1'};color:${contrastFg(s.primaryAccent||'#6366f1')}"`}>Yes, sign me up</div>
-                      <div class="preview-mock-footer" id="bi-preview-email-footer-${id}"></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="preview-frame">
-                  <div class="preview-frame-label">Opt-out page</div>
-                  <div class="preview-frame-body">
-                    <div class="preview-page-mock" id="bi-preview-page-${id}">
-                      <div id="bi-preview-logo-page-${id}"></div>
-                      <div class="preview-mock-title" id="bi-preview-page-title-${id}">Email preferences</div>
-                      <div class="preview-mock-body" id="bi-preview-page-body-${id}">You're receiving these emails because you previously opted in.</div>
-                      <div class="preview-mock-btn" id="bi-preview-page-btn-${id}" ${isDefault ? '' : `style="background:${s.primaryAccent||'#6366f1'};color:${contrastFg(s.primaryAccent||'#6366f1')}"`}>Save preferences</div>
-                      <div class="preview-mock-footer" id="bi-preview-page-footer-${id}"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="identity-actions-row">
-              <button class="btn btn-primary" onclick="saveBrandIdentity(${id})" style="font-size:0.875rem">Save</button>
-              ${!isDefault ? `<button class="btn btn-outline" onclick="deleteBrandIdentity(${id})" style="font-size:0.875rem;color:hsl(var(--destructive));border-color:hsl(var(--destructive)/0.4)">Delete</button>` : ''}
             </div>
           </div>
         </div>`;
+
+      const logoFieldHtml = `
+        <div class="identity-field-row" style="align-items:flex-start">
+          <div class="settings-item-info">
+            <span class="identity-field-label">Logo</span>
+            <p class="identity-field-desc">Shown above the heading in emails and on the opt-out page.</p>
+          </div>
+          <div class="identity-field-control" style="min-width:240px">
+            <div class="logo-upload-area" onclick="triggerLogoUpload(${id})" id="bi-logo-area-${id}">
+              ${buildLogoPreviewHtml(id, s.logo)}
+              <span class="logo-upload-text"><strong>Upload image</strong><br>or paste a URL below</span>
+              ${s.logo ? `<button class="logo-remove-btn" type="button" onclick="event.stopPropagation();removeLogo(${id})">Remove</button>` : ''}
+            </div>
+            <input type="file" id="bi-logo-file-${id}" accept="image/*" style="display:none"
+              onchange="handleLogoFileChange(${id}, this)" />
+            <input type="text" class="identity-input" id="bi-logo-url-${id}"
+              value="${s.logo && s.logo.type === 'url' ? escHtml(s.logo.url || '') : ''}"
+              placeholder="https://example.com/logo.png"
+              oninput="handleLogoUrlInput(${id}, this.value)" />
+          </div>
+        </div>`;
+
+      const themeFieldHtml = `
+        <div class="identity-field-row" style="align-items:flex-start">
+          <div class="settings-item-info">
+            <span class="identity-field-label">Theme</span>
+            <p class="identity-field-desc">Colour scheme for emails and the opt-out page.</p>
+          </div>
+          <div class="identity-field-control">
+            <div class="theme-radio-group">
+              ${['light','dark','system'].map(th => `
+                <label class="theme-option" for="bi-theme-${id}-${th}">
+                  <input type="radio" name="bi-theme-${id}" id="bi-theme-${id}-${th}" value="${th}"
+                    ${(s.theme || 'system') === th ? 'checked' : ''}
+                    onchange="updateIdentityPreview(${id})" />
+                  <div class="theme-card">
+                    <div class="theme-preview-inner ${th === 'system' ? 'theme-preview--system' : `theme-preview--${th}`}">
+                      ${th === 'system' ? '<div class="tp-half tp-half--light"></div><div class="tp-half tp-half--dark"></div>' : ''}
+                    </div>
+                  </div>
+                  <span class="theme-option-label">${th.charAt(0).toUpperCase() + th.slice(1)}</span>
+                </label>`).join('')}
+            </div>
+          </div>
+        </div>`;
+
+      const fontFieldHtml = `
+        <div class="identity-field-row" style="align-items:center">
+          <div class="settings-item-info">
+            <span class="identity-field-label">Font</span>
+            <p class="identity-field-desc">Applied to emails and the opt-out page.</p>
+          </div>
+          <div class="identity-field-control">
+            <select class="appearance-select" id="bi-font-${id}" onchange="onIdentityFontChange(${id})" style="min-width:160px">
+              <option value="">System default</option>
+              <option value="Arial" ${s.font === 'Arial' ? 'selected' : ''}>Arial</option>
+              <option value="Helvetica" ${s.font === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+              <option value="Georgia" ${s.font === 'Georgia' ? 'selected' : ''}>Georgia</option>
+              <option value="Tahoma" ${s.font === 'Tahoma' ? 'selected' : ''}>Tahoma</option>
+              <option value="Verdana" ${s.font === 'Verdana' ? 'selected' : ''}>Verdana</option>
+              <option value="Trebuchet MS" ${s.font === 'Trebuchet MS' ? 'selected' : ''}>Trebuchet MS</option>
+              <option value="Courier New" ${s.font === 'Courier New' ? 'selected' : ''}>Courier New</option>
+              <option value="Inter" ${s.font === 'Inter' ? 'selected' : ''}>Inter</option>
+              <option value="Manrope" ${s.font === 'Manrope' ? 'selected' : ''}>Manrope</option>
+            </select>
+            <span class="font-warning-badge" id="bi-font-warn-${id}" ${NON_EMAIL_SAFE_FONTS.has((s.font || '').toLowerCase()) ? '' : 'style="display:none"'}>
+              &#9888; May not render in all email clients
+            </span>
+          </div>
+        </div>`;
+
+      if (isDefault) {
+        return `
+          <p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.4);border-radius:var(--radius);user-select: none;">The default identity automatically styles all unassigned buckets. Because it is a system fallback, the name, colors, text, and footer remain locked against changes.</p>
+          <div>
+            <p class="identity-section-hd">Appearance</p>
+            ${logoFieldHtml}
+            ${themeFieldHtml}
+            ${fontFieldHtml}
+          </div>
+          <div>
+            <p class="identity-section-hd">Buckets</p>
+            <p class="identity-field-desc" style="margin:0">Applies to all unassigned buckets.</p>
+          </div>
+          ${previewHtml}`;
+      }
+
+      const hasPageCopy = !!(s.pageTitle || s.pageBody || s.browserTitle);
+      const hasEmailCopy = !!(s.emailTitle || s.emailBody);
+      const hasConfirmCopy = !!(s.confirmTitle || s.confirmMsg);
+
+      return `
+        <div class="identity-field-row" style="align-items:center">
+          <div class="settings-item-info" style="flex:1">
+            <span class="identity-field-label">Identity name</span>
+          </div>
+          <div class="identity-field-control">
+            <input type="text" class="identity-input" style="min-width:200px"
+              id="bi-name-${id}" value="${escHtml(identity.name)}"
+              oninput="updateIdentityPreview(${id})" />
+          </div>
+        </div>
+
+        <div>
+          <p class="identity-section-hd">Appearance</p>
+          <div class="identity-field-row" style="margin-bottom:0.75rem">
+            <div class="settings-item-info">
+              <span class="identity-field-label">Accent</span>
+              <p class="identity-field-desc">Buttons and interactive elements.</p>
+            </div>
+            <div class="identity-field-control">
+              <div class="colour-picker-row">
+                <input type="color" id="bi-accent-picker-${id}" value="${s.primaryAccent || '#6366f1'}"
+                  oninput="syncColourInput(${id},'accent')" />
+                <input type="text" class="colour-hex-input" id="bi-accent-hex-${id}" value="${s.primaryAccent || '#6366f1'}"
+                  maxlength="7" placeholder="#6366f1"
+                  oninput="syncColourPicker(${id},'accent');updateIdentityPreview(${id})" />
+              </div>
+            </div>
+          </div>
+          <div class="identity-field-row" style="margin-bottom:0.75rem">
+            <div class="settings-item-info">
+              <span class="identity-field-label">Surface</span>
+              <p class="identity-field-desc">Page and email background.</p>
+            </div>
+            <div class="identity-field-control">
+              <div class="colour-picker-row">
+                <input type="color" id="bi-surface-picker-${id}" value="${s.surfaceColour || '#ffffff'}"
+                  oninput="syncColourInput(${id},'surface')" />
+                <input type="text" class="colour-hex-input" id="bi-surface-hex-${id}" value="${s.surfaceColour || '#ffffff'}"
+                  maxlength="7" placeholder="#ffffff"
+                  oninput="syncColourPicker(${id},'surface');updateIdentityPreview(${id})" />
+              </div>
+            </div>
+          </div>
+          ${logoFieldHtml}
+          ${themeFieldHtml}
+          ${fontFieldHtml}
+        </div>
+
+        <div>
+          <p class="identity-section-hd">Copy</p>
+          <p class="identity-field-desc" style="margin:0 0 0.875rem">Custom copy overrides automatic locale translations for that section.</p>
+
+          <div style="border-top:1px solid hsl(var(--border)/0.5);padding-top:0.75rem;margin-bottom:0.75rem">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.75rem;margin-bottom:0.375rem">
+              <span style="font-size:0.8125rem;font-weight:500;color:hsl(var(--foreground))">Opt-out page</span>
+              <div id="bi-copy-page-gate-${id}" style="${hasPageCopy ? 'display:none' : ''}">
+                <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" onclick="unlockCopySection(${id},'page')">Customise</button>
+              </div>
+            </div>
+            <div id="bi-copy-page-fields-${id}" style="${hasPageCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.625rem">
+              <div style="display:flex;justify-content:flex-end">
+                <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" onclick="resetCopySection(${id},'page')">Reset</button>
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-browser-title-${id}">Browser tab title</label>
+                <input type="text" class="identity-input" id="bi-browser-title-${id}"
+                  value="${escHtml(s.browserTitle || '')}" placeholder="Email Preferences"
+                  oninput="updateIdentityPreview(${id})" />
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-page-title-${id}">Page heading</label>
+                <input type="text" class="identity-input" id="bi-page-title-${id}"
+                  value="${escHtml(s.pageTitle || '')}" placeholder="Email preferences"
+                  oninput="updateIdentityPreview(${id})" />
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-page-body-${id}">Body text</label>
+                <textarea class="identity-textarea" id="bi-page-body-${id}" rows="2"
+                  placeholder="You're receiving these emails because you previously opted in."
+                  oninput="updateIdentityPreview(${id})">${escHtml(s.pageBody || '')}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid hsl(var(--border)/0.5);padding-top:0.75rem;margin-bottom:0.75rem">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.75rem;margin-bottom:0.375rem">
+              <span style="font-size:0.8125rem;font-weight:500;color:hsl(var(--foreground))">Email</span>
+              <div id="bi-copy-email-gate-${id}" style="${hasEmailCopy ? 'display:none' : ''}">
+                <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" onclick="unlockCopySection(${id},'email')">Customise</button>
+              </div>
+            </div>
+            <div id="bi-copy-email-fields-${id}" style="${hasEmailCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.625rem">
+              <div style="display:flex;justify-content:flex-end">
+                <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" onclick="resetCopySection(${id},'email')">Reset</button>
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-email-title-${id}">Heading</label>
+                <input type="text" class="identity-input" id="bi-email-title-${id}"
+                  value="${escHtml(s.emailTitle || '')}" placeholder="One more step to complete your sign-up"
+                  oninput="updateIdentityPreview(${id})" />
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-email-body-${id}">Body text</label>
+                <textarea class="identity-textarea" id="bi-email-body-${id}" rows="2"
+                  placeholder="Click the button below to confirm."
+                  oninput="updateIdentityPreview(${id})">${escHtml(s.emailBody || '')}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid hsl(var(--border)/0.5);padding-top:0.75rem">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.75rem;margin-bottom:0.375rem">
+              <span style="font-size:0.8125rem;font-weight:500;color:hsl(var(--foreground))">Confirmation</span>
+              <div id="bi-copy-confirm-gate-${id}" style="${hasConfirmCopy ? 'display:none' : ''}">
+                <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" onclick="unlockCopySection(${id},'confirm')">Customise</button>
+              </div>
+            </div>
+            <div id="bi-copy-confirm-fields-${id}" style="${hasConfirmCopy ? 'display:flex' : 'display:none'};flex-direction:column;gap:0.625rem">
+              <div style="display:flex;justify-content:flex-end">
+                <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" onclick="resetCopySection(${id},'confirm')">Reset</button>
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-confirm-title-${id}">Heading</label>
+                <input type="text" class="identity-input" id="bi-confirm-title-${id}"
+                  value="${escHtml(s.confirmTitle || '')}" placeholder="Subscription confirmed" />
+              </div>
+              <div>
+                <label class="identity-field-label" for="bi-confirm-msg-${id}">Message</label>
+                <textarea class="identity-textarea" id="bi-confirm-msg-${id}" rows="2"
+                  placeholder="Your subscription has been confirmed. You're now opted in.">${escHtml(s.confirmMsg || '')}</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p class="identity-section-hd">Footer</p>
+          <p class="identity-field-desc" style="margin:0 0 0.5rem">Shown at the bottom of emails and the opt-out page.</p>
+          <textarea class="identity-textarea" id="bi-footer-${id}" rows="2"
+            placeholder="&#169; 2025 Your Company"
+            oninput="updateIdentityPreview(${id})">${escHtml(s.footer || '')}</textarea>
+        </div>
+
+        <div>
+          <p class="identity-section-hd">Buckets</p>
+          <p class="identity-field-desc" style="margin:0 0 0.5rem">Choose buckets for this identity, unselected buckets will keep the default.</p>
+          <div class="bucket-pill-list" id="bi-buckets-${id}">
+            <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Loading...</span>
+          </div>
+        </div>
+
+        ${previewHtml}`;
+    }
+
+    function openEditBrandIdentityModal(id) {
+      const identity = _brandIdentities.find(i => i.id === id);
+      if (!identity) return;
+      _editingIdentityId = id;
+      document.getElementById('editBrandIdentityTitle').textContent = `Edit — ${identity.name}`;
+      document.getElementById('editBrandIdentityBody').innerHTML = buildIdentityEditBodyHtml(identity);
+      document.getElementById('editBrandIdentityDeleteBtn').style.display = identity.isDefault ? 'none' : '';
+      document.getElementById('editBrandIdentityModal').style.display = 'flex';
+      renderBucketAssignment(id);
+      updateIdentityPreview(id);
+    }
+
+    function closeEditBrandIdentityModal() {
+      document.getElementById('editBrandIdentityModal').style.display = 'none';
+      _editingIdentityId = null;
+    }
+
+    async function saveEditBrandIdentity() {
+      if (_editingIdentityId === null) return;
+      const btn = document.getElementById('editBrandIdentityBtn');
+      btn.classList.add('is-loading'); btn.disabled = true;
+      try {
+        const ok = await saveBrandIdentity(_editingIdentityId);
+        if (ok) closeEditBrandIdentityModal();
+      } finally {
+        btn.classList.remove('is-loading'); btn.disabled = false;
+      }
+    }
+
+    function deleteEditingBrandIdentity() {
+      if (_editingIdentityId === null) return;
+      const id = _editingIdentityId;
+      closeEditBrandIdentityModal();
+      deleteBrandIdentity(id);
     }
 
     function buildLogoPreviewHtml(id, logo) {
@@ -5326,17 +5398,6 @@ ${bodyStr}
       }
       const src = logo.type === 'base64' ? logo.data : logo.url;
       return `<img class="logo-thumbnail" src="${escHtml(src || '')}" alt="Logo" />`;
-    }
-
-    function toggleIdentityCard(id) {
-      const body = document.querySelector(`#identity-card-${id} .identity-card-body`);
-      if (!body) return;
-      const wasHidden = body.hidden;
-      body.hidden = !wasHidden;
-      if (wasHidden) {
-        renderBucketAssignment(id);
-        updateIdentityPreview(id);
-      }
     }
 
     async function renderBucketAssignment(identityId) {
@@ -5352,13 +5413,18 @@ ${bodyStr}
           return;
         }
         container.innerHTML = allBuckets.map(bucket => `
-          <label class="identity-bucket-item">
-            <input type="checkbox" value="${escHtml(bucket)}" ${assigned.has(bucket) ? 'checked' : ''} />
-            ${escHtml(bucket)}
-          </label>`).join('');
+          <button type="button" class="bucket-pill${assigned.has(bucket) ? ' is-assigned' : ''}"
+                  aria-pressed="${assigned.has(bucket)}"
+                  data-bucket="${escHtml(bucket)}"
+                  onclick="toggleBucketPill(this)">${escHtml(bucket)}</button>`).join('');
       } catch {
         container.innerHTML = '<span style="font-size:0.8125rem;color:hsl(var(--destructive))">Failed to load buckets.</span>';
       }
+    }
+
+    function toggleBucketPill(btn) {
+      const isAssigned = btn.classList.toggle('is-assigned');
+      btn.setAttribute('aria-pressed', String(isAssigned));
     }
 
     function syncColourInput(id, type) {
@@ -5532,12 +5598,12 @@ ${bodyStr}
     function collectAssignedBuckets(id) {
       const container = document.getElementById(`bi-buckets-${id}`);
       if (!container) return [];
-      return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+      return Array.from(container.querySelectorAll('.bucket-pill.is-assigned')).map(btn => btn.dataset.bucket);
     }
 
     async function saveBrandIdentity(id) {
       const identity = _brandIdentities.find(i => i.id === id);
-      if (!identity) return;
+      if (!identity) return false;
       const nameEl = document.getElementById(`bi-name-${id}`);
       const name = nameEl ? (nameEl.value || '').trim() : identity.name;
       const settings = collectIdentitySettings(id);
@@ -5547,14 +5613,15 @@ ${bodyStr}
         method: 'PUT',
         body: { name, settings }
       });
-      if (!r1.ok) return;
+      if (!r1.ok) return false;
       const r2 = await apiRequest(`/api/admin/brand-identities/${id}/buckets`, {
         method: 'PUT',
         body: { buckets }
       });
-      if (!r2.ok) return;
+      if (!r2.ok) return false;
       notify('success', 'Saved', `Brand identity "${name}" updated.`);
       await loadBrandIdentities();
+      return true;
     }
 
     function unlockCopySection(id, section) {

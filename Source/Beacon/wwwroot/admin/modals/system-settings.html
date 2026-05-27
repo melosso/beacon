@@ -1,7 +1,10 @@
   <!-- Error Detail Modal -->
   <div class="modal-backdrop" id="errorDetailModal" onclick="closeErrorDetailModal()">
     <div class="modal" style="width:560px;max-width:95vw" onclick="event.stopPropagation()">
-      <h3>Error Details</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Error Details</h3>
+        <button class="btn btn-icon" onclick="closeErrorDetailModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <div class="error-detail-meta">
         <span id="errorDetailTime">-</span>
         <span id="errorDetailBadge"></span>
@@ -22,9 +25,12 @@
   </div>
 
   <!-- Double Opt-In Settings Modal -->
-  <div class="modal-backdrop" id="doubleOptInSettingsModal">
+  <div class="modal-backdrop" id="doubleOptInSettingsModal" onclick="if(event.target===this)closeDoubleOptInSettingsModal()">
     <div class="modal modal--lg">
-      <h3>Double opt-in settings</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Double opt-in settings</h3>
+        <button class="btn btn-icon" onclick="closeDoubleOptInSettingsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Configure how confirmation emails are sent when double opt-in is active.</p>
       
       <div class="settings-items" style="margin-top:1.25rem">
@@ -47,9 +53,12 @@
   </div>
 
   <!-- Submission Forms Settings Modal -->
-  <div class="modal-backdrop" id="submissionFormsSettingsModal">
+  <div class="modal-backdrop" id="submissionFormsSettingsModal" onclick="if(event.target===this)closeSubmissionFormsSettingsModal()">
     <div class="modal modal--lg">
-      <h3>Submission form defaults</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Submission form defaults</h3>
+        <button class="btn btn-icon" onclick="closeSubmissionFormsSettingsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Set default values applied to newly created submission forms.</p>
 
       <div class="settings-items" style="margin-top:1.25rem">
@@ -90,9 +99,12 @@
   </div>
 
   <!-- Object Storage Modal -->
-  <div class="modal-backdrop" id="objectStorageModal">
+  <div class="modal-backdrop" id="objectStorageModal" onclick="if(event.target===this)closeObjectStorageModal()">
     <div class="modal modal--lg">
-      <h3>Object storage</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Object storage</h3>
+        <button class="btn btn-icon" onclick="closeObjectStorageModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Connect an S3-compatible bucket to store exports and attachments externally.</p>
 
       <div class="form-group" style="margin-top:1.25rem">
@@ -156,9 +168,12 @@
   </div>
 
   <!-- Promo Bar Modal -->
-  <div class="modal-backdrop" id="promoBarModal">
+  <div class="modal-backdrop" id="promoBarModal" onclick="if(event.target===this)closePromoBarModal()">
     <div class="modal modal--lg">
-      <h3>Admin announcement bar</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Admin announcement bar</h3>
+        <button class="btn btn-icon" onclick="closePromoBarModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>You can show a custom message in the backend. Supports <strong>**bold**</strong>, <em>_italic_</em>, and <code>[text](url)</code> links. Max 500 characters.</p>
 
       <div class="form-group" style="margin-top:1.25rem">
@@ -202,9 +217,12 @@
   </div>
 
   <!-- Login Footer Modal -->
-  <div class="modal-backdrop" id="loginFooterModal">
+  <div class="modal-backdrop" id="loginFooterModal" onclick="if(event.target===this)closeLoginFooterModal()">
     <div class="modal modal--lg">
-      <h3>Login page footer</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Login page footer</h3>
+        <button class="btn btn-icon" onclick="closeLoginFooterModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>You can show a simple message below the sign-in box for the backend. Supports <strong>**bold**</strong>, <em>_italic_</em>, and <code>[text](url)</code> links. Max 500 characters.</p>
 
       <div class="form-group" style="margin-top:1.25rem">
@@ -227,9 +245,12 @@
   </div>
 
   <!-- Cache Settings Modal -->
-  <div class="modal-backdrop" id="cacheSettingsModal">
+  <div class="modal-backdrop" id="cacheSettingsModal" onclick="if(event.target===this)closeCacheSettingsModal()">
     <div class="modal modal--lg">
-      <h3>Cache settings</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Cache settings</h3>
+        <button class="btn btn-icon" onclick="closeCacheSettingsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Configure in-memory caching for consent lookups and bucket data.</p>
 
       <div class="settings-items" style="margin-top:1.25rem">

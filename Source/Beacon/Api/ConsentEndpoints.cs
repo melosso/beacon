@@ -777,7 +777,7 @@ public static class ConsentEndpoints
         var hasFont = brand.Font is { Length: > 0 };
         var theme = brand.Theme;
 
-        if (hasAccent || hasSurface || hasFont)
+        if (hasAccent || hasSurface)
         {
             sb.AppendLine(":root {");
             if (hasAccent)
@@ -790,9 +790,12 @@ public static class ConsentEndpoints
                 sb.AppendLine($"  --bg: {brand.SurfaceColour};");
                 sb.AppendLine($"  --fg: {ContrastForeground(brand.SurfaceColour!)};");
             }
-            if (hasFont) sb.AppendLine($"  font-family: \"{brand.Font}\", system-ui, -apple-system, sans-serif;");
             sb.AppendLine("}");
         }
+
+        // font-family must target html,body directly — :root alone is overridden by the base body rule
+        if (hasFont)
+            sb.AppendLine($"html, body {{ font-family: \"{brand.Font}\", system-ui, -apple-system, sans-serif; }}");
 
         // Force theme: override media query with explicit values
         if (theme == "dark")
@@ -809,16 +812,12 @@ public static class ConsentEndpoints
             sb.AppendLine("  }");
             sb.AppendLine("}");
         }
-        else if (theme == "light" && (hasSurface || hasAccent))
+        else if (theme == "light")
         {
-            // Already set in :root, no dark override needed
             sb.AppendLine("@media (prefers-color-scheme: dark) {");
             sb.AppendLine("  :root {");
-            if (hasSurface)
-            {
-                sb.AppendLine($"    --bg: {brand.SurfaceColour} !important;");
-                sb.AppendLine($"    --fg: {ContrastForeground(brand.SurfaceColour!)} !important;");
-            }
+            sb.AppendLine($"    --bg: {brand.SurfaceColour ?? "#ffffff"} !important;");
+            sb.AppendLine($"    --fg: {(hasSurface ? ContrastForeground(brand.SurfaceColour!) : "#111111")} !important;");
             if (hasAccent)
             {
                 sb.AppendLine($"    --accent: {brand.PrimaryAccent} !important;");

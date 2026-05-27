@@ -1,7 +1,10 @@
   <!-- Change Role Modal -->
-  <div class="modal-backdrop" id="userRoleModal" style="display:none">
+  <div class="modal-backdrop" id="userRoleModal" style="display:none" onclick="if(event.target===this)closeUserRoleModal()">
     <div class="modal" style="max-width:380px">
-      <h3 style="margin-bottom:0.5rem">Change Role</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Change Role</h3>
+        <button class="btn btn-icon" onclick="closeUserRoleModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="userRoleModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
       <div class="form-group" style="margin-bottom:1.5rem">
         <label>Role</label>
@@ -18,9 +21,12 @@
   </div>
 
   <!-- Rename User Modal -->
-  <div class="modal-backdrop" id="renameUserModal" style="display:none">
+  <div class="modal-backdrop" id="renameUserModal" style="display:none" onclick="if(event.target===this)closeRenameUserModal()">
     <div class="modal" style="max-width:400px">
-      <h3 style="margin-bottom:0.5rem">Rename User</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Rename User</h3>
+        <button class="btn btn-icon" onclick="closeRenameUserModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="renameUserModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
       <div class="form-group" style="margin-bottom:1.5rem">
         <label>New Username <span class="required" title="Required">*</span></label>
@@ -34,9 +40,12 @@
   </div>
 
   <!-- Account Password Modal -->
-  <div class="modal-backdrop" id="accountPasswordModal" style="display:none">
+  <div class="modal-backdrop" id="accountPasswordModal" style="display:none" onclick="if(event.target===this)closeAccountPasswordModal()">
     <div class="modal" style="max-width:420px">
-      <h3 style="margin-bottom:0.5rem">Change Password</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Change Password</h3>
+        <button class="btn btn-icon" onclick="closeAccountPasswordModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem">Update your login password. Minimum 12 characters.</p>
       <div id="accountCurrentPasswordGroup" class="form-group">
         <label>Current Password <span class="required" title="Required">*</span></label>
@@ -68,9 +77,12 @@
   </div>
 
   <!-- User Modals -->
-  <div class="modal-backdrop" id="userPasswordModal" style="display:none">
+  <div class="modal-backdrop" id="userPasswordModal" style="display:none" onclick="if(event.target===this)closeUserPasswordModal()">
     <div class="modal" style="max-width:420px">
-      <h3 style="margin-bottom:0.5rem">Change Password</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Change Password</h3>
+        <button class="btn btn-icon" onclick="closeUserPasswordModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="userPasswordModalDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem"></p>
       <div class="form-group">
         <label>New Password <span class="required" title="Required">*</span></label>
@@ -88,9 +100,12 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="userApiKeyRevealModal" style="display:none">
+  <div class="modal-backdrop" id="userApiKeyRevealModal" style="display:none" onclick="if(event.target===this)closeUserApiKeyRevealModal()">
     <div class="modal" style="max-width:480px">
-      <h3 style="margin-bottom:0.5rem">New API Key Generated</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">New API Key Generated</h3>
+        <button class="btn btn-icon" onclick="closeUserApiKeyRevealModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="userApiKeyRevealDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:0"></p>
       <div class="passphrase-box select-none" id="userApiKeyRevealOutput" onclick="copyUserApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
       <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem;margin-bottom:1.25rem;text-align:center">Click to copy · Will not be shown again</p>
@@ -100,9 +115,12 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="addUserModal" style="display:none">
+  <div class="modal-backdrop" id="addUserModal" style="display:none" onclick="if(event.target===this)closeAddUserModal()">
     <div class="modal" style="max-width:480px">
-      <h3 style="margin-bottom:1.5rem">Add User</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+        <h3 style="margin:0">Add User</h3>
+        <button class="btn btn-icon" onclick="closeAddUserModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <div class="form-group">
         <label>Username <span class="required" title="Required">*</span></label>
         <input type="text" id="newUserUsername" placeholder="e.g., user@domain.local" autocomplete="off" maxlength="100">
@@ -140,9 +158,12 @@
   </div>
 
   <!-- Add API Key modal -->
-  <div class="modal-backdrop" id="addApiKeyModal" style="display:none">
+  <div class="modal-backdrop" id="addApiKeyModal" style="display:none" onclick="if(event.target===this)closeAddApiKeyModal()">
     <div class="modal" style="max-width:520px">
-      <h3 style="margin-bottom:1.5rem">Add API Key</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+        <h3 style="margin:0">Add API Key</h3>
+        <button class="btn btn-icon" onclick="closeAddApiKeyModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <div class="form-group">
         <label>Name <span class="required" title="Required">*</span></label>
         <input type="text" id="newApiKeyName" placeholder="e.g., CI/CD pipeline" autocomplete="off" maxlength="200">
@@ -174,9 +195,12 @@
   </div>
 
   <!-- API Key rotate/reveal modal -->
-  <div class="modal-backdrop" id="apiKeyRevealModal" style="display:none">
+  <div class="modal-backdrop" id="apiKeyRevealModal" style="display:none" onclick="if(event.target===this)closeApiKeyRevealModal()">
     <div class="modal" style="max-width:480px">
-      <h3 style="margin-bottom:0.5rem">New API Key</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">New API Key</h3>
+        <button class="btn btn-icon" onclick="closeApiKeyRevealModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="apiKeyRevealDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:0"></p>
       <div class="passphrase-box select-none" id="apiKeyRevealOutput" onclick="copyRotatedApiKey()" style="cursor:pointer;word-break:break-all;font-weight:500;letter-spacing:0.05em"></div>
       <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:-0.75rem;margin-bottom:1.25rem;text-align:center">Click to copy · Will not be shown again</p>
@@ -187,9 +211,12 @@
   </div>
 
   <!-- Edit API Key permissions modal -->
-  <div class="modal-backdrop" id="editApiKeyPermissionsModal" style="display:none">
+  <div class="modal-backdrop" id="editApiKeyPermissionsModal" style="display:none" onclick="if(event.target===this)closeEditApiKeyPermissionsModal()">
     <div class="modal" style="max-width:520px">
-      <h3 style="margin-bottom:0.5rem">Edit Permissions</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Edit Permissions</h3>
+        <button class="btn btn-icon" onclick="closeEditApiKeyPermissionsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="editApiKeyPermissionsDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1rem"></p>
       <div id="editApiKeyPermissionsList" style="padding:0.625rem;border:1px solid hsl(var(--border));border-radius:var(--radius);margin-bottom:1.25rem"></div>
       <div class="modal-actions">
@@ -200,9 +227,12 @@
   </div>
 
   <!-- Edit API Key dates modal -->
-  <div class="modal-backdrop" id="editApiKeyDatesModal" style="display:none">
+  <div class="modal-backdrop" id="editApiKeyDatesModal" style="display:none" onclick="if(event.target===this)closeEditApiKeyDatesModal()">
     <div class="modal" style="max-width:480px">
-      <h3 style="margin-bottom:0.5rem">Edit Validity Window</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Edit Validity Window</h3>
+        <button class="btn btn-icon" onclick="closeEditApiKeyDatesModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="editApiKeyDatesDesc" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1rem"></p>
       <div style="display:flex;gap:1rem;margin-bottom:1.25rem">
         <div class="form-group" style="flex:1;margin-bottom:0">
@@ -222,9 +252,12 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="retentionPurgeModal" style="display:none">
+  <div class="modal-backdrop" id="retentionPurgeModal" style="display:none" onclick="if(event.target===this)closeRetentionPurgeModal()">
     <div class="modal" style="max-width:420px">
-      <h3>Opted-out anonymisation</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Opted-out anonymisation</h3>
+        <button class="btn btn-icon" onclick="closeRetentionPurgeModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>PII is removed from opted-out records once they exceed the threshold. The email hash and status are kept as a permanent suppression list entry.</p>
       <div class="form-group" style="margin-top:1.25rem">
         <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
@@ -237,9 +270,12 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="pendingConfirmationModal" style="display:none">
+  <div class="modal-backdrop" id="pendingConfirmationModal" style="display:none" onclick="if(event.target===this)closePendingConfirmationModal()">
     <div class="modal" style="max-width:420px">
-      <h3>Pending confirmation cleanup</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Pending confirmation cleanup</h3>
+        <button class="btn btn-icon" onclick="closePendingConfirmationModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Unconfirmed double opt-in records are deleted once they exceed the threshold. No consent was established, so no suppression list entry is required.</p>
       <div class="form-group" style="margin-top:1.25rem">
         <label for="setting-pendingConfirmationPurgeDays">Delete after (days)</label>

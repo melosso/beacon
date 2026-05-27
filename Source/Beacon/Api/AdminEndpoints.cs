@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
@@ -29,6 +30,11 @@ public static class AdminEndpoints
 
     // The current list of supported languages as of right now
     private static readonly IReadOnlyList<string> SupportedLanguages = new List<string> { "en", "de", "fr", "nl", "pl", "es" }.AsReadOnly();
+
+    private static readonly HashSet<string> _allowedThemes = ["system", "light", "dark"];
+    private static readonly HashSet<string> _allowedFonts = ["Arial", "Helvetica", "Georgia", "Tahoma", "Verdana", "Trebuchet MS", "Courier New", "Inter", "Manrope"];
+    private static readonly Regex _hexColour = new(@"^#[0-9a-fA-F]{6}$", RegexOptions.Compiled);
+    private static readonly HashSet<string> _allowedLogoTypes = ["base64", "objectStorage", "url"];
 
     public static void MapAdminEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -641,7 +647,8 @@ public static class AdminEndpoints
     private static async Task<IResult> GetBucketDetails(
         string bucket,
         [FromServices] IConsentRepository repository,
-        [FromServices] IBucketRepository bucketRepository)
+        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] IBrandIdentityService brandService)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -659,12 +666,22 @@ public static class AdminEndpoints
         var statsDict = details.Stats.ToDictionary(s => s.Permission);
         var mergedStats = mergedPerms.Select(p => statsDict.TryGetValue(p, out var s) ? s : new PermissionStats { Permission = p, OptedIn = 0, OptedOut = 0 }).ToList();
 
+        var identity = await brandService.GetForBucketAsync(normalizedBucket);
+        object? brandIdentity = null;
+        if (!identity.IsDefault)
+        {
+            string? accent = null;
+            try { accent = JsonSerializer.Deserialize<BrandIdentitySettings>(identity.Settings)?.PrimaryAccent; } catch { }
+            brandIdentity = new { name = identity.Name, accent };
+        }
+
         return Results.Ok(new
         {
             name = details.Name,
             permissions = mergedPerms,
             stats = mergedStats,
-            isArchived
+            isArchived,
+            brandIdentity
         });
     }
 
@@ -1772,23 +1789,24 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "Name is required and must be 100 characters or fewer." });
 
         string settingsJson;
+        BrandIdentitySettings parsedSettings;
         if (request.Settings is JsonElement je)
         {
+            parsedSettings = JsonSerializer.Deserialize<BrandIdentitySettings>(je.GetRawText())
+                ?? new BrandIdentitySettings();
             if (existing.IsDefault)
-            {
-                var parsed = JsonSerializer.Deserialize<BrandIdentitySettings>(je.GetRawText())
-                    ?? new BrandIdentitySettings();
-                settingsJson = JsonSerializer.Serialize(parsed with { PrimaryAccent = null, SurfaceColour = null });
-            }
-            else
-            {
-                settingsJson = je.GetRawText();
-            }
+                parsedSettings = parsedSettings with { PrimaryAccent = null, SurfaceColour = null };
+            settingsJson = JsonSerializer.Serialize(parsedSettings);
         }
         else
         {
+            parsedSettings = new BrandIdentitySettings();
             settingsJson = "{}";
         }
+
+        var settingsError = ValidateIdentitySettings(parsedSettings);
+        if (settingsError is not null)
+            return Results.BadRequest(new { error = settingsError });
 
         var updated = await brandService.UpdateAsync(id, request.Name.Trim(), settingsJson, ct);
         return Results.Ok(new { id = updated.Id, name = updated.Name, updatedAt = updated.UpdatedAt });
@@ -1822,8 +1840,63 @@ public static class AdminEndpoints
         if (brandService.GetById(id) is null)
             return Results.NotFound(new { error = "Brand identity not found." });
 
-        await brandService.AssignBucketsAsync(id, request.Buckets ?? [], ct);
+        var cleaned = (request.Buckets ?? [])
+            .Select(b => b?.Trim() ?? "")
+            .Where(b => b.Length > 0)
+            .Distinct()
+            .ToList();
+
+        if (cleaned.Any(b => b.Length > 100))
+            return Results.BadRequest(new { error = "Bucket names must be 100 characters or fewer." });
+
+        if (cleaned.Count > 200)
+            return Results.BadRequest(new { error = "Cannot assign more than 200 buckets to one identity." });
+
+        await brandService.AssignBucketsAsync(id, cleaned, ct);
         return Results.Ok(new { message = "Buckets assigned." });
+    }
+
+    private static string? ValidateIdentitySettings(BrandIdentitySettings s)
+    {
+        if (s.Theme is not null && !_allowedThemes.Contains(s.Theme))
+            return "theme must be 'system', 'light', or 'dark'.";
+
+        if (s.PrimaryAccent is not null && !_hexColour.IsMatch(s.PrimaryAccent))
+            return "primaryAccent must be a 6-digit hex colour (e.g. #6366f1).";
+
+        if (s.SurfaceColour is not null && !_hexColour.IsMatch(s.SurfaceColour))
+            return "surfaceColour must be a 6-digit hex colour (e.g. #ffffff).";
+
+        if (s.Font is not null && !_allowedFonts.Contains(s.Font))
+            return $"font must be one of: {string.Join(", ", _allowedFonts)}.";
+
+        if (s.PageTitle?.Length > 200)    return "pageTitle must be 200 characters or fewer.";
+        if (s.BrowserTitle?.Length > 200) return "browserTitle must be 200 characters or fewer.";
+        if (s.EmailTitle?.Length > 200)   return "emailTitle must be 200 characters or fewer.";
+        if (s.ConfirmTitle?.Length > 200) return "confirmTitle must be 200 characters or fewer.";
+        if (s.PageBody?.Length > 1000)    return "pageBody must be 1000 characters or fewer.";
+        if (s.EmailBody?.Length > 1000)   return "emailBody must be 1000 characters or fewer.";
+        if (s.ConfirmMsg?.Length > 1000)  return "confirmMsg must be 1000 characters or fewer.";
+        if (s.Footer?.Length > 500)       return "footer must be 500 characters or fewer.";
+
+        if (s.Logo is not null)
+        {
+            if (!_allowedLogoTypes.Contains(s.Logo.Type))
+                return "logo.type must be 'base64', 'objectStorage', or 'url'.";
+
+            if (s.Logo.Type is "url" or "objectStorage" && string.IsNullOrWhiteSpace(s.Logo.Url))
+                return $"logo.url is required when logo type is '{s.Logo.Type}'.";
+
+            if (s.Logo.Type == "base64")
+            {
+                if (string.IsNullOrWhiteSpace(s.Logo.Data))
+                    return "logo.data is required when logo type is 'base64'.";
+                if (!s.Logo.Data.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                    return "logo.data must be an image data URI.";
+            }
+        }
+
+        return null;
     }
 
     private static async Task<IResult> UploadLogo(

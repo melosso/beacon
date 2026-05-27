@@ -1,7 +1,10 @@
   <!-- Generate Unsubscribe Links Modal -->
-  <div class="modal-backdrop" id="shareUrlModal">
+  <div class="modal-backdrop" id="shareUrlModal" onclick="if(event.target===this)closeShareUrlModal()">
     <div class="modal modal--lg">
-      <h3>Generate unsubscribe links</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Generate unsubscribe links</h3>
+        <button class="btn btn-icon" onclick="closeShareUrlModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Generate custom download links for your users. You can easily filter the list by permissions to only include the right people.</p>
 
       <div class="form-group" style="margin-top:1.25rem">
@@ -47,9 +50,12 @@
   </div>
 
   <!-- Audit Custom Fields Modal -->
-  <div class="modal-backdrop" id="auditCustomFieldsModal">
+  <div class="modal-backdrop" id="auditCustomFieldsModal" onclick="if(event.target===this)closeAuditCustomFieldsModal()">
     <div class="modal">
-      <h3>Custom fields</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Custom fields</h3>
+        <button class="btn btn-icon" onclick="closeAuditCustomFieldsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p>Additional data captured at the time of this consent change.</p>
       <div class="custom-fields-list" id="auditCustomFieldsList" style="margin-top:1rem"></div>
       <div class="modal-actions" style="margin-top:1.5rem">
@@ -59,9 +65,12 @@
   </div>
 
   <!-- Confirm Modal -->
-  <div class="modal-backdrop" id="confirmModal" style="display:none">
+  <div class="modal-backdrop" id="confirmModal" style="display:none" onclick="if(event.target===this)closeConfirmModal()">
     <div class="modal" style="max-width:400px">
-      <h3 id="confirmModalTitle" style="margin-bottom:0.5rem"></h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 id="confirmModalTitle" style="margin:0"></h3>
+        <button class="btn btn-icon" onclick="closeConfirmModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p id="confirmModalMessage" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.5rem"></p>
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeConfirmModal()">Cancel</button>

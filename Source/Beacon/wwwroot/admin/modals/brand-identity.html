@@ -1,7 +1,10 @@
   <!-- Create Brand Identity Modal -->
-  <div class="modal-backdrop" id="createBrandIdentityModal" style="display:none">
+  <div class="modal-backdrop" id="createBrandIdentityModal" style="display:none" onclick="if(event.target===this)closeCreateBrandIdentityModal()">
     <div class="modal" style="max-width:400px">
-      <h3 style="margin-bottom:0.5rem">New Identity</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <h3 style="margin:0">Add Identity</h3>
+        <button class="btn btn-icon" onclick="closeCreateBrandIdentityModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
       <p style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.25rem">Give this brand identity a name to identify it in the admin panel.</p>
       <div class="form-group" style="margin-bottom:1.5rem">
         <label>Name <span class="required" title="Required">*</span></label>
@@ -12,6 +15,26 @@
       <div class="modal-actions">
         <button class="btn btn-outline" onclick="closeCreateBrandIdentityModal()">Cancel</button>
         <button class="btn btn-primary" id="createBrandIdentityBtn" onclick="confirmCreateBrandIdentity()"><span class="btn-label">Create</span><span class="spinner"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Brand Identity Modal -->
+  <div class="modal-backdrop" id="editBrandIdentityModal" style="display:none;align-items:flex-start;padding:2rem 0;overflow-y:auto" onclick="if(event.target===this)closeEditBrandIdentityModal()">
+    <div class="modal" style="width:760px;max-width:calc(100vw - 2rem);margin:auto;flex-shrink:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <h3 style="margin:0" id="editBrandIdentityTitle">Edit Identity</h3>
+        <button class="btn btn-icon" onclick="closeEditBrandIdentityModal()" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="editBrandIdentityBody"></div>
+      <div class="modal-actions" style="margin-top:0;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+        <button class="btn btn-outline" id="editBrandIdentityDeleteBtn"
+                style="margin-right:auto;color:hsl(var(--destructive));border-color:hsl(var(--destructive)/0.4)"
+                onclick="deleteEditingBrandIdentity()">Delete</button>
+        <button class="btn btn-outline" onclick="closeEditBrandIdentityModal()">Cancel</button>
+        <button class="btn btn-primary" id="editBrandIdentityBtn" onclick="saveEditBrandIdentity()"><span class="btn-label">Save</span><span class="spinner"></span></button>
       </div>
     </div>
   </div>
