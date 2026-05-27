@@ -106,6 +106,10 @@ public static class AdminEndpoints
             .RequireAuthorization()
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/identities/export", ExportIdentities)
+            .RequireAuthorization()
+            .ExcludeFromDescription();
+
         routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
             .RequireAuthorization()
             .ExcludeFromDescription();
@@ -172,6 +176,10 @@ public static class AdminEndpoints
 
         routes.MapPost("/api/admin/buckets/{bucket}/tokens/export", ExportBucketTokens)
             .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/buckets/{bucket}/records/export", ExportBucketRecords)
+            .RequireAuthorization()
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/data-policies/tasks", GetWorkflowTasks)
@@ -1290,6 +1298,9 @@ public static class AdminEndpoints
         }
     }
 
+    private static readonly HashSet<string> ValidIdentitySortFields =
+        new(StringComparer.OrdinalIgnoreCase) { "id", "buckets", "lastchanged", "email", "firstseen" };
+
     private static async Task<IResult> GetIdentities(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
@@ -1298,36 +1309,215 @@ public static class AdminEndpoints
         [FromQuery] string? search = null,
         [FromQuery] string? searchType = null,
         [FromServices] IConsentRepository repository = null!,
-        [FromServices] Encryptor encryptor = null!)
+        [FromServices] Encryptor encryptor = null!,
+        CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 10;
         if (pageSize > 100) pageSize = 100;
 
-        if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
+        if (search != null && search.Length > 200)
+            return Results.BadRequest(new { error = "Search query too long" });
+        if (searchType != null && searchType is not ("id" or "email"))
+            return Results.BadRequest(new { error = "Invalid searchType" });
+        if (sortDir != null && sortDir is not ("asc" or "desc"))
+            return Results.BadRequest(new { error = "Invalid sortDir" });
+        if (sortBy != null && !ValidIdentitySortFields.Contains(sortBy))
+            return Results.BadRequest(new { error = "Invalid sortBy field" });
+
+        PagedResult<IdentityInfo> result;
+
+        if (string.Equals(sortBy, "email", StringComparison.OrdinalIgnoreCase))
+        {
+            // Deferred: decrypt all emails in parallel, sort in memory, then paginate
+            result = await GetIdentitiesSortedByEmailAsync(
+                page, pageSize, sortDir, search, searchType, repository, encryptor, ct);
+        }
+        else if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
             var mappings = await repository.GetEmailHashMappingsAsync();
-            var matchingHashes = mappings
-                .Where(m =>
+            var matchingHashes = new System.Collections.Concurrent.ConcurrentBag<string>();
+            await Parallel.ForEachAsync(mappings,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
+                (mapping, token) =>
                 {
-                    if (m.EncryptedEmail is null) return false;
+                    if (mapping.EncryptedEmail is null) return ValueTask.CompletedTask;
                     try
                     {
-                        var email = encryptor.Decrypt(m.EncryptedEmail);
-                        return email.Contains(searchLower, StringComparison.OrdinalIgnoreCase);
+                        var email = encryptor.Decrypt(mapping.EncryptedEmail);
+                        if (email.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
+                            matchingHashes.Add(mapping.EmailHash);
                     }
-                    catch { return false; }
-                })
-                .Select(m => m.EmailHash)
-                .ToList();
-
-            var emailResult = await repository.GetIdentitiesByHashesAsync(matchingHashes, page, pageSize, sortBy, sortDir);
-            return Results.Ok(emailResult);
+                    catch { }
+                    return ValueTask.CompletedTask;
+                });
+            result = await repository.GetIdentitiesByHashesAsync([.. matchingHashes], page, pageSize, sortBy, sortDir);
+        }
+        else
+        {
+            result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search);
         }
 
-        var result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search);
-        return Results.Ok(result);
+        await DecryptIdentityEmailsAsync(result.Records, repository, encryptor, ct);
+
+        return Results.Ok(new
+        {
+            records = result.Records.Select(r => new
+            {
+                emailHash = r.EmailHash,
+                email = r.Email,
+                bucketCount = r.BucketCount,
+                firstSeen = r.FirstSeen,
+                lastChanged = r.LastChanged
+            }),
+            total = result.Total,
+            page = result.Page,
+            pageSize = result.PageSize
+        });
+    }
+
+    private static async Task<PagedResult<IdentityInfo>> GetIdentitiesSortedByEmailAsync(
+        int page, int pageSize, string? sortDir, string? search, string? searchType,
+        IConsentRepository repository, Encryptor encryptor, CancellationToken ct)
+    {
+        var mappings = await repository.GetEmailHashMappingsAsync();
+
+        var decrypted = new System.Collections.Concurrent.ConcurrentBag<(string Hash, string? Email)>();
+        await Parallel.ForEachAsync(mappings,
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
+            (mapping, token) =>
+            {
+                string? email = null;
+                if (mapping.EncryptedEmail != null)
+                    try { email = encryptor.Decrypt(mapping.EncryptedEmail); } catch { }
+                decrypted.Add((mapping.EmailHash, email));
+                return ValueTask.CompletedTask;
+            });
+
+        IEnumerable<(string Hash, string? Email)> filtered = decrypted;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.Trim().ToLowerInvariant();
+            filtered = searchType == "email"
+                ? decrypted.Where(x => x.Email?.Contains(searchLower, StringComparison.OrdinalIgnoreCase) == true)
+                : decrypted.Where(x => x.Hash.StartsWith(searchLower, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var sorted = (sortDir?.ToLowerInvariant() == "asc"
+            ? filtered.OrderBy(x => x.Email ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            : filtered.OrderByDescending(x => x.Email ?? string.Empty, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        var total = sorted.Count;
+        var pageHashes = sorted.Skip((page - 1) * pageSize).Take(pageSize).Select(x => x.Hash).ToList();
+
+        if (pageHashes.Count == 0)
+            return new PagedResult<IdentityInfo> { Records = [], Total = total, Page = page, PageSize = pageSize };
+
+        var pageResult = await repository.GetIdentitiesByHashesAsync(pageHashes, 1, pageHashes.Count, null, null);
+
+        var emailByHash = sorted
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToDictionary(x => x.Hash, x => x.Email);
+        foreach (var record in pageResult.Records)
+        {
+            if (emailByHash.TryGetValue(record.EmailHash, out var email))
+                record.Email = email;
+        }
+
+        // Re-order to match the email-sorted page order
+        var ordered = pageHashes
+            .Select(h => pageResult.Records.FirstOrDefault(r => r.EmailHash == h))
+            .OfType<IdentityInfo>()
+            .ToList();
+
+        return new PagedResult<IdentityInfo> { Records = ordered, Total = total, Page = page, PageSize = pageSize };
+    }
+
+    private static async Task DecryptIdentityEmailsAsync(
+        IReadOnlyList<IdentityInfo> records,
+        IConsentRepository repository,
+        Encryptor encryptor,
+        CancellationToken ct)
+    {
+        if (records.Count == 0) return;
+        var hashes = records.Select(r => r.EmailHash).ToList();
+        var encryptedEmails = await repository.GetEncryptedEmailsForHashesAsync(hashes, ct);
+        foreach (var record in records)
+        {
+            if (encryptedEmails.TryGetValue(record.EmailHash, out var enc) && enc != null)
+                try { record.Email = encryptor.Decrypt(enc); } catch { }
+        }
+    }
+
+    private static async Task<IResult> ExportIdentities(
+        [FromBody] ExportIdentitiesRequest? request,
+        [FromServices] IConsentRepository repository,
+        [FromServices] Encryptor encryptor,
+        HttpContext context,
+        CancellationToken ct)
+    {
+        var format = (request?.Format ?? "csv").ToLowerInvariant();
+        if (format is not ("csv" or "json"))
+            return Results.BadRequest(new { error = "Invalid format. Must be 'csv' or 'json'" });
+
+        PagedResult<IdentityInfo> result;
+
+        if (request?.Hashes is { Count: > 0 })
+        {
+            if (request.Hashes.Count > 10_000)
+                return Results.BadRequest(new { error = "Too many hashes selected. Maximum is 10,000." });
+
+            foreach (var h in request.Hashes)
+            {
+                var v = InputValidator.ValidateEmailHash(h);
+                if (!v.IsValid) return Results.BadRequest(new { error = $"Invalid hash: {v.Error}" });
+            }
+
+            result = await repository.GetIdentitiesByHashesAsync(request.Hashes, 1, request.Hashes.Count, "lastchanged", "desc");
+        }
+        else
+        {
+            // Export all (capped at 10k for safety)
+            result = await repository.GetIdentitiesAsync(1, 10_000, "lastchanged", "desc");
+        }
+
+        var records = result.Records.ToList();
+
+        if (records.Count > 0)
+        {
+            var hashes = records.Select(r => r.EmailHash).ToList();
+            var encryptedEmails = await repository.GetEncryptedEmailsForHashesAsync(hashes, ct);
+            await Parallel.ForEachAsync(records,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
+                (record, token) =>
+                {
+                    if (encryptedEmails.TryGetValue(record.EmailHash, out var enc) && enc != null)
+                        try { record.Email = encryptor.Decrypt(enc); } catch { }
+                    return ValueTask.CompletedTask;
+                });
+        }
+
+        var filename = $"subscribers-{DateTime.UtcNow:yyyyMMdd}.{format}";
+        context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
+
+        if (format == "json")
+            return Results.Json(records.Select(r => new
+            {
+                email = r.Email,
+                beacon_id = r.EmailHash,
+                lists = r.BucketCount,
+                created = r.FirstSeen.ToString("O"),
+                updated = r.LastChanged.ToString("O")
+            }));
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Email,Beacon ID,Lists,Created,Updated");
+        foreach (var r in records)
+            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{r.BucketCount},{r.FirstSeen:O},{r.LastChanged:O}");
+
+        return Results.Content(sb.ToString(), "text/csv");
     }
 
     private static async Task<IResult> GetIdentityDetails(
@@ -1622,6 +1812,91 @@ public static class AdminEndpoints
             ? $"\"{value.Replace("\"", "\"\"")}\""
             : value;
 
+    internal sealed record ExportIdentitiesRequest(
+        IReadOnlyList<string>? Hashes = null,
+        string Format = "csv");
+
+    internal sealed record ExportBucketRecordsRequest(
+        IReadOnlyList<string>? Hashes = null,
+        string Format = "csv");
+
+    private static async Task<IResult> ExportBucketRecords(
+        string bucket,
+        [FromBody] ExportBucketRecordsRequest? request,
+        [FromServices] IConsentRepository repository,
+        [FromServices] Encryptor encryptor,
+        HttpContext context,
+        CancellationToken ct)
+    {
+        var normalized = bucket.Trim().ToLowerInvariant();
+        var bucketVal = InputValidator.ValidateBucket(normalized);
+        if (!bucketVal.IsValid) return Results.BadRequest(new { error = bucketVal.Error });
+
+        var format = (request?.Format ?? "csv").ToLowerInvariant();
+        if (format is not ("csv" or "json"))
+            return Results.BadRequest(new { error = "Invalid format. Must be 'csv' or 'json'" });
+
+        if (request?.Hashes is { Count: > 10_000 })
+            return Results.BadRequest(new { error = "Too many hashes selected. Maximum is 10,000." });
+
+        if (request?.Hashes != null)
+            foreach (var h in request.Hashes)
+            {
+                var v = InputValidator.ValidateEmailHash(h);
+                if (!v.IsValid) return Results.BadRequest(new { error = $"Invalid hash: {v.Error}" });
+            }
+
+        var allRecords = await repository.GetAllBucketRecordsAsync(normalized);
+
+        IEnumerable<EmailPermissions> filtered = request?.Hashes is { Count: > 0 }
+            ? allRecords.Where(r => request.Hashes.Contains(r.EmailHash))
+            : allRecords;
+
+        var records = filtered.ToList();
+        var permissions = records
+            .SelectMany(r => r.Permissions.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p)
+            .ToList();
+
+        await Parallel.ForEachAsync(records,
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
+            (record, token) =>
+            {
+                if (!string.IsNullOrEmpty(record.EncryptedEmail))
+                    try { record.Email = encryptor.Decrypt(record.EncryptedEmail); } catch { }
+                return ValueTask.CompletedTask;
+            });
+
+        var filename = $"records-{normalized}-{DateTime.UtcNow:yyyyMMdd}.{format}";
+        context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
+
+        if (format == "json")
+            return Results.Json(records.Select(r =>
+            {
+                var obj = new Dictionary<string, object?>(permissions.Count + 3)
+                {
+                    ["email"] = r.Email,
+                    ["beacon_id"] = r.EmailHash
+                };
+                foreach (var p in permissions)
+                    obj[p] = r.Permissions.TryGetValue(p, out var v) ? v : false;
+                obj["updated"] = r.LastChanged.ToString("O");
+                return obj;
+            }));
+
+        var sb = new StringBuilder();
+        var permHeaders = string.Join(",", permissions.Select(p => CsvEscape(p)));
+        sb.AppendLine($"Email,Beacon ID,{permHeaders},Updated");
+        foreach (var r in records)
+        {
+            var permValues = string.Join(",", permissions.Select(p =>
+                r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
+            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{permValues},{r.LastChanged:O}");
+        }
+        return Results.Content(sb.ToString(), "text/csv");
+    }
+
     internal sealed record ExportBucketTokensRequest(
         string? Permission = null,
         string? UtmCampaign = null,
@@ -1675,20 +1950,71 @@ public static class AdminEndpoints
         };
     }
 
+    private static readonly Regex PartialHashPattern = new(@"^[a-fA-F0-9]{1,64}$", RegexOptions.Compiled);
+
     private static async Task<IResult> GetAuditLog(
         [FromQuery] string? bucket,
         [FromQuery] string? emailHash,
+        [FromQuery] string? emailSearch,
         [FromQuery] int page = 1,
         [FromQuery] int size = 25,
         [FromServices] IConsentRepository repository = null!,
+        [FromServices] Encryptor encryptor = null!,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         size = Math.Clamp(size, 1, 100);
+
+        if (!string.IsNullOrWhiteSpace(emailHash) && !PartialHashPattern.IsMatch(emailHash.Trim()))
+            return Results.BadRequest(new { error = "Invalid emailHash format" });
+        if (!string.IsNullOrWhiteSpace(bucket))
+        {
+            var bucketVal = InputValidator.ValidateBucket(bucket.Trim());
+            if (!bucketVal.IsValid) return Results.BadRequest(new { error = bucketVal.Error });
+        }
+
         var normalizedBucket = string.IsNullOrWhiteSpace(bucket) ? null : bucket.Trim().ToLowerInvariant();
-        var normalizedHash = string.IsNullOrWhiteSpace(emailHash) ? null : emailHash.Trim().ToLowerInvariant();
+        string? normalizedHash = null;
+
+        if (!string.IsNullOrWhiteSpace(emailSearch))
+        {
+            // Resolve email to hash for audit filter
+            var searchLower = emailSearch.Trim().ToLowerInvariant();
+            var mappings = await repository.GetEmailHashMappingsAsync();
+            foreach (var m in mappings)
+            {
+                if (m.EncryptedEmail is null) continue;
+                try
+                {
+                    if (encryptor.Decrypt(m.EncryptedEmail).Equals(searchLower, StringComparison.OrdinalIgnoreCase))
+                    {
+                        normalizedHash = m.EmailHash;
+                        break;
+                    }
+                }
+                catch { }
+            }
+            if (normalizedHash is null)
+                return Results.Ok(new { records = Array.Empty<object>(), total = 0, page, pageSize = size });
+        }
+        else
+        {
+            normalizedHash = string.IsNullOrWhiteSpace(emailHash) ? null : emailHash.Trim().ToLowerInvariant();
+        }
 
         var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct);
+
+        // Decrypt emails for audit records
+        var distinctHashes = result.Records.Select(e => e.EmailHash).Distinct().ToList();
+        var emailMap = distinctHashes.Count > 0
+            ? await repository.GetEncryptedEmailsForHashesAsync(distinctHashes, ct)
+            : new Dictionary<string, string?>();
+
+        string? DecryptEmail(string hash)
+        {
+            if (!emailMap.TryGetValue(hash, out var enc) || enc is null) return null;
+            try { return encryptor.Decrypt(enc); } catch { return null; }
+        }
 
         return Results.Ok(new
         {
@@ -1697,6 +2023,7 @@ public static class AdminEndpoints
                 id = e.Id,
                 bucket = e.Bucket,
                 emailHash = e.EmailHash,
+                email = DecryptEmail(e.EmailHash),
                 displayId = e.EmailHash[..Math.Min(16, e.EmailHash.Length)] + "...",
                 permission = e.Permission,
                 oldStatus = e.OldStatus?.ToString(),

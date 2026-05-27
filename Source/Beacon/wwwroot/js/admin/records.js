@@ -1,3 +1,91 @@
+    // BUCKET SELECTION
+    let bucketSelectedHashes = new Set();
+
+    function updateBucketBulkBar() {
+      const bar = document.getElementById('bucketBulkBar');
+      const count = bucketSelectedHashes.size;
+      if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+      const countEl = document.getElementById('bucketBulkCount');
+      if (countEl) countEl.textContent = `${count} selected`;
+    }
+
+    function toggleBucketSelect(hash, checked) {
+      if (checked) bucketSelectedHashes.add(hash);
+      else bucketSelectedHashes.delete(hash);
+      updateBucketBulkBar();
+      const all = document.getElementById('bucketSelectAll');
+      if (all) {
+        const rows = document.querySelectorAll('#bucketBody input[type="checkbox"]');
+        all.checked = rows.length > 0 && [...rows].every(r => r.checked);
+        all.indeterminate = bucketSelectedHashes.size > 0 && !all.checked;
+      }
+    }
+
+    function toggleBucketSelectAll(checked) {
+      document.querySelectorAll('#bucketBody input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+        const hash = cb.dataset.hash;
+        if (hash) { if (checked) bucketSelectedHashes.add(hash); else bucketSelectedHashes.delete(hash); }
+      });
+      updateBucketBulkBar();
+    }
+
+    function clearBucketSelection() {
+      bucketSelectedHashes.clear();
+      document.querySelectorAll('#bucketBody input[type="checkbox"]').forEach(cb => cb.checked = false);
+      const all = document.getElementById('bucketSelectAll');
+      if (all) { all.checked = false; all.indeterminate = false; }
+      updateBucketBulkBar();
+    }
+
+    function openBucketExportModal() {
+      const count = bucketSelectedHashes.size;
+      document.getElementById('bucketExportCount').textContent = count > 0 ? count : 'all';
+      document.getElementById('bucketExportName').textContent = currentBucket;
+      document.getElementById('bucketExportModal').style.display = 'flex';
+    }
+
+    function closeBucketExportModal() {
+      document.getElementById('bucketExportModal').style.display = 'none';
+    }
+
+    async function confirmBucketExport() {
+      const format = document.getElementById('bucketExportFormat').value;
+      const btn = document.getElementById('bucketExportConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Exporting…';
+
+      const body = bucketSelectedHashes.size > 0
+        ? { hashes: [...bucketSelectedHashes], format }
+        : { format };
+
+      try {
+        const res = await fetch(`${window.location.origin}/api/admin/buckets/${encodeURIComponent(currentBucket)}/records/export`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          notify('error', 'Export failed', err.error || `HTTP ${res.status}`);
+          return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const fnMatch = cd.match(/filename="([^"]+)"/);
+        const filename = fnMatch ? fnMatch[1] : `records-${currentBucket}.${format}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+        closeBucketExportModal();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Export';
+      }
+    }
+
     // OVERVIEW
     let webhookBuckets = new Set();
 
@@ -154,6 +242,7 @@
       const hasSearch = searchQuery ? 'has-search' : '';
 
       thead.innerHTML = `
+        <th class="col-select"><label class="row-check" title="Select all"><input type="checkbox" id="bucketSelectAll" onchange="toggleBucketSelectAll(this.checked)"></label></th>
         <th>
           <div class="column-search">
             <span class="sortable ${emailSortClass}" onclick="toggleSort('email')" style="cursor:pointer">Email ${sortIcon}</span>
@@ -196,7 +285,7 @@
         const noResultsMsg = searchQuery
           ? `No records matching "${sanitize(searchQuery)}", please try a different identifier or search type`
           : 'No consent records yet! They appear here after the first API call for this bucket';
-        body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 3}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 4}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
       } else {
         body.innerHTML = data.records.map((r, idx) => {
           const switchClass = currentBucketArchived ? 'switch disabled archived' : 'switch disabled';
@@ -217,8 +306,12 @@
             customFields: r.customFields || {}
           }));
 
+          const isSelected = bucketSelectedHashes.has(r.emailHash);
           return `
             <tr>
+              <td class="col-select" onclick="event.stopPropagation()">
+                <label class="row-check"><input type="checkbox" data-hash="${sanitize(r.emailHash)}" ${isSelected ? 'checked' : ''} onchange="toggleBucketSelect('${sanitize(r.emailHash)}', this.checked)"></label>
+              </td>
               <td>${emailDisplay}</td>
               ${permCells}
               <td>${sanitize(formatDate(r.lastChanged))}</td>
@@ -238,6 +331,16 @@
             </tr>
           `;
         }).join('');
+      }
+
+      // Sync select-all indeterminate state
+      const all = document.getElementById('bucketSelectAll');
+      if (all && bucketSelectedHashes.size > 0) {
+        const visible = data.records.map(r => r.emailHash);
+        const allSel = visible.every(h => bucketSelectedHashes.has(h));
+        const someSel = visible.some(h => bucketSelectedHashes.has(h));
+        all.checked = allSel;
+        all.indeterminate = someSel && !allSel;
       }
 
       updatePagination();

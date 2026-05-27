@@ -53,11 +53,19 @@
           </span>
         </div>
       </section>
+      <!-- Bucket bulk action bar -->
+      <div id="bucketBulkBar" style="display:none;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;margin-bottom:0.5rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
+        <span id="bucketBulkCount" style="font-size:0.875rem;color:hsl(var(--muted-foreground))">0 selected</span>
+        <button class="btn btn-outline" style="font-size:0.8rem;padding:0.3rem 0.75rem" onclick="openBucketExportModal()">Export</button>
+        <button class="btn btn-outline" style="font-size:0.8rem;padding:0.3rem 0.75rem;margin-left:auto" onclick="clearBucketSelection()">Clear</button>
+      </div>
+
       <div class="table-wrapper">
         <div class="scroll-area">
           <table>
             <thead>
               <tr id="bucketTableHead">
+                <th class="col-select"><label class="row-check" title="Select all"><input type="checkbox" id="bucketSelectAll" onchange="toggleBucketSelectAll(this.checked)"></label></th>
                 <th>Email</th>
                 <th>Loading...</th>
               </tr>
@@ -86,4 +94,26 @@
         </div>
       </div>
     </div>
+
+  <!-- Bucket Record Export Modal -->
+  <div class="modal-backdrop" id="bucketExportModal" style="display:none" onclick="if(event.target===this)closeBucketExportModal()">
+    <div class="modal">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+        <h3 class="select-none" style="margin:0">Export Records</h3>
+        <button class="btn btn-icon" onclick="closeBucketExportModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <p>Export <strong id="bucketExportCount">0</strong> record(s) from <strong id="bucketExportName">-</strong>. Includes e-mail, Beacon ID, permission states, and last updated.</p>
+      <div class="form-group">
+        <label for="bucketExportFormat">Format</label>
+        <select id="bucketExportFormat" class="input-auth" style="text-align:left;text-transform:none;font-family:inherit">
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeBucketExportModal()">Cancel</button>
+        <button class="btn btn-primary" id="bucketExportConfirmBtn" onclick="confirmBucketExport()">Export</button>
+      </div>
+    </div>
+  </div>
 

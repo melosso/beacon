@@ -79,6 +79,11 @@
 
     function showBucket(bucket, pushState = true) {
       if (document.getElementById('optionsModal').style.display === 'flex') closeOptionsModal();
+      if (bucket !== currentBucket) {
+        bucketSelectedHashes.clear();
+        const bar = document.getElementById('bucketBulkBar');
+        if (bar) bar.style.display = 'none';
+      }
       currentBucket = bucket;
       if (pushState) {
         currentPage = 1;
@@ -108,6 +113,7 @@
     let subSortDir = _subSortPrefs.sortDir || 'desc';
     let subSearchQuery = '';
     let subSearchType = 'id';
+    let subSelectedHashes = new Set();
 
     // Detail view sort state (client-side, data is already loaded)
     const _subDetailSortPrefs = JSON.parse(localStorage.getItem('beacon_sub_detail_sort_prefs') || '{}');
@@ -269,6 +275,95 @@
       if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2c3d4' : 'e.g., @gmail.com'; input.focus(); }
     }
 
+    function updateSubBulkBar() {
+      const bar = document.getElementById('subBulkBar');
+      const count = subSelectedHashes.size;
+      if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+      const countEl = document.getElementById('subBulkCount');
+      if (countEl) countEl.textContent = `${count} selected`;
+    }
+
+    function toggleSubSelect(hash, checked) {
+      if (checked) subSelectedHashes.add(hash);
+      else subSelectedHashes.delete(hash);
+      updateSubBulkBar();
+      // Sync select-all state
+      const all = document.getElementById('subSelectAll');
+      if (all) {
+        const rows = document.querySelectorAll('#subscriptionsBody input[type="checkbox"]');
+        all.checked = rows.length > 0 && [...rows].every(r => r.checked);
+        all.indeterminate = subSelectedHashes.size > 0 && !all.checked;
+      }
+    }
+
+    function toggleSubSelectAll(checked) {
+      const rows = document.querySelectorAll('#subscriptionsBody input[type="checkbox"]');
+      rows.forEach(cb => {
+        cb.checked = checked;
+        const hash = cb.dataset.hash;
+        if (hash) {
+          if (checked) subSelectedHashes.add(hash);
+          else subSelectedHashes.delete(hash);
+        }
+      });
+      updateSubBulkBar();
+    }
+
+    function clearSubSelection() {
+      subSelectedHashes.clear();
+      document.querySelectorAll('#subscriptionsBody input[type="checkbox"]').forEach(cb => cb.checked = false);
+      const all = document.getElementById('subSelectAll');
+      if (all) { all.checked = false; all.indeterminate = false; }
+      updateSubBulkBar();
+    }
+
+    function openSubExportModal() {
+      const count = subSelectedHashes.size;
+      document.getElementById('subExportCount').textContent = count > 0 ? count : 'all';
+      document.getElementById('subExportModal').style.display = 'flex';
+    }
+
+    function closeSubExportModal() {
+      document.getElementById('subExportModal').style.display = 'none';
+    }
+
+    async function confirmSubExport() {
+      const format = document.getElementById('subExportFormat').value;
+      const btn = document.getElementById('subExportConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Exporting…';
+
+      const body = subSelectedHashes.size > 0
+        ? { hashes: [...subSelectedHashes], format }
+        : { format };
+
+      try {
+        const res = await fetch(`${window.location.origin}/api/admin/identities/export`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          notify('error', 'Export failed', err.error || `HTTP ${res.status}`);
+          return;
+        }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const fnMatch = cd.match(/filename="([^"]+)"/);
+        const filename = fnMatch ? fnMatch[1] : `subscribers.${format}`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+        closeSubExportModal();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Export';
+      }
+    }
+
     async function loadIdentities(pushState = true) {
       const thead = document.getElementById('subscriptionsTableHead');
       const body = document.getElementById('subscriptionsBody');
@@ -286,16 +381,18 @@
 
       if (pushState) syncSubUrl();
 
-      const idSortClass = subSortBy === 'id' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
+      const emailSortClass = subSortBy === 'email' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
       const bucketsSortClass = subSortBy === 'buckets' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
-      const dateSortClass = subSortBy === 'lastchanged' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
+      const createdSortClass = subSortBy === 'firstseen' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
+      const updatedSortClass = subSortBy === 'lastchanged' ? (subSortDir === 'asc' ? 'asc' : 'desc') : '';
       const sortIcon = '<span class="sort-icon">▲</span>';
       const hasSearch = subSearchQuery ? 'has-search' : '';
 
       thead.innerHTML = `
+        <th class="col-select"><label class="row-check" title="Select all"><input type="checkbox" id="subSelectAll" onchange="toggleSubSelectAll(this.checked)"></label></th>
         <th>
           <div class="column-search">
-            <span class="sortable ${idSortClass}" onclick="toggleSubSort('id')" style="cursor:pointer">Identity (ID) ${sortIcon}</span>
+            <span class="sortable ${emailSortClass}" onclick="toggleSubSort('email')" style="cursor:pointer">E-mail ${sortIcon}</span>
             <button class="search-trigger ${hasSearch}" id="subSearchTrigger" onclick="toggleSubSearchPopover(event)" title="Search">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -316,8 +413,10 @@
             </div>
           </div>
         </th>
-        <th class="sortable ${bucketsSortClass}" onclick="toggleSubSort('buckets')">Buckets ${sortIcon}</th>
-        <th class="sortable ${dateSortClass}" onclick="toggleSubSort('lastchanged')">Last Changed ${sortIcon}</th>
+        <th style="color:hsl(var(--muted-foreground))">Name</th>
+        <th class="sortable ${bucketsSortClass}" onclick="toggleSubSort('buckets')" style="cursor:pointer">Buckets ${sortIcon}</th>
+        <th class="sortable ${createdSortClass}" onclick="toggleSubSort('firstseen')" style="cursor:pointer">Created ${sortIcon}</th>
+        <th class="sortable ${updatedSortClass}" onclick="toggleSubSort('lastchanged')" style="cursor:pointer">Updated ${sortIcon}</th>
         <th style="width:50px"></th>
       `;
       body.innerHTML = '';
@@ -333,14 +432,23 @@
 
       if (data.records.length === 0) {
         const msg = subSearchQuery ? `No identities matching "${sanitize(subSearchQuery)}"` : 'No consent records found across any bucket';
-        body.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${msg}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${msg}</td></tr>`;
       } else {
+        // Sync checkboxes for hashes that are already in selection
         body.innerHTML = data.records.map((id, idx) => {
-          const idDisplay = `<span class="tooltip-wrapper" ondblclick="event.stopPropagation();copyTextNow('${sanitize(id.emailHash)}')"><span class="email-hash">${sanitize(id.emailHash.substring(0, 16))}...</span><span class="tooltip">Double-click to copy ID</span></span>`;
+          const isSelected = subSelectedHashes.has(id.emailHash);
+          const emailDisplay = id.email
+            ? `<span class="tooltip-wrapper"><span class="email-text select-none" style="cursor:pointer" onclick="event.stopPropagation();copyText('${sanitize(id.email)}')" ondblclick="event.stopPropagation();copyTextNow('${sanitize(id.emailHash)}')">${sanitize(id.email)}</span><span class="tooltip">Click to copy &middot; double-click for ID</span></span>`
+            : `<span class="tooltip-wrapper" ondblclick="event.stopPropagation();copyTextNow('${sanitize(id.emailHash)}')"><span class="email-hash">${sanitize(id.emailHash.substring(0, 16))}…</span><span class="tooltip">Double-click to copy ID</span></span>`;
           return `
             <tr style="cursor:pointer" onclick="showIdentityDetails('${sanitize(id.emailHash)}')">
-              <td>${idDisplay}</td>
+              <td class="col-select" onclick="event.stopPropagation()">
+                <label class="row-check"><input type="checkbox" data-hash="${sanitize(id.emailHash)}" ${isSelected ? 'checked' : ''} onchange="toggleSubSelect('${sanitize(id.emailHash)}', this.checked)"></label>
+              </td>
+              <td>${emailDisplay}</td>
+              <td><span class="muted">—</span></td>
               <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? 's' : ''}</td>
+              <td>${sanitize(formatDate(id.firstSeen))}</td>
               <td class="col-link" onclick="event.stopPropagation();showAuditForIdentity('${sanitize(id.emailHash)}')" title="View audit">${sanitize(formatDate(id.lastChanged))}</td>
               <td>
                 <div class="row-actions">
@@ -357,6 +465,16 @@
             </tr>
           `;
         }).join('');
+
+        // Sync select-all checkbox state
+        const all = document.getElementById('subSelectAll');
+        if (all && subSelectedHashes.size > 0) {
+          const visible = data.records.map(r => r.emailHash);
+          const allSelected = visible.every(h => subSelectedHashes.has(h));
+          const someSelected = visible.some(h => subSelectedHashes.has(h));
+          all.checked = allSelected;
+          all.indeterminate = someSelected && !allSelected;
+        }
       }
       updateSubPagination();
     }

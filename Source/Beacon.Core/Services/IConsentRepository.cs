@@ -21,6 +21,7 @@ public interface IConsentRepository
     Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
     Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync();
     Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null);
+    Task<Dictionary<string, string?>> GetEncryptedEmailsForHashesAsync(IReadOnlyList<string> hashes, CancellationToken ct = default);
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
     Task<IDisposable> BeginTransactionAsync();
     Task CommitTransactionAsync();
@@ -45,7 +46,9 @@ public sealed class BucketInfo
 public sealed class IdentityInfo
 {
     public required string EmailHash { get; init; }
+    public string? Email { get; set; }
     public int BucketCount { get; init; }
+    public DateTime FirstSeen { get; init; }
     public DateTime LastChanged { get; init; }
 }
 

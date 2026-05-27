@@ -114,7 +114,7 @@ public sealed class ConsentRepository : IConsentRepository
         if (!string.IsNullOrWhiteSpace(bucket))
             query = query.Where(e => e.Bucket == bucket);
         if (!string.IsNullOrWhiteSpace(emailHash))
-            query = query.Where(e => e.EmailHash == emailHash);
+            query = query.Where(e => e.EmailHash.StartsWith(emailHash));
 
         var total = await query.CountAsync(ct);
         var records = await query
@@ -357,6 +357,7 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 EmailHash = g.Key,
                 BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
+                FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt)
             });
 
@@ -368,6 +369,9 @@ public sealed class ConsentRepository : IConsentRepository
             "buckets" => sortDir == "asc"
                 ? grouped.OrderBy(i => i.BucketCount)
                 : grouped.OrderByDescending(i => i.BucketCount),
+            "firstseen" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.FirstSeen)
+                : grouped.OrderByDescending(i => i.FirstSeen),
             _ => sortDir == "asc"
                 ? grouped.OrderBy(i => i.LastChanged)
                 : grouped.OrderByDescending(i => i.LastChanged)
@@ -385,6 +389,22 @@ public sealed class ConsentRepository : IConsentRepository
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<Dictionary<string, string?>> GetEncryptedEmailsForHashesAsync(
+        IReadOnlyList<string> hashes, CancellationToken ct = default)
+    {
+        var rows = await _context.ConsentRecords
+            .Where(r => hashes.Contains(r.EmailHash))
+            .GroupBy(r => r.EmailHash)
+            .Select(g => new
+            {
+                EmailHash = g.Key,
+                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
+            })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => r.EmailHash, r => r.EncryptedEmail);
     }
 
     public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync()
@@ -425,6 +445,7 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 EmailHash = g.Key,
                 BucketCount = g.Select(r => r.Bucket).Distinct().Count(),
+                FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt)
             });
 
@@ -436,6 +457,9 @@ public sealed class ConsentRepository : IConsentRepository
             "buckets" => sortDir == "asc"
                 ? grouped.OrderBy(i => i.BucketCount)
                 : grouped.OrderByDescending(i => i.BucketCount),
+            "firstseen" => sortDir == "asc"
+                ? grouped.OrderBy(i => i.FirstSeen)
+                : grouped.OrderByDescending(i => i.FirstSeen),
             _ => sortDir == "asc"
                 ? grouped.OrderBy(i => i.LastChanged)
                 : grouped.OrderByDescending(i => i.LastChanged)

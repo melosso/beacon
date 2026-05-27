@@ -79,10 +79,14 @@
     let _workflowArchivedVisible = false;
 
     // Audit
+    let auditFilterType = 'id'; // 'id' | 'email'
+    let auditFilterEmail = null; // used when auditFilterType === 'email'
+
     async function loadAudit() {
       const params = new URLSearchParams();
       if (auditFilterBucket) params.set('bucket', auditFilterBucket);
-      if (auditFilterIdentity) params.set('emailHash', auditFilterIdentity);
+      if (auditFilterIdentity && auditFilterType === 'id') params.set('emailHash', auditFilterIdentity);
+      if (auditFilterEmail && auditFilterType === 'email') params.set('emailSearch', auditFilterEmail);
       params.set('page', auditCurrentPage);
       params.set('size', auditPageSize);
 
@@ -118,19 +122,24 @@
     function renderAuditHeader() {
       const thead = document.getElementById('auditTableHead');
       if (!thead) return;
-      const hasIdentity = auditFilterIdentity ? 'has-search' : '';
+      const hasIdentity = (auditFilterIdentity || auditFilterEmail) ? 'has-search' : '';
       const hasBucket = auditFilterBucket ? 'has-search' : '';
+      const activeFilterVal = auditFilterType === 'email' ? (auditFilterEmail || '') : (auditFilterIdentity || '');
       thead.innerHTML = `
         <th>Timestamp</th>
         <th>
           <div class="column-search">
-            <span>Identity</span>
+            <span>E-mail / ID</span>
             <button class="search-trigger ${hasIdentity}" id="auditIdentitySearchTrigger" onclick="toggleAuditIdentityPopover(event)" title="Filter by identity">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </button>
-            <div class="search-popover" id="auditIdentityPopover" style="min-width:260px">
-              <label>Filter by identity hash (partial)</label>
-              <input type="text" id="auditIdentityInput" placeholder="e.g., a1b2c3d4" value="${sanitize(auditFilterIdentity || '')}" onkeydown="if(event.key==='Enter')applyAuditIdentityFilter()">
+            <div class="search-popover" id="auditIdentityPopover" style="min-width:280px">
+              <div class="search-type-toggle">
+                <button class="search-type-btn ${auditFilterType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setAuditFilterType('id')">By ID</button>
+                <button class="search-type-btn ${auditFilterType === 'email' ? 'active' : ''}" onclick="event.stopPropagation();setAuditFilterType('email')">By Email</button>
+              </div>
+              <label>${auditFilterType === 'id' ? 'Filter by identity hash (partial)' : 'Filter by email (exact)'}</label>
+              <input type="text" id="auditIdentityInput" placeholder="${auditFilterType === 'id' ? 'e.g., a1b2c3d4' : 'e.g., user@example.com'}" value="${sanitize(activeFilterVal)}" onkeydown="if(event.key==='Enter')applyAuditIdentityFilter()">
               <div class="search-actions">
                 <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearAuditIdentityFilter()">Clear</button>
                 <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="applyAuditIdentityFilter()">Filter</button>
@@ -190,9 +199,26 @@
       }
     }
 
+    function setAuditFilterType(type) {
+      auditFilterType = type;
+      document.querySelectorAll('#auditIdentityPopover .search-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === (type === 'id' ? 'By ID' : 'By Email'));
+      });
+      const label = document.querySelector('#auditIdentityPopover label');
+      if (label) label.textContent = type === 'id' ? 'Filter by identity hash (partial)' : 'Filter by email (exact)';
+      const input = document.getElementById('auditIdentityInput');
+      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2c3d4' : 'e.g., user@example.com'; input.value = ''; input.focus(); }
+    }
+
     function applyAuditIdentityFilter() {
       const val = document.getElementById('auditIdentityInput')?.value.trim();
-      auditFilterIdentity = val || null;
+      if (auditFilterType === 'email') {
+        auditFilterEmail = val || null;
+        auditFilterIdentity = null;
+      } else {
+        auditFilterIdentity = val || null;
+        auditFilterEmail = null;
+      }
       auditCurrentPage = 1;
       document.getElementById('auditIdentityPopover')?.classList.remove('open');
       document.getElementById('auditIdentitySearchTrigger')?.classList.remove('active');
@@ -210,6 +236,7 @@
 
     function clearAuditIdentityFilter() {
       auditFilterIdentity = null;
+      auditFilterEmail = null;
       auditCurrentPage = 1;
       document.getElementById('auditIdentityPopover')?.classList.remove('open');
       document.getElementById('auditIdentitySearchTrigger')?.classList.remove('active');
@@ -244,6 +271,9 @@
             <span class="tooltip tooltip-above tooltip-right">Custom fields</span>
           </span>
          </div>`;
+      const identityInner = e.email
+        ? `<span class="email-text" style="cursor:pointer">${sanitize(e.email)}</span>`
+        : `<span class="email-hash" style="cursor:pointer">${sanitize(e.displayId)}</span>`;
       return `
         <tr>
           <td>${sanitize(formatDate(e.changedAt))}</td>
@@ -251,8 +281,8 @@
             <span class="tooltip-wrapper"
               onclick="auditIdentityClick('${sanitize(e.emailHash)}')"
               ondblclick="auditIdentityDblClick('${sanitize(e.emailHash)}')">
-              <span class="email-hash" style="cursor:pointer">${sanitize(e.displayId)}</span>
-              <span class="tooltip">Click to filter · double-click to copy</span>
+              ${identityInner}
+              <span class="tooltip">Click to filter · double-click to copy ID</span>
             </span>
           </td>
           <td><span class="bucket-name" style="cursor:pointer" onclick="showAuditForBucket('${sanitize(e.bucket)}')">${sanitize(e.bucket)}</span></td>

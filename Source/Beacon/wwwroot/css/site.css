@@ -607,6 +607,7 @@ h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
     margin-top: 0.5rem;
     font-weight: 500;
     white-space: nowrap;
+    user-select: none;
 }
 
 .status-badge-muted {
@@ -1493,6 +1494,61 @@ select.page-size-input option { background: hsl(var(--background)); color: hsl(v
 
 .col-actions {
     white-space: nowrap;
+}
+.col-select {
+    width: 40px;
+    padding-right: 0.25rem;
+    vertical-align: middle;
+}
+.row-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 0;
+}
+.row-check input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border: 1.5px solid hsl(var(--border));
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+}
+.row-check input[type="checkbox"]:hover {
+    border-color: hsl(var(--primary) / 0.7);
+}
+.row-check input[type="checkbox"]:checked,
+.row-check input[type="checkbox"]:indeterminate {
+    background: hsl(var(--primary));
+    border-color: hsl(var(--primary));
+}
+.row-check input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: 1.5px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+.row-check input[type="checkbox"]:indeterminate::after {
+    content: '';
+    position: absolute;
+    left: 2.5px;
+    top: 5.5px;
+    width: 8px;
+    height: 1.5px;
+    background: white;
+    border-radius: 1px;
 }
 .row-status-icons {
     display: inline-flex;
