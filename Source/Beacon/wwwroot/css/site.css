@@ -220,6 +220,7 @@ body {
     text-align: center;
     max-width: 360px;
     line-height: 1.5;
+    user-select: none;
 }
 .auth-footer:empty { display: none; }
 .auth-footer a {
@@ -245,6 +246,7 @@ body {
     justify-content: center;
     gap: 0.5rem;
     z-index: 2100;
+    user-select: none;
 }
 .login-promo-bar a {
     color: hsl(var(--primary));
