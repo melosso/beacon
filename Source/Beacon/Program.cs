@@ -610,7 +610,6 @@ try
     foreach (var (route, file) in new (string, string)[]
     {
         ("/js/auth.js",     "js/auth.js"),
-        ("/js/admin.js",    "js/admin.js"),
         ("/js/users.js",    "js/users.js"),
         ("/js/api-keys.js", "js/api-keys.js"),
         ("/js/account.js",  "js/account.js"),
@@ -620,6 +619,24 @@ try
         app.MapGet(r, ctx => ServeFile(ctx, Path.Combine(webRoot, f), "application/javascript", noCache: true))
            .ExcludeFromDescription();
     }
+
+    app.MapGet("/js/admin.js", async (HttpContext context) =>
+    {
+        var parts = new[]
+        {
+            "core", "sidebar", "views", "records", "tokens",
+            "webhooks", "submissions", "settings", "data-policies",
+            "system-modals", "branding",
+        };
+        var ct = context.RequestAborted;
+        context.Response.ContentType = "application/javascript";
+        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+        foreach (var part in parts)
+        {
+            var path = Path.Combine(webRoot, "js", "admin", $"{part}.js");
+            await context.Response.WriteAsync(await File.ReadAllTextAsync(path, ct), ct);
+        }
+    }).ExcludeFromDescription();
 
     app.MapGet("/", async context =>
     {
