@@ -231,6 +231,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
             });
@@ -263,6 +264,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
             })

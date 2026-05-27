@@ -79,6 +79,7 @@ public sealed class EmailPermissions
     public string? EncryptedEmail { get; init; }
     public string? Email { get; set; }  // Decrypted for admin display
     public required Dictionary<string, bool> Permissions { get; init; }
+    public DateTime FirstSeen { get; init; }
     public DateTime LastChanged { get; init; }
     public Dictionary<string, string>? CustomFields { get; init; }
 }

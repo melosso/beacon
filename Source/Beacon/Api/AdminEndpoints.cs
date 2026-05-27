@@ -1507,13 +1507,13 @@ public static class AdminEndpoints
             {
                 email = r.Email,
                 beacon_id = r.EmailHash,
-                lists = r.BucketCount,
+                buckets = r.BucketCount,
                 created = r.FirstSeen.ToString("O"),
                 updated = r.LastChanged.ToString("O")
             }));
 
         var sb = new StringBuilder();
-        sb.AppendLine("Email,Beacon ID,Lists,Created,Updated");
+        sb.AppendLine("Email,Beacon ID,Buckets,Created,Updated");
         foreach (var r in records)
             sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{r.BucketCount},{r.FirstSeen:O},{r.LastChanged:O}");
 
@@ -1874,25 +1874,28 @@ public static class AdminEndpoints
         if (format == "json")
             return Results.Json(records.Select(r =>
             {
-                var obj = new Dictionary<string, object?>(permissions.Count + 3)
+                var obj = new Dictionary<string, object?>(permissions.Count + 5)
                 {
                     ["email"] = r.Email,
-                    ["beacon_id"] = r.EmailHash
+                    ["beacon_id"] = r.EmailHash,
+                    ["external_id"] = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : null
                 };
                 foreach (var p in permissions)
                     obj[p] = r.Permissions.TryGetValue(p, out var v) ? v : false;
+                obj["created"] = r.FirstSeen.ToString("O");
                 obj["updated"] = r.LastChanged.ToString("O");
                 return obj;
             }));
 
         var sb = new StringBuilder();
         var permHeaders = string.Join(",", permissions.Select(p => CsvEscape(p)));
-        sb.AppendLine($"Email,Beacon ID,{permHeaders},Updated");
+        sb.AppendLine($"Email,Beacon ID,External ID,{permHeaders},Created,Updated");
         foreach (var r in records)
         {
+            var externalId = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : "";
             var permValues = string.Join(",", permissions.Select(p =>
                 r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
-            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{permValues},{r.LastChanged:O}");
+            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{CsvEscape(externalId)},{permValues},{r.FirstSeen:O},{r.LastChanged:O}");
         }
         return Results.Content(sb.ToString(), "text/csv");
     }
