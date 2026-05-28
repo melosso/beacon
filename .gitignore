@@ -1,51 +1,47 @@
-# Build outputs
+# build outputs & ides
 [Bb]in/
 [Oo]bj/
 [Oo]ut/
-*/[Bb]in/
-*/[Oo]bj/
-*/[Oo]ut/
 Deployment/
-
-# Markdown
-*.md
-!README.md
-!CONTRIBUTING.md
-!CONFIGURATION.md
-
-# User-specific files
-*.user
-*.userosscache
-*.suo
-*.rsuser
-
-# VS Code
-.vscode/
-
-# JetBrains Rider
-.idea/
-*.sln.iml
-
-# Visual Studio
 .vs/
-*.suo
-*.cache
-*.docstates
+.vscode/
+.idea/
+TestResults/
+publish/
 
-# NuGet
-*.nupkg
-**/packages/*
-!**/packages/build/
-
-# Database files
+# file extensions (logs, dbs, cache, os)
+*.log
 *.db
 *.db-shm
 *.db-wal
 *.sqlite
 *.sqlite3
-Source/Beacon/Beacon.db
+*.trx
+*.cache
+*.docstates
+*.sln.iml
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Sensitive configuration
+# user-specific files
+*.user
+*.userosscache
+*.suo
+*.rsuser
+
+# nuget
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# markdown documentation
+*.md
+!README.md
+!CONTRIBUTING.md
+!CONFIGURATION.md
+
+# configuration & environments
 appsettings.*.json
 !appsettings.json
 !appsettings.Development.json.example
@@ -54,27 +50,9 @@ appsettings.*.json
 .env.*
 *.local
 
-# Encryption certificates (RSA keypair)
+# encryption certificates
 .core/
 
-# Logs
-log/
-logs/
-*.log
-
-# OS generated
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Test results
-TestResults/
-*.trx
-
-# Publish output
-publish/
-
-# Claude
-/.claude
-/CLAUDE.md
-
+# directory rules
+.*/
+!.github/
