@@ -1,4 +1,38 @@
     // SUBMISSION FORMS
+    const NL_I18N = {
+      en: { subscribe: 'Subscribe',    success: 'Thanks for subscribing!',        consent: 'I agree to receive emails and understand I can unsubscribe at any time.',                                                                              namePlaceholder: 'Your full name',        email: 'you@example.com',     privacy: 'Privacy Policy' },
+      de: { subscribe: 'Abonnieren',   success: 'Danke für deine Anmeldung!',     consent: 'Ich erkläre mich damit einverstanden, E-Mails zu erhalten, und weiß, dass ich mich jederzeit abmelden kann.',                              namePlaceholder: 'Ihr vollständiger Name', email: 'ihre@email.de',       privacy: 'Datenschutzerklärung' },
+      fr: { subscribe: "S'abonner",    success: 'Merci pour votre abonnement !',  consent: "J'accepte de recevoir des e-mails et je sais que je peux me désabonner à tout moment.",                                              namePlaceholder: 'Votre nom complet',     email: 'vous@email.fr',       privacy: 'Politique de confidentialité' },
+      nl: { subscribe: 'Inschrijven',  success: 'Bedankt voor uw inschrijving!',  consent: 'Ik ga akkoord met het ontvangen van e-mails en begrijp dat ik me te allen tijde kan afmelden.',                                                       namePlaceholder: 'Uw volledige naam',     email: 'u@email.nl',          privacy: 'Privacybeleid' },
+      pl: { subscribe: 'Subskrybuj',   success: 'Dziękujemy za subskrypcję!',     consent: 'Zgadzam się na otrzymywanie e-maili i rozumiem, że mogę się wypisać w dowolnym momencie.',                              namePlaceholder: 'Twoje imię i nazwisko', email: 'ty@email.pl',         privacy: 'Polityka prywatności' },
+      es: { subscribe: 'Suscribirse',  success: '¡Gracias por suscribirse!',      consent: 'Acepto recibir correos electrónicos y entiendo que puedo darme de baja en cualquier momento.',                                                   namePlaceholder: 'Tu nombre completo',    email: 'tu@email.es',         privacy: 'Política de privacidad' },
+      it: { subscribe: 'Iscriviti',    success: "Grazie per l'iscrizione!",       consent: "Accetto di ricevere e-mail e capisco che posso annullare l'iscrizione in qualsiasi momento.",                                                    namePlaceholder: 'Il tuo nome completo',  email: 'tu@email.it',         privacy: 'Informativa sulla privacy' },
+      pt: { subscribe: 'Inscrever-se', success: 'Obrigado pela inscrição!',       consent: 'Concordo em receber e-mails e entendo que posso cancelar a inscrição a qualquer momento.',                                               namePlaceholder: 'Seu nome completo',     email: 'voce@email.com.br',   privacy: 'Política de privacidade' },
+      ja: { subscribe: '登録する',      success: '登録ありがとうございます！',            consent: 'メールの受信に同意します。いつでも登録解除できます。',                                                                                                                       namePlaceholder: 'お名前（フルネーム）',     email: 'example@email.jp',   privacy: 'プライバシーポリシー' },
+    };
+
+    function getNlI18n() {
+      const lang = document.getElementById('nlLanguage')?.value || 'en';
+      return NL_I18N[lang] || NL_I18N.en;
+    }
+
+    function updateNlLocale() {
+      const t = getNlI18n();
+      const fields = [
+        ['nlButtonText',    t.subscribe],
+        ['nlSuccessMessage',t.success],
+        ['nlTitle',         ''],
+        ['nlDescription',   ''],
+        ['nlConsentText',   t.consent],
+        ['nlNameLabel',     t.namePlaceholder],
+      ];
+      fields.forEach(([id, ph]) => {
+        const el = document.getElementById(id);
+        if (el && ph) el.placeholder = ph;
+      });
+      updateLivePreview();
+    }
+
     let nlOrigins = [];
     let nlEditId = null;
     let nlCurrentFormId = null;
@@ -74,6 +108,73 @@
       });
     }
 
+    function toggleNlNameLabel() {
+      const enabled = document.getElementById('nlCollectName').checked;
+      const group = document.getElementById('nlNameLabelGroup');
+      if (group) {
+        group.style.opacity = enabled ? '' : '0.45';
+        group.style.pointerEvents = enabled ? '' : 'none';
+      }
+      updateLivePreview();
+    }
+
+    function toggleNlBgColor() {
+      const on = document.getElementById('nlBgColorEnabled').checked;
+      const g  = document.getElementById('nlBgColorGroup');
+      if (g) { g.style.opacity = on ? '1' : '0.4'; g.style.pointerEvents = on ? '' : 'none'; }
+      updateLivePreview();
+    }
+
+    function toggleNlTextColor() {
+      const on = document.getElementById('nlTextColorEnabled').checked;
+      const g  = document.getElementById('nlTextColorGroup');
+      if (g) { g.style.opacity = on ? '1' : '0.4'; g.style.pointerEvents = on ? '' : 'none'; }
+      updateLivePreview();
+    }
+
+    var _previewListenerReady = false;
+    function ensurePreviewListener() {
+      if (_previewListenerReady) return;
+      const view = document.getElementById('view-submission-create');
+      if (!view) return;
+      view.addEventListener('input', updateLivePreview);
+      view.addEventListener('change', updateLivePreview);
+      _previewListenerReady = true;
+    }
+
+    function updateLivePreview() {
+      const panel = document.getElementById('nlLivePreviewForm');
+      if (!panel) return;
+      const title       = document.getElementById('nlTitle')?.value.trim() || '';
+      const description = document.getElementById('nlDescription')?.value.trim() || '';
+      const buttonText  = document.getElementById('nlButtonText')?.value.trim() || 'Subscribe';
+      const primary     = document.getElementById('nlPrimaryColor')?.value || '#2563eb';
+      const bgEnabled   = document.getElementById('nlBgColorEnabled')?.checked;
+      const fgEnabled   = document.getElementById('nlTextColorEnabled')?.checked;
+      const bg          = bgEnabled ? (document.getElementById('nlBgColor')?.value || 'hsl(var(--background))') : 'hsl(var(--background))';
+      const fg          = fgEnabled ? (document.getElementById('nlTextColor')?.value || 'hsl(var(--foreground))') : 'hsl(var(--foreground))';
+      const rawRadius   = document.getElementById('nlBorderRadius')?.value.trim() || '8px';
+      const radius      = /^[\d.]+(px|%|rem|em)$/.test(rawRadius) ? rawRadius : '8px';
+      const collectName = document.getElementById('nlCollectName')?.checked;
+      const nameLabel   = document.getElementById('nlNameLabel')?.value.trim() || 'Your full name';
+      const consent     = document.getElementById('nlConsentRequired')?.checked;
+      const consentTxt  = document.getElementById('nlConsentText')?.value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+      const privacyUrl  = document.getElementById('nlPrivacyPolicyUrl')?.value.trim();
+      const inputBase   = `padding:9px 12px;border:1px solid rgba(128,128,128,0.25);border-radius:${radius};font-size:0.875rem;background:rgba(128,128,128,0.06);color:inherit;outline:none;font-family:inherit`;
+      panel.style.cssText = `background:${bg};color:${fg};padding:1.25rem`;
+      panel.innerHTML = [
+        title       ? `<h2 style="font-size:1.1rem;font-weight:600;margin-bottom:6px;line-height:1.3">${sanitize(title)}</h2>` : '',
+        description ? `<p style="font-size:0.85rem;opacity:0.7;margin-bottom:14px;line-height:1.5">${sanitize(description)}</p>` : '',
+        collectName ? `<input type="text" placeholder="${sanitize(nameLabel)}" disabled style="width:100%;${inputBase};margin-bottom:8px;display:block;cursor:default">` : '',
+        `<div style="display:flex;gap:8px;margin-bottom:8px">`,
+          `<input type="email" placeholder="you@example.com" disabled style="flex:1;${inputBase};cursor:default">`,
+          `<button disabled style="padding:9px 18px;background:${primary};color:#fff;border:none;border-radius:${radius};font-size:0.875rem;font-weight:500;white-space:nowrap;cursor:default;font-family:inherit">${sanitize(buttonText)}</button>`,
+        `</div>`,
+        consent ? `<div style="display:flex;align-items:flex-start;gap:8px;font-size:0.8rem;line-height:1.4;margin-top:4px"><input type="checkbox" disabled style="margin-top:2px;flex-shrink:0"><span style="opacity:0.8">${sanitize(consentTxt.length > 110 ? consentTxt.slice(0,110) + '…' : consentTxt)}</span></div>` : '',
+        privacyUrl ? `<p style="margin-top:6px;font-size:0.75rem;opacity:0.6"><a href="#" onclick="return false" style="color:inherit;text-decoration:underline">Privacy Policy</a></p>` : ''
+      ].join('');
+    }
+
     function initSubmissionWizard(editData) {
       nlOrigins = [];
       nlEditId = null;
@@ -87,9 +188,13 @@
       document.getElementById('nlButtonText').value = 'Subscribe';
       document.getElementById('nlSuccessMessage').value = 'Thanks for subscribing!';
       document.getElementById('nlPrimaryColor').value = '#2563eb';
-      document.getElementById('nlBgColor').value = '#ffffff';
-      document.getElementById('nlTextColor').value = '#111111';
       document.getElementById('nlBorderRadius').value = '8px';
+      document.getElementById('nlBgColorEnabled').checked = false;
+      document.getElementById('nlBgColor').value = '#ffffff';
+      document.getElementById('nlTextColorEnabled').checked = false;
+      document.getElementById('nlTextColor').value = '#111111';
+      toggleNlBgColor();
+      toggleNlTextColor();
       document.getElementById('nlRedirectSuccess').value = '';
       document.getElementById('nlRedirectError').value = '';
       document.getElementById('nlRedirectFormPost').checked = true;
@@ -102,6 +207,7 @@
       document.getElementById('nlConsentText').value = '';
       document.getElementById('nlPrivacyPolicyUrl').value = '';
       document.getElementById('nlCollectName').checked = false;
+      toggleNlNameLabel();
       document.getElementById('nlNameLabel').value = '';
       nlCustomFields = {};
       document.getElementById('nlCustomFieldsList').innerHTML = '';
@@ -131,6 +237,7 @@
         document.getElementById('nlConsentText').value = editData.consentText || '';
         document.getElementById('nlPrivacyPolicyUrl').value = editData.privacyPolicyUrl || '';
         document.getElementById('nlCollectName').checked = !!editData.collectName;
+        toggleNlNameLabel();
         document.getElementById('nlNameLabel').value = editData.nameLabel || '';
         nlCustomFields = { ...(editData.customFields || {}) };
         renderNlCustomFieldsList();
@@ -141,9 +248,13 @@
           if (c.buttonText) document.getElementById('nlButtonText').value = c.buttonText;
           if (c.successMessage) document.getElementById('nlSuccessMessage').value = c.successMessage;
           if (c.primaryColor) document.getElementById('nlPrimaryColor').value = c.primaryColor;
-          if (c.backgroundColor) document.getElementById('nlBgColor').value = c.backgroundColor;
-          if (c.textColor) document.getElementById('nlTextColor').value = c.textColor;
           if (c.borderRadius) document.getElementById('nlBorderRadius').value = c.borderRadius;
+          document.getElementById('nlBgColorEnabled').checked = !!c.backgroundColor;
+          if (c.backgroundColor) document.getElementById('nlBgColor').value = c.backgroundColor;
+          toggleNlBgColor();
+          document.getElementById('nlTextColorEnabled').checked = !!c.textColor;
+          if (c.textColor) document.getElementById('nlTextColor').value = c.textColor;
+          toggleNlTextColor();
         }
       } else {
         document.getElementById('submissionWizardTitle').textContent = 'Create Submission Form';
@@ -152,6 +263,8 @@
         document.getElementById('nlSaveBtn').textContent = 'Create Form';
       }
       renderNlOrigins();
+      ensurePreviewListener();
+      updateNlLocale();
       submissionWizardShowStep(1);
     }
 
@@ -293,8 +406,8 @@
           buttonText: document.getElementById('nlButtonText').value.trim() || null,
           successMessage: document.getElementById('nlSuccessMessage').value.trim() || null,
           primaryColor: document.getElementById('nlPrimaryColor').value,
-          backgroundColor: document.getElementById('nlBgColor').value,
-          textColor: document.getElementById('nlTextColor').value,
+          backgroundColor: document.getElementById('nlBgColorEnabled').checked ? document.getElementById('nlBgColor').value : null,
+          textColor: document.getElementById('nlTextColorEnabled').checked ? document.getElementById('nlTextColor').value : null,
           borderRadius: document.getElementById('nlBorderRadius').value.trim() || '8px'
         }
       };
@@ -473,16 +586,19 @@
       const rs = document.getElementById('nlRedirectSuccess').value.trim();
       const re = document.getElementById('nlRedirectError').value.trim();
       const consentRequired = document.getElementById('nlConsentRequired').checked;
-      const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
+      const _t = getNlI18n();
+      const consentText = document.getElementById('nlConsentText').value.trim() || _t.consent;
       const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
       const disableRedirects = document.getElementById('nlDisableRedirects').checked;
       const collectName = document.getElementById('nlCollectName')?.checked;
-      const nameLabel = document.getElementById('nlNameLabel')?.value.trim() || 'Your full name';
+      const t = getNlI18n();
+      const nameLabel = document.getElementById('nlNameLabel')?.value.trim() || t.namePlaceholder;
       const hiddenFields = (disableRedirects || rs || re) ? '' :
         `\n  <input type="hidden" name="redirect_success" value="https://yoursite.com/thank-you" />` +
         `\n  <input type="hidden" name="redirect_error" value="https://yoursite.com/error" />`;
+      const safeName = nameLabel.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
       const nameField = collectName ?
-        `\n  <input type="text" name="name" placeholder="${nameLabel}" autocomplete="name" />` : '';
+        `\n  <input type="text" name="name" placeholder="${safeName}" autocomplete="name" />` : '';
       const consentField = consentRequired ?
         `\n  <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:0.85rem;line-height:1.4">` +
         `\n    <input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0" />` +
@@ -592,12 +708,15 @@ ${bodyStr}
         const consentText = document.getElementById('nlConsentText')?.value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
         const privacyUrl = document.getElementById('nlPrivacyPolicyUrl')?.value.trim();
         const disableRedirects = document.getElementById('nlDisableRedirects')?.checked;
+        const collectName = document.getElementById('nlCollectName')?.checked;
+        const nameLabel = document.getElementById('nlNameLabel')?.value.trim() || 'Your full name';
 
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = actionUrl;
         if (!disableRedirects) form.target = '_self';
         form.innerHTML = `
+          ${collectName ? `<input type="text" name="name" placeholder="${nameLabel}" autocomplete="name" style="width:100%;padding:0.5rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);font-size:0.9rem;margin-bottom:0.75rem;background:hsl(var(--background));color:hsl(var(--foreground))">` : ''}
           <input type="email" name="email" placeholder="you@example.com" required style="width:100%;padding:0.5rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);font-size:0.9rem;margin-bottom:0.75rem;background:hsl(var(--background));color:hsl(var(--foreground))">
           ${!disableRedirects ? '<input type="hidden" name="redirect_success" value="about:blank#success"><input type="hidden" name="redirect_error" value="about:blank#error">' : ''}
           ${consentRequired ? `<label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 0.75rem;font-size:0.85rem;line-height:1.4;color:hsl(var(--foreground))"><input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0"><span>${consentText}</span></label>` : ''}
@@ -614,6 +733,8 @@ ${bodyStr}
             msg.textContent = ''; msg.style.color = '';
             try {
               const body = { email: form.querySelector('input[name="email"]').value };
+              const nameEl = form.querySelector('input[name="name"]');
+              if (nameEl && nameEl.value) body.name = nameEl.value;
               const cb = form.querySelector('input[name="consent"]');
               if (cb) body.consent = cb.checked ? 'true' : 'false';
               const res = await fetch(actionUrl, {

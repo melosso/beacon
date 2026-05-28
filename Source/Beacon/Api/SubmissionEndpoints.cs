@@ -206,6 +206,9 @@ public static class SubmissionEndpoints
                 return Results.BadRequest(new { error = $"Invalid border radius: {borderRadiusValidation.Error}" });
         }
 
+        if (!string.IsNullOrWhiteSpace(request.NameLabel) && request.NameLabel.Length > 100)
+            return Results.BadRequest(new { error = "Name label must be 100 characters or fewer" });
+
         var form = new SubmissionForm
         {
             Name = request.Name.Trim(),
@@ -371,6 +374,9 @@ public static class SubmissionEndpoints
         if (request.CollectName.HasValue)
             existing.CollectName = request.CollectName.Value;
 
+        if (request.NameLabel != null && request.NameLabel.Length > 100)
+            return Results.BadRequest(new { error = "Name label must be 100 characters or fewer" });
+
         if (request.NameLabel != null)
             existing.NameLabel = string.IsNullOrWhiteSpace(request.NameLabel) ? null : request.NameLabel.Trim();
 
@@ -452,70 +458,82 @@ public static class SubmissionEndpoints
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var formIdStr = form.Id.ToString();
 
+        var embedPrimary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
+        var embedRadius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
+        var embedBg      = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "Canvas") : "Canvas";
+        var embedFg      = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "CanvasText") : "CanvasText";
+        var embedT       = GetSubmissionStrings(form.Language);
+
         var honeypotHtml = form.HoneypotEnabled
             ? """<div style="position:absolute;left:-9999px;top:-9999px;" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>"""
             : "";
 
-        var defaultConsentText = "I agree to receive emails and understand I can unsubscribe at any time.";
         var consentHtml = "";
         if (form.ConsentRequired)
         {
-            var consentLabel = WebUtility.HtmlEncode(form.ConsentText ?? defaultConsentText);
+            var consentLabel = WebUtility.HtmlEncode(form.ConsentText ?? embedT.ConsentText);
             consentHtml = $"""<div class="consent-row"><input type="checkbox" id="consentCb" name="consent" value="true" required /><label for="consentCb">{consentLabel}</label></div>""";
         }
 
         var privacyHtml = "";
         if (InputValidator.IsHttpUrl(form.PrivacyPolicyUrl))
         {
-            privacyHtml = $"""<div class="privacy-link"><a href="{WebUtility.HtmlEncode(form.PrivacyPolicyUrl)}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></div>""";
+            privacyHtml = $"""<div class="privacy-link"><a href="{WebUtility.HtmlEncode(form.PrivacyPolicyUrl)}" target="_blank" rel="noopener noreferrer">{WebUtility.HtmlEncode(embedT.PrivacyPolicy)}</a></div>""";
         }
 
         var html = $$"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="{{WebUtility.HtmlEncode(form.Language)}}">
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
-              <title>{{WebUtility.HtmlEncode(config.Title ?? "Subscribe")}}</title>
+              <meta name="color-scheme" content="light dark" />
+              <title>{{WebUtility.HtmlEncode(config.Title ?? embedT.Subscribe)}}</title>
               <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
+                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+                :root { color-scheme: light dark; }
                 body {
                   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                  background: {{InputValidator.SanitizeCssColor(config.BackgroundColor, "#ffffff")}};
-                  color: {{InputValidator.SanitizeCssColor(config.TextColor, "#111111")}};
+                  background: {{embedBg}};
+                  color: {{embedFg}};
                   padding: 20px;
                 }
                 .container { max-width: 480px; margin: 0 auto; }
                 h2 { font-size: 1.25rem; margin-bottom: 8px; font-weight: 600; }
-                .description { font-size: 0.9rem; opacity: 0.75; margin-bottom: 16px; }
+                .description { font-size: 0.9rem; opacity: 0.7; margin-bottom: 16px; }
                 .form-row { display: flex; gap: 8px; }
-                input[type="email"] {
-                  flex: 1;
+                input[type="text"], input[type="email"] {
                   padding: 10px 14px;
-                  border: 1px solid #d1d5db;
-                  border-radius: {{InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px")}};
+                  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+                  border-radius: {{embedRadius}};
                   font-size: 0.95rem;
+                  font-family: inherit;
+                  background: color-mix(in srgb, currentColor 5%, transparent);
+                  color: inherit;
                   outline: none;
                 }
-                input[type="email"]:focus { border-color: {{InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb")}}; }
+                input[type="text"] { width: 100%; display: block; margin-bottom: 8px; }
+                input[type="email"] { flex: 1; }
+                input[type="text"]:focus, input[type="email"]:focus { border-color: {{embedPrimary}}; }
                 button {
                   padding: 10px 20px;
-                  background: {{InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb")}};
+                  background: {{embedPrimary}};
                   color: #fff;
                   border: none;
-                  border-radius: {{InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px")}};
+                  border-radius: {{embedRadius}};
                   font-size: 0.95rem;
+                  font-family: inherit;
                   font-weight: 500;
                   cursor: pointer;
                   white-space: nowrap;
                 }
                 button:hover { opacity: 0.9; }
-                button:disabled { opacity: 0.6; cursor: not-allowed; }
+                button:disabled { opacity: 0.55; cursor: not-allowed; }
                 .message { margin-top: 12px; font-size: 0.9rem; }
-                .message.success { color: #16a34a; }
-                .message.error { color: #dc2626; }
+                .message.success { color: #22c55e; }
+                .message.error { color: #ef4444; }
                 .consent-row { margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
-                .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+                .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: auto; }
                 .consent-row label { line-height: 1.4; }
                 .consent-row a { color: inherit; text-decoration: underline; }
                 .privacy-link { margin-top: 6px; font-size: 0.8rem; opacity: 0.65; }
@@ -528,10 +546,10 @@ public static class SubmissionEndpoints
                 {{(config.Description != null ? $"<p class=\"description\">{WebUtility.HtmlEncode(config.Description)}</p>" : "")}}
                 <form id="nlForm">
                   {{honeypotHtml}}
-                  {{(form.CollectName ? $"<input type=\"text\" name=\"name\" placeholder=\"{WebUtility.HtmlEncode(form.NameLabel ?? "Your name")}\" autocomplete=\"name\" style=\"width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:{InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px")};font-size:0.95rem;outline:none;margin-bottom:8px\" />" : "")}}
+                  {{(form.CollectName ? $"<input type=\"text\" name=\"name\" placeholder=\"{WebUtility.HtmlEncode(form.NameLabel ?? embedT.NamePlaceholder)}\" autocomplete=\"name\" />" : "")}}
                   <div class="form-row">
-                    <input type="email" name="email" placeholder="you@example.com" required />
-                    <button type="submit">{{WebUtility.HtmlEncode(config.ButtonText ?? "Subscribe")}}</button>
+                    <input type="email" name="email" placeholder="{{WebUtility.HtmlEncode(embedT.EmailPlaceholder)}}" required />
+                    <button type="submit">{{WebUtility.HtmlEncode(config.ButtonText ?? embedT.Subscribe)}}</button>
                   </div>
                   {{consentHtml}}
                   {{privacyHtml}}
@@ -564,7 +582,7 @@ public static class SubmissionEndpoints
                     const data = await res.json();
                     if (data.redirect) { window.location.href = data.redirect; return; }
                     if (res.ok) {
-                      msg.textContent = data.message || '{{WebUtility.HtmlEncode(config.SuccessMessage ?? "Thanks for subscribing!")}}';
+                      msg.textContent = data.message || '{{WebUtility.HtmlEncode(config.SuccessMessage ?? embedT.Success)}}';
                       msg.className = 'message success';
                       form.reset();
                     } else {
@@ -620,21 +638,24 @@ public static class SubmissionEndpoints
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var formIdStr = form.Id.ToString();
         var configJson = JsonSerializer.Serialize(config);
+        var jsT         = GetSubmissionStrings(form.Language);
+        var jsSubscribe = JsonSerializer.Serialize(jsT.Subscribe).Trim('"');
+        var jsSuccess   = JsonSerializer.Serialize(jsT.Success).Trim('"');
+        var jsEmail     = JsonSerializer.Serialize(jsT.EmailPlaceholder).Trim('"');
 
         var honeypotJs = form.HoneypotEnabled
             ? "const hpDiv=document.createElement('div');hpDiv.style.cssText='position:absolute;left:-9999px;top:-9999px;';hpDiv.setAttribute('aria-hidden','true');const hpInput=document.createElement('input');hpInput.type='text';hpInput.name='website';hpInput.tabIndex=-1;hpInput.autocomplete='off';hpDiv.appendChild(hpInput);f.appendChild(hpDiv);"
             : "";
 
-        var escapedNameLabel = JsonSerializer.Serialize(form.NameLabel ?? "Your full name").Trim('"');
+        var escapedNameLabel = JsonSerializer.Serialize(form.NameLabel ?? jsT.NamePlaceholder).Trim('"');
         var nameJs = form.CollectName
             ? $"var ni=document.createElement('input');ni.type='text';ni.name='name';ni.placeholder=\"{escapedNameLabel}\";ni.autocomplete='name';f.appendChild(ni);"
             : "";
 
-        var jsDefaultConsentText = "I agree to receive emails and understand I can unsubscribe at any time.";
         var consentJs = "";
         if (form.ConsentRequired)
         {
-            var escapedConsentText = JsonSerializer.Serialize(form.ConsentText ?? jsDefaultConsentText).Trim('"');
+            var escapedConsentText = JsonSerializer.Serialize(form.ConsentText ?? jsT.ConsentText).Trim('"');
             consentJs = $"var cRow=document.createElement('div');cRow.className='consent-row';var cCb=document.createElement('input');cCb.type='checkbox';cCb.name='consent';cCb.id='consentCb';cCb.value='true';cCb.required=true;var cLbl=document.createElement('label');cLbl.setAttribute('for','consentCb');cLbl.textContent=\"{escapedConsentText}\";cRow.appendChild(cCb);cRow.appendChild(cLbl);f.appendChild(cRow);";
         }
 
@@ -642,13 +663,17 @@ public static class SubmissionEndpoints
         if (InputValidator.IsHttpUrl(form.PrivacyPolicyUrl))
         {
             var escapedUrl = JsonSerializer.Serialize(form.PrivacyPolicyUrl).Trim('"');
-            privacyJs = $"var pDiv=document.createElement('div');pDiv.className='privacy-link';var pA=document.createElement('a');pA.href=\"{escapedUrl}\";pA.target='_blank';pA.rel='noopener noreferrer';pA.textContent='Privacy Policy';pDiv.appendChild(pA);f.appendChild(pDiv);";
+            var escapedPrivacyLabel = JsonSerializer.Serialize(jsT.PrivacyPolicy).Trim('"');
+            privacyJs = $"var pDiv=document.createElement('div');pDiv.className='privacy-link';var pA=document.createElement('a');pA.href=\"{escapedUrl}\";pA.target='_blank';pA.rel='noopener noreferrer';pA.textContent=\"{escapedPrivacyLabel}\";pDiv.appendChild(pA);f.appendChild(pDiv);";
         }
 
-        var safeBg      = InputValidator.SanitizeCssColor(config.BackgroundColor, "#ffffff");
-        var safeText    = InputValidator.SanitizeCssColor(config.TextColor, "#111111");
         var safePrimary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
         var safeRadius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
+        var containerBg = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "transparent") : "transparent";
+        var containerFg = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "inherit") : "inherit";
+        var nameInputCss = form.CollectName
+            ? $"input[type=\"text\"] {{ width: 100%; padding: 10px 14px; border: 1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius: {safeRadius}; font-size: 0.95rem; font-family: inherit; background: color-mix(in srgb,currentColor 5%,transparent); color: inherit; outline: none; margin-bottom: 8px; }} input[type=\"text\"]:focus {{ border-color: {safePrimary}; }}"
+            : "";
 
         var js = $$"""
             (function(){
@@ -660,23 +685,22 @@ public static class SubmissionEndpoints
               var style = document.createElement('style');
               style.textContent = `
                 * { box-sizing: border-box; margin: 0; padding: 0; }
-                :host { display: block; font-family: system-ui, -apple-system, sans-serif; }
-                .container { background: {{safeBg}}; color: {{safeText}}; padding: 16px; }
+                :host { display: block; font: inherit; color: inherit; color-scheme: light dark; }
+                .container { background: {{containerBg}}; color: {{containerFg}}; padding: 16px; }
                 h2 { font-size: 1.25rem; margin-bottom: 8px; font-weight: 600; }
-                .description { font-size: 0.9rem; opacity: 0.75; margin-bottom: 16px; }
+                .description { font-size: 0.9rem; opacity: 0.7; margin-bottom: 16px; }
                 .form-row { display: flex; gap: 8px; }
-                input[type="text"] { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: {{safeRadius}}; font-size: 0.95rem; outline: none; margin-bottom: 8px; }
-                input[type="text"]:focus { border-color: {{safePrimary}}; }
-                input[type="email"] { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: {{safeRadius}}; font-size: 0.95rem; outline: none; }
+                {{nameInputCss}}
+                input[type="email"] { flex: 1; padding: 10px 14px; border: 1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius: {{safeRadius}}; font-size: 0.95rem; font-family: inherit; background: color-mix(in srgb,currentColor 5%,transparent); color: inherit; outline: none; }
                 input[type="email"]:focus { border-color: {{safePrimary}}; }
-                button { padding: 10px 20px; background: {{safePrimary}}; color: #fff; border: none; border-radius: {{safeRadius}}; font-size: 0.95rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+                button { padding: 10px 20px; background: {{safePrimary}}; color: #fff; border: none; border-radius: {{safeRadius}}; font-size: 0.95rem; font-family: inherit; font-weight: 500; cursor: pointer; white-space: nowrap; }
                 button:hover { opacity: 0.9; }
-                button:disabled { opacity: 0.6; cursor: not-allowed; }
+                button:disabled { opacity: 0.55; cursor: not-allowed; }
                 .message { margin-top: 12px; font-size: 0.9rem; }
-                .message.success { color: #16a34a; }
-                .message.error { color: #dc2626; }
+                .message.success { color: #22c55e; }
+                .message.error { color: #ef4444; }
                 .consent-row { margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
-                .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+                .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: auto; }
                 .consent-row label { line-height: 1.4; }
                 .consent-row a { color: inherit; text-decoration: underline; }
                 .privacy-link { margin-top: 6px; font-size: 0.8rem; opacity: 0.65; }
@@ -693,9 +717,9 @@ public static class SubmissionEndpoints
               var row = document.createElement('div');
               row.className = 'form-row';
               var input = document.createElement('input');
-              input.type = 'email'; input.name = 'email'; input.placeholder = 'you@example.com'; input.required = true;
+              input.type = 'email'; input.name = 'email'; input.placeholder = '{{jsEmail}}'; input.required = true;
               var btn = document.createElement('button');
-              btn.type = 'submit'; btn.textContent = cfg.buttonText || 'Subscribe';
+              btn.type = 'submit'; btn.textContent = cfg.buttonText || '{{jsSubscribe}}';
               row.appendChild(input); row.appendChild(btn);
               f.appendChild(row);
               {{consentJs}}
@@ -731,7 +755,7 @@ public static class SubmissionEndpoints
                   var data = await res.json();
                   if (data.redirect) { window.location.href = data.redirect; return; }
                   if (res.ok) {
-                    msg.textContent = data.message || cfg.successMessage || 'Thanks for subscribing!';
+                    msg.textContent = data.message || cfg.successMessage || '{{jsSuccess}}';
                     msg.className = 'message success';
                     f.reset();
                   } else {
@@ -871,12 +895,14 @@ public static class SubmissionEndpoints
             if (isFormPost && IsValidRedirectUrl(redirectSuccess))
                 return Results.Redirect(redirectSuccess!);
             var hpConfig = DeserializeFormConfig(form.FormConfig);
+            var hpT = GetSubmissionStrings(form.Language);
             if (isFormPost)
-                return FormPostHtmlResult(form, hpConfig?.SuccessMessage ?? "Thanks for subscribing!", false);
-            return Results.Ok(BuildJsonSuccess("Thanks for subscribing!", form));
+                return FormPostHtmlResult(form, hpConfig?.SuccessMessage ?? hpT.Success, false);
+            return Results.Ok(BuildJsonSuccess(hpConfig?.SuccessMessage ?? hpT.Success, form));
         }
 
         // Consent validation
+        var subT = GetSubmissionStrings(form.Language);
         if (form.ConsentRequired)
         {
             var consentGiven = string.Equals(consent, "true", StringComparison.OrdinalIgnoreCase)
@@ -903,7 +929,7 @@ public static class SubmissionEndpoints
         }
 
         // Subscribe
-        var effectiveConsentText = form.ConsentText ?? "I agree to receive emails and understand I can unsubscribe at any time.";
+        var effectiveConsentText = form.ConsentText ?? subT.ConsentText;
         var effectiveName = form.CollectName && !string.IsNullOrWhiteSpace(name) ? name.Trim() : null;
         await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin, effectiveName);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(form.Bucket));
@@ -912,7 +938,7 @@ public static class SubmissionEndpoints
             return Results.Redirect(redirectSuccess!);
 
         var config = DeserializeFormConfig(form.FormConfig);
-        var successMessage = config?.SuccessMessage ?? "Thanks for subscribing!";
+        var successMessage = config?.SuccessMessage ?? subT.Success;
         if (isFormPost)
             return FormPostHtmlResult(form, successMessage, false);
         return Results.Ok(BuildJsonSuccess(successMessage, form));
@@ -921,30 +947,33 @@ public static class SubmissionEndpoints
     private static IResult FormPostHtmlResult(SubmissionForm form, string message, bool isError)
     {
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
-        var bg = WebUtility.HtmlEncode(config.BackgroundColor ?? "#ffffff");
-        var text = WebUtility.HtmlEncode(config.TextColor ?? "#111111");
-        var primary = WebUtility.HtmlEncode(config.PrimaryColor ?? "#2563eb");
-        var radius = WebUtility.HtmlEncode(config.BorderRadius ?? "8px");
-        var color = isError ? "#dc2626" : "#16a34a";
+        var primary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
+        var radius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
+        var bg      = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "Canvas") : "Canvas";
+        var fg      = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "CanvasText") : "CanvasText";
+        var msgColor = isError ? "#ef4444" : "#22c55e";
         var encodedMsg = WebUtility.HtmlEncode(message);
+        var lang = WebUtility.HtmlEncode(form.Language);
 
         var html = $$"""
             <!DOCTYPE html>
-            <html lang="en">
+            <html lang="{{lang}}">
             <head>
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <meta name="color-scheme" content="light dark" />
               <title>{{WebUtility.HtmlEncode(isError ? "Error" : "Success")}}</title>
               <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
+                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+                :root { color-scheme: light dark; }
                 body {
                   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                  background: {{bg}}; color: {{text}};
+                  background: {{bg}}; color: {{fg}};
                   display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem;
                 }
                 .card { max-width: 480px; width: 100%; text-align: center; }
                 .icon { font-size: 2.5rem; margin-bottom: 1rem; }
-                .message { font-size: 1.1rem; line-height: 1.5; color: {{color}}; margin-bottom: 1.5rem; }
+                .message { font-size: 1.1rem; line-height: 1.5; color: {{msgColor}}; margin-bottom: 1.5rem; }
                 a {
                   display: inline-block; padding: 10px 24px;
                   background: {{primary}}; color: #fff; text-decoration: none;
@@ -1065,18 +1094,11 @@ public static class SubmissionEndpoints
         catch { return null; }
     }
 
-    private static string GetUnavailableMessage(string language) => language.ToLowerInvariant() switch
-    {
-        "de" => "Dieses Formular ist derzeit nicht verf\u00fcgbar.",
-        "fr" => "Ce formulaire est actuellement indisponible.",
-        "es" => "Este formulario no est\u00e1 disponible actualmente.",
-        "nl" => "Dit formulier is momenteel niet beschikbaar.",
-        "it" => "Questo modulo non \u00e8 attualmente disponibile.",
-        "pt" => "Este formul\u00e1rio n\u00e3o est\u00e1 dispon\u00edvel no momento.",
-        "ja" => "\u3053\u306e\u30d5\u30a9\u30fc\u30e0\u306f\u73fe\u5728\u5229\u7528\u3067\u304d\u307e\u305b\u3093\u3002",
-        _ => "This form is currently unavailable."
-    };
+    private static Beacon.Localization.FormLocalization.SubmissionStrings GetSubmissionStrings(string? language) =>
+        Beacon.Localization.FormLocalization.GetSubmissionStrings(language);
 
+    private static string GetUnavailableMessage(string language) =>
+        Beacon.Localization.FormLocalization.GetUnavailableMessage(language);
     private static string FormUnavailableHtml(string language, FormConfigDto? config)
     {
         var lang = WebUtility.HtmlEncode(language);

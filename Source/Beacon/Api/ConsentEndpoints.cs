@@ -475,120 +475,11 @@ public static class ConsentEndpoints
         }
         """;
 
-    private static readonly Dictionary<string, (string Title, string Description, string SaveButton, string UnsubscribeButton, string PreferencesFor)> Translations = new()
-    {
-        ["en"] = (
-            Title: "Email preferences",
-            Description: "You're receiving these emails because you previously opted in. You can change that here.",
-            SaveButton: "Save preferences",
-            UnsubscribeButton: "Unsubscribe from all",
-            PreferencesFor: "Preferences for:"
-        ),
-        ["de"] = (
-            Title: "E-Mail-Einstellungen",
-            Description: "Sie erhalten diese E-Mails, weil Sie sich zuvor angemeldet haben. Hier können Sie das ändern.",
-            SaveButton: "Einstellungen speichern",
-            UnsubscribeButton: "Von allem abmelden",
-            PreferencesFor: "Einstellungen für:"
-        ),
-        ["fr"] = (
-            Title: "Préférences e-mail",
-            Description: "Vous recevez ces e-mails parce que vous vous êtes inscrit précédemment. Vous pouvez modifier cela ici.",
-            SaveButton: "Enregistrer les préférences",
-            UnsubscribeButton: "Se désabonner de tout",
-            PreferencesFor: "Préférences pour :"
-        ),
-        ["nl"] = (
-            Title: "E-mailvoorkeuren",
-            Description: "Je krijgt deze e-mails omdat je je eerder hebt aangemeld. Je kunt hier je voorkeuren aanpassen.",
-            SaveButton: "Voorkeuren opslaan",
-            UnsubscribeButton: "Alles afmelden",
-            PreferencesFor: "Voorkeuren voor:"
-        ),
-        ["pl"] = (
-            Title: "Preferencje e-mail",
-            Description: "Otrzymujesz te e-maile, ponieważ wcześniej wyraziłeś zgodę. Możesz to zmienić tutaj.",
-            SaveButton: "Zapisz preferencje",
-            UnsubscribeButton: "Wypisz się ze wszystkiego",
-            PreferencesFor: "Preferencje dla:"
-        ),
-        ["es"] = (
-            Title: "Preferencias de correo",
-            Description: "Recibe estos correos porque se suscribió anteriormente. Puede cambiar eso aquí.",
-            SaveButton: "Guardar preferencias",
-            UnsubscribeButton: "Cancelar todas las suscripciones",
-            PreferencesFor: "Preferencias para:"
-        )
-    };
+    private static Beacon.Localization.FormLocalization.ConsentPageStrings GetConsentPageStrings(string? lang) =>
+        Beacon.Localization.FormLocalization.GetConsentPageStrings(lang);
 
-    // New record to hold status page translations
-    private record StatusStrings(
-        string ExpiredTitle, string ExpiredMsg,
-        string InvalidTitle, string InvalidMsg,
-        string ProcessedTitle, string ProcessedMsg,
-        string UnsubTitle, string UnsubMsgPrefix,
-        string UpdatedTitle, string UpdatedOptOutPrefix, string UpdatedOptInPrefix,
-        string SuccessTitle, string SuccessMsg,
-        string ConfirmedTitle, string ConfirmedMsg
-    );
-
-    private static readonly Dictionary<string, StatusStrings> StatusTranslations = new()
-    {
-        ["en"] = new(
-            "Link expired", "This link has expired. Please use the link in a more recent email.",
-            "Invalid link", "This link is invalid. Please use the link from your email.",
-            "Already processed", "Your preferences have already been updated using this link.",
-            "Unsubscribed", "You have been unsubscribed from:",
-            "Preferences updated", "Unsubscribed from:", "Still subscribed to:",
-            "Success", "Your preferences have been updated.",
-            "Subscription confirmed", "Your subscription has been confirmed. You're now opted in."
-        ),
-        ["de"] = new(
-            "Link abgelaufen", "Dieser Link ist abgelaufen. Bitte verwenden Sie den Link in einer aktuelleren E-Mail.",
-            "Ungültiger Link", "Dieser Link ist ungültig. Bitte verwenden Sie den Link aus Ihrer E-Mail.",
-            "Bereits bearbeitet", "Ihre Einstellungen wurden bereits über diesen Link aktualisiert.",
-            "Abgemeldet", "Sie wurden abgemeldet von:",
-            "Einstellungen aktualisiert", "Abgemeldet von:", "Noch angemeldet für:",
-            "Erfolg", "Ihre Einstellungen wurden aktualisiert.",
-            "Anmeldung bestätigt", "Ihre Anmeldung wurde bestätigt. Sie sind jetzt eingetragen."
-        ),
-        ["fr"] = new(
-            "Lien expiré", "Ce lien a expiré. Veuillez utiliser le lien contenu dans un e-mail plus récent.",
-            "Lien invalide", "Ce lien est invalide. Veuillez utiliser le lien contenu dans votre e-mail.",
-            "Déjà traité", "Vos préférences ont déjà été mises à jour via ce lien.",
-            "Désabonné", "Vous avez été désabonné de :",
-            "Préférences mises à jour", "Désabonné de :", "Toujours abonné à :",
-            "Succès", "Vos préférences ont été mises à jour.",
-            "Abonnement confirmé", "Votre abonnement a été confirmé. Vous êtes maintenant inscrit."
-        ),
-        ["nl"] = new(
-            "Link verlopen", "Deze link is verlopen. Gebruik de link in een recentere e-mail.",
-            "Ongeldige link", "Deze link is ongeldig. Gebruik de link uit je e-mail.",
-            "Reeds verwerkt", "Je voorkeuren zijn al bijgewerkt via deze link.",
-            "Afgemeld", "Je bent afgemeld voor:",
-            "Voorkeuren bijgewerkt", "Afgemeld voor:", "Nog aangemeld voor:",
-            "Succes", "Je voorkeuren zijn bijgewerkt.",
-            "Inschrijving bevestigd", "Je inschrijving is bevestigd. Je bent nu aangemeld."
-        ),
-        ["pl"] = new(
-            "Link wygasł", "Ten link wygasł. Proszę użyć linku z nowszej wiadomości e-mail.",
-            "Nieprawidłowy link", "Ten link jest nieprawidłowy. Proszę użyć linku z wiadomości e-mail.",
-            "Już przetworzono", "Twoje preferencje zostały już zaktualizowane przy użyciu tego linku.",
-            "Wypisano", "Wypisano z:",
-            "Zaktualizowano preferencje", "Wypisano z:", "Nadal subskrybowany do:",
-            "Sukces", "Twoje preferencje zostały zaktualizowane.",
-            "Subskrypcja potwierdzona", "Twoja subskrypcja została potwierdzona. Jesteś teraz zapisany."
-        ),
-        ["es"] = new(
-            "Enlace caducado", "Este enlace ha caducado. Por favor, utilice el enlace de un correo más reciente.",
-            "Enlace inválido", "Este enlace no es válido. Por favor, utilice el enlace de su correo.",
-            "Ya procesado", "Sus preferencias ya han sido actualizadas usando este enlace.",
-            "Dado de baja", "Se ha dado de baja de:",
-            "Preferencias actualizadas", "Dado de baja de:", "Suscrito todavía a:",
-            "Éxito", "Sus preferencias han sido actualizadas.",
-            "Suscripción confirmada", "Su suscripción ha sido confirmada. Ya está registrado."
-        )
-    };
+    private static Beacon.Localization.FormLocalization.StatusStrings GetStatusStrings(string? lang) =>
+        Beacon.Localization.FormLocalization.GetStatusStrings(lang);
 
     private static string GetPreferencePage(
         string token,
@@ -600,10 +491,8 @@ public static class ConsentEndpoints
         string utmHiddenInputs = "",
         BrandIdentitySettings? brand = null)
     {
-        var lang = language?.ToLowerInvariant() ?? "en";
-        if (!Translations.ContainsKey(lang))
-            lang = "en";
-        var t = Translations[lang];
+        var lang = (language ?? "en").ToLowerInvariant();
+        var t = GetConsentPageStrings(lang);
 
         var title = brand?.PageTitle is { Length: > 0 } pt ? pt : t.Title;
         var description = brand?.PageBody is { Length: > 0 } pb ? pb : t.Description;
@@ -875,12 +764,8 @@ public static class ConsentEndpoints
 
     private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
     {
-        var lang = language?.ToLowerInvariant() ?? "en";
-        if (!StatusTranslations.ContainsKey(lang))
-        {
-            lang = "en";
-        }
-        var t = StatusTranslations[lang];
+        var lang = (language ?? "en").ToLowerInvariant();
+        var t = GetStatusStrings(lang);
 
         var (icon, iconClass, title, message) = status switch
         {
@@ -946,7 +831,7 @@ public static class ConsentEndpoints
         return string.Join(", ", items.Select(p => FormatPermission(p)));
     }
 
-    private static string BuildUpdateMessage(StatusStrings t, string[]? optedOut, string[]? keptIn)
+    private static string BuildUpdateMessage(Beacon.Localization.FormLocalization.StatusStrings t, string[]? optedOut, string[]? keptIn)
     {
         var parts = new List<string>();
         if (optedOut?.Length > 0)
