@@ -446,7 +446,7 @@
                 <label class="row-check"><input type="checkbox" data-hash="${sanitize(id.emailHash)}" ${isSelected ? 'checked' : ''} onchange="toggleSubSelect('${sanitize(id.emailHash)}', this.checked)"></label>
               </td>
               <td>${emailDisplay}</td>
-              <td><span class="muted">—</span></td>
+              <td>${id.name ? `<span class="name-text">${sanitize(id.name)}</span>` : '<span class="muted">—</span>'}</td>
               <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? 's' : ''}</td>
               <td>${sanitize(formatDate(id.firstSeen))}</td>
               <td class="col-link" onclick="event.stopPropagation();showAuditForIdentity('${sanitize(id.emailHash)}')" title="View audit">${sanitize(formatDate(id.lastChanged))}</td>

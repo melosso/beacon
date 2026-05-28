@@ -87,7 +87,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         }
     }
 
-    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null)
+    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null, string? name = null)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
@@ -107,7 +107,8 @@ public sealed class SubmissionFormService : ISubmissionFormService
                 ConsentStatus.OptedIn,
                 customFieldsJson: resolvedCustomFields,
                 source: ConsentSource.Api,
-                consentText: consentText);
+                consentText: consentText,
+                name: name);
         }
 
         // Increment submission count

@@ -77,6 +77,7 @@ public sealed class ConsentRepository : IConsentRepository
         target.TokenHash = src.TokenHash;
         target.ExpiresAt = src.ExpiresAt;
         target.EncryptedEmail ??= src.EncryptedEmail;
+        target.EncryptedName ??= src.EncryptedName;
         if (src.CustomFields is not null)
             target.CustomFields = src.CustomFields;
     }
@@ -230,6 +231,7 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
+                EncryptedName = g.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
                 FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
@@ -263,6 +265,7 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 EmailHash = g.Key,
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
+                EncryptedName = g.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
                 FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
@@ -393,20 +396,22 @@ public sealed class ConsentRepository : IConsentRepository
         };
     }
 
-    public async Task<Dictionary<string, string?>> GetEncryptedEmailsForHashesAsync(
+    public async Task<Dictionary<string, EncryptedContact>> GetEncryptedEmailsForHashesAsync(
         IReadOnlyList<string> hashes, CancellationToken ct = default)
     {
         var rows = await _context.ConsentRecords
+            .AsNoTracking()
             .Where(r => hashes.Contains(r.EmailHash))
             .GroupBy(r => r.EmailHash)
             .Select(g => new
             {
                 EmailHash = g.Key,
-                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
+                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault(),
+                EncryptedName = g.Where(r => r.EncryptedName != null).Select(r => r.EncryptedName).FirstOrDefault()
             })
             .ToListAsync(ct);
 
-        return rows.ToDictionary(r => r.EmailHash, r => r.EncryptedEmail);
+        return rows.ToDictionary(r => r.EmailHash, r => new EncryptedContact(r.EncryptedEmail, r.EncryptedName));
     }
 
     public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync()

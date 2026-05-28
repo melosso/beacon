@@ -514,6 +514,7 @@ public static class SubmissionEndpoints
                 {{(config.Description != null ? $"<p class=\"description\">{WebUtility.HtmlEncode(config.Description)}</p>" : "")}}
                 <form id="nlForm">
                   {{honeypotHtml}}
+                  {{(form.CollectName ? $"<input type=\"text\" name=\"name\" placeholder=\"{WebUtility.HtmlEncode(form.NameLabel ?? "Your name")}\" autocomplete=\"name\" style=\"width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:{InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px")};font-size:0.95rem;outline:none;margin-bottom:8px\" />" : "")}}
                   <div class="form-row">
                     <input type="email" name="email" placeholder="you@example.com" required />
                     <button type="submit">{{WebUtility.HtmlEncode(config.ButtonText ?? "Subscribe")}}</button>
@@ -535,6 +536,8 @@ public static class SubmissionEndpoints
                   try {
                     const fd = new FormData(form);
                     const body = { email: fd.get('email') };
+                    const nameVal = fd.get('name');
+                    if (nameVal) body.name = nameVal;
                     const hp = fd.get('website');
                     if (hp) body.website = hp;
                     const cb = form.querySelector('input[name="consent"]');
@@ -745,6 +748,7 @@ public static class SubmissionEndpoints
 
         // Parse request body (JSON or form-encoded)
         string? email = null;
+        string? name = null;
         string? website = null;
         string? consent = null;
         string? redirectSuccess = null;
@@ -761,6 +765,7 @@ public static class SubmissionEndpoints
         {
             var formData = await context.Request.ReadFormAsync();
             email = formData["email"].FirstOrDefault();
+            name = formData["name"].FirstOrDefault();
             website = formData["website"].FirstOrDefault();
             consent = formData["consent"].FirstOrDefault();
             redirectSuccess = formData["redirect_success"].FirstOrDefault();
@@ -770,9 +775,13 @@ public static class SubmissionEndpoints
         {
             var request = await context.Request.ReadFromJsonAsync<SubmissionSubscribeRequest>();
             email = request?.Email;
+            name = request?.Name;
             website = request?.Website;
             consent = request?.Consent;
         }
+
+        if (name != null && name.Length > 250)
+            name = name[..250];
 
         // Validate POST-supplied redirects against allowed origins; fall back to form-level redirects
         if (isFormPost)
@@ -871,7 +880,8 @@ public static class SubmissionEndpoints
 
         // Subscribe
         var effectiveConsentText = form.ConsentText ?? "I agree to receive emails and understand I can unsubscribe at any time.";
-        await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin);
+        var effectiveName = form.CollectName && !string.IsNullOrWhiteSpace(name) ? name.Trim() : null;
+        await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin, effectiveName);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(form.Bucket));
 
         if (isFormPost && IsValidRedirectUrl(redirectSuccess))
@@ -1097,6 +1107,8 @@ public sealed class FormConfigDto
     public string? BackgroundColor { get; set; }
     public string? TextColor { get; set; }
     public string? BorderRadius { get; set; }
+    public bool CollectName { get; set; } = false;
+    public string? NameLabel { get; set; }
 }
 
 public sealed class CreateSubmissionFormRequest
@@ -1148,6 +1160,7 @@ public sealed class UpdateSubmissionFormRequest
 public sealed class SubmissionSubscribeRequest
 {
     public string Email { get; set; } = string.Empty;
+    public string? Name { get; set; }
     public string? Website { get; set; } // Honeypot field
     public string? Consent { get; set; }
 }

@@ -96,13 +96,14 @@ public sealed class ConsentService : IConsentService
 
     public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status,
         string? customFieldsJson = null, string? actorId = null,
-        ConsentSource source = ConsentSource.Admin, string? consentText = null)
+        ConsentSource source = ConsentSource.Admin, string? consentText = null, string? name = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var emailHash = _emailHasher.Hash(normalizedEmail);
         var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
         var normalizedPermission = NormalizePermission(permission);
+        var encryptedName = !string.IsNullOrWhiteSpace(name) ? _encryptor.Encrypt(name.Trim()) : null;
 
         var record = new ConsentRecord
         {
@@ -110,6 +111,7 @@ public sealed class ConsentService : IConsentService
             Bucket = normalizedBucket,
             EmailHash = emailHash,
             EncryptedEmail = encryptedEmail,
+            EncryptedName = encryptedName,
             Permission = normalizedPermission,
             Status = status,
             Source = source,
@@ -124,7 +126,7 @@ public sealed class ConsentService : IConsentService
 
     public async Task<bool> EnsureAsync(string bucket, string email, string permission, ConsentStatus status,
         string? customFieldsJson = null, string? consentText = null,
-        ConsentSource source = ConsentSource.Admin, string? actorId = null)
+        ConsentSource source = ConsentSource.Admin, string? actorId = null, string? name = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -136,12 +138,14 @@ public sealed class ConsentService : IConsentService
             return false;
 
         var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
+        var encryptedName = !string.IsNullOrWhiteSpace(name) ? _encryptor.Encrypt(name.Trim()) : null;
         var record = new ConsentRecord
         {
             Id = Guid.NewGuid(),
             Bucket = normalizedBucket,
             EmailHash = emailHash,
             EncryptedEmail = encryptedEmail,
+            EncryptedName = encryptedName,
             Permission = normalizedPermission,
             Status = status,
             Source = source,

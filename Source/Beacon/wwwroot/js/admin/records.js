@@ -266,6 +266,7 @@
             </div>
           </div>
         </th>
+        <th>Name</th>
         ${currentBucketPermissions.map(p => `<th><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="copyTextNow('${sanitize(p)}')">${sanitize(formatPermission(p))}<span class="tooltip">${sanitize(p)}</span></span></th>`).join('')}
         <th class="sortable ${dateSortClass}" onclick="toggleSort('lastchanged')">Last Changed ${sortIcon}</th>
         <th style="width:50px"></th>
@@ -285,7 +286,7 @@
         const noResultsMsg = searchQuery
           ? `No records matching "${sanitize(searchQuery)}", please try a different identifier or search type`
           : 'No consent records yet! They appear here after the first API call for this bucket';
-        body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 4}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="${currentBucketPermissions.length + 5}" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${noResultsMsg}</td></tr>`;
       } else {
         body.innerHTML = data.records.map((r, idx) => {
           const switchClass = currentBucketArchived ? 'switch disabled archived' : 'switch disabled';
@@ -313,6 +314,7 @@
                 <label class="row-check"><input type="checkbox" data-hash="${sanitize(r.emailHash)}" ${isSelected ? 'checked' : ''} onchange="toggleBucketSelect('${sanitize(r.emailHash)}', this.checked)"></label>
               </td>
               <td>${emailDisplay}</td>
+              <td>${r.name ? `<span class="name-text">${sanitize(r.name)}</span>` : '<span class="muted">—</span>'}</td>
               ${permCells}
               <td>${sanitize(formatDate(r.lastChanged))}</td>
               <td>

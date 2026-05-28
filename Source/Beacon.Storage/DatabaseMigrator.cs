@@ -50,6 +50,7 @@ public static class DatabaseMigrator
         AddColumnIfMissing(db, "ConsentRecords", "CustomFields", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "IpAddress", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "ConsentText", "TEXT NULL");
+        AddColumnIfMissing(db, "ConsentRecords", "EncryptedName", "TEXT NULL");
     }
 
     private static void MigrateWebhookConfigs(BeaconDbContext db)
@@ -313,6 +314,8 @@ public static class DatabaseMigrator
             AddColumnIfMissing(db, "NewsletterForms", "RedirectJsEmbed", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfMissing(db, "NewsletterForms", "RedirectFormPost", "INTEGER NOT NULL DEFAULT 1");
             AddColumnIfMissing(db, "NewsletterForms", "DisableRedirects", "INTEGER NOT NULL DEFAULT 0");
+            AddColumnIfMissing(db, "NewsletterForms", "CollectName", "INTEGER NOT NULL DEFAULT 0");
+            AddColumnIfMissing(db, "NewsletterForms", "NameLabel", "TEXT NULL");
         }
     }
 

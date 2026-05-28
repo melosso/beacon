@@ -266,6 +266,9 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "Invalid status. Use 'OptedIn' or 'OptedOut'" });
         }
 
+        if (request.Name != null && request.Name.Length > 250)
+            return Results.BadRequest(new { error = "Name must be 250 characters or fewer" });
+
         var emailHash = emailHasher.Hash(request.Email);
         logger.LogInformation(
             "Processing consent override: bucket={Bucket}, id={EmailId}, permission={Permission}, status={Status}, timestamp={Timestamp}",
@@ -283,7 +286,7 @@ public static class AdminEndpoints
 
         try
         {
-            await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson, actorId);
+            await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson, actorId, name: request.Name);
 
             await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
@@ -499,14 +502,14 @@ public static class AdminEndpoints
                     {
                         // Only insert if record doesn't exist, preserving existing user preferences
                         var created = await consentService.EnsureAsync(request.Bucket, request.Email, permission, status, customFieldsJson,
-                            source: ConsentSource.Api, actorId: actorId);
+                            source: ConsentSource.Api, actorId: actorId, name: request.Name);
                         if (created) hasChanges = true;
                     }
                     else
                     {
                         // Always upsert (insert or update)
                         await consentService.OverrideAsync(request.Bucket, request.Email, permission, status, customFieldsJson, actorId,
-                            source: ConsentSource.Api);
+                            source: ConsentSource.Api, name: request.Name);
                         hasChanges = true;
                     }
                 }
@@ -720,20 +723,13 @@ public static class AdminEndpoints
         var idSearch = searchType == "email" ? null : search;
         var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, idSearch);
 
-        // Decrypt emails for admin display
+        // Decrypt emails and names for admin display
         foreach (var record in result.Records)
         {
             if (!string.IsNullOrEmpty(record.EncryptedEmail))
-            {
-                try
-                {
-                    record.Email = encryptor!.Decrypt(record.EncryptedEmail);
-                }
-                catch
-                {
-                    // Decryption failed, leave email as null
-                }
-            }
+                try { record.Email = encryptor!.Decrypt(record.EncryptedEmail); } catch { }
+            if (!string.IsNullOrEmpty(record.EncryptedName))
+                try { record.Name = encryptor!.Decrypt(record.EncryptedName); } catch { }
         }
 
         // If searching by email, filter after decryption
@@ -1367,6 +1363,7 @@ public static class AdminEndpoints
             {
                 emailHash = r.EmailHash,
                 email = r.Email,
+                name = r.Name,
                 bucketCount = r.BucketCount,
                 firstSeen = r.FirstSeen,
                 lastChanged = r.LastChanged
@@ -1443,11 +1440,14 @@ public static class AdminEndpoints
     {
         if (records.Count == 0) return;
         var hashes = records.Select(r => r.EmailHash).ToList();
-        var encryptedEmails = await repository.GetEncryptedEmailsForHashesAsync(hashes, ct);
+        var contacts = await repository.GetEncryptedEmailsForHashesAsync(hashes, ct);
         foreach (var record in records)
         {
-            if (encryptedEmails.TryGetValue(record.EmailHash, out var enc) && enc != null)
-                try { record.Email = encryptor.Decrypt(enc); } catch { }
+            if (!contacts.TryGetValue(record.EmailHash, out var contact)) continue;
+            if (contact.EncryptedEmail != null)
+                try { record.Email = encryptor.Decrypt(contact.EncryptedEmail); } catch { }
+            if (contact.EncryptedName != null)
+                try { record.Name = encryptor.Decrypt(contact.EncryptedName); } catch { }
         }
     }
 
@@ -1488,13 +1488,16 @@ public static class AdminEndpoints
         if (records.Count > 0)
         {
             var hashes = records.Select(r => r.EmailHash).ToList();
-            var encryptedEmails = await repository.GetEncryptedEmailsForHashesAsync(hashes, ct);
+            var contacts = await repository.GetEncryptedEmailsForHashesAsync(hashes, ct);
             await Parallel.ForEachAsync(records,
                 new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
                 (record, token) =>
                 {
-                    if (encryptedEmails.TryGetValue(record.EmailHash, out var enc) && enc != null)
-                        try { record.Email = encryptor.Decrypt(enc); } catch { }
+                    if (contacts.TryGetValue(record.EmailHash, out var c))
+                    {
+                        if (c.EncryptedEmail != null) try { record.Email = encryptor.Decrypt(c.EncryptedEmail); } catch { }
+                        if (c.EncryptedName != null) try { record.Name = encryptor.Decrypt(c.EncryptedName); } catch { }
+                    }
                     return ValueTask.CompletedTask;
                 });
         }
@@ -1506,16 +1509,17 @@ public static class AdminEndpoints
             return Results.Json(records.Select(r => new
             {
                 email = r.Email,
-                beacon_id = r.EmailHash,
+                name = r.Name,
+                beaconId = r.EmailHash,
                 buckets = r.BucketCount,
                 created = r.FirstSeen.ToString("O"),
                 updated = r.LastChanged.ToString("O")
             }));
 
         var sb = new StringBuilder();
-        sb.AppendLine("Email,Beacon ID,Buckets,Created,Updated");
+        sb.AppendLine("Email,Name,Beacon ID,Buckets,Created,Updated");
         foreach (var r in records)
-            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{r.BucketCount},{r.FirstSeen:O},{r.LastChanged:O}");
+            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.Name ?? "")},{CsvEscape(r.EmailHash)},{r.BucketCount},{r.FirstSeen:O},{r.LastChanged:O}");
 
         return Results.Content(sb.ToString(), "text/csv");
     }
@@ -1865,6 +1869,8 @@ public static class AdminEndpoints
             {
                 if (!string.IsNullOrEmpty(record.EncryptedEmail))
                     try { record.Email = encryptor.Decrypt(record.EncryptedEmail); } catch { }
+                if (!string.IsNullOrEmpty(record.EncryptedName))
+                    try { record.Name = encryptor.Decrypt(record.EncryptedName); } catch { }
                 return ValueTask.CompletedTask;
             });
 
@@ -1874,11 +1880,12 @@ public static class AdminEndpoints
         if (format == "json")
             return Results.Json(records.Select(r =>
             {
-                var obj = new Dictionary<string, object?>(permissions.Count + 5)
+                var obj = new Dictionary<string, object?>(permissions.Count + 6)
                 {
                     ["email"] = r.Email,
-                    ["beacon_id"] = r.EmailHash,
-                    ["external_id"] = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : null
+                    ["name"] = r.Name,
+                    ["beaconId"] = r.EmailHash,
+                    ["externalId"] = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : null
                 };
                 foreach (var p in permissions)
                     obj[p] = r.Permissions.TryGetValue(p, out var v) ? v : false;
@@ -1889,13 +1896,13 @@ public static class AdminEndpoints
 
         var sb = new StringBuilder();
         var permHeaders = string.Join(",", permissions.Select(p => CsvEscape(p)));
-        sb.AppendLine($"Email,Beacon ID,External ID,{permHeaders},Created,Updated");
+        sb.AppendLine($"Email,Name,Beacon ID,External ID,{permHeaders},Created,Updated");
         foreach (var r in records)
         {
             var externalId = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : "";
             var permValues = string.Join(",", permissions.Select(p =>
                 r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
-            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.EmailHash)},{CsvEscape(externalId)},{permValues},{r.FirstSeen:O},{r.LastChanged:O}");
+            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.Name ?? "")},{CsvEscape(r.EmailHash)},{CsvEscape(externalId)},{permValues},{r.FirstSeen:O},{r.LastChanged:O}");
         }
         return Results.Content(sb.ToString(), "text/csv");
     }
@@ -2009,14 +2016,14 @@ public static class AdminEndpoints
 
         // Decrypt emails for audit records
         var distinctHashes = result.Records.Select(e => e.EmailHash).Distinct().ToList();
-        var emailMap = distinctHashes.Count > 0
+        var contactMap = distinctHashes.Count > 0
             ? await repository.GetEncryptedEmailsForHashesAsync(distinctHashes, ct)
-            : new Dictionary<string, string?>();
+            : new Dictionary<string, EncryptedContact>();
 
         string? DecryptEmail(string hash)
         {
-            if (!emailMap.TryGetValue(hash, out var enc) || enc is null) return null;
-            try { return encryptor.Decrypt(enc); } catch { return null; }
+            if (!contactMap.TryGetValue(hash, out var c) || c.EncryptedEmail is null) return null;
+            try { return encryptor.Decrypt(c.EncryptedEmail); } catch { return null; }
         }
 
         return Results.Ok(new
@@ -2282,6 +2289,7 @@ public sealed class OverrideConsentRequest
     public string Email { get; set; } = string.Empty;
     public string Permission { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public string? Name { get; set; }
     public Dictionary<string, string>? CustomFields { get; set; }
 }
 
@@ -2321,6 +2329,11 @@ public sealed class GenerateTokenRequest
     /// Default: "en" (English).
     /// </summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// Optional name to store alongside the email record. Encrypted at rest.
+    /// </summary>
+    public string? Name { get; set; }
 
     /// <summary>
     /// Optional custom fields to store alongside the email record.
