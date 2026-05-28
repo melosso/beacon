@@ -1,4 +1,4 @@
-# 🌌 Beacon
+# Beacon
 
 [![License](https://img.shields.io/badge/license-AGPL%203.0-blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
@@ -83,16 +83,22 @@ Access the Admin panel at **http://localhost:5001** and API at **http://localhos
 Download the latest release from [Releases](https://github.com/melosso/beacon/releases).
 
 1. **Install .NET 10 Runtime:**
+
 ```powershell
 winget install --id Microsoft.DotNet.Runtime.10 -e
 ```
 
 2. **Set encryption key:**
+
 ```powershell
 $bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [Environment]::SetEnvironmentVariable("BEACON_ENCRYPTION_KEY", [Convert]::ToBase64String($bytes), "Machine")
 ```
 
 3. **Install service:**
+
+
+Before starting the service, manually set your `SigningKey`, `Pepper`, and `AdminApiKey` as plaintext in `appsettings.json`!
+
 ```powershell
 .\Beacon.bat install
 .\Beacon.bat start
@@ -100,11 +106,11 @@ $bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Cr
 
 4. Open browser → **http://localhost:5000** / **http://localhost:5001**
 
-On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted. You should, ofcourse, safely store your API key to keep access to the admin panel too.
+On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted in-place. You should, ofcourse, safely store your API key to keep access to the admin panel too.
 
 ---
 
-For production deployments with host-based routing, see the [Configuration](#configuration) section.
+For production deployments with host-based routing, see the [Configuration](CONFIGURATION.md) section.
 
 ## How to Use
 
@@ -116,11 +122,9 @@ https://beacon.acme-corporation.com/u/v1.eyJiIjoicTEtY2FtcGFpZ24iLCJlIjoia...
 
 You can incorporate this in your newsletters, system notifications, or anything you'd like – allowing your user to configure their permissions in decentralized system and keeping them outside of your data source:
 
-![Screenshot of Permissions](https://github.com/melosso/beacon/blob/main/.github/images/screenshot2.webp?raw=true)
-
 ## API-first
 
-As Beacon is an API-first platform, all consent management operations should be handled programmatically. While manual execution via the web UII is possible, integration typically involves automating these calls within your specific workflow. The first step requires creating a permission state for an email address in a bucket–which triggers the automatic creation of the target bucket if it is not already present. 
+As Beacon is an API-first platform, all consent management operations should be handled programmatically. While manual execution via the web UII is possible, integration typically involves automating these calls within your specific workflow. The first step requires creating a permission state for an email address in a bucket–which triggers the automatic creation of the target bucket if it is not already present.
 
 #### Generate Token
 Creates consent records and returns a signed opt-out token (`[{"token":"<signed_jwt>"}]`).
@@ -143,7 +147,7 @@ curl -X POST http://localhost:5000/api/tokens/generate \
 
 Response is an array of `[{"token":"<signed_token>","doubleOptIn":false}]`. Access the first element for single-item requests.
 
-If you're planning on updating the permission record after insertion, may want to use configure `skipPermissionUpdate` to prevent overwriting (user) updated permissions. 
+If you're planning on updating the permission record after insertion, may want to use configure `skipPermissionUpdate` to prevent overwriting (user) updated permissions.
 
 #### Process Opt-Out
 User clicks the token link to update preferences.
@@ -203,7 +207,6 @@ curl -X POST http://localhost:5000/api/tokens/generate \
 ## Configuration
 
 Depending on your environment, these settings are changed in your `.env`, `docker-compose.yml` or `appsettings.json` file. Please see the [configuration section](CONFIGURATION.md) for all details.
-
 
 ## License
 
