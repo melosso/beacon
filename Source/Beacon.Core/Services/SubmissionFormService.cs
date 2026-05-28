@@ -97,6 +97,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         var resolvedCustomFields = ResolveCustomFieldVariables(form.CustomFields, form, origin);
+        var actorId = $"form:{form.Name}";
 
         foreach (var permission in permissions)
         {
@@ -106,6 +107,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
                 permission,
                 ConsentStatus.OptedIn,
                 customFieldsJson: resolvedCustomFields,
+                actorId: actorId,
                 source: ConsentSource.Api,
                 consentText: consentText,
                 name: name);

@@ -8,6 +8,10 @@ public static class DatabaseMigrator
     {
         db.Database.EnsureCreated();
 
+        // Manual migration only applies to SQLite; other providers rely on EnsureCreated schema.
+        if (!db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) ?? true)
+            return;
+
         MigrateConsentRecords(db);
         MigrateWebhookConfigs(db);
         MigrateWebhookDeliveryErrors(db);
@@ -355,11 +359,13 @@ public static class DatabaseMigrator
                     UpdatedAt TEXT NOT NULL
                 )
                 """);
-            db.Database.ExecuteSqlRaw("""
-                INSERT INTO BrandIdentities (Id, Name, Settings, IsDefault, CreatedAt, UpdatedAt)
-                VALUES (1, 'Default', '{{}}', 1, datetime('now'), datetime('now'))
-                """);
         }
+
+        db.Database.ExecuteSqlRaw("""
+            INSERT OR IGNORE INTO BrandIdentities (Id, Name, Settings, IsDefault, CreatedAt, UpdatedAt)
+            SELECT 1, 'Default', '{}', 1, datetime('now'), datetime('now')
+            WHERE NOT EXISTS (SELECT 1 FROM BrandIdentities WHERE IsDefault = 1)
+            """);
 
         if (!TableExists(db, "BucketIdentities"))
         {

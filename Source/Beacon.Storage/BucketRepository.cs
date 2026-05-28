@@ -66,6 +66,7 @@ public class BucketRepository : IBucketRepository
     public async Task<IReadOnlyList<string>> GetPermissionsAsync(string bucket)
     {
         return await _db.BucketPermissions
+            .AsNoTracking()
             .Where(bp => bp.Bucket == bucket)
             .Select(bp => bp.Permission)
             .OrderBy(p => p)
@@ -75,6 +76,7 @@ public class BucketRepository : IBucketRepository
     public async Task<IReadOnlyList<string>> GetAllBucketNamesAsync()
     {
         return await _db.BucketPermissions
+            .AsNoTracking()
             .Select(bp => bp.Bucket)
             .Distinct()
             .OrderBy(b => b)
@@ -99,6 +101,7 @@ public class BucketRepository : IBucketRepository
     private async Task<Dictionary<string, List<string>>> FetchAllPermissionsGroupedAsync(CancellationToken ct = default)
     {
         var rows = await _db.BucketPermissions
+            .AsNoTracking()
             .Select(bp => new { bp.Bucket, bp.Permission })
             .OrderBy(bp => bp.Permission)
             .ToListAsync(ct);
@@ -111,6 +114,7 @@ public class BucketRepository : IBucketRepository
     public async Task<HashSet<string>> GetArchivedBucketsAsync()
     {
         return (await _db.ArchivedBuckets
+            .AsNoTracking()
             .Select(a => a.Bucket)
             .ToListAsync())
             .ToHashSet();

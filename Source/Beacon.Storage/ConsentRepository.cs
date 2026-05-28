@@ -112,7 +112,7 @@ public sealed class ConsentRepository : IConsentRepository
         string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default,
         IReadOnlyList<string>? emailHashes = null)
     {
-        var query = _context.ConsentAuditEntries.AsQueryable();
+        var query = _context.ConsentAuditEntries.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(bucket))
             query = query.Where(e => e.Bucket == bucket);
         if (emailHashes is { Count: > 0 })
@@ -145,11 +145,13 @@ public sealed class ConsentRepository : IConsentRepository
     public async Task<IReadOnlyList<BucketInfo>> GetBucketsAsync()
     {
         var summaries = await _context.ConsentRecords
+            .AsNoTracking()
             .GroupBy(r => r.Bucket)
             .Select(g => new { Name = g.Key, TotalEmails = g.Select(r => r.EmailHash).Distinct().Count() })
             .ToListAsync();
 
         var permRows = await _context.ConsentRecords
+            .AsNoTracking()
             .Select(r => new { r.Bucket, r.Permission })
             .Distinct()
             .ToListAsync();
@@ -171,16 +173,19 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<BucketDetails> GetBucketDetailsAsync(string bucket)
     {
-        var records = await _context.ConsentRecords
+        var rows = await _context.ConsentRecords
+            .AsNoTracking()
             .Where(r => r.Bucket == bucket)
+            .GroupBy(r => new { r.Permission, r.Status })
+            .Select(g => new { g.Key.Permission, g.Key.Status, Count = g.Count() })
             .ToListAsync();
 
-        var permissions = records.Select(r => r.Permission).Distinct().OrderBy(p => p).ToList();
+        var permissions = rows.Select(r => r.Permission).Distinct().OrderBy(p => p).ToList();
         var stats = permissions.Select(p => new PermissionStats
         {
             Permission = p,
-            OptedIn = records.Count(r => r.Permission == p && r.Status == ConsentStatus.OptedIn),
-            OptedOut = records.Count(r => r.Permission == p && r.Status == ConsentStatus.OptedOut)
+            OptedIn = rows.Where(r => r.Permission == p && r.Status == ConsentStatus.OptedIn).Sum(r => r.Count),
+            OptedOut = rows.Where(r => r.Permission == p && r.Status == ConsentStatus.OptedOut).Sum(r => r.Count)
         }).ToList();
 
         return new BucketDetails
@@ -193,7 +198,7 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
     {
-        var baseQuery = _context.ConsentRecords.Where(r => r.Bucket == bucket);
+        var baseQuery = _context.ConsentRecords.AsNoTracking().Where(r => r.Bucket == bucket);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -266,6 +271,7 @@ public sealed class ConsentRepository : IConsentRepository
     public async Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket)
     {
         var bucketRecords = await _context.ConsentRecords
+            .AsNoTracking()
             .Where(r => r.Bucket == bucket)
             .ToListAsync();
 
@@ -351,7 +357,7 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
     {
-        var baseQuery = _context.ConsentRecords.AsQueryable();
+        var baseQuery = _context.ConsentRecords.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -451,6 +457,7 @@ public sealed class ConsentRepository : IConsentRepository
             return new PagedResult<IdentityInfo> { Records = [], Total = 0, Page = page, PageSize = pageSize };
 
         var baseQuery = _context.ConsentRecords
+            .AsNoTracking()
             .Where(r => hashes.Contains(r.EmailHash));
 
         var total = await baseQuery
@@ -500,35 +507,14 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
     {
-        var subscriptions = await GetSubscriptionsAsync(emailHash);
-        if (subscriptions.Count == 0) return null;
-
-        var encryptedEmail = await _context.ConsentRecords
-            .Where(r => r.EmailHash == emailHash && r.EncryptedEmail != null)
-            .Select(r => r.EncryptedEmail)
-            .FirstOrDefaultAsync();
-
-        var encryptedName = await _context.ConsentRecords
-            .Where(r => r.EmailHash == emailHash && r.EncryptedName != null)
-            .Select(r => r.EncryptedName)
-            .FirstOrDefaultAsync();
-
-        return new IdentityDetails
-        {
-            EmailHash = emailHash,
-            EncryptedEmail = encryptedEmail,
-            EncryptedName = encryptedName,
-            Subscriptions = subscriptions
-        };
-    }
-
-    private async Task<IReadOnlyList<BucketSubscription>> GetSubscriptionsAsync(string emailHash)
-    {
         var records = await _context.ConsentRecords
+            .AsNoTracking()
             .Where(r => r.EmailHash == emailHash)
             .ToListAsync();
 
-        return records
+        if (records.Count == 0) return null;
+
+        var subscriptions = records
             .GroupBy(r => r.Bucket)
             .Select(g => new BucketSubscription
             {
@@ -538,6 +524,14 @@ public sealed class ConsentRepository : IConsentRepository
             })
             .OrderBy(b => b.Bucket)
             .ToList();
+
+        return new IdentityDetails
+        {
+            EmailHash = emailHash,
+            EncryptedEmail = records.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
+            EncryptedName = records.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
+            Subscriptions = subscriptions
+        };
     }
 
     public async Task<IDisposable> BeginTransactionAsync()
