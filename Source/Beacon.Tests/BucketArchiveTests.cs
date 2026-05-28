@@ -56,7 +56,7 @@ public class BucketArchiveTests : IDisposable
         await _repository.ArchiveAsync("test-bucket");
         var after = DateTime.UtcNow;
 
-        var entry = await _db.ArchivedBuckets.FindAsync("test-bucket");
+        var entry = await _db.ArchivedBuckets.FindAsync(["test-bucket"], TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.InRange(entry.ArchivedAt, before, after);
     }
@@ -67,7 +67,7 @@ public class BucketArchiveTests : IDisposable
         await _repository.ArchiveAsync("test-bucket");
         await _repository.ArchiveAsync("test-bucket");
 
-        var count = await _db.ArchivedBuckets.CountAsync(a => a.Bucket == "test-bucket");
+        var count = await _db.ArchivedBuckets.CountAsync(a => a.Bucket == "test-bucket", TestContext.Current.CancellationToken);
         Assert.Equal(1, count);
     }
 
@@ -88,7 +88,7 @@ public class BucketArchiveTests : IDisposable
         // Should not throw
         await _repository.UnarchiveAsync("nonexistent-bucket");
 
-        var count = await _db.ArchivedBuckets.CountAsync();
+        var count = await _db.ArchivedBuckets.CountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, count);
     }
 

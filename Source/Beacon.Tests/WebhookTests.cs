@@ -233,7 +233,7 @@ public class WebhookTests
         var queue = new WebhookDeliveryQueue();
         var message = CreateDeliveryMessage();
 
-        await queue.EnqueueAsync(message);
+        await queue.EnqueueAsync(message, TestContext.Current.CancellationToken);
 
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
         var dequeued = await queue.DequeueAllAsync(cts.Token).FirstAsync(cts.Token);
@@ -255,7 +255,7 @@ public class WebhookTests
                 Url = $"https://example.com/{i}",
                 Method = "POST",
                 Bucket = TestBucket
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
@@ -294,7 +294,7 @@ public class WebhookTests
         }, cts.Token);
 
         // Small delay to let the subscriber register
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await service.PublishAsync(notification);
         await readTask;
 
@@ -331,7 +331,7 @@ public class WebhookTests
             }
         }, cts.Token);
 
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await service.PublishAsync(notification);
         await Task.WhenAll(task1, task2);
 
@@ -356,11 +356,11 @@ public class WebhookTests
                     items.Add(n);
             }
             catch (OperationCanceledException) { }
-        });
+        }, TestContext.Current.CancellationToken);
 
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await service.PublishAsync(new WebhookErrorNotification(TestBucket, "err1", 0, DateTime.UtcNow));
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await cts.CancelAsync();
         await readTask;
 

@@ -58,7 +58,7 @@ public class EmailQueueRepositoryTests : IDisposable
         var entry = MakeEntry("tk1");
         await _repository.EnqueueAsync(entry);
 
-        var stored = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var stored = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(stored);
         Assert.Equal(EmailQueueStatus.Pending, stored.Status);
     }
@@ -69,7 +69,7 @@ public class EmailQueueRepositoryTests : IDisposable
         var entry = MakeEntry("tk1", bucket: "my-bucket", emailHash: "hash42", permission: "alerts");
         await _repository.EnqueueAsync(entry);
 
-        var stored = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var stored = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(stored);
         Assert.Equal("my-bucket", stored.Bucket);
         Assert.Equal("hash42", stored.EmailHash);
@@ -147,7 +147,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkSentAsync(entry.Id, DateTime.UtcNow);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Sent, updated!.Status);
     }
 
@@ -160,7 +160,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkSentAsync(entry.Id, DateTime.UtcNow);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(1, updated!.AttemptCount);
     }
 
@@ -174,7 +174,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkSentAsync(entry.Id, DateTime.UtcNow);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated!.SentAt);
         Assert.True(updated.SentAt >= before);
     }
@@ -189,7 +189,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkFailedAsync(entry.Id, "timeout", DateTime.UtcNow.AddMinutes(5));
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Pending, updated!.Status);
     }
 
@@ -202,7 +202,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkFailedAsync(entry.Id, "unrecoverable", null);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Failed, updated!.Status);
     }
 
@@ -215,7 +215,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkFailedAsync(entry.Id, "SMTP refused", null);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal("SMTP refused", updated!.LastError);
     }
 
@@ -228,7 +228,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkFailedAsync(entry.Id, "err", null);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(1, updated!.AttemptCount);
     }
 
@@ -266,7 +266,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Confirmed, updated!.Status);
     }
 
@@ -280,7 +280,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated!.ConfirmedAt);
         Assert.True(updated.ConfirmedAt >= before);
     }
@@ -342,7 +342,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.PruneExpiredAsync();
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Expired, updated!.Status);
     }
 
@@ -355,7 +355,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.PruneExpiredAsync();
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Pending, updated!.Status);
     }
 
@@ -369,7 +369,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.PruneExpiredAsync();
         _db.ChangeTracker.Clear();
 
-        var updated = await _db.EmailQueueEntries.FindAsync(entry.Id);
+        var updated = await _db.EmailQueueEntries.FindAsync([entry.Id], TestContext.Current.CancellationToken);
         Assert.Equal(EmailQueueStatus.Confirmed, updated!.Status);
     }
 
@@ -392,7 +392,7 @@ public class EmailQueueRepositoryTests : IDisposable
         await _repository.CancelPendingAsync(bucket, emailHash, permission);
         _db.ChangeTracker.Clear();
 
-        var entries = await _db.EmailQueueEntries.ToListAsync();
+        var entries = await _db.EmailQueueEntries.ToListAsync(TestContext.Current.CancellationToken);
 
         var cancelled = entries.Single(e => e.Permission == permission);
         var stillPending = entries.Single(e => e.Permission == "other-permission");

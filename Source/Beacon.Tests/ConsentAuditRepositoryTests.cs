@@ -39,7 +39,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(record);
         _db.ChangeTracker.Clear();
 
-        var result = await _repository.GetAuditAsync(null, null, 1, 10);
+        var result = await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken);
         Assert.Equal(1, result.Total);
         var entry = result.Records[0];
         Assert.Null(entry.OldStatus);
@@ -58,7 +58,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(MakeRecord("bucket-a", "hash1", "newsletter", ConsentStatus.OptedOut));
         _db.ChangeTracker.Clear();
 
-        var result = await _repository.GetAuditAsync(null, null, 1, 10);
+        var result = await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken);
         Assert.Equal(2, result.Total);
 
         var latest = result.Records[0];
@@ -75,7 +75,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(record);
         _db.ChangeTracker.Clear();
 
-        var result = await _repository.GetAuditAsync(null, null, 1, 10);
+        var result = await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken);
         Assert.Equal(1, result.Total);
     }
 
@@ -87,7 +87,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(record, "alice");
         _db.ChangeTracker.Clear();
 
-        var result = await _repository.GetAuditAsync(null, null, 1, 10);
+        var result = await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken);
         Assert.Equal("alice", result.Records[0].ActorId);
     }
 
@@ -99,8 +99,8 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(MakeRecord("bucket-a", "hash3", "newsletter", ConsentStatus.OptedIn));
         _db.ChangeTracker.Clear();
 
-        var page1 = await _repository.GetAuditAsync(null, null, 1, 2);
-        var page2 = await _repository.GetAuditAsync(null, null, 2, 2);
+        var page1 = await _repository.GetAuditAsync(null, null, 1, 2, TestContext.Current.CancellationToken);
+        var page2 = await _repository.GetAuditAsync(null, null, 2, 2, TestContext.Current.CancellationToken);
 
         Assert.Equal(3, page1.Total);
         Assert.Equal(2, page1.Records.Count);
@@ -114,7 +114,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(MakeRecord("bucket-b", "hash1", "newsletter", ConsentStatus.OptedIn));
         _db.ChangeTracker.Clear();
 
-        var result = await _repository.GetAuditAsync("bucket-a", null, 1, 10);
+        var result = await _repository.GetAuditAsync("bucket-a", null, 1, 10, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.Total);
         Assert.Equal("bucket-a", result.Records[0].Bucket);
@@ -127,7 +127,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(MakeRecord("bucket-a", "hash2", "newsletter", ConsentStatus.OptedIn));
         _db.ChangeTracker.Clear();
 
-        var result = await _repository.GetAuditAsync(null, "hash2", 1, 10);
+        var result = await _repository.GetAuditAsync(null, "hash2", 1, 10, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, result.Total);
         Assert.Equal("hash2", result.Records[0].EmailHash);

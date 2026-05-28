@@ -71,7 +71,7 @@ public class BucketOptionsRepositoryTests : IDisposable
     {
         await _repository.SaveAsync(new BucketOptions { Bucket = "new-bucket", DoubleOptIn = false });
 
-        var count = await _db.BucketOptions.CountAsync(b => b.Bucket == "new-bucket");
+        var count = await _db.BucketOptions.CountAsync(b => b.Bucket == "new-bucket", TestContext.Current.CancellationToken);
         Assert.Equal(1, count);
     }
 
@@ -82,7 +82,7 @@ public class BucketOptionsRepositoryTests : IDisposable
         await _repository.SaveAsync(new BucketOptions { Bucket = "my-bucket", DoubleOptIn = true });
         var after = DateTime.UtcNow;
 
-        var stored = await _db.BucketOptions.FindAsync("my-bucket");
+        var stored = await _db.BucketOptions.FindAsync(["my-bucket"], TestContext.Current.CancellationToken);
         Assert.NotNull(stored!.UpdatedAt);
         Assert.InRange(stored.UpdatedAt!.Value, before, after);
     }
@@ -103,7 +103,7 @@ public class BucketOptionsRepositoryTests : IDisposable
         await _repository.SaveAsync(new BucketOptions { Bucket = "my-bucket", DoubleOptIn = true });
         await _repository.SaveAsync(new BucketOptions { Bucket = "my-bucket", DoubleOptIn = false });
 
-        var count = await _db.BucketOptions.CountAsync(b => b.Bucket == "my-bucket");
+        var count = await _db.BucketOptions.CountAsync(b => b.Bucket == "my-bucket", TestContext.Current.CancellationToken);
         Assert.Equal(1, count);
     }
 
@@ -116,7 +116,7 @@ public class BucketOptionsRepositoryTests : IDisposable
         await _repository.SaveAsync(new BucketOptions { Bucket = "my-bucket", DoubleOptIn = false });
         var after = DateTime.UtcNow;
 
-        var stored = await _db.BucketOptions.FindAsync("my-bucket");
+        var stored = await _db.BucketOptions.FindAsync(["my-bucket"], TestContext.Current.CancellationToken);
         Assert.NotNull(stored!.UpdatedAt);
         Assert.InRange(stored.UpdatedAt!.Value, before, after);
     }

@@ -313,7 +313,7 @@ public class UserRepositoryTests : IDisposable
     {
         await SeedUserAsync();
 
-        Assert.Equal(1, await _db.Users.CountAsync());
+        Assert.Equal(1, await _db.Users.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -470,7 +470,7 @@ public class UserRepositoryTests : IDisposable
     public async Task GetAllAsync_OrdersByCreatedAtDescending()
     {
         var u1 = await SeedUserAsync("first");
-        await Task.Delay(10); // ensure distinct CreatedAt
+        await Task.Delay(10, TestContext.Current.CancellationToken); // ensure distinct CreatedAt
         var u2 = await SeedUserAsync("second");
 
         var result = await _repository.GetAllAsync();
@@ -490,7 +490,7 @@ public class UserRepositoryTests : IDisposable
 
         await _repository.UpdatePasswordAsync(user.Id, newHash, newSalt);
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.Equal(newHash, updated!.PasswordHash);
         Assert.Equal(newSalt, updated.Salt);
         Assert.NotEqual(originalHash, updated.PasswordHash);
@@ -506,7 +506,7 @@ public class UserRepositoryTests : IDisposable
         await _repository.UpdatePasswordAsync(user.Id, newHash, newSalt);
         var after = DateTime.UtcNow;
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated!.UpdatedAt);
         Assert.InRange(updated.UpdatedAt!.Value, before, after);
     }
@@ -527,7 +527,7 @@ public class UserRepositoryTests : IDisposable
 
         await _repository.UpdateApiKeyAsync(user.Id, newKeyHash);
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.Equal(newKeyHash, updated!.ApiKeyHash);
     }
 
@@ -541,7 +541,7 @@ public class UserRepositoryTests : IDisposable
         await _repository.UpdateApiKeyAsync(user.Id, newKeyHash);
         var after = DateTime.UtcNow;
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated!.UpdatedAt);
         Assert.InRange(updated.UpdatedAt!.Value, before, after);
     }
@@ -555,7 +555,7 @@ public class UserRepositoryTests : IDisposable
 
         await _repository.UpdateRoleAsync(user.Id, "user");
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.Equal("user", updated!.Role);
     }
 
@@ -566,7 +566,7 @@ public class UserRepositoryTests : IDisposable
 
         await _repository.UpdateRoleAsync(user.Id, "admin");
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.Equal("admin", updated!.Role);
     }
 
@@ -582,7 +582,7 @@ public class UserRepositoryTests : IDisposable
         await _repository.SetLastLoginAsync(user.Id);
         var after = DateTime.UtcNow;
 
-        var updated = await _db.Users.FindAsync(user.Id);
+        var updated = await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken);
         Assert.NotNull(updated!.LastLoginAt);
         Assert.InRange(updated.LastLoginAt!.Value, before, after);
     }
@@ -592,11 +592,11 @@ public class UserRepositoryTests : IDisposable
     {
         var user = await SeedUserAsync();
         await _repository.SetLastLoginAsync(user.Id);
-        var firstLogin = (await _db.Users.FindAsync(user.Id))!.LastLoginAt;
+        var firstLogin = (await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken))!.LastLoginAt;
 
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         await _repository.SetLastLoginAsync(user.Id);
-        var secondLogin = (await _db.Users.FindAsync(user.Id))!.LastLoginAt;
+        var secondLogin = (await _db.Users.FindAsync([user.Id], TestContext.Current.CancellationToken))!.LastLoginAt;
 
         Assert.True(secondLogin >= firstLogin);
     }
@@ -610,7 +610,7 @@ public class UserRepositoryTests : IDisposable
 
         await _repository.DeleteAsync(user.Id);
 
-        Assert.Equal(0, await _db.Users.CountAsync());
+        Assert.Equal(0, await _db.Users.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -621,8 +621,8 @@ public class UserRepositoryTests : IDisposable
 
         await _repository.DeleteAsync(u2.Id);
 
-        Assert.Equal(1, await _db.Users.CountAsync());
-        Assert.NotNull(await _db.Users.FindAsync(u1.Id));
+        Assert.Equal(1, await _db.Users.CountAsync(TestContext.Current.CancellationToken));
+        Assert.NotNull(await _db.Users.FindAsync([u1.Id], TestContext.Current.CancellationToken));
     }
 
     [Fact]

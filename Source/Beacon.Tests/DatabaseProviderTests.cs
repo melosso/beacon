@@ -51,7 +51,7 @@ public abstract class DatabaseProviderTests
             MakeRecord(bucket, "h2", "newsletter", ConsentStatus.OptedIn),
             MakeRecord(bucket, "h3", "newsletter", ConsentStatus.OptedOut),
             MakeRecord(bucket, "h1", "sms", ConsentStatus.OptedOut));
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var repo = new ConsentRepository(db);
         var details = await repo.GetBucketDetailsAsync(bucket);
@@ -79,7 +79,7 @@ public abstract class DatabaseProviderTests
         db.ConsentRecords.AddRange(
             MakeRecord("bucket-a", hash, "p1", ConsentStatus.OptedIn, encEmail: "enc-email"),
             MakeRecord("bucket-a", hash, "p2", ConsentStatus.OptedIn, encName: "enc-name"));
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var repo = new ConsentRepository(db);
         var identity = await repo.GetIdentityDetailsAsync(hash);
@@ -140,7 +140,7 @@ public abstract class DatabaseProviderTests
 
 public class SqlServerContainerFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer _container = new MsSqlBuilder().Build();
+    private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
     public string ConnectionString { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
@@ -176,7 +176,7 @@ public class SqlServerDatabaseTests : DatabaseProviderTests, IClassFixture<SqlSe
 
 public class PostgreSqlContainerFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder().Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16").Build();
     public string ConnectionString { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
@@ -212,7 +212,7 @@ public class PostgreSqlDatabaseTests : DatabaseProviderTests, IClassFixture<Post
 
 public class MySqlContainerFixture : IAsyncLifetime
 {
-    private readonly MySqlContainer _container = new MySqlBuilder().Build();
+    private readonly MySqlContainer _container = new MySqlBuilder("mysql:8").Build();
     public string ConnectionString { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
