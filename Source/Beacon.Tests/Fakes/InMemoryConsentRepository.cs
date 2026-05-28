@@ -22,9 +22,14 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
     }
 
     public Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(
-        string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default)
+        string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default,
+        IReadOnlyList<string>? emailHashes = null)
         => Task.FromResult(new PagedResult<ConsentAuditEntry>
             { Records = [], Total = 0, Page = page, PageSize = pageSize });
+
+    public Task<Dictionary<string, EncryptedContact>> GetEncryptedEmailsForHashesAsync(
+        IReadOnlyList<string> hashes, CancellationToken ct = default)
+        => Task.FromResult(new Dictionary<string, EncryptedContact>());
 
     public Task<IReadOnlyList<BucketInfo>> GetBucketsAsync()
     {

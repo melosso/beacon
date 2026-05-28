@@ -353,7 +353,7 @@ public static class DatabaseMigrator
                 CREATE TABLE BrandIdentities (
                     Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
-                    Settings TEXT NOT NULL DEFAULT '{{}}',
+                    Settings TEXT NOT NULL DEFAULT (json_object()),
                     IsDefault INTEGER NOT NULL DEFAULT 0,
                     CreatedAt TEXT NOT NULL,
                     UpdatedAt TEXT NOT NULL
@@ -363,7 +363,7 @@ public static class DatabaseMigrator
 
         db.Database.ExecuteSqlRaw("""
             INSERT OR IGNORE INTO BrandIdentities (Id, Name, Settings, IsDefault, CreatedAt, UpdatedAt)
-            SELECT 1, 'Default', '{}', 1, datetime('now'), datetime('now')
+            SELECT 1, 'Default', json_object(), 1, datetime('now'), datetime('now')
             WHERE NOT EXISTS (SELECT 1 FROM BrandIdentities WHERE IsDefault = 1)
             """);
 
