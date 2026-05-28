@@ -108,6 +108,22 @@
             </div>
           </div>
           <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-weight:600;margin-bottom:0.75rem">Name Field</p>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Collect full name</div>
+                <div class="checkbox-toggle-desc">Show an optional name field above the email input</div>
+              </div>
+              <input type="checkbox" id="nlCollectName">
+              <span class="toggle-track"></span>
+            </label>
+            <div class="form-group" style="margin-top:0.75rem">
+              <label>Name Field Label</label>
+              <input type="text" id="nlNameLabel" placeholder="Your full name" maxlength="100">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Custom label for the name input. Leave empty to use the default.</p>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
             <p style="font-weight:600;margin-bottom:0.75rem">Form Completion</p>
             <div class="form-group">
               <label title="After a successful form POST submission, redirect the user to this URL. Leave empty to return JSON instead.">Redirect on Success</label>

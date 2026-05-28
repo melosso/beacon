@@ -101,6 +101,8 @@
       document.getElementById('nlConsentRequired').checked = true;
       document.getElementById('nlConsentText').value = '';
       document.getElementById('nlPrivacyPolicyUrl').value = '';
+      document.getElementById('nlCollectName').checked = false;
+      document.getElementById('nlNameLabel').value = '';
       nlCustomFields = {};
       document.getElementById('nlCustomFieldsList').innerHTML = '';
       document.getElementById('nlApiTokenDisplay').style.display = 'none';
@@ -128,6 +130,8 @@
         document.getElementById('nlConsentRequired').checked = editData.consentRequired !== false;
         document.getElementById('nlConsentText').value = editData.consentText || '';
         document.getElementById('nlPrivacyPolicyUrl').value = editData.privacyPolicyUrl || '';
+        document.getElementById('nlCollectName').checked = !!editData.collectName;
+        document.getElementById('nlNameLabel').value = editData.nameLabel || '';
         nlCustomFields = { ...(editData.customFields || {}) };
         renderNlCustomFieldsList();
         if (editData.formConfig) {
@@ -280,6 +284,8 @@
         consentRequired: document.getElementById('nlConsentRequired').checked,
         consentText: document.getElementById('nlConsentText').value.trim() || null,
         privacyPolicyUrl: document.getElementById('nlPrivacyPolicyUrl').value.trim() || null,
+        collectName: document.getElementById('nlCollectName').checked,
+        nameLabel: document.getElementById('nlNameLabel').value.trim() || null,
         customFields: Object.keys(nlCustomFields).length > 0 ? nlCustomFields : null,
         formConfig: {
           title: document.getElementById('nlTitle').value.trim() || null,
@@ -372,6 +378,8 @@
         document.getElementById('nlConsentRequired').checked = result.data.consentRequired !== false;
         document.getElementById('nlConsentText').value = result.data.consentText || '';
         document.getElementById('nlPrivacyPolicyUrl').value = result.data.privacyPolicyUrl || '';
+        document.getElementById('nlCollectName').checked = !!result.data.collectName;
+        document.getElementById('nlNameLabel').value = result.data.nameLabel || '';
         nlCustomFields = { ...(result.data.customFields || {}) };
       }
 
@@ -468,9 +476,13 @@
       const consentText = document.getElementById('nlConsentText').value.trim() || 'I agree to receive emails and understand I can unsubscribe at any time.';
       const privacyUrl = document.getElementById('nlPrivacyPolicyUrl').value.trim();
       const disableRedirects = document.getElementById('nlDisableRedirects').checked;
+      const collectName = document.getElementById('nlCollectName')?.checked;
+      const nameLabel = document.getElementById('nlNameLabel')?.value.trim() || 'Your full name';
       const hiddenFields = (disableRedirects || rs || re) ? '' :
         `\n  <input type="hidden" name="redirect_success" value="https://yoursite.com/thank-you" />` +
         `\n  <input type="hidden" name="redirect_error" value="https://yoursite.com/error" />`;
+      const nameField = collectName ?
+        `\n  <input type="text" name="name" placeholder="${nameLabel}" autocomplete="name" />` : '';
       const consentField = consentRequired ?
         `\n  <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:0.85rem;line-height:1.4">` +
         `\n    <input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0" />` +
@@ -478,7 +490,7 @@
         `\n  </label>` : '';
       const privacyField = privacyUrl ?
         `\n  <p style="margin-top:6px;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>` : '';
-      return `<form method="POST" action="${apiBase}/api/submission/${formId}/subscribe">
+      return `<form method="POST" action="${apiBase}/api/submission/${formId}/subscribe">${nameField}
   <input type="email" name="email" placeholder="you@example.com" required />${hiddenFields}${consentField}${privacyField}
   <button type="submit">Subscribe</button>
 </form>`;
@@ -486,8 +498,10 @@
 
     function buildApiSnippet(apiBase, formId) {
       const consentRequired = document.getElementById('nlConsentRequired').checked;
+      const collectName = document.getElementById('nlCollectName')?.checked;
       const url = `${apiBase}/api/submission/${formId}/subscribe`;
       const bodyFields = [`  email: 'user@example.com'`];
+      if (collectName) bodyFields.push(`  name: 'Jane Smith' // optional`);
       if (consentRequired) bodyFields.push(`  consent: 'true'`);
       const bodyStr = bodyFields.join(',\n');
       return `// POST ${url}

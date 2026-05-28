@@ -89,6 +89,8 @@ public static class SubmissionEndpoints
             f.ConsentRequired,
             f.ConsentText,
             f.PrivacyPolicyUrl,
+            f.CollectName,
+            f.NameLabel,
             customFields = DeserializeCustomFields(f.CustomFields),
             f.CreatedAt,
             f.UpdatedAt,
@@ -125,6 +127,8 @@ public static class SubmissionEndpoints
             form.ConsentRequired,
             form.ConsentText,
             form.PrivacyPolicyUrl,
+            form.CollectName,
+            form.NameLabel,
             customFields = DeserializeCustomFields(form.CustomFields),
             form.CreatedAt,
             form.UpdatedAt,
@@ -223,6 +227,8 @@ public static class SubmissionEndpoints
             ConsentRequired = request.ConsentRequired,
             ConsentText = string.IsNullOrWhiteSpace(request.ConsentText) ? null : request.ConsentText.Trim(),
             PrivacyPolicyUrl = string.IsNullOrWhiteSpace(request.PrivacyPolicyUrl) ? null : request.PrivacyPolicyUrl.Trim(),
+            CollectName = request.CollectName,
+            NameLabel = string.IsNullOrWhiteSpace(request.NameLabel) ? null : request.NameLabel.Trim(),
             CustomFields = request.CustomFields is { Count: > 0 } ? JsonSerializer.Serialize(request.CustomFields) : null
         };
 
@@ -362,6 +368,12 @@ public static class SubmissionEndpoints
             existing.PrivacyPolicyUrl = string.IsNullOrWhiteSpace(request.PrivacyPolicyUrl) ? null : request.PrivacyPolicyUrl.Trim();
         }
 
+        if (request.CollectName.HasValue)
+            existing.CollectName = request.CollectName.Value;
+
+        if (request.NameLabel != null)
+            existing.NameLabel = string.IsNullOrWhiteSpace(request.NameLabel) ? null : request.NameLabel.Trim();
+
         if (request.CustomFields != null)
             existing.CustomFields = request.CustomFields.Count > 0 ? JsonSerializer.Serialize(request.CustomFields) : null;
 
@@ -393,6 +405,8 @@ public static class SubmissionEndpoints
             existing.ConsentRequired,
             existing.ConsentText,
             existing.PrivacyPolicyUrl,
+            existing.CollectName,
+            existing.NameLabel,
             customFields = DeserializeCustomFields(existing.CustomFields),
             existing.CreatedAt,
             existing.UpdatedAt,
@@ -611,6 +625,11 @@ public static class SubmissionEndpoints
             ? "const hpDiv=document.createElement('div');hpDiv.style.cssText='position:absolute;left:-9999px;top:-9999px;';hpDiv.setAttribute('aria-hidden','true');const hpInput=document.createElement('input');hpInput.type='text';hpInput.name='website';hpInput.tabIndex=-1;hpInput.autocomplete='off';hpDiv.appendChild(hpInput);f.appendChild(hpDiv);"
             : "";
 
+        var escapedNameLabel = JsonSerializer.Serialize(form.NameLabel ?? "Your full name").Trim('"');
+        var nameJs = form.CollectName
+            ? $"var ni=document.createElement('input');ni.type='text';ni.name='name';ni.placeholder=\"{escapedNameLabel}\";ni.autocomplete='name';f.appendChild(ni);"
+            : "";
+
         var jsDefaultConsentText = "I agree to receive emails and understand I can unsubscribe at any time.";
         var consentJs = "";
         if (form.ConsentRequired)
@@ -646,6 +665,8 @@ public static class SubmissionEndpoints
                 h2 { font-size: 1.25rem; margin-bottom: 8px; font-weight: 600; }
                 .description { font-size: 0.9rem; opacity: 0.75; margin-bottom: 16px; }
                 .form-row { display: flex; gap: 8px; }
+                input[type="text"] { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: {{safeRadius}}; font-size: 0.95rem; outline: none; margin-bottom: 8px; }
+                input[type="text"]:focus { border-color: {{safePrimary}}; }
                 input[type="email"] { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: {{safeRadius}}; font-size: 0.95rem; outline: none; }
                 input[type="email"]:focus { border-color: {{safePrimary}}; }
                 button { padding: 10px 20px; background: {{safePrimary}}; color: #fff; border: none; border-radius: {{safeRadius}}; font-size: 0.95rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
@@ -668,6 +689,7 @@ public static class SubmissionEndpoints
               if (cfg.description) { var d = document.createElement('p'); d.className = 'description'; d.textContent = cfg.description; wrapper.appendChild(d); }
               var f = document.createElement('form');
               {{honeypotJs}}
+              {{nameJs}}
               var row = document.createElement('div');
               row.className = 'form-row';
               var input = document.createElement('input');
@@ -695,6 +717,8 @@ public static class SubmissionEndpoints
                 msg.textContent = ''; msg.className = 'message';
                 try {
                   var body = { email: input.value };
+                  var ni = f.querySelector('input[name="name"]');
+                  if (ni && ni.value) body.name = ni.value;
                   var hp = f.querySelector('input[name="website"]');
                   if (hp && hp.value) body.website = hp.value;
                   var ccb = f.querySelector('input[name="consent"]');
@@ -1107,8 +1131,6 @@ public sealed class FormConfigDto
     public string? BackgroundColor { get; set; }
     public string? TextColor { get; set; }
     public string? BorderRadius { get; set; }
-    public bool CollectName { get; set; } = false;
-    public string? NameLabel { get; set; }
 }
 
 public sealed class CreateSubmissionFormRequest
@@ -1131,6 +1153,8 @@ public sealed class CreateSubmissionFormRequest
     public bool ConsentRequired { get; set; } = true;
     public string? ConsentText { get; set; }
     public string? PrivacyPolicyUrl { get; set; }
+    public bool CollectName { get; set; } = false;
+    public string? NameLabel { get; set; }
     public Dictionary<string, string>? CustomFields { get; set; }
 }
 
@@ -1154,6 +1178,8 @@ public sealed class UpdateSubmissionFormRequest
     public bool? ConsentRequired { get; set; }
     public string? ConsentText { get; set; }
     public string? PrivacyPolicyUrl { get; set; }
+    public bool? CollectName { get; set; }
+    public string? NameLabel { get; set; }
     public Dictionary<string, string>? CustomFields { get; set; }
 }
 
