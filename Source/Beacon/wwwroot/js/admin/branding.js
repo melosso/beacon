@@ -542,7 +542,7 @@
       const accent = (document.getElementById(`bi-accent-hex-${id}`) || {}).value || '#6366f1';
       const surface = (document.getElementById(`bi-surface-hex-${id}`) || {}).value || '#ffffff';
       const emailTitle = (document.getElementById(`bi-email-title-${id}`) || {}).value || 'One more step to complete your sign-up';
-      const emailBody = (document.getElementById(`bi-email-body-${id}`) || {}).value || 'Click the button below to confirm.';
+      const emailBody = (document.getElementById(`bi-email-body-${id}`) || {}).value || 'Click the button below to confirm your email address.';
       const pageTitle = (document.getElementById(`bi-page-title-${id}`) || {}).value || 'Email preferences';
       const pageBody = (document.getElementById(`bi-page-body-${id}`) || {}).value || "You're receiving these emails because you previously opted in.";
       const footer = (document.getElementById(`bi-footer-${id}`) || {}).value || '';
@@ -566,7 +566,7 @@
         document.getElementById(`bi-preview-email-title-${id}`).textContent = emailTitle;
         document.getElementById(`bi-preview-email-body-${id}`).textContent = emailBody;
         const btn = document.getElementById(`bi-preview-email-btn-${id}`);
-        if (btn && !identity?.isDefault) { btn.style.background = accent; btn.style.color = contrastFg(accent); }
+        if (btn) { const c = identity?.isDefault ? fg : accent; btn.style.background = c; btn.style.color = contrastFg(c); }
         document.getElementById(`bi-preview-email-footer-${id}`).textContent = footer;
       }
 
@@ -578,7 +578,7 @@
         document.getElementById(`bi-preview-page-title-${id}`).textContent = pageTitle;
         document.getElementById(`bi-preview-page-body-${id}`).textContent = pageBody;
         const btn2 = document.getElementById(`bi-preview-page-btn-${id}`);
-        if (btn2 && !identity?.isDefault) { btn2.style.background = accent; btn2.style.color = contrastFg(accent); }
+        if (btn2) { const c = identity?.isDefault ? fg : accent; btn2.style.background = c; btn2.style.color = contrastFg(c); }
         document.getElementById(`bi-preview-page-footer-${id}`).textContent = footer;
       }
     }
