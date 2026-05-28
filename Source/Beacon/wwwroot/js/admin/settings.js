@@ -175,6 +175,10 @@
         const promoToggle = document.getElementById('setting-promoBarEnabled');
         if (promoToggle) promoToggle.checked = appSettings.promoBarEnabled;
         initPromoBar();
+        if (res.data.version) {
+          const sysHd = document.querySelector('#settings-section-system .settings-content-hd h3');
+          if (sysHd) sysHd.textContent = `System (v${res.data.version})`;
+        }
       }
     }
 

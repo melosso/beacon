@@ -17,7 +17,7 @@
     let sortBy = _sortPrefs.sortBy || 'lastchanged';
     let sortDir = _sortPrefs.sortDir || 'desc';
     let searchQuery = '';
-    let searchType = 'id';
+    let searchType = 'email';
     let buckets = [];
 
     // SESSION STATE (token lives in HttpOnly cookie)
@@ -166,7 +166,7 @@
         currentPage = parseInt(params.get('page')) || 1;
         pageSize = parseInt(params.get('size')) || 10;
         searchQuery = params.get('q') || '';
-        searchType = params.get('qtype') || 'id';
+        searchType = params.get('qtype') || 'email';
         showBucket(bucket, false);
         if (modal === 'options') showOptionsModal(false);
         if (modal === 'error-detail') {
@@ -186,7 +186,7 @@
         showView('submission-create', false);
       } else if (view === 'subscriptions') {
         subSearchQuery = params.get('q') || '';
-        subSearchType = params.get('qtype') || 'id';
+        subSearchType = params.get('qtype') || 'email';
         subSortBy = params.get('sort') || subSortBy;
         subSortDir = params.get('dir') || subSortDir;
         subCurrentPage = parseInt(params.get('page')) || 1;

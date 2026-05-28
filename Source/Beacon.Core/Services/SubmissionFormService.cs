@@ -87,7 +87,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
         }
     }
 
-    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null)
+    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null, string? name = null)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
@@ -97,6 +97,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         var resolvedCustomFields = ResolveCustomFieldVariables(form.CustomFields, form, origin);
+        var actorId = $"form:{form.Name}";
 
         foreach (var permission in permissions)
         {
@@ -106,8 +107,10 @@ public sealed class SubmissionFormService : ISubmissionFormService
                 permission,
                 ConsentStatus.OptedIn,
                 customFieldsJson: resolvedCustomFields,
+                actorId: actorId,
                 source: ConsentSource.Api,
-                consentText: consentText);
+                consentText: consentText,
+                name: name);
         }
 
         // Increment submission count

@@ -6,6 +6,7 @@ public sealed class ConsentRecord
     public required string Bucket { get; set; }
     public required string EmailHash { get; set; }
     public string? EncryptedEmail { get; set; }
+    public string? EncryptedName { get; set; }
     public required string Permission { get; set; }
     public ConsentStatus Status { get; set; }
     public ConsentSource Source { get; set; }

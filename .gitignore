@@ -11,6 +11,7 @@ Deployment/
 *.md
 !README.md
 !CONTRIBUTING.md
+!CONFIGURATION.md
 
 # User-specific files
 *.user

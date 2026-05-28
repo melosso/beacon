@@ -25,5 +25,7 @@ public sealed class SubmissionForm
     public bool ConsentRequired { get; set; } = true;
     public string? ConsentText { get; set; }
     public string? PrivacyPolicyUrl { get; set; }
+    public bool CollectName { get; set; } = false;
+    public string? NameLabel { get; set; }
     public string? CustomFields { get; set; } // JSON: {"key":"value", ...}
 }

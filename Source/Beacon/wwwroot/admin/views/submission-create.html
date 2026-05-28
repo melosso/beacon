@@ -6,7 +6,8 @@
           <span class="status-badge select-none">Configuration</span>
         </div>
       </section>
-      <div class="modal" style="box-shadow:none;border:1px solid hsl(var(--border));margin-bottom:2rem">
+      <div style="display:flex;gap:2rem;align-items:flex-start;min-width:0">
+      <div class="modal" style="box-shadow:none;border:1px solid hsl(var(--border));margin-bottom:2rem;flex:0 0 560px;min-width:0">
         <div id="nlCreateIntro">
           <h3 id="nlIntroTitle">Create Form</h3>
           <p id="nlIntroDesc">
@@ -50,13 +51,16 @@
           </div>
           <div class="form-group">
             <label>Language</label>
-            <select id="nlLanguage">
+            <select id="nlLanguage" onchange="updateNlLocale()">
               <option value="en" selected>English</option>
               <option value="de">Deutsch</option>
               <option value="fr">Français</option>
               <option value="nl">Nederlands</option>
               <option value="pl">Polski</option>
               <option value="es">Español</option>
+              <option value="it">Italiano</option>
+              <option value="pt">Português</option>
+              <option value="ja">日本語</option>
             </select>
           </div>
           <div class="form-group">
@@ -105,6 +109,22 @@
               <label>Privacy Policy URL</label>
               <input type="url" id="nlPrivacyPolicyUrl" placeholder="https://yoursite.com/privacy">
               <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Link displayed below the form. Must use HTTPS.</p>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-weight:600;margin-bottom:0.75rem">Name Field</p>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Collect full name</div>
+                <div class="checkbox-toggle-desc">Show an optional name field above the email input</div>
+              </div>
+              <input type="checkbox" id="nlCollectName" onchange="toggleNlNameLabel()">
+              <span class="toggle-track"></span>
+            </label>
+            <div class="form-group" id="nlNameLabelGroup" style="margin-top:0.75rem">
+              <label>Name Field Label</label>
+              <input type="text" id="nlNameLabel" placeholder="Your full name" maxlength="100">
+              <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.25rem">Custom label for the name input. Leave empty to use the default.</p>
             </div>
           </div>
           <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
@@ -166,23 +186,40 @@
             <label>Success Message</label>
             <input type="text" id="nlSuccessMessage" placeholder="Thanks for subscribing!" value="Thanks for subscribing!">
           </div>
-          <div style="display:flex;gap:1rem">
+          <div style="display:flex;gap:1rem;align-items:flex-end">
             <div class="form-group" style="flex:1">
-              <label>Primary Color</label>
+              <label>Accent Color</label>
               <input type="color" id="nlPrimaryColor" value="#2563eb" style="height:38px;padding:4px">
             </div>
             <div class="form-group" style="flex:1">
-              <label>Background</label>
-              <input type="color" id="nlBgColor" value="#ffffff" style="height:38px;padding:4px">
-            </div>
-            <div class="form-group" style="flex:1">
-              <label>Text Color</label>
-              <input type="color" id="nlTextColor" value="#111111" style="height:38px;padding:4px">
+              <label>Border Radius</label>
+              <input type="text" id="nlBorderRadius" placeholder="8px" value="8px">
             </div>
           </div>
-          <div class="form-group">
-            <label>Border Radius</label>
-            <input type="text" id="nlBorderRadius" placeholder="8px" value="8px">
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid hsl(var(--border))">
+            <p style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-bottom:0.75rem">Forms automatically inherit the host site's colors and support dark mode. Override only when needed (e.g. for the iframe embed).</p>
+            <label class="checkbox-toggle">
+              <div>
+                <div class="checkbox-toggle-label">Custom background color</div>
+                <div class="checkbox-toggle-desc">Forces a specific background, overriding the host site</div>
+              </div>
+              <input type="checkbox" id="nlBgColorEnabled" onchange="toggleNlBgColor()">
+              <span class="toggle-track"></span>
+            </label>
+            <div id="nlBgColorGroup" style="margin-top:0.5rem;opacity:0.4;pointer-events:none">
+              <input type="color" id="nlBgColor" value="#ffffff" style="height:38px;padding:4px">
+            </div>
+            <label class="checkbox-toggle" style="margin-top:0.75rem">
+              <div>
+                <div class="checkbox-toggle-label">Custom text color</div>
+                <div class="checkbox-toggle-desc">Forces a specific text color, overriding the host site</div>
+              </div>
+              <input type="checkbox" id="nlTextColorEnabled" onchange="toggleNlTextColor()">
+              <span class="toggle-track"></span>
+            </label>
+            <div id="nlTextColorGroup" style="margin-top:0.5rem;opacity:0.4;pointer-events:none">
+              <input type="color" id="nlTextColor" value="#111111" style="height:38px;padding:4px">
+            </div>
           </div>
           <div class="modal-actions">
             <button class="btn btn-outline" onclick="submissionWizardNext(2)">Back</button>
@@ -290,5 +327,15 @@
           </div>
         </div>
       </div>
+
+      <!-- Live preview panel -->
+      <div style="flex:1;min-width:240px;position:sticky;top:1.5rem;margin-bottom:2rem;align-self:flex-start">
+        <p style="font-size:0.75rem;font-weight:500;color:hsl(var(--muted-foreground));text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem">Live Preview</p>
+        <div style="border:1px solid hsl(var(--border));border-radius:var(--radius);overflow:hidden">
+          <div id="nlLivePreviewForm" style="min-height:180px"></div>
+        </div>
+      </div>
+
+      </div><!-- end flex row -->
     </div>
 

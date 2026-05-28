@@ -6,7 +6,7 @@ public interface IConsentRepository
 {
     Task<ConsentRecord?> GetAsync(string bucket, string emailHash, string permission);
     Task UpsertAsync(ConsentRecord record, string? actorId = null);
-    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default);
+    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null);
 
     // Admin queries
     Task<IReadOnlyList<BucketInfo>> GetBucketsAsync();
@@ -21,7 +21,7 @@ public interface IConsentRepository
     Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
     Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync();
     Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null);
-    Task<Dictionary<string, string?>> GetEncryptedEmailsForHashesAsync(IReadOnlyList<string> hashes, CancellationToken ct = default);
+    Task<Dictionary<string, EncryptedContact>> GetEncryptedEmailsForHashesAsync(IReadOnlyList<string> hashes, CancellationToken ct = default);
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
     Task<IDisposable> BeginTransactionAsync();
     Task CommitTransactionAsync();
@@ -43,10 +43,13 @@ public sealed class BucketInfo
     public IReadOnlyList<string> Permissions { get; init; } = [];
 }
 
+public sealed record EncryptedContact(string? EncryptedEmail, string? EncryptedName);
+
 public sealed class IdentityInfo
 {
     public required string EmailHash { get; init; }
     public string? Email { get; set; }
+    public string? Name { get; set; }
     public int BucketCount { get; init; }
     public DateTime FirstSeen { get; init; }
     public DateTime LastChanged { get; init; }
@@ -56,6 +59,7 @@ public sealed class IdentityDetails
 {
     public required string EmailHash { get; init; }
     public string? EncryptedEmail { get; init; }
+    public string? EncryptedName { get; init; }
     public required IReadOnlyList<BucketSubscription> Subscriptions { get; init; }
 }
 
@@ -77,7 +81,9 @@ public sealed class EmailPermissions
 {
     public required string EmailHash { get; init; }
     public string? EncryptedEmail { get; init; }
-    public string? Email { get; set; }  // Decrypted for admin display
+    public string? EncryptedName { get; init; }
+    public string? Email { get; set; }
+    public string? Name { get; set; }
     public required Dictionary<string, bool> Permissions { get; init; }
     public DateTime FirstSeen { get; init; }
     public DateTime LastChanged { get; init; }

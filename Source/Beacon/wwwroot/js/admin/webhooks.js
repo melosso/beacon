@@ -582,6 +582,7 @@
 
       document.getElementById('editPermissionsEmail').textContent = editingRecord.email || `Hash: ${editingRecord.emailHash?.substring(0, 16)}...`;
       document.getElementById('editPermissionsBucket').textContent = editingBucket || currentBucket;
+      document.getElementById('editName').value = editingRecord.name || '';
 
       const grid = document.getElementById('editPermissionsGrid');
       grid.innerHTML = currentBucketPermissions.map(p => {
@@ -626,6 +627,7 @@
 
     function closeEditPermissionsModal() {
       document.getElementById('editPermissionsModal').style.display = 'none';
+      document.getElementById('editName').value = '';
       editingRecord = null;
       editingBucket = '';
     }
@@ -724,11 +726,13 @@
 
       const customFields = Object.keys(editCustomFields).length > 0 ? editCustomFields : undefined;
       const bucket = editingBucket || currentBucket;
+      const nameVal = document.getElementById('editName').value.trim() || undefined;
 
       const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(bucket)}/override`, {
         method: 'POST',
         body: {
           email: editingRecord.email,
+          name: nameVal,
           permissions,
           customFields
         }
@@ -774,84 +778,6 @@
         const url = `${PUBLIC_URL || API_BASE}/u/${result.data[0].token}`;
         window.open(url, '_blank');
       } else { notify('error', 'Link Generation Failed', result.data?.error || 'Failed to generate opt-out link.'); }
-    }
-
-    function openShareUrlModal() {
-      const sel = document.getElementById('shareUrlPermission');
-      if (sel) {
-        sel.innerHTML = '<option value="">All permissions</option>' +
-          (currentBucketPermissions || []).map(p =>
-            `<option value="${sanitize(p)}">${sanitize(formatPermission(p))}</option>`
-          ).join('');
-      }
-      document.getElementById('shareUrlSource').value = '';
-      document.getElementById('shareUrlMedium').value = '';
-      const expEl = document.getElementById('shareUrlExpiry');
-      if (expEl) expEl.value = '30';
-      const statusEl = document.getElementById('exportTokensStatus');
-      if (statusEl) statusEl.textContent = '';
-      document.getElementById('shareUrlModal').style.display = 'flex';
-    }
-
-    function closeShareUrlModal() {
-      document.getElementById('shareUrlModal').style.display = 'none';
-    }
-
-    async function exportBucketTokens() {
-      const btn = document.getElementById('btnExportTokens');
-      const statusEl = document.getElementById('exportTokensStatus');
-      if (btn) btn.disabled = true;
-      if (statusEl) statusEl.textContent = 'Generating…';
-
-      try {
-        const permission = document.getElementById('shareUrlPermission')?.value || null;
-        const source     = document.getElementById('shareUrlSource')?.value.trim() || null;
-        const medium     = document.getElementById('shareUrlMedium')?.value.trim() || null;
-        const alias      = document.getElementById('bucketUtmCampaign')?.value.trim() || null;
-        const expiry     = parseInt(document.getElementById('shareUrlExpiry')?.value, 10) || 30;
-        const format     = document.querySelector('input[name="shareUrlFormat"]:checked')?.value || 'csv';
-
-        const res = await fetch(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/tokens/export`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(typeof ADMIN_API_KEY !== 'undefined' && ADMIN_API_KEY
-              ? { 'X-Api-Key': ADMIN_API_KEY }
-              : {})
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            permission,
-            utmCampaign: alias,
-            utmSource:   source,
-            utmMedium:   medium,
-            expiryDays:  expiry,
-            format
-          })
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          if (statusEl) statusEl.textContent = err.error || 'Export failed.';
-          return;
-        }
-
-        const blob = await res.blob();
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `unsubscribe-links-${currentBucket}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        if (statusEl) statusEl.textContent = 'Download started.';
-      } catch {
-        if (statusEl) statusEl.textContent = 'Request failed.';
-      } finally {
-        if (btn) btn.disabled = false;
-      }
     }
 
     // SSE WEBHOOK ERROR NOTIFICATIONS

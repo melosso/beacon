@@ -8,6 +8,10 @@ public static class DatabaseMigrator
     {
         db.Database.EnsureCreated();
 
+        // Manual migration only applies to SQLite; other providers rely on EnsureCreated schema.
+        if (!db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) ?? true)
+            return;
+
         MigrateConsentRecords(db);
         MigrateWebhookConfigs(db);
         MigrateWebhookDeliveryErrors(db);
@@ -50,6 +54,7 @@ public static class DatabaseMigrator
         AddColumnIfMissing(db, "ConsentRecords", "CustomFields", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "IpAddress", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "ConsentText", "TEXT NULL");
+        AddColumnIfMissing(db, "ConsentRecords", "EncryptedName", "TEXT NULL");
     }
 
     private static void MigrateWebhookConfigs(BeaconDbContext db)
@@ -313,6 +318,8 @@ public static class DatabaseMigrator
             AddColumnIfMissing(db, "NewsletterForms", "RedirectJsEmbed", "INTEGER NOT NULL DEFAULT 0");
             AddColumnIfMissing(db, "NewsletterForms", "RedirectFormPost", "INTEGER NOT NULL DEFAULT 1");
             AddColumnIfMissing(db, "NewsletterForms", "DisableRedirects", "INTEGER NOT NULL DEFAULT 0");
+            AddColumnIfMissing(db, "NewsletterForms", "CollectName", "INTEGER NOT NULL DEFAULT 0");
+            AddColumnIfMissing(db, "NewsletterForms", "NameLabel", "TEXT NULL");
         }
     }
 
@@ -346,17 +353,19 @@ public static class DatabaseMigrator
                 CREATE TABLE BrandIdentities (
                     Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
-                    Settings TEXT NOT NULL DEFAULT '{{}}',
+                    Settings TEXT NOT NULL DEFAULT (json_object()),
                     IsDefault INTEGER NOT NULL DEFAULT 0,
                     CreatedAt TEXT NOT NULL,
                     UpdatedAt TEXT NOT NULL
                 )
                 """);
-            db.Database.ExecuteSqlRaw("""
-                INSERT INTO BrandIdentities (Id, Name, Settings, IsDefault, CreatedAt, UpdatedAt)
-                VALUES (1, 'Default', '{{}}', 1, datetime('now'), datetime('now'))
-                """);
         }
+
+        db.Database.ExecuteSqlRaw("""
+            INSERT OR IGNORE INTO BrandIdentities (Id, Name, Settings, IsDefault, CreatedAt, UpdatedAt)
+            SELECT 1, 'Default', json_object(), 1, datetime('now'), datetime('now')
+            WHERE NOT EXISTS (SELECT 1 FROM BrandIdentities WHERE IsDefault = 1)
+            """);
 
         if (!TableExists(db, "BucketIdentities"))
         {

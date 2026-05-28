@@ -135,11 +135,11 @@
             </button>
             <div class="search-popover" id="auditIdentityPopover" style="min-width:280px">
               <div class="search-type-toggle">
-                <button class="search-type-btn ${auditFilterType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setAuditFilterType('id')">By ID</button>
                 <button class="search-type-btn ${auditFilterType === 'email' ? 'active' : ''}" onclick="event.stopPropagation();setAuditFilterType('email')">By Email</button>
+                <button class="search-type-btn ${auditFilterType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setAuditFilterType('id')">By ID</button>
               </div>
-              <label>${auditFilterType === 'id' ? 'Filter by identity hash (partial)' : 'Filter by email (exact)'}</label>
-              <input type="text" id="auditIdentityInput" placeholder="${auditFilterType === 'id' ? 'e.g., a1b2c3d4' : 'e.g., user@example.com'}" value="${sanitize(activeFilterVal)}" onkeydown="if(event.key==='Enter')applyAuditIdentityFilter()">
+              <label>${auditFilterType === 'id' ? 'Filter by identity hash (partial)' : 'Filter by email — use * as wildcard'}</label>
+              <input type="text" id="auditIdentityInput" placeholder="${auditFilterType === 'id' ? 'e.g., a1b2*' : 'e.g., *@gmail.com'}" value="${sanitize(activeFilterVal)}" onkeydown="if(event.key==='Enter')applyAuditIdentityFilter()">
               <div class="search-actions">
                 <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearAuditIdentityFilter()">Clear</button>
                 <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="applyAuditIdentityFilter()">Filter</button>
@@ -205,9 +205,9 @@
         btn.classList.toggle('active', btn.textContent.trim() === (type === 'id' ? 'By ID' : 'By Email'));
       });
       const label = document.querySelector('#auditIdentityPopover label');
-      if (label) label.textContent = type === 'id' ? 'Filter by identity hash (partial)' : 'Filter by email (exact)';
+      if (label) label.textContent = type === 'id' ? 'Filter by identity hash (partial)' : 'Filter by email — use * as wildcard';
       const input = document.getElementById('auditIdentityInput');
-      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2c3d4' : 'e.g., user@example.com'; input.value = ''; input.focus(); }
+      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2*' : 'e.g., *@gmail.com'; input.value = ''; input.focus(); }
     }
 
     function applyAuditIdentityFilter() {
@@ -274,6 +274,7 @@
       const identityInner = e.email
         ? `<span class="email-text" style="cursor:pointer">${sanitize(e.email)}</span>`
         : `<span class="email-hash" style="cursor:pointer">${sanitize(e.displayId)}</span>`;
+      const nameInner = e.name ? `<span class="muted" style="display:block;font-size:0.75rem">${sanitize(e.name)}</span>` : '';
       return `
         <tr>
           <td>${sanitize(formatDate(e.changedAt))}</td>
@@ -281,7 +282,7 @@
             <span class="tooltip-wrapper"
               onclick="auditIdentityClick('${sanitize(e.emailHash)}')"
               ondblclick="auditIdentityDblClick('${sanitize(e.emailHash)}')">
-              ${identityInner}
+              ${identityInner}${nameInner}
               <span class="tooltip">Click to filter · double-click to copy ID</span>
             </span>
           </td>

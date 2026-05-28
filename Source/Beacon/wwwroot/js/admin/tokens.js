@@ -22,6 +22,7 @@
     function clearTokenForm() {
       document.getElementById('tokenBucket').value = '';
       document.getElementById('tokenEmail').value = '';
+      document.getElementById('tokenName').value = '';
       document.getElementById('tokenExpiry').value = DEFAULT_EXPIRY_DAYS;
       document.getElementById('tokenAllowReplay').checked = true;
       document.getElementById('tokenLanguage').value = appSettings.uiLanguage || 'en';
@@ -83,9 +84,10 @@
         const customFields = Object.keys(tokenCustomFields).length > 0 ? tokenCustomFields : undefined;
         const skipConfirmationEmail = !document.getElementById('tokenSendConfirmation').checked;
 
+        const nameVal = document.getElementById('tokenName').value.trim() || undefined;
         const result = await apiRequest('/api/tokens/generate', {
           method: 'POST',
-          body: [{ bucket, email, permissions, expiryDays, allowReplay, language, customFields, skipConfirmationEmail }]
+          body: [{ bucket, email, name: nameVal, permissions, expiryDays, allowReplay, language, customFields, skipConfirmationEmail }]
         });
 
         if (result.ok) {
