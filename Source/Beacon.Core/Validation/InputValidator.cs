@@ -249,7 +249,7 @@ public static partial class InputValidator
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 
-    [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_ -]*$")]
+    [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex PermissionPattern();
 
     /// <summary>

@@ -146,17 +146,25 @@ public class TokenTests
     [Fact]
     public void Generate_WithSameNonce_ProducesDifferentTokensDueToTimestamp()
     {
-        var generator = new TokenGenerator(_options);
+        var fakeTime = new FakeTimeProvider();
+        var generator = new TokenGenerator(_options, fakeTime);
         var nonce = "test-nonce-12345";
         var expiry = TimeSpan.FromDays(7);
 
         var token1 = generator.Generate(TestBucket, "test@example.com", ["newsletter"], expiry, nonce);
 
-        Thread.Sleep(1100);
+        fakeTime.Advance(TimeSpan.FromSeconds(2));
         var token2 = generator.Generate(TestBucket, "test@example.com", ["newsletter"], expiry, nonce);
 
         // Even with same nonce, tokens differ due to different IssuedAt timestamps
         Assert.NotEqual(token1, token2);
+    }
+
+    private sealed class FakeTimeProvider : TimeProvider
+    {
+        private DateTimeOffset _utcNow = DateTimeOffset.UtcNow;
+        public void Advance(TimeSpan delta) => _utcNow += delta;
+        public override DateTimeOffset GetUtcNow() => _utcNow;
     }
 
     [Fact]

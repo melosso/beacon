@@ -20,6 +20,8 @@ public sealed class AdminNotificationService : IAdminNotificationService
     private readonly List<Channel<WebhookErrorNotification>> _webhookSubscribers = [];
     private readonly List<Channel<object>> _allSubscribers = [];
 
+    internal int WebhookSubscriberCount { get { lock (_lock) return _webhookSubscribers.Count; } }
+
     public Task PublishAsync(WebhookErrorNotification notification)
     {
         List<Channel<WebhookErrorNotification>> webhookSnapshot;

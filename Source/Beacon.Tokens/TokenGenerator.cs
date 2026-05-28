@@ -8,17 +8,19 @@ public sealed class TokenGenerator
 {
     private readonly byte[] _signingKey;
     private readonly int _defaultExpiryDays;
+    private readonly TimeProvider _timeProvider;
 
-    public TokenGenerator(TokenOptions options)
+    public TokenGenerator(TokenOptions options, TimeProvider? timeProvider = null)
     {
         _signingKey = Convert.FromBase64String(options.SigningKey);
         _defaultExpiryDays = options.ExpiryDays;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public string Generate(string bucket, string email, string[] permissions, GenerateTokenRequest? options = null)
     {
         var normalizedEmail = NormalizeEmail(email);
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var expiryDays = options?.ExpiryDays ?? _defaultExpiryDays;
         var allowReplay = options?.AllowReplay ?? true;
         var language = options?.Language ?? "en";
@@ -41,7 +43,7 @@ public sealed class TokenGenerator
     public string Generate(string bucket, string email, string[] permissions, TimeSpan expiry, string? nonce = null)
     {
         var normalizedEmail = NormalizeEmail(email);
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
 
         var payload = new TokenPayload
         {

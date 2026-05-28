@@ -108,7 +108,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
                 var repo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
                 await repo.SetLastLoginAsync(userId);
             }
-            catch { /* best-effort; next successful auth will retry */ }
+            catch (Exception ex) { Logger.LogDebug(ex, "best-effort last-login update failed; will retry on next auth"); }
         });
     }
 
@@ -128,7 +128,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
                 var r = scope.ServiceProvider.GetRequiredService<IApiKeyRepository>();
                 await r.UpdateLastUsedAsync(keyId);
             }
-            catch { /* best-effort */ }
+            catch (Exception ex) { Logger.LogDebug(ex, "best-effort last-key-used update failed"); }
         });
     }
 

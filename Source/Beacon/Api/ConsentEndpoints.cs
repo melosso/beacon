@@ -301,9 +301,9 @@ public static class ConsentEndpoints
 
             await webhookService.TriggerWebhookAsync(normalizedBucket, data);
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently ignore webhook failures to prevent disrupt
+            Serilog.Log.Debug(ex, "Webhook trigger failed for bucket {Bucket}; non-fatal", bucket);
         }
     }
 

@@ -12,7 +12,7 @@ public sealed class DataPolicyTrigger
     {
         _isManual = true;
         try { _signal.Release(); }
-        catch (SemaphoreFullException) { /* a signal is already pending */ }
+        catch (SemaphoreFullException) { return; }
     }
 
     /// <summary>Returns true if the last signal was a manual trigger, then resets the flag.</summary>

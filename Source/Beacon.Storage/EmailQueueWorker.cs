@@ -51,7 +51,10 @@ public sealed class EmailQueueWorker : BackgroundService
                 }
             }
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Email queue worker stopping due to cancellation");
+        }
 
         _logger.LogDebug("Email queue worker stopped");
     }
@@ -70,7 +73,7 @@ public sealed class EmailQueueWorker : BackgroundService
         }
         catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
         {
-            // Normal: cron interval elapsed, not an app shutdown.
+            return; // cron interval elapsed; not an app shutdown
         }
     }
 

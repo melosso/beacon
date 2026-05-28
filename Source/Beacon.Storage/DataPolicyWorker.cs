@@ -52,7 +52,10 @@ public sealed class DataPolicyWorker : BackgroundService
                 }
             }
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Data policy worker stopping due to cancellation");
+        }
 
         _logger.LogDebug("Data policy worker stopped");
     }

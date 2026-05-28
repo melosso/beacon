@@ -759,12 +759,9 @@ static void ValidateSecureKey(string value, string keyName)
 
 static string NormalizeKey(string key, int requiredBytes)
 {
-    try
-    {
-        var decoded = Convert.FromBase64String(key);
-        if (decoded.Length == requiredBytes) return key;
-    }
-    catch { }
+    Span<byte> buf = stackalloc byte[requiredBytes];
+    if (Convert.TryFromBase64Chars(key, buf, out var written) && written == requiredBytes)
+        return key;
 
     using var sha256 = System.Security.Cryptography.SHA256.Create();
     var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(key));

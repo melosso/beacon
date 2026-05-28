@@ -289,7 +289,7 @@ public static class AdminEndpoints
         {
             await consentService.OverrideAsync(request.Bucket, request.Email, request.Permission, status, customFieldsJson, actorId, name: request.Name);
 
-            await TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+            await TriggerWebhookSafe(webhookService, consentRepository, logger, request.Bucket, request.Email, emailHash, customFieldsJson);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
 
             return Results.Ok(new { message = "Consent updated" });
@@ -383,7 +383,7 @@ public static class AdminEndpoints
                 DateTime.UtcNow);
 
             // Fire one webhook with full permission snapshot
-            await TriggerWebhookSafe(webhookService, consentRepository, normalizedBucket, request.Email, emailHash, customFieldsJson);
+            await TriggerWebhookSafe(webhookService, consentRepository, logger, normalizedBucket, request.Email, emailHash, customFieldsJson);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
 
             return Results.Ok(new { message = "Consent updated" });
@@ -594,7 +594,7 @@ public static class AdminEndpoints
 
                 if (hasChanges)
                 {
-                    _ = TriggerWebhookSafe(webhookService, consentRepository, request.Bucket, request.Email, emailHash, customFieldsJson);
+                    _ = TriggerWebhookSafe(webhookService, consentRepository, logger, request.Bucket, request.Email, emailHash, customFieldsJson);
                     await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
                 }
 
@@ -687,7 +687,8 @@ public static class AdminEndpoints
         if (!identity.IsDefault)
         {
             string? accent = null;
-            try { accent = JsonSerializer.Deserialize<BrandIdentitySettings>(identity.Settings)?.PrimaryAccent; } catch { }
+            try { accent = JsonSerializer.Deserialize<BrandIdentitySettings>(identity.Settings)?.PrimaryAccent; }
+            catch (JsonException) { accent = null; }
             brandIdentity = new { name = identity.Name, accent };
         }
 
@@ -1009,9 +1010,9 @@ public static class AdminEndpoints
                 {
                     record.Email = encryptor.Decrypt(record.EncryptedEmail);
                 }
-                catch
+                catch (Exception)
                 {
-                    // Decryption failed, leave email as null
+                    record.Email = null; // decryption failed
                 }
             }
         }
@@ -1241,7 +1242,7 @@ public static class AdminEndpoints
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Client disconnected, I think that's expected for SSE connections
+            return; // client disconnected; expected for SSE
         }
     }
 
@@ -1261,6 +1262,7 @@ public static class AdminEndpoints
     private static async Task TriggerWebhookSafe(
         IWebhookService webhookService,
         IConsentRepository repository,
+        ILogger logger,
         string bucket,
         string email,
         string emailHash,
@@ -1291,9 +1293,9 @@ public static class AdminEndpoints
 
             await webhookService.TriggerWebhookAsync(normalizedBucket, data);
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently ignore webhook failures to not disrupt the main operation
+            logger.LogDebug(ex, "Webhook trigger failed for bucket {Bucket}; non-fatal", bucket);
         }
     }
 

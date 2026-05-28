@@ -29,7 +29,7 @@ public sealed class EmailDispatchTrigger
         if (!shouldRelease) return;
 
         try { _signal.Release(); }
-        catch (SemaphoreFullException) { /* a signal is already pending */ }
+        catch (SemaphoreFullException) { return; }
     }
 
     internal Task WaitAsync(CancellationToken cancellationToken) =>

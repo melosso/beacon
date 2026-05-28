@@ -129,7 +129,10 @@ public class WebhookTests
             await foreach (var msg in queue.DequeueAllAsync(cts.Token))
                 items.Add(msg);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            Assert.True(cts.IsCancellationRequested);
+        }
 
         Assert.Empty(items);
     }
@@ -293,8 +296,9 @@ public class WebhookTests
             }
         }, cts.Token);
 
-        // Small delay to let the subscriber register
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        while (service.WebhookSubscriberCount == 0)
+            await Task.Yield();
+
         await service.PublishAsync(notification);
         await readTask;
 
@@ -331,7 +335,9 @@ public class WebhookTests
             }
         }, cts.Token);
 
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        while (service.WebhookSubscriberCount < 2)
+            await Task.Yield();
+
         await service.PublishAsync(notification);
         await Task.WhenAll(task1, task2);
 
@@ -348,19 +354,28 @@ public class WebhookTests
         var cts = new CancellationTokenSource();
 
         var items = new List<WebhookErrorNotification>();
+        var itemReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var readTask = Task.Run(async () =>
         {
             try
             {
                 await foreach (var n in service.SubscribeAsync(cts.Token))
+                {
                     items.Add(n);
+                    itemReceived.TrySetResult();
+                }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                Assert.True(cts.IsCancellationRequested);
+            }
         }, TestContext.Current.CancellationToken);
 
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        while (service.WebhookSubscriberCount == 0)
+            await Task.Yield();
+
         await service.PublishAsync(new WebhookErrorNotification(TestBucket, "err1", 0, DateTime.UtcNow));
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await itemReceived.Task;
         await cts.CancelAsync();
         await readTask;
 

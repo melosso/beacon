@@ -213,17 +213,27 @@ public class PostgreSqlDatabaseTests : DatabaseProviderTests, IClassFixture<Post
 public class MySqlContainerFixture : IAsyncLifetime
 {
     private readonly MySqlContainer _container = new MySqlBuilder("mysql:8").Build();
-    public string ConnectionString { get; private set; } = null!;
+    public string? ConnectionString { get; private set; }
+    public string? SkipReason { get; private set; }
+
+    internal static readonly ServerVersion MySql8 = new MySqlServerVersion(new Version(8, 0, 0));
 
     public async ValueTask InitializeAsync()
     {
-        await _container.StartAsync();
-        ConnectionString = _container.GetConnectionString();
-        var opts = new DbContextOptionsBuilder<BeaconDbContext>()
-            .UseMySql(ConnectionString, ServerVersion.AutoDetect(ConnectionString))
-            .Options;
-        await using var db = new BeaconDbContext(opts);
-        await db.Database.EnsureCreatedAsync();
+        try
+        {
+            await _container.StartAsync();
+            ConnectionString = _container.GetConnectionString();
+            var opts = new DbContextOptionsBuilder<BeaconDbContext>()
+                .UseMySql(ConnectionString, MySql8)
+                .Options;
+            await using var db = new BeaconDbContext(opts);
+            await db.Database.EnsureCreatedAsync();
+        }
+        catch (MissingMethodException ex)
+        {
+            SkipReason = $"Pomelo.EntityFrameworkCore.MySql is not compatible with the current EF Core version: {ex.Message}";
+        }
     }
 
     public async ValueTask DisposeAsync() => await _container.DisposeAsync();
@@ -237,8 +247,11 @@ public class MySqlDatabaseTests : DatabaseProviderTests, IClassFixture<MySqlCont
 
     protected override BeaconDbContext CreateDbContext()
     {
+        if (_fixture.SkipReason is not null)
+            Assert.Skip(_fixture.SkipReason);
+
         var opts = new DbContextOptionsBuilder<BeaconDbContext>()
-            .UseMySql(_fixture.ConnectionString, ServerVersion.AutoDetect(_fixture.ConnectionString))
+            .UseMySql(_fixture.ConnectionString!, MySqlContainerFixture.MySql8)
             .Options;
         return new BeaconDbContext(opts);
     }

@@ -55,9 +55,9 @@ public class EncryptionService : IEncryptionService
                 var dirInfo = new DirectoryInfo(certsPath);
                 dirInfo.Attributes |= FileAttributes.Hidden;
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore if unable to set hidden attribute (e.g., permissions)
+                Log.Debug(ex, "Unable to set hidden attribute on .core directory; continuing");
             }
         }
 
@@ -195,9 +195,9 @@ public class EncryptionService : IEncryptionService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore .env read errors
+                Log.Debug(ex, "Failed to read .env file; continuing key discovery");
             }
         }
 
