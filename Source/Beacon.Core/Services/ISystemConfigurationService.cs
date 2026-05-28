@@ -136,6 +136,10 @@ public sealed class SystemConfig
     [JsonPropertyName("cacheBucketData")]
     public bool CacheBucketData { get; set; } = true;
 
+    // Server metadata (read-only, populated by the endpoint, not persisted)
+    [JsonPropertyName("version")]
+    public string? Version { get; set; }
+
     // Appearance / Branding
     [JsonPropertyName("loginFooterEnabled")]
     public bool LoginFooterEnabled { get; set; } = false;

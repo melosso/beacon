@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -1562,6 +1563,13 @@ public static class AdminEndpoints
         });
     }
 
+    private static readonly string _assemblyVersion =
+        typeof(AdminEndpoints).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+            ?.Split('+')[0]
+        ?? "unknown";
+
     private static IResult GetSystemConfiguration(
         [FromServices] ISystemConfigurationService configService,
         [FromServices] Encryptor encryptor)
@@ -1571,6 +1579,7 @@ public static class AdminEndpoints
         config.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(config.EmailSmtpPassword));
         config.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageAccessKey));
         config.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageSecretKey));
+        config.Version = _assemblyVersion;
         return Results.Ok(config);
     }
 

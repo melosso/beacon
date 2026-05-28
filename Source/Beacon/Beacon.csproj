@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);NU1608</NoWarn>
-    <Version>0.1.0</Version>
+    <Version>1.4.1</Version>
     
     <!-- Assembly Information -->
     <AssemblyTitle>Beacon</AssemblyTitle>

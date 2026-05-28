@@ -143,7 +143,7 @@ public class SqlServerContainerFixture : IAsyncLifetime
     private readonly MsSqlContainer _container = new MsSqlBuilder().Build();
     public string ConnectionString { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
         ConnectionString = _container.GetConnectionString();
@@ -154,7 +154,7 @@ public class SqlServerContainerFixture : IAsyncLifetime
         await db.Database.EnsureCreatedAsync();
     }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public async ValueTask DisposeAsync() => await _container.DisposeAsync();
 }
 
 [Trait("Category", "Integration")]
@@ -179,7 +179,7 @@ public class PostgreSqlContainerFixture : IAsyncLifetime
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder().Build();
     public string ConnectionString { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
         ConnectionString = _container.GetConnectionString();
@@ -190,7 +190,7 @@ public class PostgreSqlContainerFixture : IAsyncLifetime
         await db.Database.EnsureCreatedAsync();
     }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public async ValueTask DisposeAsync() => await _container.DisposeAsync();
 }
 
 [Trait("Category", "Integration")]
@@ -215,7 +215,7 @@ public class MySqlContainerFixture : IAsyncLifetime
     private readonly MySqlContainer _container = new MySqlBuilder().Build();
     public string ConnectionString { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
         ConnectionString = _container.GetConnectionString();
@@ -226,7 +226,7 @@ public class MySqlContainerFixture : IAsyncLifetime
         await db.Database.EnsureCreatedAsync();
     }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public async ValueTask DisposeAsync() => await _container.DisposeAsync();
 }
 
 [Trait("Category", "Integration")]
