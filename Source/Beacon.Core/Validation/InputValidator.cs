@@ -41,12 +41,14 @@ public static partial class InputValidator
             return ValidationResult.Fail("Permission is required");
         }
 
-        if (permission.Length > 50)
+        var trimmed = permission.Trim();
+
+        if (trimmed.Length > 50)
         {
             return ValidationResult.Fail("Permission name too long");
         }
 
-        if (!PermissionPattern().IsMatch(permission))
+        if (!PermissionPattern().IsMatch(trimmed))
         {
             return ValidationResult.Fail("Permission contains invalid characters");
         }
@@ -247,7 +249,7 @@ public static partial class InputValidator
     [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
     private static partial Regex BucketPattern();
 
-    [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_-]*$")]
+    [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9_ -]*$")]
     private static partial Regex PermissionPattern();
 
     /// <summary>

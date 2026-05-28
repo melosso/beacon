@@ -345,6 +345,9 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "At least one permission is required" });
         }
 
+        if (request.Name != null && request.Name.Length > 250)
+            return Results.BadRequest(new { error = "Name must be 250 characters or less." });
+
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
         var emailHash = emailHasher.Hash(request.Email);
 
@@ -353,6 +356,7 @@ public static class AdminEndpoints
             : null;
 
         var actorId = httpContext.User.Identity?.Name;
+        var effectiveName = string.IsNullOrWhiteSpace(request.Name) ? null : request.Name.Trim();
 
         try
         {
@@ -365,7 +369,7 @@ public static class AdminEndpoints
                     return Results.BadRequest(new { error = $"Invalid status '{status}' for permission '{permission}'" });
                 }
 
-                await consentService.OverrideAsync(normalizedBucket, request.Email, permission, consentStatus, customFieldsJson, actorId);
+                await consentService.OverrideAsync(normalizedBucket, request.Email, permission, consentStatus, customFieldsJson, actorId, name: effectiveName);
             }
 
             await consentService.CommitTransactionAsync();
@@ -738,9 +742,7 @@ public static class AdminEndpoints
         if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLowerInvariant();
-            records = records.Where(r =>
-                r.Email != null && r.Email.Contains(searchLower, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
+            records = records.Where(r => MatchesWildcard(r.Email, searchLower)).ToList();
             total = records.Count;
         }
 
@@ -843,7 +845,7 @@ public static class AdminEndpoints
         }
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
-        var normalizedPermission = permission.Trim().ToLowerInvariant();
+        var normalizedPermission = permission.Trim().ToLowerInvariant().Replace(' ', '_');
 
         logger.LogInformation(
             "Permission deletion: bucket={Bucket}, permission={Permission}, timestamp={Timestamp}",
@@ -939,7 +941,7 @@ public static class AdminEndpoints
         }
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
-        var normalizedPermission = request.Permission.Trim().ToLowerInvariant();
+        var normalizedPermission = request.Permission.Trim().ToLowerInvariant().Replace(' ', '_');
 
         var added = await bucketRepository.AddPermissionAsync(normalizedBucket, normalizedPermission);
         if (!added)
@@ -1397,8 +1399,8 @@ public static class AdminEndpoints
         {
             var searchLower = search.Trim().ToLowerInvariant();
             filtered = searchType == "email"
-                ? decrypted.Where(x => x.Email?.Contains(searchLower, StringComparison.OrdinalIgnoreCase) == true)
-                : decrypted.Where(x => x.Hash.StartsWith(searchLower, StringComparison.OrdinalIgnoreCase));
+                ? decrypted.Where(x => MatchesWildcard(x.Email, searchLower))
+                : decrypted.Where(x => MatchesWildcard(x.Hash, searchLower));
         }
 
         var sorted = (sortDir?.ToLowerInvariant() == "asc"
@@ -1544,10 +1546,18 @@ public static class AdminEndpoints
             catch { }
         }
 
+        string? name = null;
+        if (!string.IsNullOrEmpty(details.EncryptedName))
+        {
+            try { name = encryptor.Decrypt(details.EncryptedName); }
+            catch { }
+        }
+
         return Results.Ok(new
         {
             details.EmailHash,
             Email = email,
+            Name = name,
             details.Subscriptions
         });
     }
@@ -1816,19 +1826,38 @@ public static class AdminEndpoints
             ? $"\"{value.Replace("\"", "\"\"")}\""
             : value;
 
+    private static bool MatchesWildcard(string? text, string pattern)
+    {
+        if (text is null) return false;
+        if (!pattern.Contains('*'))
+            return text.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+        var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+        return Regex.IsMatch(text, regexPattern, RegexOptions.IgnoreCase);
+    }
+
     internal sealed record ExportIdentitiesRequest(
         IReadOnlyList<string>? Hashes = null,
         string Format = "csv");
 
     internal sealed record ExportBucketRecordsRequest(
         IReadOnlyList<string>? Hashes = null,
-        string Format = "csv");
+        string Format = "csv",
+        bool IncludeTracking = false,
+        string? Permission = null,
+        string? UtmCampaign = null,
+        string? UtmSource = null,
+        string? UtmMedium = null,
+        int ExpiryDays = 30,
+        string Language = "en");
 
     private static async Task<IResult> ExportBucketRecords(
         string bucket,
         [FromBody] ExportBucketRecordsRequest? request,
         [FromServices] IConsentRepository repository,
         [FromServices] Encryptor encryptor,
+        [FromServices] TokenGenerator generator,
+        [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
+        [FromServices] HostRoutingOptions routingOptions,
         HttpContext context,
         CancellationToken ct)
     {
@@ -1837,8 +1866,8 @@ public static class AdminEndpoints
         if (!bucketVal.IsValid) return Results.BadRequest(new { error = bucketVal.Error });
 
         var format = (request?.Format ?? "csv").ToLowerInvariant();
-        if (format is not ("csv" or "json"))
-            return Results.BadRequest(new { error = "Invalid format. Must be 'csv' or 'json'" });
+        if (format is not ("csv" or "json" or "xml" or "yaml"))
+            return Results.BadRequest(new { error = "Invalid format. Must be 'csv', 'json', 'xml', or 'yaml'" });
 
         if (request?.Hashes is { Count: > 10_000 })
             return Results.BadRequest(new { error = "Too many hashes selected. Maximum is 10,000." });
@@ -1863,9 +1892,15 @@ public static class AdminEndpoints
             .OrderBy(p => p)
             .ToList();
 
+        var customFieldKeys = records
+            .SelectMany(r => r.CustomFields?.Keys ?? (IEnumerable<string>)[])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k)
+            .ToList();
+
         await Parallel.ForEachAsync(records,
             new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
-            (record, token) =>
+            (record, _) =>
             {
                 if (!string.IsNullOrEmpty(record.EncryptedEmail))
                     try { record.Email = encryptor.Decrypt(record.EncryptedEmail); } catch { }
@@ -1874,37 +1909,213 @@ public static class AdminEndpoints
                 return ValueTask.CompletedTask;
             });
 
+        Dictionary<string, (string Url, DateTime? ExpiresAt)>? trackingByHash = null;
+        if (request?.IncludeTracking == true)
+        {
+            var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
+                ? instanceOptions.PublicUrl.TrimEnd('/')
+                : $"{context.Request.Scheme}://{context.Request.Host.Host}:{routingOptions.ApiPort}";
+
+            var utmParts = new List<string>(3);
+            if (!string.IsNullOrWhiteSpace(request.UtmCampaign))
+                utmParts.Add($"utm_campaign={Uri.EscapeDataString(request.UtmCampaign)}");
+            if (!string.IsNullOrWhiteSpace(request.UtmSource))
+                utmParts.Add($"utm_source={Uri.EscapeDataString(request.UtmSource)}");
+            if (!string.IsNullOrWhiteSpace(request.UtmMedium))
+                utmParts.Add($"utm_medium={Uri.EscapeDataString(request.UtmMedium)}");
+            var qs = utmParts.Count > 0 ? "?" + string.Join("&", utmParts) : string.Empty;
+
+            var tokenOpts = new Tokens.GenerateTokenRequest
+            {
+                AllowReplay = true,
+                ExpiryDays = request.ExpiryDays > 0 ? request.ExpiryDays : 30,
+                Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language
+            };
+
+            trackingByHash = new Dictionary<string, (string, DateTime?)>(records.Count);
+            foreach (var rec in records)
+            {
+                if (string.IsNullOrEmpty(rec.Email)) continue;
+                string[] permNames;
+                if (!string.IsNullOrEmpty(request.Permission))
+                {
+                    if (!rec.Permissions.ContainsKey(request.Permission)) continue;
+                    permNames = [request.Permission];
+                }
+                else
+                {
+                    permNames = [.. rec.Permissions.Keys];
+                }
+                if (permNames.Length == 0) continue;
+                var tok = generator.Generate(normalized, rec.Email, permNames, tokenOpts);
+                trackingByHash[rec.EmailHash] = ($"{baseUrl}/u/{tok}{qs}", TryDecodeTokenExpiry(tok));
+            }
+        }
+
         var filename = $"records-{normalized}-{DateTime.UtcNow:yyyyMMdd}.{format}";
         context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
 
-        if (format == "json")
-            return Results.Json(records.Select(r =>
-            {
-                var obj = new Dictionary<string, object?>(permissions.Count + 6)
-                {
-                    ["email"] = r.Email,
-                    ["name"] = r.Name,
-                    ["beaconId"] = r.EmailHash,
-                    ["externalId"] = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : null
-                };
-                foreach (var p in permissions)
-                    obj[p] = r.Permissions.TryGetValue(p, out var v) ? v : false;
-                obj["created"] = r.FirstSeen.ToString("O");
-                obj["updated"] = r.LastChanged.ToString("O");
-                return obj;
-            }));
+        return format switch
+        {
+            "json" => Results.Json(BuildRecordsJson(records, permissions, normalized, trackingByHash)),
+            "xml"  => Results.Content(BuildRecordsXml(records, permissions, normalized, trackingByHash), "application/xml"),
+            "yaml" => Results.Content(BuildRecordsYaml(records, permissions, normalized, trackingByHash), "text/yaml"),
+            _      => Results.Content(BuildRecordsCsv(records, permissions, customFieldKeys, normalized, trackingByHash), "text/csv")
+        };
+    }
 
+    private static string ToCamelCase(string name)
+    {
+        var parts = name.Split('_');
+        if (parts.Length == 1) return parts[0];
+        return parts[0] + string.Concat(parts[1..].Select(p => p.Length > 0 ? char.ToUpperInvariant(p[0]) + p[1..] : ""));
+    }
+
+    private static string ToPascalCase(string name) =>
+        string.Concat(name.Split('_').Select(p => p.Length > 0 ? char.ToUpperInvariant(p[0]) + p[1..] : ""));
+
+    private static string YamlEscape(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "\"\"";
+        if (value.IndexOfAny(['"', ':', '\n', '\r', '#', '[', ']', '{', '}', '&', '*', '?', '|', '<', '>', '=', '!', '%', '@', '`', '\\']) >= 0
+            || value.StartsWith(' ') || value.EndsWith(' '))
+            return $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
+        return value;
+    }
+
+    private static DateTime? TryDecodeTokenExpiry(string token)
+    {
+        var parts = token.Split('.');
+        if (parts.Length < 2) return null;
+        try
+        {
+            var padded = parts[1].Replace('-', '+').Replace('_', '/');
+            padded += (padded.Length % 4) switch { 2 => "==", 3 => "=", _ => "" };
+            using var doc = JsonDocument.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(padded)));
+            if (doc.RootElement.TryGetProperty("exp", out var expEl) && expEl.TryGetInt64(out var exp))
+                return DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
+        }
+        catch { }
+        return null;
+    }
+
+    private static IEnumerable<Dictionary<string, object?>> BuildRecordsJson(
+        List<EmailPermissions> records,
+        List<string> permissions,
+        string bucket,
+        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
+    {
+        return records.Select(r =>
+        {
+            var consent = permissions.ToDictionary(
+                p => ToCamelCase(p),
+                p => (object?)(r.Permissions.TryGetValue(p, out var v) ? v : false));
+            var obj = new Dictionary<string, object?>(8)
+            {
+                ["beaconId"]    = r.EmailHash,
+                ["email"]       = r.Email,
+                ["fullName"]    = r.Name,
+                ["consent"]     = consent,
+                ["createdDate"] = r.FirstSeen.ToString("O"),
+                ["updatedDate"] = r.LastChanged.ToString("O")
+            };
+            if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
+                obj["tracking"] = new Dictionary<string, object?>
+                {
+                    ["campaign"]  = bucket,
+                    ["expiresAt"] = t.ExpiresAt?.ToString("O"),
+                    ["url"]       = t.Url
+                };
+            return obj;
+        });
+    }
+
+    private static string BuildRecordsCsv(
+        List<EmailPermissions> records,
+        List<string> permissions,
+        List<string> customFieldKeys,
+        string bucket,
+        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
+    {
         var sb = new StringBuilder();
-        var permHeaders = string.Join(",", permissions.Select(p => CsvEscape(p)));
-        sb.AppendLine($"Email,Name,Beacon ID,External ID,{permHeaders},Created,Updated");
+        var cfHeaders  = customFieldKeys.Count > 0 ? string.Join(",", customFieldKeys.Select(CsvEscape)) + "," : "";
+        var permHeaders = string.Join(",", permissions.Select(CsvEscape));
+        var trackHeaders = tracking != null ? ",campaignId,trackingUrl" : "";
+        sb.AppendLine($"email,fullName,beaconId,{cfHeaders}{permHeaders},createdDate,updatedDate{trackHeaders}");
         foreach (var r in records)
         {
-            var externalId = r.CustomFields?.TryGetValue("externalId", out var extId) == true ? extId : "";
-            var permValues = string.Join(",", permissions.Select(p =>
-                r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
-            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.Name ?? "")},{CsvEscape(r.EmailHash)},{CsvEscape(externalId)},{permValues},{r.FirstSeen:O},{r.LastChanged:O}");
+            var cfVals   = customFieldKeys.Count > 0
+                ? string.Join(",", customFieldKeys.Select(k => CsvEscape(r.CustomFields?.TryGetValue(k, out var v) == true ? v ?? "" : ""))) + ","
+                : "";
+            var permVals = string.Join(",", permissions.Select(p => r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
+            var trackVals = tracking != null
+                ? "," + CsvEscape(bucket) + "," + (tracking.TryGetValue(r.EmailHash, out var t) ? CsvEscape(t.Url) : "")
+                : "";
+            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.Name ?? "")},{CsvEscape(r.EmailHash)},{cfVals}{permVals},{r.FirstSeen:O},{r.LastChanged:O}{trackVals}");
         }
-        return Results.Content(sb.ToString(), "text/csv");
+        return sb.ToString();
+    }
+
+    private static string BuildRecordsXml(
+        List<EmailPermissions> records,
+        List<string> permissions,
+        string bucket,
+        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
+    {
+        var doc = new System.Xml.Linq.XDocument(
+            new System.Xml.Linq.XElement("Export",
+                records.Select(r =>
+                {
+                    var el = new System.Xml.Linq.XElement("ConsentRecord",
+                        new System.Xml.Linq.XElement("BeaconId", r.EmailHash),
+                        new System.Xml.Linq.XElement("Email", r.Email ?? ""),
+                        new System.Xml.Linq.XElement("FullName", r.Name ?? ""),
+                        new System.Xml.Linq.XElement("Consent",
+                            permissions.Select(p => new System.Xml.Linq.XElement(
+                                ToPascalCase(p),
+                                r.Permissions.TryGetValue(p, out var v) && v ? "true" : "false"))),
+                        new System.Xml.Linq.XElement("CreatedDate", r.FirstSeen.ToString("O")),
+                        new System.Xml.Linq.XElement("UpdatedDate", r.LastChanged.ToString("O")));
+                    if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
+                        el.Add(new System.Xml.Linq.XElement("Tracking",
+                            new System.Xml.Linq.XElement("Campaign", bucket),
+                            new System.Xml.Linq.XElement("ExpiresAt", t.ExpiresAt?.ToString("O") ?? ""),
+                            new System.Xml.Linq.XElement("Url", t.Url)));
+                    return el;
+                })));
+        return doc.ToString();
+    }
+
+    private static string BuildRecordsYaml(
+        List<EmailPermissions> records,
+        List<string> permissions,
+        string bucket,
+        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("subscribers:");
+        foreach (var r in records)
+        {
+            sb.AppendLine($"  - beaconId: {YamlEscape(r.EmailHash)}");
+            sb.AppendLine($"    email: {YamlEscape(r.Email)}");
+            sb.AppendLine($"    fullName: {YamlEscape(r.Name)}");
+            if (permissions.Count > 0)
+            {
+                sb.AppendLine("    consent:");
+                foreach (var p in permissions)
+                    sb.AppendLine($"      {ToCamelCase(p)}: {(r.Permissions.TryGetValue(p, out var v) && v ? "true" : "false")}");
+            }
+            sb.AppendLine($"    createdDate: \"{r.FirstSeen:O}\"");
+            sb.AppendLine($"    updatedDate: \"{r.LastChanged:O}\"");
+            if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
+            {
+                sb.AppendLine("    tracking:");
+                sb.AppendLine($"      campaign: {YamlEscape(bucket)}");
+                sb.AppendLine($"      expiresAt: \"{t.ExpiresAt?.ToString("O") ?? ""}\"");
+                sb.AppendLine($"      url: {YamlEscape(t.Url)}");
+            }
+        }
+        return sb.ToString();
     }
 
     internal sealed record ExportBucketTokensRequest(
@@ -1986,33 +2197,33 @@ public static class AdminEndpoints
         var normalizedBucket = string.IsNullOrWhiteSpace(bucket) ? null : bucket.Trim().ToLowerInvariant();
         string? normalizedHash = null;
 
+        IReadOnlyList<string>? matchedHashes = null;
         if (!string.IsNullOrWhiteSpace(emailSearch))
         {
-            // Resolve email to hash for audit filter
+            // Resolve email pattern to matching hashes (supports * wildcards)
             var searchLower = emailSearch.Trim().ToLowerInvariant();
             var mappings = await repository.GetEmailHashMappingsAsync();
+            var found = new List<string>();
             foreach (var m in mappings)
             {
                 if (m.EncryptedEmail is null) continue;
                 try
                 {
-                    if (encryptor.Decrypt(m.EncryptedEmail).Equals(searchLower, StringComparison.OrdinalIgnoreCase))
-                    {
-                        normalizedHash = m.EmailHash;
-                        break;
-                    }
+                    if (MatchesWildcard(encryptor.Decrypt(m.EncryptedEmail), searchLower))
+                        found.Add(m.EmailHash);
                 }
                 catch { }
             }
-            if (normalizedHash is null)
+            if (found.Count == 0)
                 return Results.Ok(new { records = Array.Empty<object>(), total = 0, page, pageSize = size });
+            matchedHashes = found;
         }
         else
         {
             normalizedHash = string.IsNullOrWhiteSpace(emailHash) ? null : emailHash.Trim().ToLowerInvariant();
         }
 
-        var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct);
+        var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct, matchedHashes);
 
         // Decrypt emails for audit records
         var distinctHashes = result.Records.Select(e => e.EmailHash).Distinct().ToList();
@@ -2026,6 +2237,12 @@ public static class AdminEndpoints
             try { return encryptor.Decrypt(c.EncryptedEmail); } catch { return null; }
         }
 
+        string? DecryptName(string hash)
+        {
+            if (!contactMap.TryGetValue(hash, out var c) || c.EncryptedName is null) return null;
+            try { return encryptor.Decrypt(c.EncryptedName); } catch { return null; }
+        }
+
         return Results.Ok(new
         {
             records = result.Records.Select(e => new
@@ -2034,6 +2251,7 @@ public static class AdminEndpoints
                 bucket = e.Bucket,
                 emailHash = e.EmailHash,
                 email = DecryptEmail(e.EmailHash),
+                name = DecryptName(e.EmailHash),
                 displayId = e.EmailHash[..Math.Min(16, e.EmailHash.Length)] + "...",
                 permission = e.Permission,
                 oldStatus = e.OldStatus?.ToString(),
@@ -2363,6 +2581,7 @@ public sealed class CheckEmailRequest
 public sealed class BatchOverrideRequest
 {
     public string Email { get; set; } = string.Empty;
+    public string? Name { get; set; }
     /// <summary>
     /// Permission states: {"newsletter": "OptedIn", "marketing": "OptedOut"}
     /// </summary>

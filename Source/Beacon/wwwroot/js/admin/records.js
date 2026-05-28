@@ -42,6 +42,23 @@
       const count = bucketSelectedHashes.size;
       document.getElementById('bucketExportCount').textContent = count > 0 ? count : 'all';
       document.getElementById('bucketExportName').textContent = currentBucket;
+
+      const permSel = document.getElementById('exportPermission');
+      if (permSel) {
+        permSel.innerHTML = '<option value="">All permissions</option>' +
+          (currentBucketPermissions || []).map(p =>
+            `<option value="${sanitize(p)}">${sanitize(formatPermission(p))}</option>`
+          ).join('');
+      }
+
+      document.getElementById('exportIncludeTracking').checked = false;
+      document.getElementById('exportIncludeUtm').checked = false;
+      document.getElementById('exportExpiryDays').value = '30';
+      document.getElementById('exportUtmCampaign').value = '';
+      document.getElementById('exportUtmSource').value = '';
+      document.getElementById('exportUtmMedium').value = '';
+      updateExportToggles();
+
       document.getElementById('bucketExportModal').style.display = 'flex';
     }
 
@@ -49,15 +66,36 @@
       document.getElementById('bucketExportModal').style.display = 'none';
     }
 
+    function updateExportToggles() {
+      const includeTracking = document.getElementById('exportIncludeTracking').checked;
+      const includeUtm = document.getElementById('exportIncludeUtm')?.checked;
+      document.getElementById('exportTrackingConfig').style.display = includeTracking ? '' : 'none';
+      if (document.getElementById('exportUtmConfig'))
+        document.getElementById('exportUtmConfig').style.display = includeUtm ? '' : 'none';
+    }
+
     async function confirmBucketExport() {
       const format = document.getElementById('bucketExportFormat').value;
+      const includeTracking = document.getElementById('exportIncludeTracking').checked;
       const btn = document.getElementById('bucketExportConfirmBtn');
       btn.disabled = true;
       btn.textContent = 'Exporting…';
 
-      const body = bucketSelectedHashes.size > 0
-        ? { hashes: [...bucketSelectedHashes], format }
-        : { format };
+      const body = {
+        format,
+        includeTracking,
+        ...(bucketSelectedHashes.size > 0 ? { hashes: [...bucketSelectedHashes] } : {})
+      };
+
+      if (includeTracking) {
+        body.permission = document.getElementById('exportPermission').value || null;
+        body.expiryDays = parseInt(document.getElementById('exportExpiryDays').value, 10) || 30;
+        if (document.getElementById('exportIncludeUtm')?.checked) {
+          body.utmCampaign = document.getElementById('exportUtmCampaign').value.trim() || null;
+          body.utmSource   = document.getElementById('exportUtmSource').value.trim() || null;
+          body.utmMedium   = document.getElementById('exportUtmMedium').value.trim() || null;
+        }
+      }
 
       try {
         const res = await fetch(`${window.location.origin}/api/admin/buckets/${encodeURIComponent(currentBucket)}/records/export`, {
@@ -254,11 +292,11 @@
             </button>
             <div class="search-popover" id="searchPopover">
               <div class="search-type-toggle">
-                <button class="search-type-btn ${searchType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setSearchType('id')">By ID</button>
                 <button class="search-type-btn ${searchType === 'email' ? 'active' : ''}" onclick="event.stopPropagation();setSearchType('email')">By Email</button>
+                <button class="search-type-btn ${searchType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setSearchType('id')">By ID</button>
               </div>
-              <label>${searchType === 'id' ? 'Enter ID from logs (e.g., a1b2c3d4e5f6)' : 'Enter email (partial match)'}</label>
-              <input type="text" id="searchInput" placeholder="${searchType === 'id' ? 'e.g., a1b2c3d4e5f6' : 'e.g., @gmail.com'}" value="${sanitize(searchQuery)}" onkeydown="if(event.key==='Enter'){searchRecords();toggleSearchPopover(event);}">
+              <label>${searchType === 'id' ? 'Enter ID from logs (e.g., a1b2c3d4e5f6)' : 'Enter email — use * as wildcard'}</label>
+              <input type="text" id="searchInput" placeholder="${searchType === 'id' ? 'e.g., a1b2*' : 'e.g., *@gmail.com'}" value="${sanitize(searchQuery)}" onkeydown="if(event.key==='Enter'){searchRecords();toggleSearchPopover(event);}">
               <div class="search-actions">
                 <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearSearch()">Clear</button>
                 <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="searchRecords();toggleSearchPopover(event)">Search</button>
@@ -302,6 +340,7 @@
 
           const recordData = encodeURIComponent(JSON.stringify({
             email: r.email,
+            name: r.name,
             emailHash: r.emailHash,
             permissions: r.permissions || {},
             customFields: r.customFields || {}
@@ -399,9 +438,9 @@
         btn.classList.toggle('active', btn.textContent.trim() === (type === 'id' ? 'By ID' : 'By Email'));
       });
       const label = document.querySelector('#searchPopover label');
-      if (label) label.textContent = type === 'id' ? 'Enter ID from logs (e.g., a1b2c3d4e5f6)' : 'Enter email (partial match)';
+      if (label) label.textContent = type === 'id' ? 'Enter ID from logs (e.g., a1b2c3d4e5f6)' : 'Enter email — use * as wildcard';
       const input = document.getElementById('searchInput');
-      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2c3d4e5f6' : 'e.g., @gmail.com'; input.focus(); }
+      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2*' : 'e.g., *@gmail.com'; input.focus(); }
     }
 
     function searchRecords() {

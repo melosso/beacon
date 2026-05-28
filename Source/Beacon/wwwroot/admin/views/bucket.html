@@ -27,7 +27,7 @@
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
-            <span class="tooltip">Create token for this bucket</span>
+            <span class="tooltip">Add Identity</span>
           </span>
           <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
           <span class="tooltip-wrapper">
@@ -38,6 +38,16 @@
               </svg>
             </button>
             <span class="tooltip">Generate unsubscribe links</span>
+          </span>
+          <span class="tooltip-wrapper">
+            <button class="webhook-errors-trigger" onclick="openBucketExportModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+            <span class="tooltip">Export all records</span>
           </span>
           <span class="tooltip-wrapper">
             <button class="btn btn-outline" onclick="loadBucket(currentBucket)">Refresh</button>
@@ -97,20 +107,75 @@
 
   <!-- Bucket Record Export Modal -->
   <div class="modal-backdrop" id="bucketExportModal" style="display:none" onclick="if(event.target===this)closeBucketExportModal()">
-    <div class="modal">
+    <div class="modal modal--lg">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
         <h3 class="select-none" style="margin:0">Export Records</h3>
         <button class="btn btn-icon" onclick="closeBucketExportModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
-      <p>Export <strong id="bucketExportCount">0</strong> record(s) from <strong id="bucketExportName">-</strong>. Includes e-mail, Beacon ID, permission states, and last updated.</p>
+      <p style="margin-bottom:1.25rem">Exporting <strong id="bucketExportCount">0</strong> record(s) from <strong id="bucketExportName">-</strong>.</p>
+
       <div class="form-group">
         <label for="bucketExportFormat">Format</label>
-        <select id="bucketExportFormat" class="input-auth" style="text-align:left;text-transform:none;font-family:inherit">
+        <select id="bucketExportFormat" class="input-auth" style="text-align:left;text-transform:none;font-family:inherit" onchange="updateExportToggles()">
           <option value="csv">CSV</option>
           <option value="json">JSON</option>
+          <option value="yaml">YAML</option>
+          <option value="xml">XML</option>
         </select>
       </div>
-      <div class="modal-actions">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-top:1px solid hsl(var(--border));margin-top:0.5rem">
+        <div>
+          <div style="font-size:0.875rem;font-weight:500">Preference links</div>
+          <div style="font-size:0.8rem;color:hsl(var(--muted-foreground));margin-top:0.125rem">Generate personalised unsubscribe URLs for each subscriber</div>
+        </div>
+        <label class="switch" style="flex-shrink:0;margin-left:1rem">
+          <input type="checkbox" id="exportIncludeTracking" onchange="updateExportToggles()">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div id="exportTrackingConfig" style="display:none;padding:0.75rem 0 0.25rem;border-top:1px solid hsl(var(--border))">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div class="form-group">
+            <label for="exportPermission">Permission scope</label>
+            <select id="exportPermission" class="input-auth" style="text-align:left;text-transform:none;font-family:inherit">
+              <option value="">All permissions</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="exportExpiryDays">Expiry (days)</label>
+            <input type="number" id="exportExpiryDays" class="input-auth" value="30" min="1" max="365">
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0">
+          <div style="font-size:0.875rem;font-weight:500">UTM parameters</div>
+          <label class="switch" style="flex-shrink:0">
+            <input type="checkbox" id="exportIncludeUtm" onchange="updateExportToggles()">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div id="exportUtmConfig" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+            <div class="form-group" style="margin:0">
+              <label for="exportUtmCampaign">utm_campaign</label>
+              <input type="text" id="exportUtmCampaign" class="input-auth" placeholder="e.g. summer-sale" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label for="exportUtmSource">utm_source</label>
+              <input type="text" id="exportUtmSource" class="input-auth" placeholder="e.g. newsletter" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label for="exportUtmMedium">utm_medium</label>
+              <input type="text" id="exportUtmMedium" class="input-auth" placeholder="e.g. email" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:1rem">
         <button class="btn btn-outline" onclick="closeBucketExportModal()">Cancel</button>
         <button class="btn btn-primary" id="bucketExportConfirmBtn" onclick="confirmBucketExport()">Export</button>
       </div>

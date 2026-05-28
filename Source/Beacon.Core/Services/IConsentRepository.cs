@@ -6,7 +6,7 @@ public interface IConsentRepository
 {
     Task<ConsentRecord?> GetAsync(string bucket, string emailHash, string permission);
     Task UpsertAsync(ConsentRecord record, string? actorId = null);
-    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default);
+    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null);
 
     // Admin queries
     Task<IReadOnlyList<BucketInfo>> GetBucketsAsync();
@@ -59,6 +59,7 @@ public sealed class IdentityDetails
 {
     public required string EmailHash { get; init; }
     public string? EncryptedEmail { get; init; }
+    public string? EncryptedName { get; init; }
     public required IReadOnlyList<BucketSubscription> Subscriptions { get; init; }
 }
 

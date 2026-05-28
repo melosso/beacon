@@ -175,6 +175,6 @@ public sealed class ConsentService : IConsentService
 
     private static string NormalizePermission(string permission)
     {
-        return permission.Trim().ToLowerInvariant();
+        return permission.Trim().ToLowerInvariant().Replace(' ', '_');
     }
 }

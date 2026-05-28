@@ -28,8 +28,8 @@ PERMISSION_KEYS=(
   "Promotions"
   "Compliance"
   "Analytics"
-  "ThirdPartySharing"
-  "SMS_Notifications"
+  "Third Party Sharing"
+  "SMS Notifications"
   "Telemarketing"
 )
 
@@ -56,6 +56,40 @@ BUCKETS=(
   "ecommerce_cart_abandonment"
   "user_research_panel"
 )
+
+# Name pools keyed by TLD
+get_first_names() {
+    case "$1" in
+        de|eu) echo "Hans Anna Lukas Emma Felix Laura Max Lena Thomas Julia" ;;
+        fr)    echo "Jean Marie Pierre Sophie Thomas Emma Nicolas Julie Julien Claire" ;;
+        it)    echo "Marco Giulia Luca Francesca Andrea Chiara Giovanni Elena Alessandro Sofia" ;;
+        es)    echo "Carlos Laura Miguel Ana David Maria Jose Luis Antonio Sara" ;;
+        nl|be) echo "Jan Sophie Lars Emma Thomas Sanne Pieter Anne Stefan Roos" ;;
+        pl)    echo "Piotr Anna Krzysztof Katarzyna Tomasz Magdalena Marek Agnieszka Pawel Joanna" ;;
+        se)    echo "Erik Anna Lars Emma Johan Sara Per Kristina Anders Maria" ;;
+        *)     echo "Alex Jordan Morgan Casey Taylor Riley Cameron Quinn Avery Blake" ;;
+    esac
+}
+
+get_last_names() {
+    case "$1" in
+        de|eu) echo "Muller Schmidt Weber Fischer Becker Wagner Meyer Schulz Hoffmann Koch" ;;
+        fr)    echo "Dupont Martin Bernard Moreau Simon Laurent Lefebvre Leroy Roux Michel" ;;
+        it)    echo "Rossi Ferrari Esposito Romano Colombo Ricci Marino Greco Bruno Conti" ;;
+        es)    echo "Garcia Martinez Lopez Sanchez Perez Gonzalez Rodriguez Fernandez Diaz Torres" ;;
+        nl|be) echo "Vries Bakker Janssen Visser Smit Meijer Boer Mulder Peters Dekker" ;;
+        pl)    echo "Kowalski Nowak Wisniewski Wojcik Kowalczyk Kaminski Lewandowski Zielinski Szymanski Wozniak" ;;
+        se)    echo "Andersson Johansson Karlsson Nilsson Eriksson Larsson Olsson Persson Svensson Gustafsson" ;;
+        *)     echo "Smith Johnson Williams Brown Jones Garcia Miller Davis Wilson Moore" ;;
+    esac
+}
+
+generate_name() {
+    local tld="${1##*.}"
+    read -ra firsts <<< "$(get_first_names "$tld")"
+    read -ra lasts  <<< "$(get_last_names  "$tld")"
+    echo "${firsts[$RANDOM % ${#firsts[@]}]} ${lasts[$RANDOM % ${#lasts[@]}]}"
+}
 
 # Functions
 generate_email_permissions() {
@@ -113,6 +147,7 @@ for BUCKET_NAME in "${BUCKETS[@]}"; do
         USER_ID=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
         DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
         EMAIL="${USER_ID}@${DOMAIN}"
+        NAME=$(generate_name "$DOMAIN")
 
         PERMISSIONS_JSON=$(generate_email_permissions "${BUCKET_PERMISSIONS[@]}")
 
@@ -120,6 +155,7 @@ for BUCKET_NAME in "${BUCKETS[@]}"; do
 [{
   "bucket": "$BUCKET_NAME",
   "email": "$EMAIL",
+  "name": "$NAME",
   "permissions": {
     $PERMISSIONS_JSON
   }
@@ -161,6 +197,8 @@ NL_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
         "allowedOrigins": ["http://localhost:5000", "http://localhost:5001", "http://localhost:8070"],
         "language": "nl",
         "isEnabled": true,
+        "disableRedirects": true,
+        "collectName": true,
         "formConfig": {
             "title": "Schrijf je in voor de nieuwsbrief",
             "description": "Ontvang updates in je inbox.",
@@ -183,6 +221,8 @@ DE_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
         "allowedOrigins": ["http://localhost:5000", "http://localhost:5001", "http://localhost:8070"],
         "language": "de",
         "isEnabled": true,
+        "disableRedirects": true,
+        "collectName": true,
         "formConfig": {
             "title": "Newsletter abonnieren",
             "description": "Erhalten Sie Updates direkt in Ihr Postfach.",
@@ -205,6 +245,8 @@ FR_RESPONSE=$(curl -s -X POST "$ADMIN_URL" \
         "allowedOrigins": ["http://localhost:5000", "http://localhost:5001", "http://localhost:8070"],
         "language": "fr",
         "isEnabled": true,
+        "disableRedirects": true,
+        "collectName": true,
         "formConfig": {
             "title": "Abonnez-vous à la newsletter",
             "description": "Recevez des mises à jour dans votre boîte de réception.",
@@ -219,33 +261,36 @@ echo "Created newsletter_fr form: $FR_FORM_ID"
 # Subscribe 2 emails to newsletter_nl
 if [[ -n "$NL_FORM_ID" ]]; then
     echo "Subscribing 2 emails to newsletter_nl..."
+    declare -A NL_NAMES=(["jan.devries@organisatie.nl"]="Jan de Vries" ["sophie.bakker@organisatie.nl"]="Sophie Bakker")
     for email in "jan.devries@organisatie.nl" "sophie.bakker@organisatie.nl"; do
         curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$NL_FORM_ID/subscribe" \
             -H "Content-Type: application/json" \
             -H "Origin: http://localhost:8070" \
-            -d "{\"email\": \"$email\", \"consent\": \"true\"}"
+            -d "{\"email\": \"$email\", \"name\": \"${NL_NAMES[$email]}\", \"consent\": \"true\"}"
     done
 fi
 
 # Subscribe 3 emails to newsletter_de
 if [[ -n "$DE_FORM_ID" ]]; then
     echo "Subscribing 3 emails to newsletter_de..."
+    declare -A DE_NAMES=(["hans.mueller@firma.de"]="Hans Muller" ["anna.schmidt@firma.de"]="Anna Schmidt" ["lukas.weber@unternehmen.eu"]="Lukas Weber")
     for email in "hans.mueller@firma.de" "anna.schmidt@firma.de" "lukas.weber@unternehmen.eu"; do
         curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$DE_FORM_ID/subscribe" \
             -H "Content-Type: application/json" \
             -H "Origin: http://localhost:8070" \
-            -d "{\"email\": \"$email\", \"consent\": \"true\"}"
+            -d "{\"email\": \"$email\", \"name\": \"${DE_NAMES[$email]}\", \"consent\": \"true\"}"
     done
 fi
 
 # Subscribe 2 emails to newsletter_fr
 if [[ -n "$FR_FORM_ID" ]]; then
     echo "Subscribing 2 emails to newsletter_fr..."
+    declare -A FR_NAMES=(["jean.dupont@societe.fr"]="Jean Dupont" ["marie.curie@societe.fr"]="Marie Curie")
     for email in "jean.dupont@societe.fr" "marie.curie@societe.fr"; do
         curl -s -o /dev/null -w "  %{http_code} $email\n" -X POST "$SUBSCRIBE_BASE/$FR_FORM_ID/subscribe" \
             -H "Content-Type: application/json" \
             -H "Origin: http://localhost:8070" \
-            -d "{\"email\": \"$email\", \"consent\": \"true\"}"
+            -d "{\"email\": \"$email\", \"name\": \"${FR_NAMES[$email]}\", \"consent\": \"true\"}"
     done
 fi
 

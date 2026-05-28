@@ -20,7 +20,7 @@
       if (currentPage > 1) params.page = String(currentPage);
       if (pageSize !== 10) params.size = String(pageSize);
       if (searchQuery) params.q = searchQuery;
-      if (searchType !== 'id') params.qtype = searchType;
+      if (searchType !== 'email') params.qtype = searchType;
       updateUrl(params, replace);
     }
 
@@ -29,14 +29,14 @@
       if (identity) {
         params.identity = identity;
         if (subSearchQuery) params.q = subSearchQuery;
-        if (subSearchType !== 'id') params.qtype = subSearchType;
+        if (subSearchType !== 'email') params.qtype = subSearchType;
       } else {
         if (subSortBy !== 'lastchanged') params.sort = subSortBy;
         if (subSortDir !== 'desc') params.dir = subSortDir;
         if (subCurrentPage > 1) params.page = String(subCurrentPage);
         if (subPageSize !== 10) params.size = String(subPageSize);
         if (subSearchQuery) params.q = subSearchQuery;
-        if (subSearchType !== 'id') params.qtype = subSearchType;
+        if (subSearchType !== 'email') params.qtype = subSearchType;
       }
       updateUrl(params, replace);
     }
@@ -88,7 +88,7 @@
       if (pushState) {
         currentPage = 1;
         searchQuery = '';
-        searchType = 'id';
+        searchType = 'email';
       }
 
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -104,6 +104,14 @@
       loadBucket(bucket);
     }
 
+    function showBucketFiltered(bucket, email) {
+      currentPage = 1;
+      searchQuery = email || '';
+      searchType = 'email';
+      showBucket(bucket, false);
+      syncBucketUrl(true);
+    }
+
     // SUBSCRIPTIONS
     let subCurrentPage = 1;
     let subPageSize = 10;
@@ -112,7 +120,7 @@
     let subSortBy = _subSortPrefs.sortBy || 'lastchanged';
     let subSortDir = _subSortPrefs.sortDir || 'desc';
     let subSearchQuery = '';
-    let subSearchType = 'id';
+    let subSearchType = 'email';
     let subSelectedHashes = new Set();
 
     // Detail view sort state (client-side, data is already loaded)
@@ -121,6 +129,7 @@
     let subDetailSortDir = _subDetailSortPrefs.sortDir || 'asc';
     let subDetailSubscriptions = [];
     let subDetailEmail = null;
+    let subDetailName = null;
     let subDetailHash = '';
     let subDetailLoaded = false;
 
@@ -174,13 +183,14 @@
         const permKeys = encodeURIComponent(JSON.stringify(Object.keys(s.permissions)));
         const recordData = encodeURIComponent(JSON.stringify({
           email: subDetailEmail,
+          name: subDetailName,
           emailHash: subDetailHash,
           permissions: s.permissions,
           customFields: {}
         }));
         return `
           <tr>
-            <td><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="showBucket('${sanitize(s.bucket)}')">${sanitize(formatPermission(s.bucket))}<span class="tooltip tooltip-above">${sanitize(s.bucket)}</span></span></td>
+            <td><span class="tooltip-wrapper select-none" style="cursor:pointer" onclick="showBucketFiltered('${sanitize(s.bucket)}', ${subDetailEmail ? `'${sanitize(subDetailEmail)}'` : 'null'})">${sanitize(formatPermission(s.bucket))}<span class="tooltip tooltip-above">${sanitize(s.bucket)}</span></span></td>
             <td>${permsHtml}</td>
             <td>${sanitize(formatDate(s.lastChanged))}</td>
             <td>
@@ -190,7 +200,7 @@
                   <span class="tooltip tooltip-above tooltip-right">Actions</span>
                 </span>
                 <div class="dropdown-menu" id="rowMenu-sub-${idx}">
-                  <button class="dropdown-item" onclick="showBucket('${sanitize(s.bucket)}')">View Bucket</button>
+                  <button class="dropdown-item" onclick="showBucketFiltered('${sanitize(s.bucket)}', ${subDetailEmail ? `'${sanitize(subDetailEmail)}'` : 'null'})">View in Bucket</button>
                   <button class="dropdown-item" onclick="openEditFromSubscription('${sanitize(s.bucket)}', '${permKeys}', '${recordData}')">Edit Permissions</button>
                   <button class="dropdown-item" onclick="showAuditForBucketAndIdentity('${sanitize(s.bucket)}', '${sanitize(subDetailHash)}')">View Audit</button>
                 </div>
@@ -270,9 +280,9 @@
         btn.classList.toggle('active', btn.textContent.trim() === (type === 'id' ? 'By ID' : 'By Email'));
       });
       const label = document.querySelector('#subSearchPopover label');
-      if (label) label.textContent = type === 'id' ? 'Enter ID from logs (partial hash)' : 'Enter email (partial match)';
+      if (label) label.textContent = type === 'id' ? 'Enter ID from logs (partial hash)' : 'Enter email — use * as wildcard';
       const input = document.getElementById('subSearchInput');
-      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2c3d4' : 'e.g., @gmail.com'; input.focus(); }
+      if (input) { input.placeholder = type === 'id' ? 'e.g., a1b2*' : 'e.g., *@gmail.com'; input.focus(); }
     }
 
     function updateSubBulkBar() {
@@ -378,6 +388,8 @@
       document.getElementById('subBackBtn').style.display = 'none';
       document.getElementById('subRefreshWrapper').style.display = 'inline-block';
       document.querySelector('#view-subscriptions .pagination-container').style.display = 'flex';
+      const subNameEl = document.getElementById('subDetailName');
+      if (subNameEl) subNameEl.style.display = 'none';
 
       if (pushState) syncSubUrl();
 
@@ -401,11 +413,11 @@
             </button>
             <div class="search-popover" id="subSearchPopover" style="min-width:240px">
               <div class="search-type-toggle">
-                <button class="search-type-btn ${subSearchType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setSubSearchType('id')">By ID</button>
                 <button class="search-type-btn ${subSearchType === 'email' ? 'active' : ''}" onclick="event.stopPropagation();setSubSearchType('email')">By Email</button>
+                <button class="search-type-btn ${subSearchType === 'id' ? 'active' : ''}" onclick="event.stopPropagation();setSubSearchType('id')">By ID</button>
               </div>
-              <label>${subSearchType === 'id' ? 'Enter ID from logs (partial hash)' : 'Enter email (partial match)'}</label>
-              <input type="text" id="subSearchInput" placeholder="${subSearchType === 'id' ? 'e.g., a1b2c3d4' : 'e.g., @gmail.com'}" value="${sanitize(subSearchQuery)}" onkeydown="if(event.key==='Enter')searchIdentities()">
+              <label>${subSearchType === 'id' ? 'Enter ID from logs (partial hash)' : 'Enter email — use * as wildcard'}</label>
+              <input type="text" id="subSearchInput" placeholder="${subSearchType === 'id' ? 'e.g., a1b2*' : 'e.g., *@gmail.com'}" value="${sanitize(subSearchQuery)}" onkeydown="if(event.key==='Enter')searchIdentities()">
               <div class="search-actions">
                 <button class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="clearSubSearch()">Clear</button>
                 <button class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem" onclick="searchIdentities()">Search</button>
@@ -497,6 +509,7 @@
       // Clear cached data and render the detail headers with a blank body (no stale rows)
       subDetailSubscriptions = [];
       subDetailEmail = null;
+      subDetailName = null;
       subDetailHash = emailHash;
       subDetailLoaded = false;
       renderDetailSubscriptions();
@@ -512,6 +525,13 @@
       if (details.email) {
         badge.dataset.email = details.email;
         badge.innerHTML = `<span style="color:inherit">${sanitize(details.email)}</span><span class="tooltip">Click to copy · double-click for ID</span>`;
+      }
+
+      subDetailName = details.name || null;
+      const nameEl = document.getElementById('subDetailName');
+      if (nameEl) {
+        nameEl.textContent = subDetailName || '';
+        nameEl.style.display = subDetailName ? 'block' : 'none';
       }
 
       subDetailSubscriptions = details.subscriptions;

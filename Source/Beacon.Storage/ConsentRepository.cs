@@ -109,13 +109,22 @@ public sealed class ConsentRepository : IConsentRepository
     }
 
     public async Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(
-        string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default)
+        string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default,
+        IReadOnlyList<string>? emailHashes = null)
     {
         var query = _context.ConsentAuditEntries.AsQueryable();
         if (!string.IsNullOrWhiteSpace(bucket))
             query = query.Where(e => e.Bucket == bucket);
-        if (!string.IsNullOrWhiteSpace(emailHash))
-            query = query.Where(e => e.EmailHash.StartsWith(emailHash));
+        if (emailHashes is { Count: > 0 })
+        {
+            query = query.Where(e => emailHashes.Contains(e.EmailHash));
+        }
+        else if (!string.IsNullOrWhiteSpace(emailHash))
+        {
+            var hashLower = emailHash.ToLowerInvariant();
+            var likePat = hashLower.Contains('*') ? hashLower.Replace('*', '%') : hashLower + '%';
+            query = query.Where(e => EF.Functions.Like(e.EmailHash, likePat));
+        }
 
         var total = await query.CountAsync(ct);
         var records = await query
@@ -189,7 +198,8 @@ public sealed class ConsentRepository : IConsentRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLowerInvariant();
-            baseQuery = baseQuery.Where(r => r.EmailHash.StartsWith(searchLower));
+            var likePat = searchLower.Contains('*') ? searchLower.Replace('*', '%') : searchLower + '%';
+            baseQuery = baseQuery.Where(r => EF.Functions.Like(r.EmailHash, likePat));
         }
 
         // Group at DB level to get one row per identity with a sort key.
@@ -346,7 +356,8 @@ public sealed class ConsentRepository : IConsentRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLowerInvariant();
-            baseQuery = baseQuery.Where(r => r.EmailHash.StartsWith(searchLower));
+            var likePat = searchLower.Contains('*') ? searchLower.Replace('*', '%') : searchLower + '%';
+            baseQuery = baseQuery.Where(r => EF.Functions.Like(r.EmailHash, likePat));
         }
 
         // Count distinct identities for pagination total, separate query so EF
@@ -425,6 +436,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EmailHash = g.Key,
                 EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
             })
+            .OrderBy(r => r.EmailHash)
             .Take(10_000)
             .ToListAsync();
 
@@ -496,10 +508,16 @@ public sealed class ConsentRepository : IConsentRepository
             .Select(r => r.EncryptedEmail)
             .FirstOrDefaultAsync();
 
+        var encryptedName = await _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash && r.EncryptedName != null)
+            .Select(r => r.EncryptedName)
+            .FirstOrDefaultAsync();
+
         return new IdentityDetails
         {
             EmailHash = emailHash,
             EncryptedEmail = encryptedEmail,
+            EncryptedName = encryptedName,
             Subscriptions = subscriptions
         };
     }
