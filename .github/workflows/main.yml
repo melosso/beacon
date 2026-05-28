@@ -31,12 +31,18 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Create and push tag
+      - name: Bump version and create tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ github.event.inputs.tag_name }}" -m "Release ${{ github.event.inputs.tag_name }}"
-          git push origin "${{ github.event.inputs.tag_name }}"
+          VERSION="${{ github.event.inputs.tag_name }}"
+          BARE="${VERSION#v}"
+          sed -i "s|<Version>.*</Version>|<Version>${BARE}</Version>|" Source/Beacon/Beacon.csproj
+          git add Source/Beacon/Beacon.csproj
+          git commit -m "chore: bump version to ${BARE}"
+          git push
+          git tag -a "${VERSION}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
 
       - name: Restore and build
         run: |
