@@ -170,3 +170,27 @@ public class StatusLocalizationTests
             Beacon.Localization.FormLocalization.GetStatusStrings("xx").ArchivedTitle);
     }
 }
+
+public class SupportedLanguageTests
+{
+    // The token API used to keep its own shorter list, so it rejected languages the pages render.
+    [Theory]
+    [InlineData("it")] [InlineData("pt")] [InlineData("ja")]
+    public void LanguagesAddedInV150AreRenderable(string lang)
+    {
+        Assert.NotEqual(
+            Beacon.Localization.FormLocalization.GetStatusStrings("en").ArchivedTitle,
+            Beacon.Localization.FormLocalization.GetStatusStrings(lang).ArchivedTitle);
+    }
+
+    [Fact]
+    public void EverySupportedLanguageHasItsOwnStrings()
+    {
+        foreach (var lang in Beacon.Localization.FormLocalization.SupportedLanguages)
+        {
+            var t = Beacon.Localization.FormLocalization.GetStatusStrings(lang);
+            Assert.False(string.IsNullOrWhiteSpace(t.ExpiredTitle));
+            Assert.False(string.IsNullOrWhiteSpace(t.ArchivedTitle));
+        }
+    }
+}

@@ -30,7 +30,6 @@ public static class AdminEndpoints
     private const string PermissionTag = "Permission Management";
 
     // The current list of supported languages as of right now
-    private static readonly IReadOnlyList<string> SupportedLanguages = new List<string> { "en", "de", "fr", "nl", "pl", "es" }.AsReadOnly();
 
     private static readonly HashSet<string> _allowedThemes = ["system", "light", "dark"];
     private static readonly HashSet<string> _allowedFonts = ["Arial", "Helvetica", "Georgia", "Tahoma", "Verdana", "Trebuchet MS", "Courier New", "Inter", "Manrope"];
@@ -447,8 +446,8 @@ public static class AdminEndpoints
             if (!permissionsValidation.IsValid)
                 return Results.BadRequest(new { error = permissionsValidation.Error });
 
-            if (!string.IsNullOrEmpty(request.Language) && !SupportedLanguages.Contains(request.Language.ToLowerInvariant()))
-                return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", SupportedLanguages)}" });
+            if (!string.IsNullOrEmpty(request.Language) && !Beacon.Localization.FormLocalization.SupportedLanguages.Contains(request.Language.ToLowerInvariant()))
+                return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", Beacon.Localization.FormLocalization.SupportedLanguages)}" });
         }
 
         var config = configService.Get();
@@ -2512,7 +2511,7 @@ public sealed class GenerateTokenRequest
 
     /// <summary>
     /// Language code for the preference page.
-    /// Supported: "en", "de", "fr", "nl", "pl", "es".
+    /// Supported: "en", "de", "fr", "nl", "pl", "es", "it", "pt", "ja".
     /// Default: "en" (English).
     /// </summary>
     public string Language { get; set; } = "en";

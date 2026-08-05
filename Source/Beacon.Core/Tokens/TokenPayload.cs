@@ -30,7 +30,7 @@ public sealed class TokenPayload
     public bool AllowReplay { get; set; } = true;
 
     /// <summary>
-    /// Language code for the preference page (e.g., "en", "de", "fr", "nl", "pl", "es").
+    /// Language code for the preference page (e.g., "en", "de", "fr", "nl", "pl", "es", "it", "pt", "ja").
     /// Default: "en" (English).
     /// </summary>
     [JsonPropertyName("l")]
