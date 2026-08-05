@@ -96,10 +96,23 @@ try
     // Security validation
     if (!builder.Environment.IsDevelopment())
     {
-        ValidateSecureKey(signingKey, "Beacon__SigningKey");
-        ValidateSecureKey(encryptionKey, "Beacon__EncryptionKey");
-        ValidateSecureKey(pepper, "Beacon__Pepper");
-        ValidateSecureKey(adminApiKey, "Beacon__AdminApiKey");
+        // Configuration mistake, not a crash: report every bad key
+        var keyProblems = new[]
+        {
+            DescribeKeyProblem(signingKey, "Beacon__SigningKey"),
+            DescribeKeyProblem(encryptionKey, "Beacon__EncryptionKey"),
+            DescribeKeyProblem(pepper, "Beacon__Pepper"),
+            DescribeKeyProblem(adminApiKey, "Beacon__AdminApiKey"),
+        }.OfType<string>().ToArray();
+
+        if (keyProblems.Length > 0)
+        {
+            Log.Fatal("Refusing to start outside Development:");
+            foreach (var problem in keyProblems)
+                Log.Fatal("  - {Problem}", problem);
+            Log.Fatal("Generate each with: openssl rand -base64 32");
+            return 1;
+        }
     }
     else
     {
@@ -793,10 +806,12 @@ try
     app.Run();
 
     Log.Information("Application shutdown complete");
+    return 0;
 }
 catch (Exception ex)
 {
     Log.Fatal(ex, "Beacon terminated unexpectedly");
+    return 1;
 }
 finally
 {
@@ -810,21 +825,14 @@ static bool IsInsecureDefault(string value)
 }
 
 
-// Fails closed outside Development: shipped placeholder keys are publicly known.
-static void ValidateSecureKey(string value, string keyName)
+// Null when the key is acceptable. Shipped placeholder keys are publicly known.
+static string? DescribeKeyProblem(string value, string keyName) => value switch
 {
-    if (string.IsNullOrWhiteSpace(value))
-        throw new InvalidOperationException($"{keyName} is required.");
-
-    if (IsInsecureDefault(value))
-        throw new InvalidOperationException(
-            $"{keyName} is still set to the shipped placeholder. Set it to a unique secret " +
-            $"(for example: openssl rand -base64 32) before running outside Development.");
-
-    if (value.Length < 32)
-        throw new InvalidOperationException(
-            $"{keyName} must be at least 32 characters. Generate one with: openssl rand -base64 32");
-}
+    _ when string.IsNullOrWhiteSpace(value) => $"{keyName} is not set",
+    _ when IsInsecureDefault(value)         => $"{keyName} is still the shipped placeholder",
+    { Length: < 32 }                        => $"{keyName} is shorter than 32 characters",
+    _                                       => null
+};
 
 static string NormalizeKey(string key, int requiredBytes)
 {

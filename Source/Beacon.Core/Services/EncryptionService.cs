@@ -193,10 +193,7 @@ public class EncryptionService {
         // Pre-existing install whose data was encrypted under the shipped constant. Keep it readable.
         if (File.Exists(Path.Combine(_certsPath, PrivateKeyFileName)))
         {
-            Log.Warning(
-                "BEACON_ENCRYPTION_KEY is not set and this installation predates per-instance keys, so the " +
-                "hardcoded fallback key is in use. That key ships in every Beacon binary. Set " +
-                "BEACON_ENCRYPTION_KEY to a unique secret and re-enter your secrets to rotate off it.");
+            Log.Warning("BEACON_ENCRYPTION_KEY is not set; using the legacy fallback key, which ships in every binary. Set it and re-enter your secrets to rotate.");
             return LegacyFallbackKey;
         }
 
@@ -204,10 +201,7 @@ public class EncryptionService {
         File.WriteAllText(keyPath, generated);
         RestrictToOwner(keyPath);
 
-        Log.Warning(
-            "BEACON_ENCRYPTION_KEY is not set. Generated a unique key at {KeyPath}. Back up the .core " +
-            "directory or set BEACON_ENCRYPTION_KEY explicitly; losing it makes encrypted data unreadable.",
-            keyPath);
+        Log.Warning("BEACON_ENCRYPTION_KEY is not set; generated one at {KeyPath}. Back up .core or lose access to encrypted data.", keyPath);
 
         return generated;
     }
