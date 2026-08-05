@@ -2,8 +2,7 @@ using System.Threading.Channels;
 
 namespace Beacon.Core.Services;
 
-public sealed class WebhookDeliveryQueue : IWebhookDeliveryQueue
-{
+public sealed class WebhookDeliveryQueue {
     private readonly Channel<WebhookDeliveryMessage> _channel =
         Channel.CreateBounded<WebhookDeliveryMessage>(new BoundedChannelOptions(1000)
         {

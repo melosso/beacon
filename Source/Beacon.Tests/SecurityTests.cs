@@ -190,7 +190,7 @@ public class SecurityTests
 
             var encrypted = service.Encrypt("test");
 
-            Assert.StartsWith("BENC:", encrypted);
+            Assert.StartsWith("BENC2:", encrypted);
         }
         finally
         {
@@ -352,9 +352,6 @@ public class SecurityTests
             var service = CreateEncryptionService(testDir);
 
             Assert.True(Directory.Exists(service.CertificatesPath));
-            Assert.True(File.Exists(Path.Combine(service.CertificatesPath, "recovery.baklz4")));
-            Assert.True(File.Exists(Path.Combine(service.CertificatesPath, "snapshot_blob.bin")));
-            Assert.True(File.Exists(Path.Combine(service.CertificatesPath, "store.jsonc")));
         }
         finally
         {
@@ -389,11 +386,11 @@ public class SecurityTests
         var testDir = Path.Combine(Path.GetTempPath(), $"beacon-test-{Guid.NewGuid()}");
         try
         {
-            _ = CreateEncryptionService(testDir);
+            var encrypted = CreateEncryptionService(testDir).Encrypt("test data");
 
-            // Try to create new service with different key
-            Assert.Throws<InvalidOperationException>(() =>
-                new EncryptionService(testDir, "different-encryption-key"));
+            var other = new EncryptionService(testDir, "different-encryption-key");
+
+            Assert.Throws<System.Security.Cryptography.CryptographicException>(() => other.Decrypt(encrypted));
         }
         finally
         {

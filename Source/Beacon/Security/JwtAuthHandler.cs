@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,18 +7,19 @@ using System.Text.Json;
 using Beacon.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using Beacon.Storage;
 
 namespace Beacon.Security;
 
 public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 {
-    private readonly IUserRepository? _userRepository;
+    private readonly UserRepository? _userRepository;
 
     public JwtAuthHandler(
         IOptionsMonitor<JwtAuthOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IUserRepository? userRepository = null) : base(options, logger, encoder)
+        UserRepository? userRepository = null) : base(options, logger, encoder)
     {
         _userRepository = userRepository;
     }
@@ -160,48 +162,33 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         var signatureInput = Encoding.ASCII.GetBytes($"{parts[0]}.{parts[1]}");
         using var hmac = new HMACSHA256(signingKey);
         var computedSignature = hmac.ComputeHash(signatureInput);
-        var expectedSignature = Base64UrlDecode(parts[2]);
+        var expectedSignature = Base64Url.DecodeFromChars(parts[2]);
 
         if (!CryptographicOperations.FixedTimeEquals(computedSignature, expectedSignature))
             return null;
 
-        var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
+        var payloadJson = Encoding.UTF8.GetString(Base64Url.DecodeFromChars(parts[1]));
         return JsonSerializer.Deserialize<JsonElement>(payloadJson);
     }
 
     public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin")
     {
-        var header = Base64UrlEncode("""{"alg":"HS256","typ":"JWT"}"""u8);
+        var header = Base64Url.EncodeToString("""{"alg":"HS256","typ":"JWT"}"""u8);
 
-        var iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var exp = expiresAt.ToUnixTimeSeconds();
-        var payloadJson = $"{{\"sub\":\"{subject}\",\"role\":\"{role}\",\"iat\":{iat},\"exp\":{exp}}}";
-        var payload = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
+        // Serialize, never interpolate: an unescaped quote in the subject would inject payload claims.
+        var payload = Base64Url.EncodeToString(JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            sub = subject,
+            role,
+            iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            exp = expiresAt.ToUnixTimeSeconds()
+        }));
 
         var signatureInput = Encoding.ASCII.GetBytes($"{header}.{payload}");
         using var hmac = new HMACSHA256(signingKey);
-        var signature = Base64UrlEncode(hmac.ComputeHash(signatureInput));
+        var signature = Base64Url.EncodeToString(hmac.ComputeHash(signatureInput));
 
         return $"{header}.{payload}.{signature}";
-    }
-
-    private static string Base64UrlEncode(ReadOnlySpan<byte> data)
-    {
-        return Convert.ToBase64String(data)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-    }
-
-    private static byte[] Base64UrlDecode(string input)
-    {
-        var padded = input.Replace('-', '+').Replace('_', '/');
-        switch (padded.Length % 4)
-        {
-            case 2: padded += "=="; break;
-            case 3: padded += "="; break;
-        }
-        return Convert.FromBase64String(padded);
     }
 }
 

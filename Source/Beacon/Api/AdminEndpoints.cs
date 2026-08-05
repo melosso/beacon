@@ -43,84 +43,84 @@ public static class AdminEndpoints
         routes.MapPost("/api/consent/override", OverrideConsent)
             .WithName("OverrideConsent")
             .WithTags(PermissionTag)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentWrite")
             .WithDescription("Override consent status for an email. Use to sync consent state from external systems.");
 
         routes.MapPost("/api/tokens/generate", GenerateToken)
             .WithName("GenerateToken")
             .WithTags(PermissionTag)
-            .RequireAuthorization()
+            .RequireAuthorization("TokensWrite")
             .WithDescription("Generate preference management tokens. Accepts an array of requests. Returns an array of URL-safe tokens for the /u/{token} endpoint.");
 
         routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
             .WithName("GetAllBucketRecords")
             .WithTags(PermissionTag)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.");
 
         // Management APIs (excluded from public OpenAPI docs)
         routes.MapGet("/api/admin/buckets", GetBuckets)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}", GetBucketDetails)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/records", GetBucketRecords)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/archive", ArchiveBucket)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/unarchive", UnarchiveBucket)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/permissions", AddBucketPermission)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}", DeleteBucket)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/records/{emailHash}", DeleteRecord)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentWrite")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/permissions/{permission}", DeletePermission)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/check-email", CheckEmailExists)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/identities", GetIdentities)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/identities/{emailHash}", GetIdentityDetails)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/identities/export", ExportIdentities)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentWrite")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/webhooks/buckets", GetWebhookBuckets)
-            .RequireAuthorization()
+            .RequireAuthorization("WebhooksRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/webhook", GetWebhookConfig)
-            .RequireAuthorization()
+            .RequireAuthorization("WebhooksRead")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/webhook", SaveWebhookConfig)
@@ -132,7 +132,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/webhook/errors", GetWebhookErrors)
-            .RequireAuthorization()
+            .RequireAuthorization("WebhooksRead")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/webhook/errors/{id}", DeleteWebhookError)
@@ -168,11 +168,11 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/buckets/{bucket}/options", GetBucketOptions)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsRead")
             .ExcludeFromDescription();
 
         routes.MapPut("/api/admin/buckets/{bucket}/options", SaveBucketOptions)
-            .RequireAuthorization()
+            .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/tokens/export", ExportBucketTokens)
@@ -180,7 +180,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/records/export", ExportBucketRecords)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/data-policies/tasks", GetWorkflowTasks)
@@ -200,7 +200,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/audit", GetAuditLog)
-            .RequireAuthorization()
+            .RequireAuthorization("AuditRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/brand-identities", GetBrandIdentities)
@@ -231,12 +231,12 @@ public static class AdminEndpoints
     private static async Task<IResult> OverrideConsent(
         HttpContext context,
         [FromBody] OverrideConsentRequest request,
-        [FromServices] IConsentService consentService,
+        [FromServices] ConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
-        [FromServices] IAdminNotificationService notifications,
+        [FromServices] AdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
@@ -316,12 +316,12 @@ public static class AdminEndpoints
         HttpContext httpContext,
         string bucket,
         [FromBody] BatchOverrideRequest request,
-        [FromServices] IConsentService consentService,
+        [FromServices] ConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
-        [FromServices] IAdminNotificationService notifications,
+        [FromServices] AdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -409,15 +409,15 @@ public static class AdminEndpoints
         HttpContext context,
         [FromBody] List<GenerateTokenRequest> requests,
         [FromServices] TokenGenerator generator,
-        [FromServices] IConsentService consentService,
+        [FromServices] ConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
-        [FromServices] IAdminNotificationService notifications,
+        [FromServices] AdminNotificationService notifications,
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] IEmailQueueRepository emailQueueRepo,
-        [FromServices] IBucketOptionsRepository bucketOptionsRepo,
+        [FromServices] EmailQueueRepository emailQueueRepo,
+        [FromServices] BucketOptionsRepository bucketOptionsRepo,
         [FromServices] Encryptor encryptor,
         [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
         [FromServices] Beacon.Storage.EmailDispatchTrigger emailDispatchTrigger,
@@ -634,7 +634,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetBuckets(
         [FromServices] IConsentRepository repository,
-        [FromServices] IBucketRepository bucketRepository)
+        [FromServices] BucketRepository bucketRepository)
     {
         var buckets = await repository.GetBucketsAsync();
         var explicitBucketNames = await bucketRepository.GetAllBucketNamesAsync();
@@ -663,8 +663,8 @@ public static class AdminEndpoints
     private static async Task<IResult> GetBucketDetails(
         string bucket,
         [FromServices] IConsentRepository repository,
-        [FromServices] IBucketRepository bucketRepository,
-        [FromServices] IBrandIdentityService brandService)
+        [FromServices] BucketRepository bucketRepository,
+        [FromServices] BrandIdentityService brandService)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -760,7 +760,7 @@ public static class AdminEndpoints
     private static async Task<IResult> DeleteBucket(
         string bucket,
         [FromServices] IConsentRepository repository,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -798,7 +798,7 @@ public static class AdminEndpoints
         string bucket,
         string emailHash,
         [FromServices] IConsentRepository repository,
-        [FromServices] IEmailQueueRepository emailQueueRepository,
+        [FromServices] EmailQueueRepository emailQueueRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -830,8 +830,8 @@ public static class AdminEndpoints
         string bucket,
         string permission,
         [FromServices] IConsentRepository repository,
-        [FromServices] IBucketRepository bucketRepository,
-        [FromServices] IAdminNotificationService notifications,
+        [FromServices] BucketRepository bucketRepository,
+        [FromServices] AdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -877,7 +877,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> ArchiveBucket(
         string bucket,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -899,7 +899,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> UnarchiveBucket(
         string bucket,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -922,7 +922,7 @@ public static class AdminEndpoints
     private static async Task<IResult> AddBucketPermission(
         string bucket,
         [FromBody] AddPermissionRequest request,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -1066,7 +1066,7 @@ public static class AdminEndpoints
         string bucket,
         [FromBody] WebhookConfigRequest request,
         [FromServices] IWebhookService webhookService,
-        [FromServices] IBucketRepository bucketRepository)
+        [FromServices] BucketRepository bucketRepository)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -1102,8 +1102,8 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "Invalid URL format" });
         }
 
-        // SSRF protection: block private/reserved IP addresses
-        if (!await IsWebhookUrlSafeAsync(uri))
+        // SSRF protection: same guard the delivery path uses, so the two cannot drift apart.
+        if (await Beacon.Security.SsrfGuard.ResolveAndValidateAsync(request.Url) is null)
         {
             return Results.BadRequest(new { error = "URL must not point to a private or reserved address" });
         }
@@ -1125,7 +1125,7 @@ public static class AdminEndpoints
     private static async Task<IResult> DeleteWebhookConfig(
         string bucket,
         [FromServices] IWebhookService webhookService,
-        [FromServices] IBucketRepository bucketRepository)
+        [FromServices] BucketRepository bucketRepository)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -1198,7 +1198,7 @@ public static class AdminEndpoints
 
     private static async Task StreamEvents(
         HttpContext context,
-        [FromServices] IAdminNotificationService notifications)
+        [FromServices] AdminNotificationService notifications)
     {
         context.Response.Headers.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
@@ -1243,19 +1243,6 @@ public static class AdminEndpoints
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return; // client disconnected; expected for SSE
-        }
-    }
-
-    private static async Task<bool> IsWebhookUrlSafeAsync(Uri uri)
-    {
-        try
-        {
-            var addresses = await Dns.GetHostAddressesAsync(uri.Host);
-            return addresses.All(addr => !IsPrivateOrReserved(addr));
-        }
-        catch
-        {
-            return false;
         }
     }
 
@@ -1636,6 +1623,19 @@ public static class AdminEndpoints
         [FromBody] ObjectStorageTestRequest request,
         CancellationToken ct)
     {
+        // A custom endpoint is an arbitrary URL; without this the probe is an internal port scanner
+        // whose results are read back through the error message.
+        if (!string.IsNullOrWhiteSpace(request.Endpoint) &&
+            await Beacon.Security.SsrfGuard.ResolveAndValidateAsync(request.Endpoint, ct) is null)
+        {
+            return Results.Ok(new
+            {
+                success = false,
+                message = "Endpoint must be an http(s) URL that resolves to a public address.",
+                latencyMs = 0
+            });
+        }
+
         try
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -1650,30 +1650,20 @@ public static class AdminEndpoints
                 latencyMs = (int)sw.ElapsedMilliseconds
             });
         }
+        catch (Amazon.S3.AmazonS3Exception ex)
+        {
+            return Results.Ok(new { success = false, message = $"S3 error: {ex.ErrorCode}", latencyMs = 0 });
+        }
         catch (Exception ex)
         {
-            return Results.Ok(new
-            {
-                success = false,
-                message = ex.Message,
-                latencyMs = 0
-            });
+            Serilog.Log.Warning(ex, "Object storage connection test failed");
+            return Results.Ok(new { success = false, message = "Connection failed. See server logs.", latencyMs = 0 });
         }
     }
 
-    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req)
-    {
-        var credentials = new Amazon.Runtime.BasicAWSCredentials(req.AccessKey, req.SecretKey);
-        var s3Config = new Amazon.S3.AmazonS3Config
-        {
-            ForcePathStyle = req.Provider is "r2" or "minio"
-        };
-        if (!string.IsNullOrWhiteSpace(req.Endpoint))
-            s3Config.ServiceURL = req.Endpoint;
-        else if (!string.IsNullOrWhiteSpace(req.Region))
-            s3Config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(req.Region);
-        return new Amazon.S3.AmazonS3Client(credentials, s3Config);
-    }
+    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req) =>
+        S3ObjectStorageService.CreateClient(
+            req.Provider, req.Endpoint, req.Region, req.AccessKey, req.SecretKey);
 
     private static async Task<IResult> FlushCache(
         [FromServices] IBeaconCacheService cache,
@@ -1717,7 +1707,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetBucketOptions(
         string bucket,
-        [FromServices] IBucketOptionsRepository repo)
+        [FromServices] BucketOptionsRepository repo)
     {
         return Results.Ok(await repo.GetAsync(bucket));
     }
@@ -1725,7 +1715,7 @@ public static class AdminEndpoints
     private static async Task<IResult> SaveBucketOptions(
         string bucket,
         [FromBody] BucketOptionsRequest request,
-        [FromServices] IBucketOptionsRepository repo)
+        [FromServices] BucketOptionsRepository repo)
     {
         await repo.SaveAsync(new BucketOptions
         {
@@ -2140,7 +2130,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetWorkflowTasks(
         [FromQuery] int limit,
-        [FromServices] IWorkflowTaskRepository taskRepo,
+        [FromServices] WorkflowTaskRepository taskRepo,
         CancellationToken ct)
     {
         var effectiveLimit = limit > 0 ? Math.Min(limit, 200) : 50;
@@ -2278,41 +2268,9 @@ public static class AdminEndpoints
         });
     }
 
-    private static bool IsPrivateOrReserved(IPAddress address)
-    {
-        if (IPAddress.IsLoopback(address))
-            return true;
-
-        if (address.IsIPv4MappedToIPv6)
-            address = address.MapToIPv4();
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var bytes = address.GetAddressBytes();
-            return bytes[0] switch
-            {
-                10 => true,                                          // 10.0.0.0/8
-                127 => true,                                         // 127.0.0.0/8
-                169 when bytes[1] == 254 => true,                    // 169.254.0.0/16
-                172 when bytes[1] >= 16 && bytes[1] <= 31 => true,   // 172.16.0.0/12
-                192 when bytes[1] == 168 => true,                    // 192.168.0.0/16
-                0 => true,                                           // 0.0.0.0/8
-                100 when bytes[1] >= 64 && bytes[1] <= 127 => true,  // 100.64.0.0/10
-                _ => false
-            };
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
-        }
-
-        return false;
-    }
-
     // Brand Identities
 
-    private static IResult GetBrandIdentities([FromServices] IBrandIdentityService brandService)
+    private static IResult GetBrandIdentities([FromServices] BrandIdentityService brandService)
     {
         var identities = brandService.GetAll().Select(i => new
         {
@@ -2328,7 +2286,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> CreateBrandIdentity(
         [FromBody] BrandIdentityCreateRequest request,
-        [FromServices] IBrandIdentityService brandService,
+        [FromServices] BrandIdentityService brandService,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
@@ -2341,7 +2299,7 @@ public static class AdminEndpoints
     private static async Task<IResult> UpdateBrandIdentity(
         int id,
         [FromBody] BrandIdentityUpdateRequest request,
-        [FromServices] IBrandIdentityService brandService,
+        [FromServices] BrandIdentityService brandService,
         CancellationToken ct)
     {
         var existing = brandService.GetById(id);
@@ -2380,7 +2338,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> DeleteBrandIdentity(
         int id,
-        [FromServices] IBrandIdentityService brandService,
+        [FromServices] BrandIdentityService brandService,
         CancellationToken ct)
     {
         if (brandService.GetById(id) is null)
@@ -2400,7 +2358,7 @@ public static class AdminEndpoints
     private static async Task<IResult> AssignBrandIdentityBuckets(
         int id,
         [FromBody] BrandIdentityBucketsRequest request,
-        [FromServices] IBrandIdentityService brandService,
+        [FromServices] BrandIdentityService brandService,
         CancellationToken ct)
     {
         if (brandService.GetById(id) is null)

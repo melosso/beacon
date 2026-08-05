@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Beacon.Storage;
 
 namespace Beacon.Api;
 
@@ -51,7 +52,7 @@ public static class UserEndpoints
             .ExcludeFromDescription();
     }
 
-    private static async Task<IResult> GetAllUsers(IUserRepository repo)
+    private static async Task<IResult> GetAllUsers(UserRepository repo)
     {
         var users = await repo.GetAllAsync();
         return Results.Ok(users.Select(u => new
@@ -65,7 +66,7 @@ public static class UserEndpoints
         }));
     }
 
-    private static async Task<IResult> CreateUser(CreateUserRequest request, IUserRepository repo)
+    private static async Task<IResult> CreateUser(CreateUserRequest request, UserRepository repo)
     {
         if (!ValidateUsername(request.Username, out var usernameError))
             return Results.Json(new { error = usernameError }, statusCode: 400);
@@ -95,7 +96,7 @@ public static class UserEndpoints
         });
     }
 
-    private static async Task<IResult> DeleteUser(Guid id, HttpContext ctx, IUserRepository repo)
+    private static async Task<IResult> DeleteUser(Guid id, HttpContext ctx, UserRepository repo)
     {
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var user = await repo.FindByIdAsync(id);
@@ -109,7 +110,7 @@ public static class UserEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> ChangeRole(Guid id, ChangeRoleRequest request, HttpContext ctx, IUserRepository repo)
+    private static async Task<IResult> ChangeRole(Guid id, ChangeRoleRequest request, HttpContext ctx, UserRepository repo)
     {
         var role = request.Role?.ToLowerInvariant() ?? "";
         if (!ValidRoles.Contains(role))
@@ -127,7 +128,7 @@ public static class UserEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> RegenerateApiKey(Guid id, HttpContext ctx, IUserRepository repo)
+    private static async Task<IResult> RegenerateApiKey(Guid id, HttpContext ctx, UserRepository repo)
     {
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var currentRole = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "user";
@@ -149,7 +150,7 @@ public static class UserEndpoints
         return Results.Ok(new { apiKey }); // shown once
     }
 
-    private static async Task<IResult> ChangePassword(Guid id, ChangePasswordRequest request, HttpContext ctx, IUserRepository repo)
+    private static async Task<IResult> ChangePassword(Guid id, ChangePasswordRequest request, HttpContext ctx, UserRepository repo)
     {
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var currentRole = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "user";
@@ -182,7 +183,7 @@ public static class UserEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> GetMe(HttpContext ctx, IUserRepository repo)
+    private static async Task<IResult> GetMe(HttpContext ctx, UserRepository repo)
     {
         var username = ctx.User.FindFirstValue(ClaimTypes.Name);
         if (string.IsNullOrEmpty(username))
@@ -242,7 +243,7 @@ public static class UserEndpoints
         return true;
     }
 
-    private static async Task<IResult> ChangeUsername(Guid id, ChangeUsernameRequest request, IUserRepository repo)
+    private static async Task<IResult> ChangeUsername(Guid id, ChangeUsernameRequest request, UserRepository repo)
     {
         if (!ValidateUsername(request.Username, out var usernameError))
             return Results.Json(new { error = usernameError }, statusCode: 400);

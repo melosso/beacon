@@ -18,17 +18,6 @@ internal sealed class MemoryBeaconCacheService : IBeaconCacheService, IDisposabl
 
     public int KeyCount => _keys.Count;
 
-    public ValueTask<T?> GetAsync<T>(string key, CancellationToken ct = default) where T : class
-        => ValueTask.FromResult(_cache.Get<T>(key));
-
-    public Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken ct = default) where T : class
-    {
-        var expiry = ttl ?? _defaultTtl;
-        _cache.Set(key, value, expiry);
-        _keys.TryAdd(key, 0);
-        return Task.CompletedTask;
-    }
-
     public Task RemoveAsync(string key, CancellationToken ct = default)
     {
         _cache.Remove(key);
@@ -50,16 +39,6 @@ internal sealed class MemoryBeaconCacheService : IBeaconCacheService, IDisposabl
         _cache.Set(key, value, expiry);
         _keys.TryAdd(key, 0);
         return value;
-    }
-
-    public Task RemoveByPrefixAsync(string keyPrefix, CancellationToken ct = default)
-    {
-        foreach (var key in _keys.Keys.Where(k => k.StartsWith(keyPrefix, StringComparison.Ordinal)))
-        {
-            _cache.Remove(key);
-            _keys.TryRemove(key, out _);
-        }
-        return Task.CompletedTask;
     }
 
     public Task FlushAsync(CancellationToken ct = default)

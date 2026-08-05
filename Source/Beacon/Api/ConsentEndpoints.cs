@@ -9,6 +9,7 @@ using Beacon.Core.Validation;
 using Beacon.Tokens;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
+using Beacon.Storage;
 
 namespace Beacon.Api;
 
@@ -32,7 +33,7 @@ public static class ConsentEndpoints
         routes.MapPost("/api/consent/check", CheckConsent)
             .WithName("CheckConsent")
             .WithTags(PermissionTag)
-            .RequireAuthorization()
+            .RequireAuthorization("ConsentRead")
             .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
 
         routes.MapGet("/confirm/{token}", ConfirmSubscription)
@@ -46,10 +47,11 @@ public static class ConsentEndpoints
         CancellationToken ct,
         [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
-        [FromServices] IConsentService consentService,
-        [FromServices] ITokenUsageRepository tokenUsageRepository,
+        [FromServices] ConsentService consentService,
+        [FromServices] TokenUsageRepository tokenUsageRepository,
+        [FromServices] BucketRepository bucketRepository,
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] IBrandIdentityService brandService)
+        [FromServices] BrandIdentityService brandService)
     {
         var result = validator.Validate(token);
 
@@ -67,6 +69,11 @@ public static class ConsentEndpoints
         }
 
         var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
+
+        if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
+        {
+            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
+        }
 
         // Only check token usage if replay is not allowed
         if (!result.Payload.AllowReplay)
@@ -119,15 +126,15 @@ public static class ConsentEndpoints
         CancellationToken ct,
         [FromServices] IAntiforgery antiforgery,
         [FromServices] TokenValidator validator,
-        [FromServices] IConsentService consentService,
+        [FromServices] ConsentService consentService,
         [FromServices] IConsentRepository consentRepository,
         [FromServices] IWebhookService webhookService,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] BucketRepository bucketRepository,
         [FromServices] EmailHasher emailHasher,
-        [FromServices] ITokenUsageRepository tokenUsageRepository,
-        [FromServices] IAdminNotificationService notifications,
+        [FromServices] TokenUsageRepository tokenUsageRepository,
+        [FromServices] AdminNotificationService notifications,
         [FromServices] ISystemConfigurationService sysConfig,
-        [FromServices] IBrandIdentityService brandService)
+        [FromServices] BrandIdentityService brandService)
     {
         if (!await antiforgery.IsRequestValidAsync(context))
         {
@@ -162,7 +169,7 @@ public static class ConsentEndpoints
 
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Content(GetStatusPage("invalid", lang, brand: brand), "text/html");
+            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
         }
 
         var form = await context.Request.ReadFormAsync();
@@ -310,10 +317,10 @@ public static class ConsentEndpoints
     private static async Task<IResult> ConfirmSubscription(
         string token,
         CancellationToken ct,
-        [FromServices] IEmailQueueRepository emailQueue,
-        [FromServices] IConsentService consentService,
+        [FromServices] EmailQueueRepository emailQueue,
+        [FromServices] ConsentService consentService,
         [FromServices] Encryptor encryptor,
-        [FromServices] IBrandIdentityService brandService)
+        [FromServices] BrandIdentityService brandService)
     {
         var entry = await emailQueue.GetByConfirmationTokenAsync(token);
         if (entry is null)
@@ -345,7 +352,7 @@ public static class ConsentEndpoints
 
     private static async Task<IResult> CheckConsent(
         [FromBody] CheckConsentRequest request,
-        [FromServices] IConsentService consentService)
+        [FromServices] ConsentService consentService)
     {
         if (string.IsNullOrWhiteSpace(request.Bucket))
         {
@@ -664,42 +671,48 @@ public static class ConsentEndpoints
         if (brand is null) return string.Empty;
         var sb = new StringBuilder();
 
-        var hasAccent = brand.PrimaryAccent is { Length: > 0 };
-        var hasSurface = brand.SurfaceColour is { Length: > 0 };
-        var hasFont = brand.Font is { Length: > 0 };
-        var theme = brand.Theme;
+        // Sanitize at render time as well as on write: anything reaching the DB by another path
+        // would otherwise be emitted verbatim and could close the <style> element.
+        var accent = InputValidator.SanitizeCssColor(brand.PrimaryAccent, "");
+        var surface = InputValidator.SanitizeCssColor(brand.SurfaceColour, "");
+        var font = InputValidator.SanitizeCssFontFamily(brand.Font, "");
+
+        var hasAccent = accent.Length > 0;
+        var hasSurface = surface.Length > 0;
+        var hasFont = font.Length > 0;
+        var theme = brand.Theme is "light" or "dark" ? brand.Theme : "system";
 
         if (hasAccent || hasSurface)
         {
             sb.AppendLine(":root {");
             if (hasAccent)
             {
-                sb.AppendLine($"  --accent: {brand.PrimaryAccent};");
-                sb.AppendLine($"  --accent-fg: {ContrastForeground(brand.PrimaryAccent!)};");
+                sb.AppendLine($"  --accent: {accent};");
+                sb.AppendLine($"  --accent-fg: {ContrastForeground(accent)};");
             }
             if (hasSurface)
             {
-                sb.AppendLine($"  --bg: {brand.SurfaceColour};");
-                sb.AppendLine($"  --fg: {ContrastForeground(brand.SurfaceColour!)};");
+                sb.AppendLine($"  --bg: {surface};");
+                sb.AppendLine($"  --fg: {ContrastForeground(surface)};");
             }
             sb.AppendLine("}");
         }
 
         // font-family must target html,body directly — :root alone is overridden by the base body rule
         if (hasFont)
-            sb.AppendLine($"html, body {{ font-family: \"{brand.Font}\", system-ui, -apple-system, sans-serif; }}");
+            sb.AppendLine($"html, body {{ font-family: \"{font}\", system-ui, -apple-system, sans-serif; }}");
 
         // Force theme: override media query with explicit values
         if (theme == "dark")
         {
             sb.AppendLine("@media (prefers-color-scheme: light) {");
             sb.AppendLine("  :root {");
-            sb.AppendLine($"    --bg: {brand.SurfaceColour ?? "#0f0f0f"};");
-            sb.AppendLine($"    --fg: {(hasSurface ? ContrastForeground(brand.SurfaceColour!) : "#e7e7e7")};");
+            sb.AppendLine($"    --bg: {(hasSurface ? surface : "#0f0f0f")};");
+            sb.AppendLine($"    --fg: {(hasSurface ? ContrastForeground(surface) : "#e7e7e7")};");
             if (hasAccent)
             {
-                sb.AppendLine($"    --accent: {brand.PrimaryAccent};");
-                sb.AppendLine($"    --accent-fg: {ContrastForeground(brand.PrimaryAccent!)};");
+                sb.AppendLine($"    --accent: {accent};");
+                sb.AppendLine($"    --accent-fg: {ContrastForeground(accent)};");
             }
             sb.AppendLine("  }");
             sb.AppendLine("}");
@@ -708,12 +721,12 @@ public static class ConsentEndpoints
         {
             sb.AppendLine("@media (prefers-color-scheme: dark) {");
             sb.AppendLine("  :root {");
-            sb.AppendLine($"    --bg: {brand.SurfaceColour ?? "#ffffff"} !important;");
-            sb.AppendLine($"    --fg: {(hasSurface ? ContrastForeground(brand.SurfaceColour!) : "#111111")} !important;");
+            sb.AppendLine($"    --bg: {(hasSurface ? surface : "#ffffff")} !important;");
+            sb.AppendLine($"    --fg: {(hasSurface ? ContrastForeground(surface) : "#111111")} !important;");
             if (hasAccent)
             {
-                sb.AppendLine($"    --accent: {brand.PrimaryAccent} !important;");
-                sb.AppendLine($"    --accent-fg: {ContrastForeground(brand.PrimaryAccent!)} !important;");
+                sb.AppendLine($"    --accent: {accent} !important;");
+                sb.AppendLine($"    --accent-fg: {ContrastForeground(accent)} !important;");
             }
             sb.AppendLine("  }");
             sb.AppendLine("}");
@@ -754,7 +767,7 @@ public static class ConsentEndpoints
         return $"<img src=\"{WebUtility.HtmlEncode(src)}\" class=\"brand-logo\" alt=\"Logo\" />";
     }
 
-    private static async Task<BrandIdentitySettings?> ResolveBrandAsync(IBrandIdentityService brandService, string bucket, CancellationToken ct = default)
+    private static async Task<BrandIdentitySettings?> ResolveBrandAsync(BrandIdentityService brandService, string bucket, CancellationToken ct = default)
     {
         var identity = await brandService.GetForBucketAsync(bucket, ct);
         if (string.IsNullOrEmpty(identity.Settings) || identity.Settings == "{}") return null;
@@ -772,11 +785,13 @@ public static class ConsentEndpoints
             "expired" => ("⚠", "warning", t.ExpiredTitle, t.ExpiredMsg),
             "invalid" => ("✗", "error", t.InvalidTitle, t.InvalidMsg),
             "already_processed" => ("ℹ", "info", t.ProcessedTitle, t.ProcessedMsg),
+            "archived" => ("ℹ", "info", t.ArchivedTitle, t.ArchivedMsg),
             "unsubscribed" => ("✓", "success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
             "updated" => ("✓", "success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
+            // ConfirmMsg is operator-supplied free text, not markup — encode it.
             "confirmed" => ("✓", "success",
                 brand?.ConfirmTitle is { Length: > 0 } ct ? ct : t.ConfirmedTitle,
-                brand?.ConfirmMsg   is { Length: > 0 } cm ? cm : t.ConfirmedMsg),
+                brand?.ConfirmMsg   is { Length: > 0 } cm ? WebUtility.HtmlEncode(cm) : t.ConfirmedMsg),
             _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
         };
 

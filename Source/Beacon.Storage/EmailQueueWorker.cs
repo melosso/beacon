@@ -36,8 +36,12 @@ public sealed class EmailQueueWorker : BackgroundService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                try { await ProcessBatchAsync(stoppingToken); }
-                catch (Exception ex) { _logger.LogError(ex, "Email queue worker encountered an unhandled error"); }
+                // Re-read each tick so toggling the queue in settings takes effect without a restart.
+                if (IsQueueEnabled())
+                {
+                    try { await ProcessBatchAsync(stoppingToken); }
+                    catch (Exception ex) { _logger.LogError(ex, "Email queue worker encountered an unhandled error"); }
+                }
 
                 var cron = ReadCurrentCron();
                 var next = cron.GetNextOccurrence(DateTimeOffset.UtcNow, TimeZoneInfo.Utc);
@@ -77,6 +81,21 @@ public sealed class EmailQueueWorker : BackgroundService
         }
     }
 
+    private bool IsQueueEnabled()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            return scope.ServiceProvider.GetRequiredService<ISystemConfigurationService>().Get().EmailQueueEnabled;
+        }
+        catch (Exception ex)
+        {
+            // Can't read settings: keep dispatching rather than silently stranding queued mail.
+            _logger.LogWarning(ex, "Could not read the email queue setting; processing this batch anyway");
+            return true;
+        }
+    }
+
     private CronExpression ReadCurrentCron()
     {
         try
@@ -103,7 +122,7 @@ public sealed class EmailQueueWorker : BackgroundService
         var sp = scope.ServiceProvider;
 
         var config = sp.GetRequiredService<ISystemConfigurationService>().Get();
-        var queue   = sp.GetRequiredService<IEmailQueueRepository>();
+        var queue   = sp.GetRequiredService<EmailQueueRepository>();
         var now     = DateTime.UtcNow;
 
         // Purge runs on every cron tick, independent of email-sending configuration.
@@ -124,7 +143,7 @@ public sealed class EmailQueueWorker : BackgroundService
             return;
         }
 
-        var sender    = sp.GetRequiredService<IEmailSenderService>();
+        var sender    = sp.GetRequiredService<EmailSenderService>();
         var encryptor = sp.GetRequiredService<Encryptor>();
 
         var entries = await queue.GetPendingBatchAsync(50);

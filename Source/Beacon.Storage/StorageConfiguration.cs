@@ -26,23 +26,23 @@ public static class StorageConfiguration
                     options.UseNpgsql(connectionString);
                     break;
                 case "mysql":
-                    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+                    options.UseMySQL(connectionString);
                     break;
                 default:
                     throw new ArgumentException($"Unsupported database provider: {provider}");
             }
         });
 
-        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
-        services.AddScoped<IEmailQueueRepository, EmailQueueRepository>();
-        services.AddScoped<IBucketOptionsRepository, BucketOptionsRepository>();
-        services.AddScoped<IEmailSenderService, EmailSenderService>();
+        services.AddScoped<ApiKeyRepository>();
+        services.AddScoped<EmailQueueRepository>();
+        services.AddScoped<BucketOptionsRepository>();
+        services.AddScoped<EmailSenderService>();
 
         services.AddSingleton<EmailDispatchTrigger>();
         services.AddHostedService<EmailQueueWorker>();
 
         services.AddSingleton<DataPolicyTrigger>();
-        services.AddScoped<IWorkflowTaskRepository, WorkflowTaskRepository>();
+        services.AddScoped<WorkflowTaskRepository>();
         services.AddScoped<DataPolicyService>();
         services.AddHostedService<DataPolicyWorker>();
         

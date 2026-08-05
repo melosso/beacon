@@ -14,12 +14,12 @@ public sealed class WebhookService : IWebhookService
 
     private readonly IWebhookRepository _repository;
     private readonly Encryptor _encryptor;
-    private readonly IWebhookDeliveryQueue _deliveryQueue;
+    private readonly WebhookDeliveryQueue _deliveryQueue;
 
     public WebhookService(
         IWebhookRepository repository,
         Encryptor encryptor,
-        IWebhookDeliveryQueue deliveryQueue)
+        WebhookDeliveryQueue deliveryQueue)
     {
         _repository = repository;
         _encryptor = encryptor;

@@ -9,12 +9,12 @@ public sealed record TaskOperationResult(TaskOperationOutcome Outcome, WorkflowT
 
 public sealed class DataPolicyService
 {
-    private readonly IWorkflowTaskRepository _taskRepo;
+    private readonly WorkflowTaskRepository _taskRepo;
     private readonly IConsentRepository _consentRepo;
     private readonly ISystemConfigurationService _configSvc;
 
     public DataPolicyService(
-        IWorkflowTaskRepository taskRepo,
+        WorkflowTaskRepository taskRepo,
         IConsentRepository consentRepo,
         ISystemConfigurationService configSvc)
     {

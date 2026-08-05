@@ -10,7 +10,7 @@ on:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  SOLUTION_PATH: 'Source/Beacon.sln'
+  SOLUTION_PATH: 'Source/Beacon.slnx'
   PROJECT_PATH: 'Source/Beacon/Beacon.csproj'
   SOURCE_DIR: 'Source/Beacon'
   BUILD_OUTPUT: 'build-output'

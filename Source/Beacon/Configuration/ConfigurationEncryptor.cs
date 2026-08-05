@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Beacon.Core.Services;
 using Serilog;
 
@@ -19,50 +21,45 @@ public static class ConfigurationEncryptor
     ];
 
     /// <summary>
-    /// Ensures sensitive configuration values are encrypted in appsettings.json.
-    /// Returns decrypted values for use in the application.
+    /// Reads the sensitive configuration values, decrypting any that are already encrypted.
+    /// Writes nothing: call <see cref="PersistEncrypted"/> only once the values have been validated,
+    /// so a startup that is going to be rejected does not first overwrite appsettings.json with
+    /// ciphertext the operator cannot read.
     /// </summary>
-    public static Dictionary<string, string> ProcessConfiguration(
+    public static Dictionary<string, string> ReadSensitiveValues(
         IConfiguration configuration,
-        IEncryptionService encryptionService,
-        string contentRootPath)
+        EncryptionService encryptionService)
     {
-        var decryptedValues = new Dictionary<string, string>();
+        var values = new Dictionary<string, string>();
         var config = configuration.GetSection("Beacon");
-        var needsEncryption = false;
 
-        // Check which values need encryption
         foreach (var key in SensitiveKeys)
         {
             var value = config[key];
             if (string.IsNullOrEmpty(value))
                 continue;
 
-            if (encryptionService.IsEncrypted(value))
-            {
-                // Already encrypted - decrypt for use
-                decryptedValues[key] = encryptionService.Decrypt(value);
-            }
-            else
-            {
-                // Not encrypted - will need to encrypt
-                decryptedValues[key] = value;
-                needsEncryption = true;
-            }
+            values[key] = encryptionService.IsEncrypted(value)
+                ? encryptionService.Decrypt(value)
+                : value;
         }
 
-        // Encrypt values in appsettings.json if needed
-        if (needsEncryption)
-        {
-            EncryptAppSettings(contentRootPath, encryptionService, decryptedValues);
-        }
+        return values;
+    }
 
-        return decryptedValues;
+    /// <summary>Encrypts any still-plaintext sensitive values in appsettings.json.</summary>
+    public static void PersistEncrypted(
+        string contentRootPath,
+        EncryptionService encryptionService,
+        Dictionary<string, string> plaintextValues)
+    {
+        if (plaintextValues.Values.Any(v => !encryptionService.IsEncrypted(v)))
+            EncryptAppSettings(contentRootPath, encryptionService, plaintextValues);
     }
 
     private static void EncryptAppSettings(
         string contentRootPath,
-        IEncryptionService encryptionService,
+        EncryptionService encryptionService,
         Dictionary<string, string> plaintextValues)
     {
         var appSettingsPath = Path.Combine(contentRootPath, "appsettings.json");
@@ -74,63 +71,47 @@ public static class ConfigurationEncryptor
 
         try
         {
-            var json = File.ReadAllText(appSettingsPath);
-            var encryptedCount = 0;
+            var root = JsonNode.Parse(
+                File.ReadAllText(appSettingsPath),
+                nodeOptions: null,
+                new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
 
-            // Use regex-based replacement to preserve comments and formatting
+            if (root?["Beacon"] is not JsonObject beacon)
+            {
+                Log.Warning("appsettings.json has no Beacon section, cannot encrypt configuration");
+                return;
+            }
+
+            var encryptedCount = 0;
             foreach (var key in SensitiveKeys)
             {
-                if (!plaintextValues.TryGetValue(key, out var plaintext))
+                if (!plaintextValues.TryGetValue(key, out var plaintext) || encryptionService.IsEncrypted(plaintext))
                     continue;
 
-                // Skip if already encrypted
-                if (encryptionService.IsEncrypted(plaintext))
+                if (beacon[key] is null)
                     continue;
 
-                var encrypted = encryptionService.Encrypt(plaintext);
-
-                // Escape the plaintext for regex (handle special characters)
-                var escapedPlaintext = System.Text.RegularExpressions.Regex.Escape(plaintext);
-
-                // Match the key-value pattern: "Key": "value"
-                var pattern = $@"(""{key}""\s*:\s*""){escapedPlaintext}("")";
-                var replacement = $"$1{EscapeJsonString(encrypted)}$2";
-
-                var newJson = System.Text.RegularExpressions.Regex.Replace(json, pattern, replacement);
-                if (newJson != json)
-                {
-                    json = newJson;
-                    encryptedCount++;
-                }
+                beacon[key] = encryptionService.Encrypt(plaintext);
+                encryptedCount++;
             }
 
             if (encryptedCount > 0)
             {
-                File.WriteAllText(appSettingsPath, json);
-                Log.Debug($"Encrypted {encryptedCount} configuration value(s) in appsettings.json");
+                File.WriteAllText(appSettingsPath,
+                    root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                Log.Debug("Encrypted {Count} configuration value(s) in appsettings.json", encryptedCount);
             }
         }
         catch (Exception ex)
         {
-            Log.Error($"Failed to encrypt appsettings.json: {ex.Message}");
+            Log.Error(ex, "Failed to encrypt appsettings.json");
         }
-    }
-
-    private static string EscapeJsonString(string value)
-    {
-        // Escape special JSON characters
-        return value
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t");
     }
 
     /// <summary>
     /// Decrypts a single configuration value if it's encrypted.
     /// </summary>
-    public static string DecryptValue(string? value, IEncryptionService encryptionService)
+    public static string DecryptValue(string? value, EncryptionService encryptionService)
     {
         if (string.IsNullOrEmpty(value))
             return value ?? string.Empty;

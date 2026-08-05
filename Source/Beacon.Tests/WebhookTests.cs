@@ -289,14 +289,14 @@ public class WebhookTests
 
         var readTask = Task.Run(async () =>
         {
-            await foreach (var n in service.SubscribeAsync(cts.Token))
+            await foreach (var n in service.SubscribeAllAsync(cts.Token))
             {
-                received = n;
+                received = (WebhookErrorNotification)n;
                 break;
             }
         }, cts.Token);
 
-        while (service.WebhookSubscriberCount == 0)
+        while (service.SubscriberCount == 0)
             await Task.Yield();
 
         await service.PublishAsync(notification);
@@ -319,23 +319,23 @@ public class WebhookTests
 
         var task1 = Task.Run(async () =>
         {
-            await foreach (var n in service.SubscribeAsync(cts.Token))
+            await foreach (var n in service.SubscribeAllAsync(cts.Token))
             {
-                received1 = n;
+                received1 = (WebhookErrorNotification)n;
                 break;
             }
         }, cts.Token);
 
         var task2 = Task.Run(async () =>
         {
-            await foreach (var n in service.SubscribeAsync(cts.Token))
+            await foreach (var n in service.SubscribeAllAsync(cts.Token))
             {
-                received2 = n;
+                received2 = (WebhookErrorNotification)n;
                 break;
             }
         }, cts.Token);
 
-        while (service.WebhookSubscriberCount < 2)
+        while (service.SubscriberCount < 2)
             await Task.Yield();
 
         await service.PublishAsync(notification);
@@ -359,9 +359,9 @@ public class WebhookTests
         {
             try
             {
-                await foreach (var n in service.SubscribeAsync(cts.Token))
+                await foreach (var n in service.SubscribeAllAsync(cts.Token))
                 {
-                    items.Add(n);
+                    items.Add((WebhookErrorNotification)n);
                     itemReceived.TrySetResult();
                 }
             }
@@ -371,7 +371,7 @@ public class WebhookTests
             }
         }, TestContext.Current.CancellationToken);
 
-        while (service.WebhookSubscriberCount == 0)
+        while (service.SubscriberCount == 0)
             await Task.Yield();
 
         await service.PublishAsync(new WebhookErrorNotification(TestBucket, "err1", 0, DateTime.UtcNow));

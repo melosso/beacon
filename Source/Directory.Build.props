@@ -1,0 +1,22 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Version>1.6.0</Version>
+    <Authors>Melosso</Authors>
+    <Company>Melosso</Company>
+    <Product>Beacon</Product>
+    <Copyright>Copyright © Melosso $([System.DateTime]::Now.Year)</Copyright>
+    <RepositoryUrl>https://github.com/melosso/beacon</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://melosso.com</PackageProjectUrl>
+    <PackageLicenseExpression>EUPL-1.2</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

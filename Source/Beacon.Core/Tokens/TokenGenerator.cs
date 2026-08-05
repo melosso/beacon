@@ -1,3 +1,5 @@
+using System.Buffers.Text;
+using Beacon.Core.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,12 +9,16 @@ namespace Beacon.Tokens;
 public sealed class TokenGenerator
 {
     private readonly byte[] _signingKey;
+    private readonly byte[]? _payloadKey;
     private readonly int _defaultExpiryDays;
     private readonly TimeProvider _timeProvider;
 
     public TokenGenerator(TokenOptions options, TimeProvider? timeProvider = null)
     {
         _signingKey = Convert.FromBase64String(options.SigningKey);
+        _payloadKey = options.PayloadEncryptionKey is { Length: > 0 } key
+            ? Convert.FromBase64String(key)
+            : null;
         _defaultExpiryDays = options.ExpiryDays;
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
@@ -61,18 +67,24 @@ public sealed class TokenGenerator
 
     private string CreateToken(TokenPayload payload)
     {
-        var payloadJson = JsonSerializer.Serialize(payload);
-        var payloadBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
-        var signature = ComputeSignature(payloadBase64);
+        var payloadBytes = JsonSerializer.SerializeToUtf8Bytes(payload);
 
-        return $"v1.{payloadBase64}.{signature}";
+        var version = _payloadKey is null ? "v1" : "v2";
+        var payloadBase64 = Base64Url.EncodeToString(
+            _payloadKey is null ? payloadBytes : AesGcmCipher.Seal(payloadBytes, _payloadKey));
+
+        // v2 signs the version too, so a v2 token cannot be relabelled v1. v1 signs the payload
+        // alone, which is what already-issued tokens were signed with.
+        var signed = version == "v1" ? payloadBase64 : $"{version}.{payloadBase64}";
+
+        return $"{version}.{payloadBase64}.{ComputeSignature(signed)}";
     }
 
     private string ComputeSignature(string payload)
     {
         using var hmac = new HMACSHA256(_signingKey);
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
-        return Base64UrlEncode(hash);
+        return Base64Url.EncodeToString(hash);
     }
 
     private static string NormalizeEmail(string email)
@@ -84,15 +96,7 @@ public sealed class TokenGenerator
     {
         var bytes = new byte[16];
         RandomNumberGenerator.Fill(bytes);
-        return Base64UrlEncode(bytes);
-    }
-
-    private static string Base64UrlEncode(byte[] data)
-    {
-        return Convert.ToBase64String(data)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
+        return Base64Url.EncodeToString(bytes);
     }
 }
 

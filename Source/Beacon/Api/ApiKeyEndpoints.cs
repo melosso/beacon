@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Beacon.Storage;
 
 namespace Beacon.Api;
 
@@ -44,7 +45,7 @@ public static class ApiKeyEndpoints
             .ExcludeFromDescription();
     }
 
-    private static async Task<IResult> GetAllApiKeys(IApiKeyRepository repo)
+    private static async Task<IResult> GetAllApiKeys(ApiKeyRepository repo)
     {
         var keys = await repo.GetAllAsync();
         return Results.Ok(keys.Select(k => new
@@ -60,7 +61,7 @@ public static class ApiKeyEndpoints
         }));
     }
 
-    private static async Task<IResult> CreateApiKey(CreateApiKeyRequest request, IApiKeyRepository repo)
+    private static async Task<IResult> CreateApiKey(CreateApiKeyRequest request, ApiKeyRepository repo)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 200)
             return Results.Json(new { error = "Name is required and must be under 200 characters." }, statusCode: 400);
@@ -98,7 +99,7 @@ public static class ApiKeyEndpoints
         });
     }
 
-    private static async Task<IResult> DeleteApiKey(Guid id, IApiKeyRepository repo)
+    private static async Task<IResult> DeleteApiKey(Guid id, ApiKeyRepository repo)
     {
         var key = await repo.FindByIdAsync(id);
         if (key == null)
@@ -108,7 +109,7 @@ public static class ApiKeyEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> SetApiKeyEnabled(Guid id, SetEnabledRequest request, IApiKeyRepository repo)
+    private static async Task<IResult> SetApiKeyEnabled(Guid id, SetEnabledRequest request, ApiKeyRepository repo)
     {
         var key = await repo.FindByIdAsync(id);
         if (key == null)
@@ -118,7 +119,7 @@ public static class ApiKeyEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> UpdateApiKeyPermissions(Guid id, UpdatePermissionsRequest request, IApiKeyRepository repo)
+    private static async Task<IResult> UpdateApiKeyPermissions(Guid id, UpdatePermissionsRequest request, ApiKeyRepository repo)
     {
         var key = await repo.FindByIdAsync(id);
         if (key == null)
@@ -134,7 +135,7 @@ public static class ApiKeyEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> UpdateApiKeyDates(Guid id, UpdateDatesRequest request, IApiKeyRepository repo)
+    private static async Task<IResult> UpdateApiKeyDates(Guid id, UpdateDatesRequest request, ApiKeyRepository repo)
     {
         var key = await repo.FindByIdAsync(id);
         if (key == null)
@@ -150,7 +151,7 @@ public static class ApiKeyEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> RotateApiKey(Guid id, IApiKeyRepository repo)
+    private static async Task<IResult> RotateApiKey(Guid id, ApiKeyRepository repo)
     {
         var key = await repo.FindByIdAsync(id);
         if (key == null)

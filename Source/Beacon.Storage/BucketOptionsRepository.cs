@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;
 
-public sealed class BucketOptionsRepository : IBucketOptionsRepository
-{
+public sealed class BucketOptionsRepository {
     private readonly BeaconDbContext _db;
 
     public BucketOptionsRepository(BeaconDbContext db) => _db = db;

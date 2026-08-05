@@ -13,16 +13,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Beacon.Storage;
 
-public sealed class EmailSenderService : IEmailSenderService
-{
+public sealed class EmailSenderService {
     // A single, static instance prevents socket exhaustion under concurrent load.
     private static readonly HttpClient _httpClient = new HttpClient();
 
     private readonly Encryptor _encryptor;
     private readonly ILogger<EmailSenderService> _logger;
-    private readonly IBrandIdentityService _brandService;
+    private readonly BrandIdentityService _brandService;
 
-    public EmailSenderService(Encryptor encryptor, ILogger<EmailSenderService> logger, IBrandIdentityService brandService)
+    public EmailSenderService(Encryptor encryptor, ILogger<EmailSenderService> logger, BrandIdentityService brandService)
     {
         _encryptor = encryptor;
         _logger = logger;

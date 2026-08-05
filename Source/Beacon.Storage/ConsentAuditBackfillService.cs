@@ -21,8 +21,26 @@ public sealed class ConsentAuditBackfillService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        try
+        {
+            await BackfillAsync(stoppingToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Best-effort one-time data migration; never let it take the host down at boot.
+            _logger.LogError(ex, "Audit backfill failed; continuing startup");
+        }
+    }
+
+    private async Task BackfillAsync(CancellationToken stoppingToken)
+    {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
+
+        // The INSERT below uses SQLite-only functions (randomblob, hex, random) and unquoted
+        // identifiers, which fold to lowercase on PostgreSQL. Same guard as DatabaseMigrator.
+        if (!db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) ?? true)
+            return;
 
         using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, stoppingToken);
 

@@ -5,8 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;
 
-public sealed class ApiKeyRepository : IApiKeyRepository
-{
+public sealed class ApiKeyRepository {
     private readonly BeaconDbContext _context;
 
     public ApiKeyRepository(BeaconDbContext context)

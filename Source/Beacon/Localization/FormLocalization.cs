@@ -179,7 +179,8 @@ public static class FormLocalization
         string UnsubTitle,     string UnsubMsgPrefix,
         string UpdatedTitle,   string UpdatedOptOutPrefix, string UpdatedOptInPrefix,
         string SuccessTitle,   string SuccessMsg,
-        string ConfirmedTitle, string ConfirmedMsg);
+        string ConfirmedTitle, string ConfirmedMsg,
+        string ArchivedTitle,  string ArchivedMsg);
 
     private static readonly Dictionary<string, StatusStrings> StatusTable = new()
     {
@@ -190,7 +191,8 @@ public static class FormLocalization
             "Unsubscribed",           "You have been unsubscribed from:",
             "Preferences updated",    "Unsubscribed from:", "Still subscribed to:",
             "Success",                "Your preferences have been updated.",
-            "Subscription confirmed", "Your subscription has been confirmed. You're now opted in."),
+            "Subscription confirmed", "Your subscription has been confirmed. You're now opted in.",
+            "No longer available", "This subscription list has been closed, so preferences can no longer be changed. No further emails will be sent."),
 
         ["de"] = new(
             "Link abgelaufen",         "Dieser Link ist abgelaufen. Bitte verwenden Sie den Link in einer aktuelleren E-Mail.",
@@ -199,7 +201,8 @@ public static class FormLocalization
             "Abgemeldet",              "Sie wurden abgemeldet von:",
             "Einstellungen aktualisiert", "Abgemeldet von:", "Noch angemeldet für:",
             "Erfolg",                  "Ihre Einstellungen wurden aktualisiert.",
-            "Anmeldung bestätigt",     "Ihre Anmeldung wurde bestätigt. Sie sind jetzt eingetragen."),
+            "Anmeldung bestätigt",     "Ihre Anmeldung wurde bestätigt. Sie sind jetzt eingetragen.",
+            "Nicht mehr verfügbar", "Diese Verteilerliste wurde geschlossen, Einstellungen können nicht mehr geändert werden. Es werden keine weiteren E-Mails versendet."),
 
         ["fr"] = new(
             "Lien expiré",             "Ce lien a expiré. Veuillez utiliser le lien contenu dans un e-mail plus récent.",
@@ -208,7 +211,8 @@ public static class FormLocalization
             "Désabonné",               "Vous avez été désabonné de :",
             "Préférences mises à jour","Désabonné de :", "Toujours abonné à :",
             "Succès",                  "Vos préférences ont été mises à jour.",
-            "Abonnement confirmé",     "Votre abonnement a été confirmé. Vous êtes maintenant inscrit."),
+            "Abonnement confirmé",     "Votre abonnement a été confirmé. Vous êtes maintenant inscrit.",
+            "Plus disponible", "Cette liste de diffusion a été fermée, les préférences ne peuvent plus être modifiées. Aucun autre e-mail ne sera envoyé."),
 
         ["nl"] = new(
             "Link verlopen",           "Deze link is verlopen. Gebruik de link in een recentere e-mail.",
@@ -217,7 +221,8 @@ public static class FormLocalization
             "Afgemeld",                "Je bent afgemeld voor:",
             "Voorkeuren bijgewerkt",   "Afgemeld voor:", "Nog aangemeld voor:",
             "Succes",                  "Je voorkeuren zijn bijgewerkt.",
-            "Inschrijving bevestigd",  "Je inschrijving is bevestigd. Je bent nu aangemeld."),
+            "Inschrijving bevestigd",  "Je inschrijving is bevestigd. Je bent nu aangemeld.",
+            "Niet meer beschikbaar", "Deze verzendlijst is gesloten, voorkeuren kunnen niet meer worden gewijzigd. Er worden geen e-mails meer verstuurd."),
 
         ["pl"] = new(
             "Link wygasł",             "Ten link wygasł. Proszę użyć linku z nowszej wiadomości e-mail.",
@@ -226,7 +231,8 @@ public static class FormLocalization
             "Wypisano",                "Wypisano z:",
             "Zaktualizowano preferencje","Wypisano z:", "Nadal subskrybowany do:",
             "Sukces",                  "Twoje preferencje zostały zaktualizowane.",
-            "Subskrypcja potwierdzona","Twoja subskrypcja została potwierdzona. Jesteś teraz zapisany."),
+            "Subskrypcja potwierdzona","Twoja subskrypcja została potwierdzona. Jesteś teraz zapisany.",
+            "Już niedostępne", "Ta lista wysyłkowa została zamknięta, nie można już zmieniać preferencji. Nie będą wysyłane kolejne wiadomości."),
 
         ["es"] = new(
             "Enlace caducado",         "Este enlace ha caducado. Por favor, utilice el enlace de un correo más reciente.",
@@ -235,7 +241,8 @@ public static class FormLocalization
             "Dado de baja",            "Se ha dado de baja de:",
             "Preferencias actualizadas","Dado de baja de:", "Suscrito todavía a:",
             "Éxito",                   "Sus preferencias han sido actualizadas.",
-            "Suscripción confirmada",  "Su suscripción ha sido confirmada. Ya está registrado."),
+            "Suscripción confirmada",  "Su suscripción ha sido confirmada. Ya está registrado.",
+            "Ya no disponible", "Esta lista de correo se ha cerrado, por lo que ya no se pueden cambiar las preferencias. No se enviarán más correos."),
 
         ["it"] = new(
             "Link scaduto",            "Questo link è scaduto. Utilizza il link di un'e-mail più recente.",
@@ -244,7 +251,8 @@ public static class FormLocalization
             "Disiscritto",             "Hai annullato l'iscrizione a:",
             "Preferenze aggiornate",   "Disiscritto da:", "Ancora iscritto a:",
             "Successo",                "Le tue preferenze sono state aggiornate.",
-            "Iscrizione confermata",   "La tua iscrizione è stata confermata. Sei ora registrato."),
+            "Iscrizione confermata",   "La tua iscrizione è stata confermata. Sei ora registrato.",
+            "Non più disponibile", "Questa lista di distribuzione è stata chiusa, le preferenze non possono più essere modificate. Non verranno inviate altre email."),
 
         ["pt"] = new(
             "Link expirado",           "Este link expirou. Por favor, use o link de um e-mail mais recente.",
@@ -253,7 +261,8 @@ public static class FormLocalization
             "Desinscrito",             "Você foi desinscrito de:",
             "Preferências atualizadas","Desinscrito de:", "Ainda inscrito em:",
             "Sucesso",                 "Suas preferências foram atualizadas.",
-            "Assinatura confirmada",   "Sua assinatura foi confirmada. Agora você está inscrito."),
+            "Assinatura confirmada",   "Sua assinatura foi confirmada. Agora você está inscrito.",
+            "Já não disponível", "Esta lista de distribuição foi encerrada, pelo que as preferências já não podem ser alteradas. Não serão enviados mais emails."),
 
         ["ja"] = new(
             "リンクの期限切れ",          "このリンクは有効期限が切れています。最新のメールのリンクをご利用ください。",
@@ -262,7 +271,8 @@ public static class FormLocalization
             "配信停止完了",             "以下の配信を停止しました：",
             "設定を更新しました",        "配信停止：", "引き続きご登録中：",
             "成功",                     "設定が更新されました。",
-            "登録確認完了",             "ご登録が確認されました。オプトインが完了しました。"),
+            "登録確認完了",             "ご登録が確認されました。オプトインが完了しました。",
+            "利用できません", "この配信リストは終了したため、設定を変更できません。今後メールが送信されることはありません。"),
     };
 
     public static StatusStrings GetStatusStrings(string? language)

@@ -6,8 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;
 
-public sealed class EmailQueueRepository : IEmailQueueRepository
-{
+public sealed class EmailQueueRepository {
     private readonly BeaconDbContext _db;
 
     public EmailQueueRepository(BeaconDbContext db) => _db = db;

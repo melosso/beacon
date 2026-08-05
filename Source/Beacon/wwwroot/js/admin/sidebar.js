@@ -224,7 +224,8 @@
       const frozen = document.getElementById('tokenFormFields').classList.contains('frozen');
       renderCustomFieldsGrid(frozen);
       const modal = document.getElementById('customFieldsModal');
-      modal.querySelector('.custom-fields-add-row').style.display = frozen ? 'none' : '';
+      const addRow = modal.querySelector('.custom-fields-add-row');
+      if (addRow) addRow.style.display = frozen ? 'none' : '';
       modal.style.display = 'flex';
     }
 

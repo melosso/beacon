@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using Beacon;
 using Beacon.Api;
 using Beacon.Configuration;
@@ -47,12 +49,9 @@ try
     // Initialize EncryptionService first (uses BEACON_ENCRYPTION_KEY from environment)
     var encryptionService = new EncryptionService(builder.Environment.ContentRootPath);
 
-    // Process configuration - decrypt encrypted values and encrypt plaintext values
+    // Read only; nothing is written back until the keys below pass validation.
     var config = builder.Configuration.GetSection("Beacon");
-    var decryptedConfig = ConfigurationEncryptor.ProcessConfiguration(
-        builder.Configuration,
-        encryptionService,
-        builder.Environment.ContentRootPath);
+    var decryptedConfig = ConfigurationEncryptor.ReadSensitiveValues(builder.Configuration, encryptionService);
 
     // Read configuration values (use decrypted values where available)
     var databaseProvider = config["DatabaseProvider"] ?? "sqlite";
@@ -111,6 +110,10 @@ try
         }
     }
 
+    // Validated: safe to write the encrypted form back to appsettings.json.
+    ConfigurationEncryptor.PersistEncrypted(
+        builder.Environment.ContentRootPath, encryptionService, decryptedConfig);
+
     var normalizedSigningKey = NormalizeKey(signingKey, 32);
     var normalizedEncryptionKey = NormalizeKey(encryptionKey, 32);
 
@@ -123,7 +126,8 @@ try
     builder.Services.AddSingleton(new TokenOptions
     {
         SigningKey = normalizedSigningKey,
-        ExpiryDays = tokenExpiryDays
+        ExpiryDays = tokenExpiryDays,
+        PayloadEncryptionKey = normalizedEncryptionKey
     });
 
     builder.Services.AddSingleton<TokenGenerator>(sp =>
@@ -133,23 +137,64 @@ try
         new TokenValidator(sp.GetRequiredService<TokenOptions>()));
 
     builder.Services.AddSingleton(new Encryptor(normalizedEncryptionKey));
-    builder.Services.AddSingleton<IEncryptionService>(encryptionService);
+    builder.Services.AddSingleton<EncryptionService>(encryptionService);
     builder.Services.AddSingleton(new EmailHasher(pepper));
 
-    builder.Services.AddScoped<IUserRepository, UserRepository>();
-    builder.Services.AddScoped<IBucketRepository, BucketRepository>();
+    builder.Services.AddScoped<UserRepository>();
+    builder.Services.AddScoped<BucketRepository>();
     builder.Services.AddScoped<IConsentRepository, ConsentRepository>();
-    builder.Services.AddScoped<IConsentService, ConsentService>();
-    builder.Services.AddScoped<ITokenUsageRepository, TokenUsageRepository>();
+    builder.Services.AddScoped<ConsentService>();
+    builder.Services.AddScoped<TokenUsageRepository>();
     builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
-    builder.Services.AddSingleton<IAdminNotificationService, AdminNotificationService>();
-    builder.Services.AddSingleton<IWebhookDeliveryQueue, WebhookDeliveryQueue>();
+    builder.Services.AddSingleton<AdminNotificationService>();
+    builder.Services.AddSingleton<WebhookDeliveryQueue>();
     builder.Services.AddScoped<IWebhookService, WebhookService>();
     builder.Services.AddHostedService<Beacon.Api.WebhookDeliveryService>();
 
     builder.Services.AddScoped<ISubmissionFormRepository, SubmissionFormRepository>();
-    builder.Services.AddScoped<ISubmissionFormService, SubmissionFormService>();
+    builder.Services.AddScoped<SubmissionFormService>();
     builder.Services.AddSingleton<SubmissionRateLimiter>();
+    builder.Services.AddSingleton<LoginLockout>();
+
+    // Keyed on RemoteIpAddress, which UseForwardedHeaders resolves from trusted proxies only.
+    // Reading X-Forwarded-For here would let any client pick its own bucket.
+    builder.Services.AddRateLimiter(rateLimiter =>
+    {
+        rateLimiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        rateLimiter.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+            PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                Partition(context, "global", 1500)),
+            PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                context.Request.Path.StartsWithSegments("/api/admin/auth", StringComparison.OrdinalIgnoreCase)
+                    ? Partition(context, "auth", 10)
+                    : RateLimitPartition.GetNoLimiter("auth:skip")));
+
+        rateLimiter.OnRejected = async (context, ct) =>
+        {
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+
+            await context.HttpContext.Response.WriteAsJsonAsync(new { error = "Rate limit exceeded" }, ct);
+        };
+
+        RateLimitPartition<string> Partition(HttpContext context, string scope, int permitLimit)
+        {
+            var clientIp = context.Connection.RemoteIpAddress;
+
+            // A same-host reverse proxy makes every request look like loopback, so only skip in Development.
+            if (builder.Environment.IsDevelopment() && (clientIp is null || IPAddress.IsLoopback(clientIp)))
+                return RateLimitPartition.GetNoLimiter($"{scope}:loopback");
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                $"{scope}:{clientIp}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = TimeSpan.FromMinutes(1)
+                });
+        }
+    });
 
     // SystemConfiguration: singleton cache loaded lazily from DB on first use
     builder.Services.AddSingleton<ISystemConfigurationService>(sp =>
@@ -164,7 +209,7 @@ try
     });
 
     // BrandIdentities: singleton cache loaded from DB on startup
-    builder.Services.AddSingleton<IBrandIdentityService>(sp =>
+    builder.Services.AddSingleton<BrandIdentityService>(sp =>
     {
         using var scope = sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
@@ -381,16 +426,37 @@ try
     {
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | 
-                                    ForwardedHeaders.XForwardedProto | 
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                                    ForwardedHeaders.XForwardedProto |
                                     ForwardedHeaders.XForwardedHost;
 
-            // Clear both to ensure no internal IP filtering occurs
             options.KnownProxies.Clear();
-            options.KnownIPNetworks.Clear(); 
-            
-            // Ensure we process headers from the tunneling proxy
-            options.ForwardLimit = null; 
+            options.KnownIPNetworks.Clear();
+
+            var knownProxies = config["KnownProxies"];
+            if (!string.IsNullOrWhiteSpace(knownProxies))
+            {
+                foreach (var entry in knownProxies.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (System.Net.IPNetwork.TryParse(entry, out var network))
+                        options.KnownIPNetworks.Add(network);
+                    else if (System.Net.IPAddress.TryParse(entry, out var address))
+                        options.KnownProxies.Add(address);
+                    else
+                        Log.Warning("Ignoring unparseable Beacon:KnownProxies entry {Entry}", entry);
+                }
+            }
+            else
+            {
+                // Default to private/loopback peers: a proxy on the same host or docker network.
+                // Without this any client could spoof X-Forwarded-For and X-Forwarded-Host.
+                foreach (var cidr in new[]
+                    { "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "::1/128", "fc00::/7" })
+                {
+                    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
+                }
+                Log.Information("Beacon:KnownProxies is unset; trusting forwarded headers from private and loopback peers only");
+            }
         });
     }
 
@@ -415,26 +481,33 @@ try
         await context.Response.WriteAsJsonAsync(new { error = "An internal server error occurred." });
     }));
 
+    // Must run before rate limiting and host routing: both key off the resolved client IP / host.
+    if (trustForwardedHeaders)
+    {
+        app.UseForwardedHeaders();
+    }
+
+    // Baseline security headers. No global CSP: the admin UI relies on inline scripts, and the
+    // submission embed sets its own frame-ancestors. TryAdd so those routes keep their own values.
+    app.Use(async (context, next) =>
+    {
+        var headers = context.Response.Headers;
+        headers.TryAdd("X-Content-Type-Options", "nosniff");
+        headers.TryAdd("Referrer-Policy", "no-referrer");
+        headers.TryAdd("X-Frame-Options", "DENY");
+        headers.TryAdd("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+        await next();
+    });
+
     app.UseCors("Default");
 
-    app.UseRateLimiting(options =>
-    {
-        options.MaxRequests = 1500;
-        options.Window = TimeSpan.FromMinutes(1);
-        // Strict limit for auth endpoints to mitigate brute-force attacks
-        options.StrictPaths["/api/admin/auth"] = 10;
-    });
+    app.UseRateLimiter();
 
     // Middleware pipeline
     if (enforceHttps)
     {
         app.UseHttpsRedirection();
         app.UseHsts();
-    }
-
-    if (trustForwardedHeaders)
-    {
-        app.UseForwardedHeaders();
     }
 
     app.UseHostRouting();
@@ -600,25 +673,10 @@ try
         return Results.Content(js, "application/javascript");
     }).ExcludeFromDescription();
 
-    app.MapGet("/openapi",            ctx => ServeFile(ctx, Path.Combine(webRoot, "openapi.html"),           "text/html"))               .ExcludeFromDescription();
-    app.MapGet("/favicon.ico",        ctx => ServeFile(ctx, Path.Combine(webRoot, "favicon.ico"),            "image/x-icon"))            .ExcludeFromDescription();
-    app.MapGet("/fonts/inter.woff2",  ctx => ServeFile(ctx, Path.Combine(webRoot, "fonts", "inter.woff2"),   "font/woff2"))              .ExcludeFromDescription();
-    app.MapGet("/fonts/manrope.woff2",ctx => ServeFile(ctx, Path.Combine(webRoot, "fonts", "manrope.woff2"), "font/woff2"))              .ExcludeFromDescription();
-    app.MapGet("/css/site.css",       ctx => ServeFile(ctx, Path.Combine(webRoot, "css", "site.css"),        "text/css"))                .ExcludeFromDescription();
-    app.MapGet("/robots.txt",         ctx => ServeFile(ctx, Path.Combine(webRoot, "robots.txt"),             "text/plain"))              .ExcludeFromDescription();
-
-    foreach (var (route, file) in new (string, string)[]
-    {
-        ("/js/auth.js",     "js/auth.js"),
-        ("/js/users.js",    "js/users.js"),
-        ("/js/api-keys.js", "js/api-keys.js"),
-        ("/js/account.js",  "js/account.js"),
-    })
-    {
-        var (r, f) = (route, file);
-        app.MapGet(r, ctx => ServeFile(ctx, Path.Combine(webRoot, f), "application/javascript", noCache: true))
-           .ExcludeFromDescription();
-    }
+    // Only routes whose path differs from the file on disk. Everything else under wwwroot
+    // (favicon, robots.txt, css, fonts, js/*.js) is already served by UseStaticFiles above.
+    app.MapGet("/openapi", ctx => ServeFile(ctx, Path.Combine(webRoot, "openapi.html"), "text/html"))
+       .ExcludeFromDescription();
 
     app.MapGet("/js/admin.js", async (HttpContext context) =>
     {
@@ -686,7 +744,7 @@ try
     }).ExcludeFromDescription();
 
     // Catch-all: serve 404 page for any unmatched routes (including file paths)
-    app.MapFallback("{**path}", async context =>
+    app.MapFallback(async context =>
     {
         context.Response.StatusCode = 404;
         var notFoundPath = Path.Combine(app.Environment.WebRootPath, "404.html");
@@ -752,9 +810,20 @@ static bool IsInsecureDefault(string value)
 }
 
 
+// Fails closed outside Development: shipped placeholder keys are publicly known.
 static void ValidateSecureKey(string value, string keyName)
 {
-    // Validation logic for production environments
+    if (string.IsNullOrWhiteSpace(value))
+        throw new InvalidOperationException($"{keyName} is required.");
+
+    if (IsInsecureDefault(value))
+        throw new InvalidOperationException(
+            $"{keyName} is still set to the shipped placeholder. Set it to a unique secret " +
+            $"(for example: openssl rand -base64 32) before running outside Development.");
+
+    if (value.Length < 32)
+        throw new InvalidOperationException(
+            $"{keyName} must be at least 32 characters. Generate one with: openssl rand -base64 32");
 }
 
 static string NormalizeKey(string key, int requiredBytes)

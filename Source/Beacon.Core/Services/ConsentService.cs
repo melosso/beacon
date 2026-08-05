@@ -5,8 +5,7 @@ using Beacon.Core.Security;
 
 namespace Beacon.Core.Services;
 
-public sealed class ConsentService : IConsentService
-{
+public sealed class ConsentService {
     private readonly IConsentRepository _repository;
     private readonly IBeaconCacheService _cache;
     private readonly ISystemConfigurationService _config;

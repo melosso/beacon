@@ -1,0 +1,54 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <EfCoreVersion>10.0.10</EfCoreVersion>
+    <SerilogSinksVersion>10.0.0</SerilogSinksVersion>
+    <TestcontainersVersion>4.13.0</TestcontainersVersion>
+  </PropertyGroup>
+
+  <ItemGroup Label="App">
+    <!-- Pinned, not floating: a floating version made every build non-reproducible. -->
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.101.7" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageVersion Include="Serilog" Version="4.4.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="$(SerilogSinksVersion)" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Storage">
+    <PackageVersion Include="Cronos" Version="0.13.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EfCoreVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(EfCoreVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(EfCoreVersion)" />
+    <!-- No 10.0.10 published; deliberately not on $(EfCoreVersion). -->
+    <PackageVersion Include="MySql.EntityFrameworkCore" Version="10.0.9" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Security pins">
+    <!-- Transitive 2.0.0 carries GHSA-v5pm-xwqc-g5wc (high), so this stays pinned forward.
+         Held at the newest 2.x: 3.x makes IOpenApiMediaType.Example read-only, which breaks the
+         Microsoft.AspNetCore.OpenApi 10.x source generator. Revisit when ASP.NET Core targets 3.x. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+    <!-- Transitive 2.1.11 carries GHSA-2m69-gcr7-jv3q (high). -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="$(TestcontainersVersion)" />
+    <PackageVersion Include="Testcontainers.MySql" Version="$(TestcontainersVersion)" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="$(TestcontainersVersion)" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+  </ItemGroup>
+
+</Project>

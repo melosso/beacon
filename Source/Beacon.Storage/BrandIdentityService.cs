@@ -5,8 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Beacon.Storage;
 
-public sealed class BrandIdentityService : IBrandIdentityService
-{
+public sealed class BrandIdentityService {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private volatile IReadOnlyList<BrandIdentity> _cache = [];

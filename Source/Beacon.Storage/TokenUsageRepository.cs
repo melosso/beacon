@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;
 
-public sealed class TokenUsageRepository : ITokenUsageRepository
-{
+public sealed class TokenUsageRepository {
     private readonly BeaconDbContext _context;
 
     public TokenUsageRepository(BeaconDbContext context)

@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;
 
-public sealed class WorkflowTaskRepository : IWorkflowTaskRepository
-{
+public sealed class WorkflowTaskRepository {
     private readonly BeaconDbContext _context;
 
     public WorkflowTaskRepository(BeaconDbContext context)

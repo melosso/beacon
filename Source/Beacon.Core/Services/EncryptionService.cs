@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Beacon.Core.Security;
 using System.Text;
 using System.Text.Json;
 using Serilog;
@@ -11,30 +12,27 @@ namespace Beacon.Core.Services;
 /// - AES 256-bit for data encryption
 /// - Encrypted content prefix: "BENC:"
 /// </summary>
-public class EncryptionService : IEncryptionService
-{
-    private const string EncryptedHeader = "BENC:";
+public class EncryptionService {
+    private const string LegacyHeader = "BENC:";
+    private const string EncryptedHeader = "BENC2:";
     private const string PrivateKeyFileName = "recovery.baklz4";
-    private const string PublicKeyFileName = "snapshot_blob.bin";
     private readonly string _certsPath;
-    private string _currentPublicKeyPem = string.Empty;
 
-    private const string FallbackKey = "$BEACON2.0_FallbackEncryptionKey_ChangeInProduction_MinLength32Chars#";
+    private const string GeneratedKeyFileName = "instance.key";
+
+    // Shipped in every binary, so anything encrypted under it is effectively plaintext. Kept only to
+    // read data written by versions that defaulted to it; never used for a fresh install.
+    private const string LegacyFallbackKey = "$BEACON2.0_FallbackEncryptionKey_ChangeInProduction_MinLength32Chars#";
 
     private readonly string _encryptionKey;
 
     public EncryptionService(string rootPath)
-    {
-        _certsPath = InitializeCoreDirectory(rootPath);
-        _encryptionKey = LoadEncryptionKey();
-        InitializeKeyPair();
-    }
+        : this(rootPath, null) { }
 
-    public EncryptionService(string rootPath, string encryptionKey)
+    public EncryptionService(string rootPath, string? encryptionKey)
     {
         _certsPath = InitializeCoreDirectory(rootPath);
-        _encryptionKey = encryptionKey;
-        InitializeKeyPair();
+        _encryptionKey = encryptionKey ?? LoadEncryptionKey();
     }
 
     /// <summary>
@@ -64,49 +62,50 @@ public class EncryptionService : IEncryptionService
         return certsPath;
     }
 
-    /// <summary>
-    /// Encrypt plaintext using hybrid RSA+AES encryption
-    /// </summary>
     public string Encrypt(string plainText)
     {
         ArgumentNullException.ThrowIfNull(plainText);
         if (string.IsNullOrEmpty(plainText))
             return plainText;
 
-        return EncryptWithPublicKey(plainText, _currentPublicKeyPem);
+        var sealedBytes = AesGcmCipher.Seal(Encoding.UTF8.GetBytes(plainText), DeriveKeyFromPassword(_encryptionKey));
+        return EncryptedHeader + Convert.ToBase64String(sealedBytes);
     }
 
-    /// <summary>
-    /// Decrypt encrypted content using private key
-    /// </summary>
     public string Decrypt(string encryptedContent)
     {
         ArgumentNullException.ThrowIfNull(encryptedContent);
         if (string.IsNullOrEmpty(encryptedContent))
             return encryptedContent;
 
-        if (!IsEncrypted(encryptedContent))
+        if (encryptedContent.StartsWith(EncryptedHeader, StringComparison.Ordinal))
         {
-            throw new ArgumentException("Value is not encrypted (missing prefix)", nameof(encryptedContent));
+            var payload = Convert.FromBase64String(encryptedContent[EncryptedHeader.Length..]);
+            var plain = AesGcmCipher.Open(payload, DeriveKeyFromPassword(_encryptionKey))
+                ?? throw new CryptographicException(
+                    "Failed to decrypt configuration value. BEACON_ENCRYPTION_KEY may have changed.");
+            return Encoding.UTF8.GetString(plain);
         }
 
-        var privateKeyPath = Path.Combine(_certsPath, PrivateKeyFileName);
-        if (!File.Exists(privateKeyPath))
-        {
-            throw new InvalidOperationException("Private key not found. Required for decryption.");
-        }
+        if (encryptedContent.StartsWith(LegacyHeader, StringComparison.Ordinal))
+            return DecryptLegacy(encryptedContent);
 
-        var encrypted = File.ReadAllText(privateKeyPath);
-        var privateKey = DecryptPrivateKey(encrypted);
-        return DecryptWithPrivateKey(encryptedContent, privateKey);
+        throw new ArgumentException("Value is not encrypted (missing prefix)", nameof(encryptedContent));
     }
 
-    /// <summary>
-    /// Check if content is encrypted
-    /// </summary>
-    public bool IsEncrypted(string value)
+    public bool IsEncrypted(string value) =>
+        !string.IsNullOrEmpty(value) &&
+        (value.StartsWith(EncryptedHeader, StringComparison.Ordinal) ||
+         value.StartsWith(LegacyHeader, StringComparison.Ordinal));
+
+    /// <summary>Reads values written by the pre-AES-GCM hybrid RSA format. Re-saving rewrites them.</summary>
+    private string DecryptLegacy(string encryptedContent)
     {
-        return !string.IsNullOrEmpty(value) && value.StartsWith(EncryptedHeader, StringComparison.Ordinal);
+        var privateKeyPath = Path.Combine(_certsPath, PrivateKeyFileName);
+        if (!File.Exists(privateKeyPath))
+            throw new InvalidOperationException("Private key not found. Required to read legacy BENC: values.");
+
+        return DecryptWithPrivateKey(encryptedContent, DecryptPrivateKey(File.ReadAllText(privateKeyPath)));
     }
 
     /// <summary>
@@ -136,76 +135,88 @@ public class EncryptionService : IEncryptionService
     /// </summary>
     public string CertificatesPath => _certsPath;
 
-    /// <summary>
-    /// Load encryption key from various sources (priority order)
-    /// </summary>
+    private static readonly string[] KeyNames = ["BEACON_ENCRYPTION_KEY", "Beacon__EncryptionKey"];
+
+    /// <summary>Environment first, then a .env beside the binary, then a generated per-instance key.</summary>
     private string LoadEncryptionKey()
     {
-        // Priority 1: Check system environment variable (Windows)
-        if (OperatingSystem.IsWindows())
+        foreach (var name in KeyNames)
         {
-            var envKey = Environment.GetEnvironmentVariable("BEACON_ENCRYPTION_KEY", EnvironmentVariableTarget.Machine);
-            if (!string.IsNullOrWhiteSpace(envKey))
+            if (Environment.GetEnvironmentVariable(name) is { Length: > 0 } value)
+                return value;
+        }
+
+        if (ReadEnvFile() is { } fromFile)
+            return fromFile;
+
+        return LoadOrCreateInstanceKey();
+    }
+
+    private static string? ReadEnvFile()
+    {
+        var path = Path.Combine(FindProjectRoot(AppContext.BaseDirectory), ".env");
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            foreach (var line in File.ReadLines(path))
             {
-                return envKey;
-            }
-        }
-
-        // Priority 2: Check process environment variable
-        var processEnvKey = Environment.GetEnvironmentVariable("BEACON_ENCRYPTION_KEY", EnvironmentVariableTarget.Process);
-        if (!string.IsNullOrWhiteSpace(processEnvKey))
-        {
-            return processEnvKey;
-        }
-
-        // Priority 3: Check Beacon__EncryptionKey (ASP.NET Core configuration style)
-        var beaconEnvKey = Environment.GetEnvironmentVariable("Beacon__EncryptionKey");
-        if (!string.IsNullOrWhiteSpace(beaconEnvKey))
-        {
-            return beaconEnvKey;
-        }
-
-        // Priority 4: Check .env file
-        var projectRoot = FindProjectRoot(AppContext.BaseDirectory);
-        var envFilePath = Path.Combine(projectRoot, ".env");
-
-        if (File.Exists(envFilePath))
-        {
-            try
-            {
-                var envLines = File.ReadAllLines(envFilePath);
-                foreach (var line in envLines)
+                var parts = line.Trim().Split('=', 2);
+                if (parts.Length == 2 && KeyNames.Contains(parts[0].Trim()))
                 {
-                    var trimmed = line.Trim();
-                    if (trimmed.StartsWith('#') || string.IsNullOrWhiteSpace(trimmed))
-                        continue;
-
-                    var parts = trimmed.Split('=', 2);
-                    if (parts.Length == 2)
-                    {
-                        var key = parts[0].Trim();
-                        if (key is "BEACON_ENCRYPTION_KEY" or "Beacon__EncryptionKey")
-                        {
-                            var value = parts[1].Trim().Trim('"', '\'');
-                            if (!string.IsNullOrWhiteSpace(value))
-                            {
-                                return value;
-                            }
-                        }
-                    }
+                    var value = parts[1].Trim().Trim('"', '\'');
+                    if (value.Length > 0)
+                        return value;
                 }
             }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "Failed to read .env file; continuing key discovery");
-            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to read .env file; continuing key discovery");
         }
 
-        // Priority 5: Fallback key (with console warning)
-        Log.Warning("BEACON_ENCRYPTION_KEY not found, using hardcoded fallback key. Set the environment variable for production");
-        Log.Information("");
+        return null;
+    }
 
-        return FallbackKey;
+    private string LoadOrCreateInstanceKey()
+    {
+        var keyPath = Path.Combine(_certsPath, GeneratedKeyFileName);
+
+        if (File.Exists(keyPath))
+        {
+            var stored = File.ReadAllText(keyPath).Trim();
+            if (!string.IsNullOrWhiteSpace(stored))
+                return stored;
+        }
+
+        // Pre-existing install whose data was encrypted under the shipped constant. Keep it readable.
+        if (File.Exists(Path.Combine(_certsPath, PrivateKeyFileName)))
+        {
+            Log.Warning(
+                "BEACON_ENCRYPTION_KEY is not set and this installation predates per-instance keys, so the " +
+                "hardcoded fallback key is in use. That key ships in every Beacon binary. Set " +
+                "BEACON_ENCRYPTION_KEY to a unique secret and re-enter your secrets to rotate off it.");
+            return LegacyFallbackKey;
+        }
+
+        var generated = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        File.WriteAllText(keyPath, generated);
+        RestrictToOwner(keyPath);
+
+        Log.Warning(
+            "BEACON_ENCRYPTION_KEY is not set. Generated a unique key at {KeyPath}. Back up the .core " +
+            "directory or set BEACON_ENCRYPTION_KEY explicitly; losing it makes encrypted data unreadable.",
+            keyPath);
+
+        return generated;
+    }
+
+    private static void RestrictToOwner(string path)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        try { File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite); }
+        catch (Exception ex) { Log.Debug(ex, "Could not restrict permissions on {Path}", path); }
     }
 
     /// <summary>
@@ -225,97 +236,6 @@ public class EncryptionService : IEncryptionService
             current = current.Parent;
         }
         return startPath;
-    }
-
-    /// <summary>
-    /// Initialize or load RSA key pair
-    /// </summary>
-    private void InitializeKeyPair()
-    {
-        var privateKeyPath = Path.Combine(_certsPath, PrivateKeyFileName);
-        var publicKeyPath = Path.Combine(_certsPath, PublicKeyFileName);
-
-        if (!File.Exists(privateKeyPath))
-        {
-            // Generate new keypair
-            using var rsa = RSA.Create(2048);
-            var privateKeyPem = ExportPrivateKeyPem(rsa);
-            var publicKeyPem = ExportPublicKeyPem(rsa);
-
-            // Save private key (encrypted with master encryption key)
-            File.WriteAllText(privateKeyPath, EncryptPrivateKey(privateKeyPem));
-
-            // Save public key
-            File.WriteAllText(publicKeyPath, publicKeyPem);
-
-            // Save reference file
-            var referencePath = Path.Combine(_certsPath, "store.jsonc");
-            var machine = Environment.MachineName;
-            var timestamp = DateTimeOffset.Now.ToString("o"); // ISO 8601
-
-            var referenceContent = new
-            {
-                MachineIdentity = Convert.ToBase64String(Encoding.UTF8.GetBytes(machine)),
-                Timestamp = timestamp
-            };
-            File.WriteAllText(referencePath, JsonSerializer.Serialize(referenceContent, new JsonSerializerOptions { WriteIndented = true }));
-
-            _currentPublicKeyPem = publicKeyPem;
-            Log.Information("Generated new RSA keypair for encryption in .core folder");
-        }
-        else
-        {
-            // Private key exists, derive public key from it
-            try
-            {
-                var encrypted = File.ReadAllText(privateKeyPath);
-                var privateKeyPem = DecryptPrivateKey(encrypted);
-                using var rsa = RSA.Create();
-                rsa.ImportFromPem(privateKeyPem);
-                var derivedPublicKeyPem = ExportPublicKeyPem(rsa);
-                _currentPublicKeyPem = derivedPublicKeyPem;
-
-                // Also save/update public key file
-                File.WriteAllText(publicKeyPath, derivedPublicKeyPem);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException(
-                    "Failed to decrypt private key. If you changed BEACON_ENCRYPTION_KEY, " +
-                    "you must delete the .core folder to regenerate keys.", ex);
-            }
-        }
-    }
-
-    /// <summary>
-    /// AES + RSA hybrid encryption
-    /// </summary>
-    private static string EncryptWithPublicKey(string plainText, string publicKeyPem)
-    {
-        using var aes = Aes.Create();
-        aes.KeySize = 256;
-        aes.GenerateKey();
-        aes.GenerateIV();
-
-        byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-        byte[] cipherBytes;
-        using (var ms = new MemoryStream())
-        using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write))
-        {
-            cs.Write(plainBytes, 0, plainBytes.Length);
-            cs.FlushFinalBlock();
-            cipherBytes = ms.ToArray();
-        }
-
-        var keyIv = new byte[aes.Key.Length + aes.IV.Length];
-        Buffer.BlockCopy(aes.Key, 0, keyIv, 0, aes.Key.Length);
-        Buffer.BlockCopy(aes.IV, 0, keyIv, aes.Key.Length, aes.IV.Length);
-
-        using var rsa = RSA.Create();
-        rsa.ImportFromPem(publicKeyPem);
-        var encryptedKeyIv = rsa.Encrypt(keyIv, RSAEncryptionPadding.OaepSHA256);
-
-        return EncryptedHeader + Convert.ToBase64String(encryptedKeyIv) + "::" + Convert.ToBase64String(cipherBytes);
     }
 
     /// <summary>
@@ -354,48 +274,6 @@ public class EncryptionService : IEncryptionService
         using var cs = new CryptoStream(ms, aes.CreateDecryptor(), CryptoStreamMode.Read);
         using var sr = new StreamReader(cs, Encoding.UTF8);
         return sr.ReadToEnd();
-    }
-
-    /// <summary>
-    /// Export private key as PEM format
-    /// </summary>
-    private static string ExportPrivateKeyPem(RSA rsa)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("-----BEGIN PRIVATE KEY-----");
-        builder.AppendLine(Convert.ToBase64String(rsa.ExportPkcs8PrivateKey(), Base64FormattingOptions.InsertLineBreaks));
-        builder.AppendLine("-----END PRIVATE KEY-----");
-        return builder.ToString();
-    }
-
-    /// <summary>
-    /// Export public key as PEM format
-    /// </summary>
-    private static string ExportPublicKeyPem(RSA rsa)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("-----BEGIN PUBLIC KEY-----");
-        builder.AppendLine(Convert.ToBase64String(rsa.ExportSubjectPublicKeyInfo(), Base64FormattingOptions.InsertLineBreaks));
-        builder.AppendLine("-----END PUBLIC KEY-----");
-        return builder.ToString();
-    }
-
-    /// <summary>
-    /// Encrypt private key using master encryption key
-    /// </summary>
-    private string EncryptPrivateKey(string pem)
-    {
-        using var aes = Aes.Create();
-        aes.Key = DeriveKeyFromPassword(_encryptionKey);
-        aes.GenerateIV();
-        var iv = aes.IV;
-        using var ms = new MemoryStream();
-        ms.Write(iv, 0, iv.Length);
-        using var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write);
-        var bytes = Encoding.UTF8.GetBytes(pem);
-        cs.Write(bytes, 0, bytes.Length);
-        cs.FlushFinalBlock();
-        return Convert.ToBase64String(ms.ToArray());
     }
 
     /// <summary>

@@ -1,26 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <NoWarn>$(NoWarn);NU1608</NoWarn>
-    <Version>1.5.0</Version>
-    
-    <!-- Assembly Information -->
     <AssemblyTitle>Beacon</AssemblyTitle>
     <AssemblyDescription>A Lightweight Consent Management Platform.</AssemblyDescription>
-    <AssemblyProduct>Beacon</AssemblyProduct>
-    <AssemblyCompany>Melosso</AssemblyCompany>
-    <AssemblyCopyright>Copyright © Melosso 2026</AssemblyCopyright>
-
-    <!-- Additional Metadata -->
-    <Authors>Melosso</Authors>
     <ApplicationIcon>logo.ico</ApplicationIcon>
-    <RepositoryUrl>https://github.com/melosso/beacon</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>EUPL-1.2</PackageLicenseExpression>
-    <PackageProjectUrl>https://melosso.com</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,17 +11,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="3.7.*" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
-    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
-    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.OpenApi" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Beacon.Core\Beacon.Core.csproj" />
     <ProjectReference Include="..\Beacon.Storage\Beacon.Storage.csproj" />
-    <ProjectReference Include="..\Beacon.Tokens\Beacon.Tokens.csproj" />
   </ItemGroup>
 
 </Project>

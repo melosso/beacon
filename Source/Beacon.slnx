@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Beacon.Core/Beacon.Core.csproj" />
+  <Project Path="Beacon.Storage/Beacon.Storage.csproj" />
+  <Project Path="Beacon.Tests/Beacon.Tests.csproj" />
+  <Project Path="Beacon/Beacon.csproj" />
+</Solution>

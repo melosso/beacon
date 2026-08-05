@@ -2,15 +2,16 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution and project files first for better layer caching
-COPY Source/Beacon.sln Source/
+COPY global.json ./
+COPY Source/Beacon.slnx Source/
+COPY Source/Directory.Build.props Source/Directory.Packages.props Source/
 COPY Source/Beacon/Beacon.csproj Source/Beacon/
 COPY Source/Beacon.Core/Beacon.Core.csproj Source/Beacon.Core/
 COPY Source/Beacon.Storage/Beacon.Storage.csproj Source/Beacon.Storage/
-COPY Source/Beacon.Tokens/Beacon.Tokens.csproj Source/Beacon.Tokens/
 COPY Source/Beacon.Tests/Beacon.Tests.csproj Source/Beacon.Tests/
 
 # Restore dependencies
-RUN dotnet restore Source/Beacon.sln
+RUN dotnet restore Source/Beacon.slnx
 
 # Copy remaining source code
 COPY Source/ Source/

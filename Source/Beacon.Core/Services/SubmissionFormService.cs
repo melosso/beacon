@@ -6,12 +6,11 @@ using Serilog;
 
 namespace Beacon.Core.Services;
 
-public sealed class SubmissionFormService : ISubmissionFormService
-{
+public sealed class SubmissionFormService {
     private static readonly ILogger Logger = Log.ForContext<SubmissionFormService>();
 
     private readonly ISubmissionFormRepository _repository;
-    private readonly IConsentService _consentService;
+    private readonly ConsentService _consentService;
     private readonly IConsentRepository _consentRepository;
     private readonly IWebhookService _webhookService;
     private readonly Encryptor _encryptor;
@@ -19,7 +18,7 @@ public sealed class SubmissionFormService : ISubmissionFormService
 
     public SubmissionFormService(
         ISubmissionFormRepository repository,
-        IConsentService consentService,
+        ConsentService consentService,
         IConsentRepository consentRepository,
         IWebhookService webhookService,
         Encryptor encryptor,

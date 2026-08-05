@@ -7,6 +7,7 @@ using Beacon.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Beacon.Storage;
 
 namespace Beacon.Api;
 
@@ -18,23 +19,23 @@ public static class SubmissionEndpoints
 
         // Admin endpoints (require authorization)
         routes.MapGet("/api/admin/submissions", GetAllForms)
-            .RequireAuthorization()
+            .RequireAuthorization("SubmissionsRead")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/submissions/{id:guid}", GetForm)
-            .RequireAuthorization()
+            .RequireAuthorization("SubmissionsRead")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/submissions", CreateForm)
-            .RequireAuthorization()
+            .RequireAuthorization("SubmissionsWrite")
             .ExcludeFromDescription();
 
         routes.MapPut("/api/admin/submissions/{id:guid}", UpdateForm)
-            .RequireAuthorization()
+            .RequireAuthorization("SubmissionsWrite")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/submissions/{id:guid}", DeleteForm)
-            .RequireAuthorization()
+            .RequireAuthorization("SubmissionsWrite")
             .ExcludeFromDescription();
 
         // Public endpoints (public, but we'll handle the origin-validation in the handler)
@@ -55,17 +56,11 @@ public static class SubmissionEndpoints
             .WithTags(SubmissionTag)
             .WithName("Subscribe")
             .WithDescription("Endpoint for handling subscription form submissions. Accepts email and optional website and consent fields.");
-
-
-        routes.MapMethods("/api/submission/{id:guid}/subscribe", ["OPTIONS"], HandleCorsPreflightSubscribe)
-            .AllowAnonymous()
-            .RequireCors("PublicSubmission")
-            .ExcludeFromDescription();
     }
 
     // Admin endpoints
     private static async Task<IResult> GetAllForms(
-        [FromServices] ISubmissionFormService service)
+        [FromServices] SubmissionFormService service)
     {
         var forms = await service.GetAllFormsAsync();
         return Results.Ok(forms.Select(f => new
@@ -100,7 +95,7 @@ public static class SubmissionEndpoints
 
     private static async Task<IResult> GetForm(
         Guid id,
-        [FromServices] ISubmissionFormService service)
+        [FromServices] SubmissionFormService service)
     {
         var form = await service.GetFormAsync(id);
         if (form == null)
@@ -138,8 +133,11 @@ public static class SubmissionEndpoints
 
     private static async Task<IResult> CreateForm(
         [FromBody] CreateSubmissionFormRequest request,
-        [FromServices] ISubmissionFormService service)
+        [FromServices] SubmissionFormService service,
+        [FromServices] ISystemConfigurationService configService)
     {
+        var defaults = configService.Get();
+
         // Validate name
         var nameValidation = InputValidator.ValidateSubmissionName(request.Name);
         if (!nameValidation.IsValid)
@@ -217,8 +215,10 @@ public static class SubmissionEndpoints
             AllowedOrigins = JsonSerializer.Serialize(request.AllowedOrigins.Select(o => o.TrimEnd('/'))),
             FormConfig = request.FormConfig != null ? JsonSerializer.Serialize(request.FormConfig) : null,
             EncryptedApiToken = "", // Will be set by service
-            RateLimitPerMinute = request.RateLimitPerMinute > 0 ? request.RateLimitPerMinute : 10,
-            HoneypotEnabled = request.HoneypotEnabled,
+            RateLimitPerMinute = request.RateLimitPerMinute is > 0
+                ? request.RateLimitPerMinute.Value
+                : defaults.SubmissionDefaultRateLimitPerMinute,
+            HoneypotEnabled = request.HoneypotEnabled ?? defaults.SubmissionDefaultHoneypotEnabled,
             DoubleOptIn = request.DoubleOptIn,
             Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language.Trim(),
             RedirectSuccess = string.IsNullOrWhiteSpace(request.RedirectSuccess) ? null : request.RedirectSuccess.Trim(),
@@ -227,7 +227,7 @@ public static class SubmissionEndpoints
             RedirectJsEmbed = request.RedirectJsEmbed,
             DisableRedirects = request.DisableRedirects,
             IsEnabled = request.IsEnabled,
-            ConsentRequired = request.ConsentRequired,
+            ConsentRequired = request.ConsentRequired ?? defaults.SubmissionDefaultConsentRequired,
             ConsentText = string.IsNullOrWhiteSpace(request.ConsentText) ? null : request.ConsentText.Trim(),
             PrivacyPolicyUrl = string.IsNullOrWhiteSpace(request.PrivacyPolicyUrl) ? null : request.PrivacyPolicyUrl.Trim(),
             CollectName = request.CollectName,
@@ -253,7 +253,8 @@ public static class SubmissionEndpoints
     private static async Task<IResult> UpdateForm(
         Guid id,
         [FromBody] UpdateSubmissionFormRequest request,
-        [FromServices] ISubmissionFormService service)
+        [FromServices] SubmissionFormService service,
+        [FromServices] ISystemConfigurationService configService)
     {
         var existing = await service.GetFormAsync(id);
         if (existing == null)
@@ -323,7 +324,9 @@ public static class SubmissionEndpoints
         }
 
         if (request.RateLimitPerMinute.HasValue)
-            existing.RateLimitPerMinute = request.RateLimitPerMinute.Value > 0 ? request.RateLimitPerMinute.Value : 10;
+            existing.RateLimitPerMinute = request.RateLimitPerMinute.Value > 0
+                ? request.RateLimitPerMinute.Value
+                : configService.Get().SubmissionDefaultRateLimitPerMinute;
 
         if (request.HoneypotEnabled.HasValue)
             existing.HoneypotEnabled = request.HoneypotEnabled.Value;
@@ -422,7 +425,7 @@ public static class SubmissionEndpoints
 
     private static async Task<IResult> DeleteForm(
         Guid id,
-        [FromServices] ISubmissionFormService service)
+        [FromServices] SubmissionFormService service)
     {
         var form = await service.GetFormAsync(id);
         if (form == null)
@@ -437,7 +440,7 @@ public static class SubmissionEndpoints
     private static async Task<IResult> GetEmbedPage(
         Guid id,
         HttpContext context,
-        [FromServices] ISubmissionFormService service,
+        [FromServices] SubmissionFormService service,
         [FromServices] ISystemConfigurationService configService)
     {
         if (!configService.Get().EnableSubmissionForms)
@@ -450,10 +453,13 @@ public static class SubmissionEndpoints
             return Results.Content(Minify(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig))), "text/html");
 
         var origins = DeserializeOrigins(form.AllowedOrigins);
-        var cspOrigins = string.Join(" ", origins);
+        // An empty frame-ancestors list is invalid CSS-wise and browsers ignore it; fail closed instead.
+        var cspOrigins = origins.Count > 0 ? string.Join(" ", origins) : "'none'";
 
+        // frame-ancestors is the control here. X-Frame-Options cannot express an allowlist, and a
+        // DENY alongside it would block the embedding this page exists for.
         context.Response.Headers["Content-Security-Policy"] = $"frame-ancestors {cspOrigins}";
-        context.Response.Headers["X-Frame-Options"] = "DENY"; // Fallback, overridden by CSP
+        context.Response.Headers.Remove("X-Frame-Options");
 
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var formIdStr = form.Id.ToString();
@@ -606,7 +612,7 @@ public static class SubmissionEndpoints
     private static async Task<IResult> GetEmbedScript(
         Guid id,
         HttpContext context,
-        [FromServices] ISubmissionFormService service,
+        [FromServices] SubmissionFormService service,
         [FromServices] ISystemConfigurationService configService)
     {
         if (!configService.Get().EnableSubmissionForms)
@@ -777,10 +783,10 @@ public static class SubmissionEndpoints
     private static async Task<IResult> Subscribe(
         Guid id,
         HttpContext context,
-        [FromServices] ISubmissionFormService service,
-        [FromServices] IBucketRepository bucketRepository,
+        [FromServices] SubmissionFormService service,
+        [FromServices] BucketRepository bucketRepository,
         [FromServices] SubmissionRateLimiter rateLimiter,
-        [FromServices] IAdminNotificationService notifications,
+        [FromServices] AdminNotificationService notifications,
         [FromServices] ISystemConfigurationService configService)
     {
         if (!configService.Get().EnableSubmissionForms)
@@ -869,13 +875,8 @@ public static class SubmissionEndpoints
             return Results.Json(BuildJsonError("Origin not allowed", form, "origin_not_allowed"), statusCode: 403);
         }
 
-        // Set dynamic CORS headers
-        if (origin != null)
-        {
-            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
-            context.Response.Headers["Access-Control-Allow-Methods"] = "POST, OPTIONS";
-            context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
-        }
+        // CORS headers come from the PublicSubmission policy. Writing them here too produced a duplicate
+        // Access-Control-Allow-Origin, which browsers reject. The allowlist above is the real control.
 
         // Rate limiting
         var clientIp = SubmissionRateLimiter.GetClientIp(context);
@@ -1050,27 +1051,6 @@ public static class SubmissionEndpoints
         return $"{url}{separator}{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}";
     }
 
-    private static async Task<IResult> HandleCorsPreflightSubscribe(
-        Guid id,
-        HttpContext context,
-        [FromServices] ISubmissionFormService service)
-    {
-        var form = await service.GetFormAsync(id);
-        if (form == null || !form.IsEnabled)
-            return Results.NotFound();
-
-        var origin = context.Request.Headers.Origin.FirstOrDefault();
-        if (origin != null && service.ValidateOrigin(form, origin))
-        {
-            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
-            context.Response.Headers["Access-Control-Allow-Methods"] = "POST, OPTIONS";
-            context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
-            context.Response.Headers["Access-Control-Max-Age"] = "86400";
-        }
-
-        return Results.Ok();
-    }
-
     // Helpers
 
     private static List<string> DeserializeOrigins(string? json)
@@ -1162,8 +1142,10 @@ public sealed class CreateSubmissionFormRequest
     public string Permission { get; set; } = string.Empty;
     public List<string> AllowedOrigins { get; set; } = [];
     public FormConfigDto? FormConfig { get; set; }
-    public int RateLimitPerMinute { get; set; } = 10;
-    public bool HoneypotEnabled { get; set; } = true;
+    /// <summary>Omit to use the system default from settings.</summary>
+    public int? RateLimitPerMinute { get; set; }
+    /// <summary>Omit to use the system default from settings.</summary>
+    public bool? HoneypotEnabled { get; set; }
     public bool DoubleOptIn { get; set; } = false;
     public string Language { get; set; } = "en";
     public bool IsEnabled { get; set; } = true;
@@ -1172,7 +1154,8 @@ public sealed class CreateSubmissionFormRequest
     public bool RedirectFormPost { get; set; } = true;
     public bool RedirectJsEmbed { get; set; } = false;
     public bool DisableRedirects { get; set; } = false;
-    public bool ConsentRequired { get; set; } = true;
+    /// <summary>Omit to use the system default from settings.</summary>
+    public bool? ConsentRequired { get; set; }
     public string? ConsentText { get; set; }
     public string? PrivacyPolicyUrl { get; set; }
     public bool CollectName { get; set; } = false;

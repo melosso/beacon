@@ -1,3 +1,5 @@
+using System.Buffers.Text;
+using Beacon.Core.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,10 +9,14 @@ namespace Beacon.Tokens;
 public sealed class TokenValidator
 {
     private readonly byte[] _signingKey;
+    private readonly byte[]? _payloadKey;
 
     public TokenValidator(TokenOptions options)
     {
         _signingKey = Convert.FromBase64String(options.SigningKey);
+        _payloadKey = options.PayloadEncryptionKey is { Length: > 0 } key
+            ? Convert.FromBase64String(key)
+            : null;
     }
 
     public TokenValidationResult Validate(string token)
@@ -30,12 +36,19 @@ public sealed class TokenValidator
         var payloadBase64 = parts[1];
         var signature = parts[2];
 
-        if (version != "v1")
+        // v1 payloads are plaintext, v2 are sealed. v1 stays accepted so links already emailed keep working.
+        if (version is not ("v1" or "v2"))
         {
             return TokenValidationResult.Invalid("Unsupported token version");
         }
 
-        var expectedSignature = ComputeSignature(payloadBase64);
+        if (version == "v2" && _payloadKey is null)
+        {
+            return TokenValidationResult.Invalid("Sealed token received but no payload key is configured");
+        }
+
+        var expectedSignature = ComputeSignature(
+            version == "v1" ? payloadBase64 : $"{version}.{payloadBase64}");
         if (!CryptographicOperations.FixedTimeEquals(
             Encoding.UTF8.GetBytes(signature),
             Encoding.UTF8.GetBytes(expectedSignature)))
@@ -46,8 +59,15 @@ public sealed class TokenValidator
         TokenPayload? payload;
         try
         {
-            var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(payloadBase64));
-            payload = JsonSerializer.Deserialize<TokenPayload>(payloadJson);
+            var payloadBytes = Base64Url.DecodeFromChars(payloadBase64);
+
+            if (version == "v2")
+            {
+                payloadBytes = AesGcmCipher.Open(payloadBytes, _payloadKey!)
+                    ?? throw new CryptographicException("Sealed payload could not be opened");
+            }
+
+            payload = JsonSerializer.Deserialize<TokenPayload>(payloadBytes);
 
             if (payload is null)
             {
@@ -71,30 +91,7 @@ public sealed class TokenValidator
     {
         using var hmac = new HMACSHA256(_signingKey);
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
-        return Base64UrlEncode(hash);
-    }
-
-    private static string Base64UrlEncode(byte[] data)
-    {
-        return Convert.ToBase64String(data)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-    }
-
-    private static byte[] Base64UrlDecode(string data)
-    {
-        var padded = data
-            .Replace('-', '+')
-            .Replace('_', '/');
-
-        switch (padded.Length % 4)
-        {
-            case 2: padded += "=="; break;
-            case 3: padded += "="; break;
-        }
-
-        return Convert.FromBase64String(padded);
+        return Base64Url.EncodeToString(hash);
     }
 }
 

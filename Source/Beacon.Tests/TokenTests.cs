@@ -109,10 +109,100 @@ public class TokenTests
     {
         var validator = new TokenValidator(_options);
 
-        var result = validator.Validate("v2.payload.signature");
+        var result = validator.Validate("v3.payload.signature");
 
         Assert.False(result.IsValid);
         Assert.Equal("Unsupported token version", result.Error);
+    }
+
+    [Fact]
+    public void SealedToken_RoundTripsAndHidesEmailFromPayload()
+    {
+        var sealedOptions = new TokenOptions
+        {
+            SigningKey = TestSigningKey,
+            ExpiryDays = 30,
+            PayloadEncryptionKey = Convert.ToBase64String(new byte[32])
+        };
+
+        var token = new TokenGenerator(sealedOptions).Generate(TestBucket, "test@example.com", ["newsletter"]);
+
+        Assert.StartsWith("v2.", token);
+        Assert.DoesNotContain("test@example.com", DecodePayloadSegment(token));
+
+        var result = new TokenValidator(sealedOptions).Validate(token);
+
+        Assert.True(result.IsValid);
+        Assert.Equal("test@example.com", result.Payload!.Email);
+        Assert.Equal(TestBucket, result.Payload.Bucket);
+    }
+
+    [Fact]
+    public void SealedToken_CannotBeRelabelledAsV1()
+    {
+        var sealedOptions = new TokenOptions
+        {
+            SigningKey = TestSigningKey,
+            PayloadEncryptionKey = Convert.ToBase64String(new byte[32])
+        };
+
+        var parts = new TokenGenerator(sealedOptions)
+            .Generate(TestBucket, "test@example.com", ["newsletter"]).Split('.');
+
+        var downgraded = $"v1.{parts[1]}.{parts[2]}";
+        var result = new TokenValidator(sealedOptions).Validate(downgraded);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("Signature invalid", result.Error);
+    }
+
+    [Fact]
+    public void SealedToken_RejectedWhenPayloadKeyDiffers()
+    {
+        var issuerKey = new byte[32];
+        var otherKey = new byte[32];
+        otherKey[0] = 1;
+
+        var issuer = new TokenOptions
+        {
+            SigningKey = TestSigningKey,
+            PayloadEncryptionKey = Convert.ToBase64String(issuerKey)
+        };
+        var reader = new TokenOptions
+        {
+            SigningKey = TestSigningKey,
+            PayloadEncryptionKey = Convert.ToBase64String(otherKey)
+        };
+
+        var token = new TokenGenerator(issuer).Generate(TestBucket, "test@example.com", ["newsletter"]);
+        var result = new TokenValidator(reader).Validate(token);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("Payload decode failed", result.Error);
+    }
+
+    [Fact]
+    public void LegacyPlaintextTokens_StillValidateWhenSealingIsEnabled()
+    {
+        var legacyToken = new TokenGenerator(_options).Generate(TestBucket, "test@example.com", ["newsletter"]);
+
+        var sealedOptions = new TokenOptions
+        {
+            SigningKey = TestSigningKey,
+            PayloadEncryptionKey = Convert.ToBase64String(new byte[32])
+        };
+
+        var result = new TokenValidator(sealedOptions).Validate(legacyToken);
+
+        Assert.True(result.IsValid);
+        Assert.Equal("test@example.com", result.Payload!.Email);
+    }
+
+    private static string DecodePayloadSegment(string token)
+    {
+        var segment = token.Split('.')[1].Replace('-', '+').Replace('_', '/');
+        segment += (segment.Length % 4) switch { 2 => "==", 3 => "=", _ => "" };
+        return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(segment));
     }
 
     [Fact]

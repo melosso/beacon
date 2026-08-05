@@ -19,15 +19,15 @@ public sealed class WebhookDeliveryService : BackgroundService
         TimeSpan.FromSeconds(30)
     ];
 
-    private readonly IWebhookDeliveryQueue _queue;
+    private readonly WebhookDeliveryQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IAdminNotificationService _notifications;
+    private readonly AdminNotificationService _notifications;
     private readonly ILogger<WebhookDeliveryService> _logger;
 
     public WebhookDeliveryService(
-        IWebhookDeliveryQueue queue,
+        WebhookDeliveryQueue queue,
         IServiceScopeFactory scopeFactory,
-        IAdminNotificationService notifications,
+        AdminNotificationService notifications,
         ILogger<WebhookDeliveryService> logger)
     {
         _queue = queue;
@@ -227,24 +227,8 @@ public sealed class WebhookDeliveryService : BackgroundService
         response.EnsureSuccessStatusCode();
     }
 
-    private static async Task<IPAddress?> ResolveAndValidateAsync(string url)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return null;
-
-        try
-        {
-            var addresses = await Dns.GetHostAddressesAsync(uri.Host);
-            if (addresses.Length == 0 || addresses.Any(IsPrivateOrReserved))
-                return null;
-
-            return addresses[0];
-        }
-        catch
-        {
-            return null;
-        }
-    }
+    private static Task<IPAddress?> ResolveAndValidateAsync(string url) =>
+        Beacon.Security.SsrfGuard.ResolveAndValidateAsync(url);
 
     /// <summary>
     /// Returns a short, human-readable summary for well-known transient network errors
@@ -279,36 +263,4 @@ public sealed class WebhookDeliveryService : BackgroundService
         };
     }
 
-    private static bool IsPrivateOrReserved(IPAddress address)
-    {
-        if (IPAddress.IsLoopback(address))
-            return true;
-
-        // Map IPv4-mapped IPv6 to IPv4 for consistent checking
-        if (address.IsIPv4MappedToIPv6)
-            address = address.MapToIPv4();
-
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            var bytes = address.GetAddressBytes();
-            return bytes[0] switch
-            {
-                10 => true,                                          // 10.0.0.0/8
-                127 => true,                                         // 127.0.0.0/8
-                169 when bytes[1] == 254 => true,                    // 169.254.0.0/16 (link-local)
-                172 when bytes[1] >= 16 && bytes[1] <= 31 => true,   // 172.16.0.0/12
-                192 when bytes[1] == 168 => true,                    // 192.168.0.0/16
-                0 => true,                                           // 0.0.0.0/8
-                100 when bytes[1] >= 64 && bytes[1] <= 127 => true,  // 100.64.0.0/10 (CGN)
-                _ => false
-            };
-        }
-
-        if (address.AddressFamily == AddressFamily.InterNetworkV6)
-        {
-            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
-        }
-
-        return false;
-    }
 }

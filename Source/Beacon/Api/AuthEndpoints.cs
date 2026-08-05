@@ -1,10 +1,9 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Security;
 using Microsoft.Extensions.Options;
+using Beacon.Storage;
 
 namespace Beacon.Api;
 
@@ -34,17 +33,42 @@ public static class AuthEndpoints
         IWebHostEnvironment env,
         IOptionsMonitor<ApiKeyAuthOptions> apiKeyOptions,
         IOptionsMonitor<JwtAuthOptions> jwtOptions,
-        IUserRepository? userRepo = null)
+        LoginLockout lockout,
+        UserRepository? userRepo = null)
     {
         var opts = apiKeyOptions.Get(ApiKeyAuthExtensions.SchemeName);
         var userAuthentication = opts.UserAuthentication ?? "";
         var signingKey = jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey;
         var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
 
+        // Key on the account when one is named, otherwise on the caller: an API-key login has no subject.
+        var lockKey = !string.IsNullOrEmpty(request.Username)
+            ? $"user:{request.Username}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress}";
+
+        if (lockout.IsLocked(lockKey, out var retryAfter))
+        {
+            httpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+            return Results.Json(
+                new { error = "Too many failed attempts. Try again later." }, statusCode: 429);
+        }
+
+        IResult Denied(string error = "Invalid credentials.", int statusCode = 401)
+        {
+            lockout.RecordFailure(lockKey);
+            return Results.Json(new { error }, statusCode: statusCode);
+        }
+
+        IResult Granted(string subject, string role)
+        {
+            lockout.Reset(lockKey);
+            return OkWithCookie(httpContext, env, signingKey, subject, expiresAt, role);
+        }
+
         if (userAuthentication == "user")
         {
             if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
-                return Results.Json(new { error = "Invalid credentials." }, statusCode: 401);
+                return Denied();
 
             if (userRepo == null)
                 return Results.Json(new { error = "User authentication not configured." }, statusCode: 500);
@@ -52,20 +76,20 @@ public static class AuthEndpoints
             var user = await userRepo.FindByUsernameAsync(request.Username);
             if (user == null || !user.IsEnabled ||
                 !PasswordHasher.VerifyPassword(request.Password, user.PasswordHash, user.Salt))
-                return Results.Json(new { error = "Invalid credentials." }, statusCode: 401);
+                return Denied();
 
             await userRepo.SetLastLoginAsync(user.Id);
-            return OkWithCookie(httpContext, env, signingKey, user.Username, expiresAt, user.Role);
+            return Granted(user.Username, user.Role);
         }
 
         if (userAuthentication == "api")
         {
             if (string.IsNullOrEmpty(request.ApiKey))
-                return Results.Json(new { error = "Invalid credentials." }, statusCode: 401);
+                return Denied();
 
             var adminApiKey = opts.AdminApiKey ?? "";
-            if (!string.IsNullOrEmpty(adminApiKey) && CryptographicEquals(request.ApiKey, adminApiKey))
-                return OkWithCookie(httpContext, env, signingKey, "admin", expiresAt, "admin");
+            if (!string.IsNullOrEmpty(adminApiKey) && ApiKeyGenerator.SecretEquals(request.ApiKey, adminApiKey))
+                return Granted("admin", "admin");
 
             if (userRepo != null)
             {
@@ -74,11 +98,11 @@ public static class AuthEndpoints
                 if (user != null && user.IsEnabled)
                 {
                     await userRepo.SetLastLoginAsync(user.Id);
-                    return OkWithCookie(httpContext, env, signingKey, user.Username, expiresAt, user.Role);
+                    return Granted(user.Username, user.Role);
                 }
             }
 
-            return Results.Json(new { error = "Invalid credentials." }, statusCode: 401);
+            return Denied();
         }
 
         if (userAuthentication == "both")
@@ -93,37 +117,37 @@ public static class AuthEndpoints
                     PasswordHasher.VerifyPassword(request.Password, user.PasswordHash, user.Salt))
                 {
                     await userRepo.SetLastLoginAsync(user.Id);
-                    return OkWithCookie(httpContext, env, signingKey, user.Username, expiresAt, user.Role);
+                    return Granted(user.Username, user.Role);
                 }
             }
 
             if (!string.IsNullOrEmpty(request.ApiKey))
             {
                 var adminApiKey = opts.AdminApiKey ?? "";
-                if (!string.IsNullOrEmpty(adminApiKey) && CryptographicEquals(request.ApiKey, adminApiKey))
-                    return OkWithCookie(httpContext, env, signingKey, "admin", expiresAt, "admin");
+                if (!string.IsNullOrEmpty(adminApiKey) && ApiKeyGenerator.SecretEquals(request.ApiKey, adminApiKey))
+                    return Granted("admin", "admin");
 
                 var keyHash = ApiKeyGenerator.ComputeHash(request.ApiKey);
                 var userByKey = await userRepo.FindByApiKeyHashAsync(keyHash);
                 if (userByKey != null && userByKey.IsEnabled)
                 {
                     await userRepo.SetLastLoginAsync(userByKey.Id);
-                    return OkWithCookie(httpContext, env, signingKey, userByKey.Username, expiresAt, userByKey.Role);
+                    return Granted(userByKey.Username, userByKey.Role);
                 }
             }
 
-            return Results.Json(new { error = "Invalid credentials." }, statusCode: 401);
+            return Denied();
         }
 
         // Legacy mode: global AdminApiKey only
         if (string.IsNullOrEmpty(request.ApiKey))
-            return Results.Json(new { error = "API key is required." }, statusCode: 400);
+            return Denied("API key is required.", 400);
 
         var legacyAdminKey = opts.AdminApiKey ?? "";
-        if (!CryptographicEquals(request.ApiKey, legacyAdminKey))
-            return Results.Json(new { error = "Invalid API key." }, statusCode: 401);
+        if (!ApiKeyGenerator.SecretEquals(request.ApiKey, legacyAdminKey))
+            return Denied("Invalid API key.");
 
-        return OkWithCookie(httpContext, env, signingKey, "admin", expiresAt, "admin");
+        return Granted("admin", "admin");
     }
 
     private static IResult Refresh(
@@ -185,17 +209,6 @@ public static class AuthEndpoints
             Expires  = expiresAt
         });
         return Results.Ok(new { role, username = subject, expiresAt = expiresAt.ToString("o") });
-    }
-
-    private static bool CryptographicEquals(string providedKey, string expectedKey)
-    {
-        if (providedKey == null || expectedKey == null)
-            return false;
-
-        var providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(providedKey));
-        var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedKey));
-
-        return CryptographicOperations.FixedTimeEquals(providedHash, expectedHash);
     }
 
     private record LoginRequest(string? ApiKey = null, string? Username = null, string? Password = null);

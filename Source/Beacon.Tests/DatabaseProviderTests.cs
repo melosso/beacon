@@ -216,8 +216,6 @@ public class MySqlContainerFixture : IAsyncLifetime
     public string? ConnectionString { get; private set; }
     public string? SkipReason { get; private set; }
 
-    internal static readonly ServerVersion MySql8 = new MySqlServerVersion(new Version(8, 0, 0));
-
     public async ValueTask InitializeAsync()
     {
         try
@@ -225,14 +223,14 @@ public class MySqlContainerFixture : IAsyncLifetime
             await _container.StartAsync();
             ConnectionString = _container.GetConnectionString();
             var opts = new DbContextOptionsBuilder<BeaconDbContext>()
-                .UseMySql(ConnectionString, MySql8)
+                .UseMySQL(ConnectionString)
                 .Options;
             await using var db = new BeaconDbContext(opts);
             await db.Database.EnsureCreatedAsync();
         }
         catch (MissingMethodException ex)
         {
-            SkipReason = $"Pomelo.EntityFrameworkCore.MySql is not compatible with the current EF Core version: {ex.Message}";
+            SkipReason = $"MySQL provider incompatible with the current EF Core version: {ex.Message}";
         }
     }
 
@@ -251,7 +249,7 @@ public class MySqlDatabaseTests : DatabaseProviderTests, IClassFixture<MySqlCont
             Assert.Skip(_fixture.SkipReason);
 
         var opts = new DbContextOptionsBuilder<BeaconDbContext>()
-            .UseMySql(_fixture.ConnectionString!, MySqlContainerFixture.MySql8)
+            .UseMySQL(_fixture.ConnectionString!)
             .Options;
         return new BeaconDbContext(opts);
     }

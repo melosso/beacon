@@ -109,7 +109,7 @@ public sealed class DataPolicyWorker : BackgroundService
         }
 
         var consent = sp.GetRequiredService<IConsentRepository>();
-        var tasks = sp.GetRequiredService<IWorkflowTaskRepository>();
+        var tasks = sp.GetRequiredService<WorkflowTaskRepository>();
         var now = DateTime.UtcNow;
 
         if (config.RetentionPurgeEnabled)
@@ -141,7 +141,7 @@ public sealed class DataPolicyWorker : BackgroundService
     }
 
     private async Task RunPolicyAsync(
-        IWorkflowTaskRepository taskRepo,
+        WorkflowTaskRepository taskRepo,
         IConsentRepository consentRepo,
         WorkflowTrigger triggeredBy,
         WorkflowTaskType taskType,

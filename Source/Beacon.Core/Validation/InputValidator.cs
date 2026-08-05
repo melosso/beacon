@@ -277,6 +277,16 @@ public static partial class InputValidator
             ? value
             : fallback;
 
+    /// <summary>
+    /// Returns <paramref name="value"/> if it is a bare font-family name (letters, digits, spaces);
+    /// otherwise <paramref name="fallback"/>. Blocks quote and angle characters that would escape
+    /// the CSS declaration or the surrounding style element.
+    /// </summary>
+    public static string SanitizeCssFontFamily(string? value, string fallback) =>
+        !string.IsNullOrWhiteSpace(value) && FontFamilyPattern().IsMatch(value)
+            ? value
+            : fallback;
+
     [GeneratedRegex(@"^#[0-9a-fA-F]{3,8}$")]
     private static partial Regex HexColorPattern();
 
@@ -285,6 +295,9 @@ public static partial class InputValidator
 
     [GeneratedRegex(@"^\d+(\.\d+)?(px|rem|em|%)$")]
     private static partial Regex BorderRadiusPattern();
+
+    [GeneratedRegex(@"^[A-Za-z0-9 ]{1,40}$")]
+    private static partial Regex FontFamilyPattern();
 }
 
 public sealed class ValidationResult

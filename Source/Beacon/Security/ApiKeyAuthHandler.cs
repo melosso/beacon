@@ -1,13 +1,12 @@
 using System.Collections.Concurrent;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using Beacon.Storage;
 
 namespace Beacon.Security;
 
@@ -42,7 +41,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 
         // 1. Always check global AdminApiKey first (constant-time SHA256 comparison)
         if (!string.IsNullOrEmpty(Options.AdminApiKey) &&
-            CryptographicEquals(providedKey, Options.AdminApiKey))
+            ApiKeyGenerator.SecretEquals(providedKey, Options.AdminApiKey))
         {
             Logger.LogDebug("Global API key authenticated successfully");
             return BuildSuccess("ApiKeyUser", "admin");
@@ -51,7 +50,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         // 2. Always check per-user API keys when a user repository is available,
         //    regardless of UserAuthentication mode (login UI may be disabled but keys still work)
         using var scope = _scopeFactory.CreateScope();
-        var userRepo = scope.ServiceProvider.GetService<IUserRepository>();
+        var userRepo = scope.ServiceProvider.GetService<UserRepository>();
         if (userRepo != null)
         {
             var keyHash = ApiKeyGenerator.ComputeHash(providedKey);
@@ -65,7 +64,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         }
 
         // 3. Check named API keys table (RBAC with optional validity window)
-        var apiKeyRepo = scope.ServiceProvider.GetService<IApiKeyRepository>();
+        var apiKeyRepo = scope.ServiceProvider.GetService<ApiKeyRepository>();
         if (apiKeyRepo != null)
         {
             var keyHash = ApiKeyGenerator.ComputeHash(providedKey);
@@ -105,7 +104,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
             try
             {
                 using var scope = scopeFactory.CreateScope();
-                var repo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+                var repo = scope.ServiceProvider.GetRequiredService<UserRepository>();
                 await repo.SetLastLoginAsync(userId);
             }
             catch (Exception ex) { Logger.LogDebug(ex, "best-effort last-login update failed; will retry on next auth"); }
@@ -125,7 +124,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
             try
             {
                 using var scope = scopeFactory.CreateScope();
-                var r = scope.ServiceProvider.GetRequiredService<IApiKeyRepository>();
+                var r = scope.ServiceProvider.GetRequiredService<ApiKeyRepository>();
                 await r.UpdateLastUsedAsync(keyId);
             }
             catch (Exception ex) { Logger.LogDebug(ex, "best-effort last-key-used update failed"); }
@@ -175,17 +174,6 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         Response.ContentType = "application/json";
         await Response.WriteAsync("{\"error\":\"Forbidden. Insufficient permissions.\"}");
         await Response.CompleteAsync();
-    }
-
-    private static bool CryptographicEquals(string providedKey, string expectedKey)
-    {
-        if (providedKey == null || expectedKey == null)
-            return false;
-
-        byte[] providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(providedKey));
-        byte[] expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedKey));
-
-        return CryptographicOperations.FixedTimeEquals(providedHash, expectedHash);
     }
 }
 
