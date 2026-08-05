@@ -19,7 +19,7 @@
     <ApplicationIcon>logo.ico</ApplicationIcon>
     <RepositoryUrl>https://github.com/melosso/beacon</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageLicenseExpression>EUPL-1.2</PackageLicenseExpression>
     <PackageProjectUrl>https://melosso.com</PackageProjectUrl>
   </PropertyGroup>
 

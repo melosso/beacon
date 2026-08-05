@@ -1,6 +1,6 @@
 # Beacon
 
-[![License](https://img.shields.io/badge/license-AGPL%203.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-EUPL%201.2-blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
 
@@ -210,7 +210,7 @@ Depending on your environment, these settings are changed in your `.env`, `docke
 
 ## License
 
-Free for open source projects and personal use under the **AGPL 3.0** license. For more information, please see the [license](LICENSE) file.
+Free for open source projects and personal use under the **EUPL 1.2** license. For more information, please see the [license](LICENSE) file.
 
 ## Contributing
 
