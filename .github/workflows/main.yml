@@ -37,9 +37,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           VERSION="${{ github.event.inputs.tag_name }}"
           BARE="${VERSION#v}"
-          sed -i "s|<Version>.*</Version>|<Version>${BARE}</Version>|" Source/Beacon/Beacon.csproj
-          git add Source/Beacon/Beacon.csproj
-          git commit -m "chore: bump version to ${BARE}"
+          sed -i "s|<Version>.*</Version>|<Version>${BARE}</Version>|" Source/Directory.Build.props
+          git add Source/Directory.Build.props
+          git commit -m "chore: bump version to ${BARE}" || echo "Version already set to ${BARE}, nothing to commit"
           git push
           git tag -a "${VERSION}" -m "Release ${VERSION}"
           git push origin "${VERSION}"
