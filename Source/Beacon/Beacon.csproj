@@ -4,6 +4,8 @@
     <AssemblyTitle>Beacon</AssemblyTitle>
     <AssemblyDescription>A Lightweight Consent Management Platform.</AssemblyDescription>
     <ApplicationIcon>logo.ico</ApplicationIcon>
+    <!-- Development secrets live outside the repo: dotnet user-secrets set "Beacon:SigningKey" "..." -->
+    <UserSecretsId>beacon-3f6b2c1e-8a44-4d59-9f27-0c5e1b7a4d83</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

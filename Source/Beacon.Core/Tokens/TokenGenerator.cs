@@ -116,7 +116,7 @@ public sealed class GenerateTokenRequest
 
     /// <summary>
     /// Language code for the preference page.
-    /// Supported: "en", "de", "fr", "nl", "pl", "es".
+    /// Supported: "en", "de", "fr", "nl", "pl", "es", "it", "pt", "ja".
     /// Default: "en" (English).
     /// </summary>
     public string Language { get; set; } = "en";

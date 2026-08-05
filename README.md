@@ -35,6 +35,16 @@ Beacon adapts to your setup:
 We've prepared two methods to deploy Beacon. It's up to you to choose your preferred method:
 
 ### Docker Compose (Recommended)
+
+First generate your secrets. Compose reads this file, so create it before starting:
+
+```bash
+# Create the .env file
+[ -f .env ] && echo ".env already exists! Aborting." && exit 1; ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "BEACON_SIGNING_KEY=%s\nBEACON_ENCRYPTION_KEY=%s\nBEACON_PEPPER=%s\nBEACON_ADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"
+```
+
+Then setup your compose file:
+
 ```yaml
 services:
   beacon:
@@ -45,23 +55,18 @@ services:
     volumes:
       - beacon_data:/app/data    # Database storage
       - beacon_core:/app/.core   # Encryption keys
+    env_file: .env
     environment:
-      # Core settings (required)
-      - Beacon__SigningKey=${BEACON_SIGNING_KEY}
-      - Beacon__EncryptionKey=${BEACON_ENCRYPTION_KEY}
-      - Beacon__Pepper=${BEACON_PEPPER}
-      - Beacon__AdminApiKey=${BEACON_ADMIN_API_KEY}
-      - Beacon__ConnectionString=Data Source=/app/data/Beacon.db
+      - BEACON_CONNECTION_STRING=Data Source=/app/data/Beacon.db
+      - BEACON_API_PORT=5000
+      - BEACON_ADMIN_PORT=5001
 
-      # Port-based routing (default, no reverse proxy)
-      - Beacon__ApiPort=5000
-      - Beacon__AdminPort=5001
-
-      # Host-based routing (for reverse proxy deployments)
-      # - Beacon__ApiHosts=beacon-api.example.com
-      # - Beacon__AdminHosts=beacon-admin.example.com
-      # - Beacon__AllowedOrigins=https://app.example.com
-      # - Beacon__TrustForwardedHeaders=true
+      # Host-based routing, e.g. only used when running reverse proxy
+      # - BEACON_API_HOSTS=beacon-api.example.com
+      # - BEACON_ADMIN_HOSTS=beacon-admin.example.com
+      # - BEACON_ALLOWED_ORIGINS=https://app.example.com
+      # - BEACON_TRUST_FORWARDED_HEADERS=true
+      # - BEACON_KNOWN_PROXIES=10.0.0.0/8
 
 volumes:
   beacon_data:
@@ -69,9 +74,6 @@ volumes:
 ```
 
 ```bash
-# Create the .env file
-[ -f .env ] && echo ".env already exists! Aborting." && exit 1; ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "BEACON_SIGNING_KEY=%s\nBEACON_ENCRYPTION_KEY=%s\nBEACON_PEPPER=%s\nBEACON_ADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"
-
 # Start the container
 docker compose up -d
 ```
@@ -88,16 +90,17 @@ Download the latest release from [Releases](https://github.com/melosso/beacon/re
 winget install --id Microsoft.DotNet.Runtime.10 -e
 ```
 
-2. **Set encryption key:**
+2. **Set the required keys:**
 
 ```powershell
-$bytes = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [Environment]::SetEnvironmentVariable("BEACON_ENCRYPTION_KEY", [Convert]::ToBase64String($bytes), "Machine")
+function New-Key { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) }
+$adminKey = New-Key
+"BEACON_ENCRYPTION_KEY", "BEACON_SIGNING_KEY", "BEACON_PEPPER" | ForEach-Object { [Environment]::SetEnvironmentVariable($_, (New-Key), "Machine") }
+[Environment]::SetEnvironmentVariable("BEACON_ADMIN_API_KEY", $adminKey, "Machine")
+Write-Host "Your X-Api-Key is: $adminKey"
 ```
 
 3. **Install service:**
-
-
-Before starting the service, manually set your `SigningKey`, `Pepper`, and `AdminApiKey` as plaintext in `appsettings.json`!
 
 ```powershell
 .\Beacon.bat install
@@ -106,7 +109,7 @@ Before starting the service, manually set your `SigningKey`, `Pepper`, and `Admi
 
 4. Open browser → **http://localhost:5000** / **http://localhost:5001**
 
-On first run, sensitive configuration values in `appsettings.json` will be automatically encrypted in-place. You should, ofcourse, safely store your API key to keep access to the admin panel too.
+Store your API key somewhere safe, it is your access to the admin panel. Any sensitive value left in `appsettings.json` is encrypted in-place on first run; values supplied through the environment are never written to that file.
 
 ---
 
@@ -182,7 +185,7 @@ curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
 
 #### Generate Token with Optional Features
 ```bash
-# Supported languages: en (default), de, fr, nl, pl, es
+# Supported languages: en (default), de, fr, nl, pl, es, it, pt, ja
 curl -X POST http://localhost:5000/api/tokens/generate \
   -H "X-Api-Key: your-api-key" \
   -H "Content-Type: application/json" \

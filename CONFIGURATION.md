@@ -2,6 +2,30 @@
 
 Depending on your environment, these settings are changed in your `.env`, `docker-compose.yml` or `appsettings.json` file.
 
+### Naming
+
+Every setting below accepts three equivalent environment variable names. Pick whichever suits your deployment:
+
+| Style | Example |
+|-------|---------|
+| Canonical | `Beacon__SigningKey` |
+| Screaming snake | `BEACON_SIGNING_KEY` |
+| Bare | `SigningKey` |
+
+If more than one is set, the canonical `Beacon__` name wins.
+
+For local development, keep secrets out of the repository with .NET user secrets:
+
+```bash
+cd Source/Beacon
+dotnet user-secrets set "Beacon:SigningKey"    "$(openssl rand -base64 32)"
+dotnet user-secrets set "Beacon:EncryptionKey" "$(openssl rand -base64 32)"
+dotnet user-secrets set "Beacon:Pepper"        "$(openssl rand -base64 32)"
+dotnet user-secrets set "Beacon:AdminApiKey"   "$(openssl rand -base64 36 | tr -d '\n')"
+```
+
+These are stored outside the working tree, so they cannot be committed. Beacon also never writes back to `appsettings.json` in Development, and never writes a value that came from an environment variable, so your working tree stays clean.
+
 ### Core Settings
 
 | Variable | Purpose | Default |

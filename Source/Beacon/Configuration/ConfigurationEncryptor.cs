@@ -88,7 +88,11 @@ public static class ConfigurationEncryptor
                 if (!plaintextValues.TryGetValue(key, out var plaintext) || encryptionService.IsEncrypted(plaintext))
                     continue;
 
-                if (beacon[key] is null)
+                if (beacon[key]?.GetValue<string>() is not { } fileValue || fileValue.Length == 0)
+                    continue;
+
+                // Never write a value that an environment variable or .env supplied.
+                if (fileValue != plaintext)
                     continue;
 
                 beacon[key] = encryptionService.Encrypt(plaintext);

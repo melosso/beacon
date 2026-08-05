@@ -49,6 +49,8 @@ try
     // Initialize EncryptionService first (uses BEACON_ENCRYPTION_KEY from environment)
     var encryptionService = new EncryptionService(builder.Environment.ContentRootPath);
 
+    builder.Configuration.AddInMemoryCollection(ResolveSettingAliases(builder.Configuration));
+
     // Read only; nothing is written back until the keys below pass validation.
     var config = builder.Configuration.GetSection("Beacon");
     var decryptedConfig = ConfigurationEncryptor.ReadSensitiveValues(builder.Configuration, encryptionService);
@@ -123,9 +125,10 @@ try
         }
     }
 
-    // Validated: safe to write the encrypted form back to appsettings.json.
-    ConfigurationEncryptor.PersistEncrypted(
-        builder.Environment.ContentRootPath, encryptionService, decryptedConfig);
+    // Encryption at rest is a production concern; in Development it only dirties the working tree.
+    if (!builder.Environment.IsDevelopment())
+        ConfigurationEncryptor.PersistEncrypted(
+            builder.Environment.ContentRootPath, encryptionService, decryptedConfig);
 
     var normalizedSigningKey = NormalizeKey(signingKey, 32);
     var normalizedEncryptionKey = NormalizeKey(encryptionKey, 32);
@@ -817,6 +820,33 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Accepts SigningKey and BEACON_SIGNING_KEY as aliases for Beacon__SigningKey, for every key the
+// Beacon section defines. The canonical name always wins.
+static Dictionary<string, string?> ResolveSettingAliases(IConfiguration configuration)
+{
+    var aliases = new Dictionary<string, string?>();
+
+    foreach (var setting in configuration.GetSection("Beacon").GetChildren())
+    {
+        var name = setting.Key;
+        if (name.StartsWith("___", StringComparison.Ordinal)) continue;
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable($"Beacon__{name}"))) continue;
+
+        var value = Environment.GetEnvironmentVariable(name)
+                 ?? Environment.GetEnvironmentVariable(ToScreamingSnake(name));
+
+        if (!string.IsNullOrEmpty(value))
+            aliases[$"Beacon:{name}"] = value;
+    }
+
+    return aliases;
+}
+
+// "SigningKey" -> "BEACON_SIGNING_KEY"
+static string ToScreamingSnake(string name) =>
+    "BEACON_" + string.Concat(name.Select((c, i) =>
+        char.IsUpper(c) && i > 0 ? "_" + c : c.ToString())).ToUpperInvariant();
 
 // Static Helpers
 static bool IsInsecureDefault(string value)
