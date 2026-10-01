@@ -96,7 +96,7 @@ jobs:
             Beacon-${{ github.event.inputs.tag_name }}-win-x64.zip.sha256
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag_name }}
           name: ${{ github.event.inputs.tag_name }}
