@@ -186,16 +186,13 @@
         <p class="select-none" style="font-size: 0.85rem; margin-bottom: 0;">Didn't expect this? Please try refreshing or contact support.</p>
 
         <div class="footer">
-          <a href="javascript:history.back()" class="back-link select-none">
+          <a href="/" class="back-link select-none" data-back>
             &larr; Go back
           </a>
         </div>
       </section>
     </main>
 
-    <script>
-      const now = new Date();
-      document.getElementById("ts").textContent = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
-    </script>
+    <script src="/js/status.js" defer></script>
   </body>
 </html>

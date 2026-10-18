@@ -723,6 +723,7 @@ try
             if (File.Exists(indexPath))
             {
                 context.Response.ContentType = "text/html";
+                context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
                 await context.Response.SendFileAsync(indexPath);
             }
             else
@@ -732,6 +733,7 @@ try
                 if (File.Exists(notFoundPath))
                 {
                     context.Response.ContentType = "text/html";
+                    context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
                     await context.Response.SendFileAsync(notFoundPath);
                 }
             }
@@ -746,6 +748,7 @@ try
         if (File.Exists(notFoundPath))
         {
             context.Response.ContentType = "text/html";
+            context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
             await context.Response.SendFileAsync(notFoundPath);
         }
     }).ExcludeFromDescription();
