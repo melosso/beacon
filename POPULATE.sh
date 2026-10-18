@@ -12,8 +12,8 @@ case "$AUTH_STATUS" in
   *)   echo "API key rejected (HTTP $AUTH_STATUS). Set ADMIN_API_KEY or add it to Source/Beacon/.env."; exit 1 ;;
 esac
 
-MIN_EMAILS_PER_BUCKET=5
-MAX_EMAILS_PER_BUCKET=300
+MIN_EMAILS_PER_BUCKET=${MIN_EMAILS:-5}
+MAX_EMAILS_PER_BUCKET=${MAX_EMAILS:-300}
 
 DOMAINS=(
   "unternehmen.eu"
@@ -64,6 +64,9 @@ BUCKETS=(
   "ecommerce_cart_abandonment"
   "user_research_panel"
 )
+
+# EXTRA_BUCKETS=n appends n generated buckets, e.g. to test long bucket lists.
+for i in $(seq 1 "${EXTRA_BUCKETS:-0}"); do BUCKETS+=("regional_newsletter_$(printf '%03d' "$i")"); done
 
 # Name pools keyed by TLD
 get_first_names() {
