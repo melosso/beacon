@@ -40,7 +40,7 @@ First generate your secrets. Compose reads this file, so create it before starti
 
 ```bash
 # Create the .env file
-[ -f .env ] && echo ".env already exists! Aborting." && exit 1; ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "BEACON_SIGNING_KEY=%s\nBEACON_ENCRYPTION_KEY=%s\nBEACON_PEPPER=%s\nBEACON_ADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"
+[ -f .env ] && echo ".env already exists! Aborting." && exit 1; ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"
 ```
 
 Then setup your compose file:
@@ -57,16 +57,16 @@ services:
       - beacon_core:/app/.core   # Encryption keys
     env_file: .env
     environment:
-      - BEACON_CONNECTION_STRING=Data Source=/app/data/Beacon.db
-      - BEACON_API_PORT=5000
-      - BEACON_ADMIN_PORT=5001
+      - CONNECTION_STRING=Data Source=/app/data/Beacon.db
+      - API_PORT=5000
+      - ADMIN_PORT=5001
 
       # Host-based routing, e.g. only used when running reverse proxy
-      # - BEACON_API_HOSTS=beacon-api.example.com
-      # - BEACON_ADMIN_HOSTS=beacon-admin.example.com
-      # - BEACON_ALLOWED_ORIGINS=https://app.example.com
-      # - BEACON_TRUST_FORWARDED_HEADERS=true
-      # - BEACON_KNOWN_PROXIES=10.0.0.0/8
+      # - API_HOSTS=beacon-api.example.com
+      # - ADMIN_HOSTS=beacon-admin.example.com
+      # - ALLOWED_ORIGINS=https://app.example.com
+      # - TRUST_FORWARDED_HEADERS=true
+      # - KNOWN_PROXIES=10.0.0.0/8
 
 volumes:
   beacon_data:
@@ -84,7 +84,7 @@ Access the Admin panel at **http://localhost:5001** and API at **http://localhos
 
 Download the latest release from [Releases](https://github.com/melosso/beacon/releases).
 
-1. **Install .NET 10 Runtime:**
+1. **Install .NET 10 (LTS) Runtime:**
 
 ```powershell
 winget install --id Microsoft.DotNet.Runtime.10 -e

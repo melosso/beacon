@@ -83,7 +83,7 @@ public class EncryptionService {
             var payload = Convert.FromBase64String(encryptedContent[EncryptedHeader.Length..]);
             var plain = AesGcmCipher.Open(payload, DeriveKeyFromPassword(_encryptionKey))
                 ?? throw new CryptographicException(
-                    "Failed to decrypt configuration value. BEACON_ENCRYPTION_KEY may have changed.");
+                    "Failed to decrypt configuration value. ENCRYPTION_KEY may have changed.");
             return Encoding.UTF8.GetString(plain);
         }
 
@@ -135,22 +135,11 @@ public class EncryptionService {
     /// </summary>
     public string CertificatesPath => _certsPath;
 
-    private static readonly string[] KeyNames = ["BEACON_ENCRYPTION_KEY", "Beacon__EncryptionKey"];
+    private const string KeySetting = "EncryptionKey";
 
     /// <summary>Environment first, then a .env beside the binary, then a generated per-instance key.</summary>
-    private string LoadEncryptionKey()
-    {
-        foreach (var name in KeyNames)
-        {
-            if (Environment.GetEnvironmentVariable(name) is { Length: > 0 } value)
-                return value;
-        }
-
-        if (ReadEnvFile() is { } fromFile)
-            return fromFile;
-
-        return LoadOrCreateInstanceKey();
-    }
+    private string LoadEncryptionKey() =>
+        EnvironmentSetting.Resolve(KeySetting) ?? ReadEnvFile() ?? LoadOrCreateInstanceKey();
 
     private static string? ReadEnvFile()
     {
@@ -160,16 +149,14 @@ public class EncryptionService {
 
         try
         {
+            var entries = new Dictionary<string, string>();
             foreach (var line in File.ReadLines(path))
             {
                 var parts = line.Trim().Split('=', 2);
-                if (parts.Length == 2 && KeyNames.Contains(parts[0].Trim()))
-                {
-                    var value = parts[1].Trim().Trim('"', '\'');
-                    if (value.Length > 0)
-                        return value;
-                }
+                if (parts.Length == 2)
+                    entries.TryAdd(parts[0].Trim(), parts[1].Trim().Trim('"', '\''));
             }
+            return EnvironmentSetting.Resolve(KeySetting, entries.GetValueOrDefault);
         }
         catch (Exception ex)
         {
@@ -193,7 +180,7 @@ public class EncryptionService {
         // Pre-existing install whose data was encrypted under the shipped constant. Keep it readable.
         if (File.Exists(Path.Combine(_certsPath, PrivateKeyFileName)))
         {
-            Log.Warning("BEACON_ENCRYPTION_KEY is not set; using the legacy fallback key, which ships in every binary. Set it and re-enter your secrets to rotate.");
+            Log.Warning("ENCRYPTION_KEY is not set; using the legacy fallback key, which ships in every binary. Set it and re-enter your secrets to rotate.");
             return LegacyFallbackKey;
         }
 
@@ -201,7 +188,7 @@ public class EncryptionService {
         File.WriteAllText(keyPath, generated);
         RestrictToOwner(keyPath);
 
-        Log.Warning("BEACON_ENCRYPTION_KEY is not set; generated one at {KeyPath}. Back up .core or lose access to encrypted data.", keyPath);
+        Log.Warning("ENCRYPTION_KEY is not set; generated one at {KeyPath}. Back up .core or lose access to encrypted data.", keyPath);
 
         return generated;
     }

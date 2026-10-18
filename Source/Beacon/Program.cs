@@ -821,32 +821,20 @@ finally
     Log.CloseAndFlush();
 }
 
-// Accepts SigningKey and BEACON_SIGNING_KEY as aliases for Beacon__SigningKey, for every key the
-// Beacon section defines. The canonical name always wins.
+// Map EnvironmentSetting aliases onto every key in the Beacon section.
 static Dictionary<string, string?> ResolveSettingAliases(IConfiguration configuration)
 {
     var aliases = new Dictionary<string, string?>();
 
     foreach (var setting in configuration.GetSection("Beacon").GetChildren())
     {
-        var name = setting.Key;
-        if (name.StartsWith("___", StringComparison.Ordinal)) continue;
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable($"Beacon__{name}"))) continue;
-
-        var value = Environment.GetEnvironmentVariable(name)
-                 ?? Environment.GetEnvironmentVariable(ToScreamingSnake(name));
-
-        if (!string.IsNullOrEmpty(value))
-            aliases[$"Beacon:{name}"] = value;
+        if (setting.Key.StartsWith("___", StringComparison.Ordinal)) continue;
+        if (EnvironmentSetting.Resolve(setting.Key) is { } value)
+            aliases[$"Beacon:{setting.Key}"] = value;
     }
 
     return aliases;
 }
-
-// "SigningKey" -> "BEACON_SIGNING_KEY"
-static string ToScreamingSnake(string name) =>
-    "BEACON_" + string.Concat(name.Select((c, i) =>
-        char.IsUpper(c) && i > 0 ? "_" + c : c.ToString())).ToUpperInvariant();
 
 // Static Helpers
 static bool IsInsecureDefault(string value)

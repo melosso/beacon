@@ -20,7 +20,7 @@ dotnet user-secrets set "Beacon:Pepper"        "$(openssl rand -base64 32)"
 dotnet user-secrets set "Beacon:AdminApiKey"   "$(openssl rand -base64 36 | tr -d '\n')"
 ```
 
-These secrets are then stored outside the working tree. Environment variables and a `.env` beside the binary work too. Every setting accepts three names, canonical first: `Beacon__SigningKey`, `BEACON_SIGNING_KEY`, `SigningKey`.
+These secrets are then stored outside the working tree. Environment variables and a `.env` beside the binary work too. Every setting accepts four names, in precedence order: `Beacon__SigningKey`, `BEACON_SIGNING_KEY`, `SIGNING_KEY`, `SigningKey`. See [CONFIGURATION.md](CONFIGURATION.md#naming).
 
 ### Test
 
@@ -33,7 +33,7 @@ Provider tests need Docker. They spin up SQL Server, PostgreSQL and MySQL via Te
 ### Database Providers
 
 ```bash
-BEACON_DATABASE_PROVIDER=postgres BEACON_CONNECTION_STRING="Host=localhost;Database=beacon;Username=postgres;Password=..." dotnet run --project Source/Beacon
+DATABASE_PROVIDER=postgres CONNECTION_STRING="Host=localhost;Database=beacon;Username=postgres;Password=..." dotnet run --project Source/Beacon
 ```
 
 Accepts `sqlite`, `sqlserver`, `postgres`, `mysql`.
