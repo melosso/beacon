@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths: ["Source/**", "global.json", ".github/workflows/tests.yml"]
+  pull_request:
+    paths: ["Source/**", "global.json", ".github/workflows/tests.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore and build
+        run: dotnet build Source/Beacon.slnx --configuration Release
+
+      # Unit tests plus the provider suite; the runner's Docker hosts SQL Server, PostgreSQL and MySQL via Testcontainers.
+      - name: Test
+        run: dotnet test --solution Source/Beacon.slnx --configuration Release --no-build --report-xunit-trx --results-directory TestResults
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults/*.trx
