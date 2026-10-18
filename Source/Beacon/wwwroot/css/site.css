@@ -2620,6 +2620,12 @@ label.settings-item-card:hover {
 .settings-item-card-label:hover {
   background: hsl(var(--muted) / 0.5);
 }
+.settings-item-card-label--static {
+  cursor: default;
+}
+.settings-item-card-label--static:hover {
+  background: none;
+}
 
 .settings-item-card-label--flush {
   padding: var(--space-3) 0;

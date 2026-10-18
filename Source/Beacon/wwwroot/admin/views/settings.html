@@ -725,12 +725,18 @@
                 </div>
                 <span class="status-badge select-none">Per bucket</span>
               </div>
-              <div class="settings-item-card settings-item-card--static">
-                <div class="settings-item-info">
-                  <span class="settings-item-title select-none">REST API</span>
-                  <p class="settings-item-desc">Read and update consent from other systems with a scoped API key.</p>
+              <div class="settings-item-card settings-item-card--split">
+                <div class="settings-item-card-label settings-item-card-label--static">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">REST API</span>
+                    <p class="settings-item-desc">Read and update consent from other systems with a scoped API key.</p>
+                  </div>
                 </div>
-                <button class="btn btn-outline" data-click="showSettingsSection api-keys">Manage API keys</button>
+                <button class="btn-settings-gear" data-click="showSettingsSection api-keys" aria-label="Manage API keys">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
               </div>
               <div class="notice select-none">Built-in CRM and marketing platform connectors are planned for a future release.</div>
             </div>

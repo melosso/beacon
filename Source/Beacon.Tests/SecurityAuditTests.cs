@@ -112,6 +112,17 @@ public class SecurityAuditTests : IDisposable
     public void CsvEscape_NeutralisesFormulas(string value, string expected) =>
         Assert.Equal(expected, AdminEndpoints.CsvEscape(value));
 
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("Admin")]
+    [InlineData("APIKEYUSER")]
+    public void ValidateUsername_RejectsReservedNames(string username) =>
+        Assert.False(UserEndpoints.ValidateUsername(username, out _));
+
+    [Fact]
+    public void ValidateUsername_AcceptsOtherAdminNames() =>
+        Assert.True(UserEndpoints.ValidateUsername("admin.jane", out _));
+
     private async Task<AuthenticateResult> AuthenticateAsync(string token)
     {
         var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = "both" };
