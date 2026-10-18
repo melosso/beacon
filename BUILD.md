@@ -25,7 +25,7 @@ These secrets are then stored outside the working tree. Environment variables an
 ### Test
 
 ```bash
-dotnet test Source/Beacon.slnx
+dotnet test --solution Source/Beacon.slnx
 ```
 
 Provider tests need Docker. They spin up SQL Server, PostgreSQL and MySQL via Testcontainers.
