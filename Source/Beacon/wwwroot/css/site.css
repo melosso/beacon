@@ -512,6 +512,17 @@ td {
 .nav-group {
   margin-bottom: var(--space-6);
 }
+/* Buckets shrink and scroll first; the other groups and the footer keep their height. */
+.nav-group--fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 8rem;
+}
+.nav-group--fill #bucketsList {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .nav-label {
   font-size: var(--text-2xs);
   font-weight: 600;

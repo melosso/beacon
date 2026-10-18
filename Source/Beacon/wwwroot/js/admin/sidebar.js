@@ -27,6 +27,12 @@ const sidebarPrefs = JSON.parse(
 if (!sidebarPrefs.sort) sidebarPrefs.sort = "default";
 if (!sidebarPrefs.display) sidebarPrefs.display = "description";
 
+function toggleSidebarBuckets() {
+  sidebarPrefs.expanded = !sidebarPrefs.expanded;
+  saveSidebarPrefs();
+  renderBucketsSidebar();
+}
+
 function saveSidebarPrefs() {
   localStorage.setItem("beacon_sidebar_prefs", JSON.stringify(sidebarPrefs));
 }
@@ -80,7 +86,8 @@ function renderBucketsSidebar() {
   else if (sidebarPrefs.sort === "za")
     sorted.sort((a, b) => b.name.localeCompare(a.name));
 
-  const displayBuckets = sorted.slice(0, MAX_SIDEBAR_BUCKETS);
+  const expanded = Boolean(sidebarPrefs.expanded);
+  const displayBuckets = expanded ? sorted : sorted.slice(0, MAX_SIDEBAR_BUCKETS);
   const showCode = sidebarPrefs.display === "code";
   const remaining = buckets.length - MAX_SIDEBAR_BUCKETS;
   paint(
@@ -100,15 +107,14 @@ function renderBucketsSidebar() {
         >`,
     )}
     ${remaining > 0
-      ? html`<a
-          href="#"
+      ? html`<button
+          type="button"
           class="nav-item show-more"
-          @click=${(e) => {
-            e.preventDefault();
-            showView("overview");
-          }}
-          >+${remaining} more in Overview</a
-        >`
+          aria-expanded=${expanded ? "true" : "false"}
+          @click=${toggleSidebarBuckets}
+        >
+          ${expanded ? "Show fewer" : `… ${remaining} more`}
+        </button>`
       : nothing}`,
   );
   if (currentView === "bucket")

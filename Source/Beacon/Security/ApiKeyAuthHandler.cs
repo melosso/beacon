@@ -144,11 +144,14 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
         return AuthenticateResult.Success(ticket);
     }
 
+    /// <summary>Prefix of named API key principals; ':' is invalid in usernames, so a key name never matches a user.</summary>
+    public const string KeyPrincipalPrefix = "key:";
+
     private AuthenticateResult BuildSuccessWithPermissions(string name, string[] permissions)
     {
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, name),
+            new(ClaimTypes.Name, KeyPrincipalPrefix + name),
             new(ClaimTypes.Role, "apikey")
         };
         foreach (var p in permissions)
