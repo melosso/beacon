@@ -189,7 +189,7 @@ public static class FormLocalization
             "Invalid link", "This link is invalid. Please use the link from your email.",
             "Already processed", "Your preferences have already been updated using this link.",
             "Unsubscribed", "You have been unsubscribed from:",
-            "Preferences updated", "Unsubscribed from:", "Still subscribed to:",
+            "Preferences updated", "Unsubscribed from:", "You're still subscribed to:",
             "Success", "Your preferences have been updated.",
             "Subscription confirmed", "Your subscription has been confirmed. You're now opted in.",
             "No longer available", "This subscription list has been closed, so preferences can no longer be changed. No further emails will be sent."),
