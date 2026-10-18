@@ -292,5 +292,24 @@ function initLoginPage() {
   overlay.hidden = false;
 }
 
+const PROMO_DISMISSED_KEY = "beacon_promo_dismissed";
+
+// Dismissal is keyed on the announcement text: an edited announcement shows again.
+function showPromoBar() {
+  const bar = document.getElementById("promoBar");
+  if (!bar) return;
+  let dismissed = null;
+  try { dismissed = localStorage.getItem(PROMO_DISMISSED_KEY); } catch {}
+  bar.classList.toggle("is-visible", dismissed !== bar.textContent.trim());
+}
+
+function dismissPromoBar() {
+  const bar = document.getElementById("promoBar");
+  if (!bar) return;
+  try { localStorage.setItem(PROMO_DISMISSED_KEY, bar.textContent.trim()); } catch {}
+  bar.classList.remove("is-visible");
+}
+
 bindActions();
+showPromoBar();
 initLoginPage();

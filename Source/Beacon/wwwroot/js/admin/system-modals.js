@@ -26,33 +26,27 @@ function promoLink(text, url) {
 }
 
 function initPromoBar() {
-  if (sessionStorage.getItem("beacon_promo_dismissed")) return;
   updatePromoBar();
 }
 
 function updatePromoBar() {
-  let bar = document.getElementById("adminPromoBar");
+  let bar = document.getElementById("promoBar");
   if (!appSettings.promoBarEnabled || !appSettings.promoBar.trim()) {
     if (bar) bar.classList.remove("is-visible");
     return;
   }
   if (!bar) {
     bar = document.createElement("div");
-    bar.id = "adminPromoBar";
-    bar.className = "admin-promo-bar";
-    const appShell = document.querySelector(".app-shell");
-    if (appShell) document.body.insertBefore(bar, appShell);
+    bar.id = "promoBar";
+    bar.className = "promo-bar";
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Announcement");
+    document.body.insertBefore(bar, document.querySelector(".app-shell"));
   }
-  paint(bar, html`<div class="admin-promo-bar-content">${promoMarkdown(appSettings.promoBar)}</div>${(appSettings.promoBarDismissable ?? true)
-    ? html`<button class="promo-bar-close" title="Close" aria-label="Close announcement" @click=${dismissPromoBar}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
-    : nothing}`);
-  requestAnimationFrame(() => bar.classList.add("is-visible"));
-}
-
-function dismissPromoBar() {
-  const bar = document.getElementById("adminPromoBar");
-  if (bar) bar.classList.remove("is-visible");
-  sessionStorage.setItem("beacon_promo_dismissed", "1");
+  paint(bar, html`<div class="promo-bar-inner"><div class="promo-bar-content">${promoMarkdown(appSettings.promoBar)}</div>${(appSettings.promoBarDismissable ?? true)
+    ? html`<button type="button" class="promo-bar-close" aria-label="Dismiss announcement" @click=${dismissPromoBar}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+    : nothing}</div>`);
+  requestAnimationFrame(showPromoBar);
 }
 
 async function onPromoBarToggle(checkbox) {
@@ -98,7 +92,6 @@ async function savePromoBarSettings() {
   const toggle = document.getElementById("setting-promoBarEnabled");
   if (toggle) toggle.checked = appSettings.promoBarEnabled;
   await saveCurrentSettings();
-  sessionStorage.removeItem("beacon_promo_dismissed");
   updatePromoBar();
   closePromoBarModal();
 }
