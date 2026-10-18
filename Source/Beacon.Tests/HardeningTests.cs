@@ -87,7 +87,7 @@ public class SsrfGuardTests
     [InlineData("http://127.0.0.1:8080/")]
     public async Task RejectsUnsafeUrls(string url)
     {
-        Assert.Null(await SsrfGuard.ResolveAndValidateAsync(url));
+        Assert.Null(await SsrfGuard.ResolveAndValidateAsync(url, TestContext.Current.CancellationToken));
     }
 }
 
