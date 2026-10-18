@@ -40,7 +40,7 @@ First generate your secrets. Compose reads this file, so create it before starti
 
 ```bash
 # Create the .env file
-[ -f .env ] && echo ".env already exists! Aborting." && exit 1; ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "BEACON_SIGNING_KEY=%s\nBEACON_ENCRYPTION_KEY=%s\nBEACON_PEPPER=%s\nBEACON_ADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"
+if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
 ```
 
 Then setup your compose file:
@@ -57,16 +57,16 @@ services:
       - beacon_core:/app/.core   # Encryption keys
     env_file: .env
     environment:
-      - BEACON_CONNECTION_STRING=Data Source=/app/data/Beacon.db
-      - BEACON_API_PORT=5000
-      - BEACON_ADMIN_PORT=5001
+      - CONNECTION_STRING=Data Source=/app/data/Beacon.db
+      - API_PORT=5000
+      - ADMIN_PORT=5001
 
       # Host-based routing, e.g. only used when running reverse proxy
-      # - BEACON_API_HOSTS=beacon-api.example.com
-      # - BEACON_ADMIN_HOSTS=beacon-admin.example.com
-      # - BEACON_ALLOWED_ORIGINS=https://app.example.com
-      # - BEACON_TRUST_FORWARDED_HEADERS=true
-      # - BEACON_KNOWN_PROXIES=10.0.0.0/8
+      # - API_HOSTS=beacon-api.example.com
+      # - ADMIN_HOSTS=beacon-admin.example.com
+      # - ALLOWED_ORIGINS=https://app.example.com
+      # - TRUST_FORWARDED_HEADERS=true
+      # - KNOWN_PROXIES=10.0.0.0/8
 
 volumes:
   beacon_data:
@@ -84,19 +84,19 @@ Access the Admin panel at **http://localhost:5001** and API at **http://localhos
 
 Download the latest release from [Releases](https://github.com/melosso/beacon/releases).
 
-1. **Install .NET 10 Runtime:**
+1. **Install .NET 10 (LTS) Runtime:**
 
 ```powershell
 winget install --id Microsoft.DotNet.Runtime.10 -e
 ```
 
-2. **Set the required keys:**
+2. **Create `.env` with the required keys** (run in the Beacon folder):
 
 ```powershell
+if (Test-Path .env) { throw ".env already exists" }
 function New-Key { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) }
 $adminKey = New-Key
-"BEACON_ENCRYPTION_KEY", "BEACON_SIGNING_KEY", "BEACON_PEPPER" | ForEach-Object { [Environment]::SetEnvironmentVariable($_, (New-Key), "Machine") }
-[Environment]::SetEnvironmentVariable("BEACON_ADMIN_API_KEY", $adminKey, "Machine")
+"SIGNING_KEY=$(New-Key)", "ENCRYPTION_KEY=$(New-Key)", "PEPPER=$(New-Key)", "ADMIN_API_KEY=$adminKey" | Set-Content .env
 Write-Host "Your X-Api-Key is: $adminKey"
 ```
 
@@ -109,7 +109,7 @@ Write-Host "Your X-Api-Key is: $adminKey"
 
 4. Open browser → **http://localhost:5000** / **http://localhost:5001**
 
-Store your API key somewhere safe, it is your access to the admin panel. Any sensitive value left in `appsettings.json` is encrypted in-place on first run; values supplied through the environment are never written to that file.
+Store your API key somewhere safe, it is your access to the admin panel. Beacon encrypts sensitive values in `appsettings.json` on first run. Values read from environment variables or `.env` are not written to `appsettings.json`.
 
 ---
 

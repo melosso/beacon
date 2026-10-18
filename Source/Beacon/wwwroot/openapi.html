@@ -1,39 +1,15 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>Beacon</title>
-    <meta name="robots" content="noindex,nofollow" />
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Beacon API</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   </head>
   <body>
     <div id="app"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-    <script>
-      Scalar.createApiReference('#app', {
-        // The URL of the OpenAPI/Swagger document
-        url: 'https://registry.scalar.com/@scalar/apis/galaxy?format=json',
-        // Avoid CORS issues
-        proxyUrl: 'https://proxy.scalar.com',
-        // Customization options
-        theme: 'alternate',
-        hideClientButton: true,
-        hideSearch: true,
-        defaultOpenAllTags: true,
-        hideModels: true,
-        telemetry: false,
-        url: '/openapi/v1.json'
-      })
-    </script>
-    <script>
-        (function(){{
-            console.log(
-                atob('JWNAbWVsb3Nzby9iZWFjb24lYy4gTGljZW5zZWQgdW5kZXIgJWNBR1BMIDMuMCVjLg=='), atob('Y29sb3I6ICM2ZjQyYzE7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDEycHg7'), atob('Y29sb3I6ICMzMzM7IGZvbnQtc2l6ZTogMTJweDs='), atob('Y29sb3I6ICMyOGE3NDU7IGZvbnQtd2VpZ2h0OiBib2xkOyBmb250LXNpemU6IDEycHg7'), atob('Y29sb3I6ICMzMzM7IGZvbnQtc2l6ZTogMTJ4Ow==')
-            );
-        }})();
-    </script>
+    <script src="/lib/scalar/standalone.js" defer></script>
+    <script src="/js/openapi.js" defer></script>
   </body>
 </html>

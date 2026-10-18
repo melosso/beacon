@@ -79,26 +79,22 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             if (string.IsNullOrEmpty(role))
                 return AuthenticateResult.Fail("Token missing role claim");
 
-            // When user authentication is enabled, verify per-user tokens against the database
-            // so that disabled accounts and role changes take effect immediately.
-            // If no user record exists for the subject, the token was issued for the global
-            // AdminApiKey (which has no DB record), so it is allowed through unchanged.
-            if (!string.IsNullOrEmpty(Options.UserAuthentication) && _userRepository != null)
+            var isAdminKey = payload.TryGetProperty("akey", out var akeyElement) && akeyElement.ValueKind == JsonValueKind.True;
+
+            // Per-user tokens are checked against the database so deletion, disabling and role changes apply immediately.
+            if (!isAdminKey && !string.IsNullOrEmpty(Options.UserAuthentication) && _userRepository != null)
             {
                 var user = await _userRepository.FindByUsernameAsync(sub);
-                if (user != null)
-                {
-                    if (!user.IsEnabled)
-                        return AuthenticateResult.Fail("User is disabled");
-                    role = user.Role;
-                }
+                if (user == null)
+                    return AuthenticateResult.Fail("User not found");
+                if (!user.IsEnabled)
+                    return AuthenticateResult.Fail("User is disabled");
+                role = user.Role;
             }
 
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.Name, sub),
-                new Claim(ClaimTypes.Role, role)
-            };
+            Claim[] claims = isAdminKey
+                ? [new Claim(ClaimTypes.Name, sub), new Claim(ClaimTypes.Role, role), new Claim(AdminKeyClaim, "true")]
+                : [new Claim(ClaimTypes.Name, sub), new Claim(ClaimTypes.Role, role)];
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
@@ -171,7 +167,10 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         return JsonSerializer.Deserialize<JsonElement>(payloadJson);
     }
 
-    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin")
+    /// <summary>Marks a session issued for the global AdminApiKey, which has no user record.</summary>
+    public const string AdminKeyClaim = "beacon:akey";
+
+    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false)
     {
         var header = Base64Url.EncodeToString("""{"alg":"HS256","typ":"JWT"}"""u8);
 
@@ -180,6 +179,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         {
             sub = subject,
             role,
+            akey = adminKey,
             iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             exp = expiresAt.ToUnixTimeSeconds()
         }));

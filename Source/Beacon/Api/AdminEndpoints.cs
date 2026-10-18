@@ -12,6 +12,7 @@ using Beacon.Middleware;
 using Beacon.Core.Validation;
 using Beacon.Storage;
 using Beacon.Tokens;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -451,7 +452,6 @@ public static class AdminEndpoints
         }
 
         var config = configService.Get();
-        var emailProviderNormalized = config.EmailProvider?.Trim().ToLowerInvariant() ?? string.Empty;
         var responses = new List<GenerateTokenResponse>(requests.Count);
         var actorId = context.User.Identity?.Name;
 
@@ -459,23 +459,12 @@ public static class AdminEndpoints
         {
             foreach (var request in requests)
             {
-                var doubleOptInActive = !instanceOptions.DisableEmailNotifications
-                    && config.EnableDoubleOptIn
-                    && config.EmailNotifications
-                    && emailProviderNormalized is not ("none" or "");
-
                 var normalizedBucket = request.Bucket.Trim().ToLowerInvariant();
                 var emailHash = emailHasher.Hash(request.Email);
                 var permissionNames = request.Permissions!.Keys.ToArray();
 
-                if (doubleOptInActive)
-                {
-                    var bucketOpts = await bucketOptionsRepo.GetAsync(normalizedBucket);
-                    doubleOptInActive = bucketOpts.DoubleOptIn;
-                }
-
-                if (request.SkipConfirmationEmail)
-                    doubleOptInActive = false;
+                var doubleOptInActive = !request.SkipConfirmationEmail
+                    && await DoubleOptIn.IsActiveAsync(instanceOptions, config, bucketOptionsRepo, normalizedBucket);
 
                 using var transaction = await consentService.BeginTransactionAsync();
 
@@ -522,66 +511,14 @@ public static class AdminEndpoints
                 // and queue entries are committed atomically. A failure here rolls back both.
                 if (doubleOptInActive)
                 {
-                    var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
-                        ? instanceOptions.PublicUrl.TrimEnd('/')
-                        : $"{context.Request.Scheme}://{context.Request.Host}";
-
-                    var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-                    var encryptedEmail = encryptor.Encrypt(normalizedEmail);
                     var optedInPermissions = request.Permissions.Where(p => p.Value).Select(p => p.Key).ToList();
+                    await DoubleOptIn.EnqueueAsync(emailQueueRepo, encryptor, DoubleOptIn.BaseUrl(instanceOptions, context), config.PerPermissionEmail,
+                        normalizedBucket, request.Email, emailHash, optedInPermissions, tokenOptions.Language);
 
                     if (optedInPermissions.Count > 0)
-                    {
-                        if (config.PerPermissionEmail)
-                        {
-                            foreach (var permission in optedInPermissions)
-                            {
-                                await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
-
-                                var confirmationTokenPlain = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-                                var confirmationTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(confirmationTokenPlain))).ToLowerInvariant();
-                                await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
-                                {
-                                    Bucket = normalizedBucket,
-                                    EncryptedEmail = encryptedEmail,
-                                    EmailHash = emailHash,
-                                    Permission = permission,
-                                    Language = tokenOptions.Language,
-                                    ConfirmationToken = confirmationTokenHash,
-                                    ConfirmationUrl = $"{baseUrl}/confirm/{confirmationTokenPlain}",
-                                    ExpiresAt = DateTime.UtcNow.AddDays(7)
-                                });
-                            }
-                        }
-                        else
-                        {
-                            // Sort permissions so the key is stable regardless of input order.
-                            var allPermissions = string.Join(",", optedInPermissions.OrderBy(p => p));
-
-                            // Cancel any previous pending entries, both the combined key and each individual permission, to catch entries queued with a different set.
-                            foreach (var permission in optedInPermissions)
-                                await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, permission);
-                            await emailQueueRepo.CancelPendingAsync(normalizedBucket, emailHash, allPermissions);
-
-                            var confirmationTokenPlain = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-                            var confirmationTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(confirmationTokenPlain))).ToLowerInvariant();
-                            await emailQueueRepo.EnqueueAsync(new EmailQueueEntry
-                            {
-                                Bucket = normalizedBucket,
-                                EncryptedEmail = encryptedEmail,
-                                EmailHash = emailHash,
-                                Permission = allPermissions,
-                                Language = tokenOptions.Language,
-                                ConfirmationToken = confirmationTokenHash,
-                                ConfirmationUrl = $"{baseUrl}/confirm/{confirmationTokenPlain}",
-                                ExpiresAt = DateTime.UtcNow.AddDays(7)
-                            });
-                        }
-
                         logger.LogInformation(
                             "Email queue: confirmation email(s) enqueued (bucket={Bucket}, id={EmailId}, permissions={Permissions}, perPermission={PerPermission})",
                             normalizedBucket, emailHash[..12], string.Join(",", optedInPermissions), config.PerPermissionEmail);
-                    }
                 }
 
                 await consentService.CommitTransactionAsync();
@@ -1030,6 +967,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetWebhookConfig(
         string bucket,
+        HttpContext context,
         [FromServices] IWebhookService webhookService)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -1048,10 +986,15 @@ public static class AdminEndpoints
             ? JsonSerializer.Deserialize<Dictionary<string, string>>(config.EncryptedHeaders)
             : new Dictionary<string, string>();
 
+        // Headers and URL can hold downstream credentials; only admins (who can write them) see them.
+        var reveal = context.User.IsInRole("admin");
+        if (!reveal && headersDict != null)
+            headersDict = headersDict.ToDictionary(h => h.Key, _ => "********");
+
         return Results.Ok(new
         {
             configured = true,
-            url = config.EncryptedUrl,
+            url = reveal ? config.EncryptedUrl : MaskUrl(config.EncryptedUrl),
             method = config.EncryptedMethod,
             headers = headersDict,
             bodyTemplate = config.BodyTemplate,
@@ -1143,6 +1086,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetWebhookErrors(
         string bucket,
+        HttpContext context,
         [FromServices] IWebhookRepository webhookRepository)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -1152,6 +1096,7 @@ public static class AdminEndpoints
         }
 
         var errors = await webhookRepository.GetRecentErrorsAsync(bucket.Trim().ToLowerInvariant());
+        var reveal = context.User.IsInRole("admin");
         return Results.Ok(errors.Select(e => new
         {
             id = e.Id,
@@ -1159,7 +1104,7 @@ public static class AdminEndpoints
             errorMessage = e.ErrorMessage,
             statusCode = e.StatusCode,
             occurredAt = e.OccurredAt,
-            requestUrl = e.RequestUrl,
+            requestUrl = reveal ? e.RequestUrl : MaskUrl(e.RequestUrl),
             requestMethod = e.RequestMethod,
             attemptCount = e.AttemptCount,
             stackTrace = e.StackTrace
@@ -1685,6 +1630,16 @@ public static class AdminEndpoints
         });
     }
 
+    // Drops userinfo and query, which can carry credentials.
+    internal static string? MaskUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return url;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return "********";
+
+        var masked = new UriBuilder(uri) { UserName = "", Password = "", Query = "", Fragment = "" }.Uri.ToString();
+        return uri.Query.Length > 0 ? masked + "?********" : masked;
+    }
+
     private static string MaskSecret(string? decryptedValue)
     {
         if (string.IsNullOrEmpty(decryptedValue)) return string.Empty;
@@ -1821,10 +1776,16 @@ public static class AdminEndpoints
         return doc.ToString();
     }
 
-    private static string CsvEscape(string value) =>
-        value.AsSpan().IndexOfAny(',', '"', '\n') >= 0
+    internal static string CsvEscape(string value)
+    {
+        // Spreadsheets evaluate cells starting with these as formulas.
+        if (value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+            value = "'" + value;
+
+        return value.AsSpan().IndexOfAny(",\"\n\r") >= 0
             ? $"\"{value.Replace("\"", "\"\"")}\""
             : value;
+    }
 
     private static bool MatchesWildcard(string? text, string pattern)
     {
@@ -1858,6 +1819,7 @@ public static class AdminEndpoints
         [FromServices] TokenGenerator generator,
         [FromServices] Beacon.Core.Services.InstanceOptions instanceOptions,
         [FromServices] HostRoutingOptions routingOptions,
+        [FromServices] IAuthorizationService authorization,
         HttpContext context,
         CancellationToken ct)
     {
@@ -1868,6 +1830,10 @@ public static class AdminEndpoints
         var format = (request?.Format ?? "csv").ToLowerInvariant();
         if (format is not ("csv" or "json" or "xml" or "yaml"))
             return Results.BadRequest(new { error = "Invalid format. Must be 'csv', 'json', 'xml', or 'yaml'" });
+
+        // Tracking links are replayable preference tokens: minting them is a consent write.
+        if (request?.IncludeTracking == true && !(await authorization.AuthorizeAsync(context.User, "TokensWrite")).Succeeded)
+            return Results.Forbid();
 
         if (request?.Hashes is { Count: > 10_000 })
             return Results.BadRequest(new { error = "Too many hashes selected. Maximum is 10,000." });

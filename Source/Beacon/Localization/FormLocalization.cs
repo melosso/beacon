@@ -294,6 +294,7 @@ public static class FormLocalization
         _    => "This form is currently unavailable.",
     };
 
-    private static string Normalize(string? language) =>
-        (language ?? "en").ToLowerInvariant();
+    // Allowlist: the result is rendered into HTML attributes.
+    public static string Normalize(string? language) =>
+        language?.ToLowerInvariant() is { } lang && SupportedLanguages.Contains(lang) ? lang : "en";
 }

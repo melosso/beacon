@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Beacon;
@@ -34,19 +35,22 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
+    var version = typeof(Program).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+        ?.InformationalVersion?.Split('+')[0] ?? "0.0.0";
     Log.Information("");
-    Log.Information("██████╗ ███████╗ █████╗  ██████╗ ██████╗ ███╗   ██╗");
-    Log.Information("██╔══██╗██╔════╝██╔══██╗██╔════╝██╔═══██╗████╗  ██║");
-    Log.Information("██████╔╝█████╗  ███████║██║     ██║   ██║██╔██╗ ██║");
-    Log.Information("██╔══██╗██╔══╝  ██╔══██║██║     ██║   ██║██║╚██╗██║");
-    Log.Information("██████╔╝███████╗██║  ██║╚██████╗╚██████╔╝██║ ╚████║");
-    Log.Information("╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝");
+    Log.Information("Beacon {Version} - Consent and opt-out management built on .NET", version);
     Log.Information("");
+    Log.Debug("Host {Host} ({OS}, .NET {DotNet})", Environment.MachineName, Environment.OSVersion.Platform, Environment.Version);
+
+    // Real environment variables win over .env; .env wins over appsettings.json.
+    foreach (var dir in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }.Distinct())
+        EnvironmentSetting.LoadEnvFile(Path.Combine(dir, ".env"));
 
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog();
 
-    // Initialize EncryptionService first (uses BEACON_ENCRYPTION_KEY from environment)
+    // Initialize EncryptionService first (reads ENCRYPTION_KEY from environment)
     var encryptionService = new EncryptionService(builder.Environment.ContentRootPath);
 
     builder.Configuration.AddInMemoryCollection(ResolveSettingAliases(builder.Configuration));
@@ -58,10 +62,10 @@ try
     // Read configuration values (use decrypted values where available)
     var databaseProvider = config["DatabaseProvider"] ?? "sqlite";
     var connectionString = decryptedConfig.GetValueOrDefault("ConnectionString", config["ConnectionString"] ?? "Data Source=Beacon.db");
-    var signingKey = decryptedConfig.GetValueOrDefault("SigningKey") ?? throw new InvalidOperationException("Beacon__SigningKey is required");
-    var encryptionKey = decryptedConfig.GetValueOrDefault("EncryptionKey") ?? throw new InvalidOperationException("Beacon__EncryptionKey is required");
-    var pepper = decryptedConfig.GetValueOrDefault("Pepper") ?? throw new InvalidOperationException("Beacon__Pepper is required");
-    var adminApiKey = decryptedConfig.GetValueOrDefault("AdminApiKey") ?? throw new InvalidOperationException("Beacon__AdminApiKey is required");
+    var signingKey = decryptedConfig.GetValueOrDefault("SigningKey") ?? throw new InvalidOperationException("SIGNING_KEY is not set.");
+    var encryptionKey = decryptedConfig.GetValueOrDefault("EncryptionKey") ?? throw new InvalidOperationException("ENCRYPTION_KEY is not set.");
+    var pepper = decryptedConfig.GetValueOrDefault("Pepper") ?? throw new InvalidOperationException("PEPPER is not set.");
+    var adminApiKey = decryptedConfig.GetValueOrDefault("AdminApiKey") ?? throw new InvalidOperationException("ADMIN_API_KEY is not set.");
     var tokenExpiryDays = int.TryParse(config["TokenExpiryDays"], out var days) ? days : 30;
     var trustForwardedHeaders = config.GetValue<bool>("TrustForwardedHeaders", false);
     var enforceHttps = config.GetValue<bool>("EnforceHttps", false);
@@ -101,18 +105,18 @@ try
         // Configuration mistake, not a crash: report every bad key
         var keyProblems = new[]
         {
-            DescribeKeyProblem(signingKey, "Beacon__SigningKey"),
-            DescribeKeyProblem(encryptionKey, "Beacon__EncryptionKey"),
-            DescribeKeyProblem(pepper, "Beacon__Pepper"),
-            DescribeKeyProblem(adminApiKey, "Beacon__AdminApiKey"),
+            DescribeKeyProblem(signingKey, "SIGNING_KEY"),
+            DescribeKeyProblem(encryptionKey, "ENCRYPTION_KEY"),
+            DescribeKeyProblem(pepper, "PEPPER"),
+            DescribeKeyProblem(adminApiKey, "ADMIN_API_KEY"),
         }.OfType<string>().ToArray();
 
         if (keyProblems.Length > 0)
         {
-            Log.Fatal("Refusing to start outside Development:");
+            Log.Fatal("Startup aborted. Invalid keys:");
             foreach (var problem in keyProblems)
                 Log.Fatal("  - {Problem}", problem);
-            Log.Fatal("Generate each with: openssl rand -base64 32");
+            Log.Fatal("Generate each key with: openssl rand -base64 32");
             return 1;
         }
     }
@@ -121,7 +125,7 @@ try
         if (IsInsecureDefault(signingKey) || IsInsecureDefault(encryptionKey) ||
             IsInsecureDefault(pepper) || IsInsecureDefault(adminApiKey))
         {
-            Log.Warning("Using insecure default keys");
+            Log.Warning("Keys contain placeholder values. Production refuses to start with placeholder keys.");
         }
     }
 
@@ -483,8 +487,8 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         DatabaseMigrator.Initialize(db);
-
     }
+    Log.Information("Database: {Provider} ({Target})", databaseProvider, DescribeDatabaseTarget(connectionString));
 
     // Add Serilog request logging
     app.UseSerilogRequestLogging();
@@ -503,8 +507,7 @@ try
         app.UseForwardedHeaders();
     }
 
-    // Baseline security headers. No global CSP: the admin UI relies on inline scripts, and the
-    // submission embed sets its own frame-ancestors. TryAdd so those routes keep their own values.
+    // Baseline security headers. Admin UI pages add AdminCsp; the submission embed sets its own frame-ancestors.
     app.Use(async (context, next) =>
     {
         var headers = context.Response.Headers;
@@ -583,6 +586,7 @@ try
             return;
         }
         context.Response.ContentType = "text/html";
+        context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
         var adminDir = Path.Combine(webRoot, "admin");
         string[] parts =
         [
@@ -613,6 +617,24 @@ try
                 await File.ReadAllTextAsync(Path.Combine(adminDir, part), ct), ct);
     }).ExcludeFromDescription();
 
+    async Task ServeLoginPage(HttpContext context, ISystemConfigurationService configService)
+    {
+        var ct = context.RequestAborted;
+        var html = await File.ReadAllTextAsync(Path.Combine(webRoot, "login.html"), ct);
+        var cfg = configService.Get();
+        if (cfg.LoginFooterEnabled && !string.IsNullOrWhiteSpace(cfg.LoginFooter))
+            html = html.Replace("<!-- LOGIN_FOOTER_PLACEHOLDER -->", LoginFooterParser.ParseMarkdown(cfg.LoginFooter));
+        html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->",
+            cfg.PromoBarEnabled && cfg.PromoBarShowOnLogin && !string.IsNullOrWhiteSpace(cfg.PromoBar)
+                ? $"<div class=\"login-promo-bar\">{LoginFooterParser.ParseMarkdown(cfg.PromoBar)}</div>"
+                : string.Empty);
+        context.Response.ContentType = "text/html";
+        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+        context.Response.Headers.Append("Pragma", "no-cache");
+        context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
+        await context.Response.WriteAsync(html, ct);
+    }
+
     app.MapGet("/admin/login", async (HttpContext context, ISystemConfigurationService configService) =>
     {
         if (IsAuthenticated(context, jwtSigningKeyBytes))
@@ -620,60 +642,14 @@ try
             context.Response.Redirect("/admin");
             return;
         }
-        var ct = context.RequestAborted;
-        var html = await File.ReadAllTextAsync(Path.Combine(webRoot, "login.html"), ct);
-        var loginCfg = configService.Get();
-        if (loginCfg.LoginFooterEnabled && !string.IsNullOrWhiteSpace(loginCfg.LoginFooter))
-            html = html.Replace("<!-- LOGIN_FOOTER_PLACEHOLDER -->", LoginFooterParser.ParseMarkdown(loginCfg.LoginFooter));
-        if (loginCfg.PromoBarEnabled && loginCfg.PromoBarShowOnLogin && !string.IsNullOrWhiteSpace(loginCfg.PromoBar))
-            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", $"<div class=\"login-promo-bar\">{LoginFooterParser.ParseMarkdown(loginCfg.PromoBar)}</div>");
-        else
-            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", string.Empty);
-        context.Response.ContentType = "text/html";
-        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
-        context.Response.Headers.Append("Pragma", "no-cache");
-        await context.Response.WriteAsync(html, ct);
+        await ServeLoginPage(context, configService);
     }).ExcludeFromDescription();
 
-    app.MapGet("/admin/logout", async (HttpContext context, ISystemConfigurationService configService) =>
+    app.MapGet("/admin/logout", ServeLoginPage).ExcludeFromDescription();
+
+    app.MapGet("/admin/config.js", (HttpContext context) =>
     {
-        var ct = context.RequestAborted;
-        var html = await File.ReadAllTextAsync(Path.Combine(webRoot, "logout.html"), ct);
-        var cfg = configService.Get();
-        if (cfg.PromoBarEnabled && cfg.PromoBarShowOnLogin && !string.IsNullOrWhiteSpace(cfg.PromoBar))
-            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", $"<div class=\"login-promo-bar\">{LoginFooterParser.ParseMarkdown(cfg.PromoBar)}</div>");
-        else
-            html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->", string.Empty);
-        if (cfg.LoginFooterEnabled && !string.IsNullOrWhiteSpace(cfg.LoginFooter))
-            html = html.Replace("<!-- LOGIN_FOOTER_PLACEHOLDER -->", LoginFooterParser.ParseMarkdown(cfg.LoginFooter));
-        context.Response.ContentType = "text/html";
-        context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
-        context.Response.Headers.Append("Pragma", "no-cache");
-        await context.Response.WriteAsync(html, ct);
-    }).ExcludeFromDescription();
-
-    app.MapGet("/admin/config.js", (HttpContext context, HostRoutingOptions routingOptions) =>
-    {
-        var host = context.Request.Host.Host.ToLowerInvariant();
-        
-        var primaryApiHost = routingOptions.ApiHosts.FirstOrDefault()?
-            .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
-            .Replace("http://", "", StringComparison.OrdinalIgnoreCase);
-
-        string apiBase;
-        bool isProductionHost = routingOptions.AdminHosts.Contains(host) || 
-                                routingOptions.ApiHosts.Contains(host);
-
-        if (isProductionHost && !string.IsNullOrEmpty(primaryApiHost))
-        {
-            apiBase = $"https://{primaryApiHost}";
-        }
-        else
-        {
-            apiBase = $"{context.Request.Scheme}://{host}:{routingOptions.ApiPort}";
-        }
-
-        var publicUrl = !string.IsNullOrEmpty(primaryApiHost) ? $"https://{primaryApiHost}" : "";
+        var (apiBase, publicUrl) = ResolveApiOrigins(context);
         var js = string.Join("\n", [
             $"const API_BASE = {JsonSerializer.Serialize(apiBase)};",
             $"const PUBLIC_URL = {JsonSerializer.Serialize(publicUrl)};",
@@ -691,8 +667,11 @@ try
 
     // Only routes whose path differs from the file on disk. Everything else under wwwroot
     // (favicon, robots.txt, css, fonts, js/*.js) is already served by UseStaticFiles above.
-    app.MapGet("/openapi", ctx => ServeFile(ctx, Path.Combine(webRoot, "openapi.html"), "text/html"))
-       .ExcludeFromDescription();
+    app.MapGet("/openapi", ctx =>
+    {
+        ctx.Response.Headers.ContentSecurityPolicy = AdminCsp(ctx);
+        return ServeFile(ctx, Path.Combine(webRoot, "openapi.html"), "text/html");
+    }).ExcludeFromDescription();
 
     app.MapGet("/js/admin.js", async (HttpContext context) =>
     {
@@ -744,6 +723,7 @@ try
             if (File.Exists(indexPath))
             {
                 context.Response.ContentType = "text/html";
+                context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
                 await context.Response.SendFileAsync(indexPath);
             }
             else
@@ -753,6 +733,7 @@ try
                 if (File.Exists(notFoundPath))
                 {
                     context.Response.ContentType = "text/html";
+                    context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
                     await context.Response.SendFileAsync(notFoundPath);
                 }
             }
@@ -767,49 +748,54 @@ try
         if (File.Exists(notFoundPath))
         {
             context.Response.ContentType = "text/html";
+            context.Response.Headers.ContentSecurityPolicy = AdminCsp(context);
             await context.Response.SendFileAsync(notFoundPath);
         }
     }).ExcludeFromDescription();
 
-    // Log startup information
+    if (!IsPortFree(hostOptions.ApiPort, "API_PORT") || !IsPortFree(hostOptions.AdminPort, "ADMIN_PORT"))
+        return 1;
+
+    Log.Information("Application is hosted on the following URLs:");
+    Log.Information("   API:   http://localhost:{ApiPort}", hostOptions.ApiPort);
+    Log.Information("   Admin: http://localhost:{AdminPort}", hostOptions.AdminPort);
     if (hostOptions.UseHostBasedRouting)
     {
-        Log.Information("Beacon is spinning up!");
         Log.Information("API hosts: {ApiHosts}", string.Join(", ", hostOptions.ApiHosts));
         Log.Information("Admin hosts: {AdminHosts}", string.Join(", ", hostOptions.AdminHosts));
     }
-    else
-    {
-        Log.Information("Beacon is spinning up on http://localhost:{ApiPort} (API) and http://localhost:{AdminPort} (Admin)",
-            hostOptions.ApiPort, hostOptions.AdminPort);
-    }
-    Log.Information("Endpoints online: /api and /admin");
-    Log.Information("");
+    if (!app.Environment.IsProduction())
+        Log.Warning("Application Environment: {Environment}", app.Environment.EnvironmentName);
+    if (!app.Environment.IsDevelopment() && !enforceHttps && !trustForwardedHeaders)
+        Log.Warning("ENFORCE_HTTPS and TRUST_FORWARDED_HEADERS are off. Admin sign-in requires HTTPS outside Development: serve Beacon through a TLS proxy or set ENFORCE_HTTPS.");
 
     // Register shutdown handlers
     var lifetime = app.Lifetime;
 
     lifetime.ApplicationStarted.Register(() =>
     {
-        Log.Information("Application started successfully");
-        Log.Information("");
+        Log.Information("Application started");
     });
 
     lifetime.ApplicationStopping.Register(() =>
     {
-        Log.Information("");
-        Log.Information("Exit: Application is stopping...");
+        Log.Information("Application stopping");
     });
 
     lifetime.ApplicationStopped.Register(() =>
     {
-        Log.Information("Exit: Application stopped");
+        Log.Information("Application stopped");
     });
 
     app.Run();
 
-    Log.Information("Application shutdown complete");
     return 0;
+}
+catch (Exception ex) when (DescribeStartupFailure(ex) is { } reason)
+{
+    Log.Fatal("Beacon could not start. {Reason}", reason);
+    Log.Debug(ex, "Startup failure detail");
+    return 1;
 }
 catch (Exception ex)
 {
@@ -821,34 +807,73 @@ finally
     Log.CloseAndFlush();
 }
 
-// Accepts SigningKey and BEACON_SIGNING_KEY as aliases for Beacon__SigningKey, for every key the
-// Beacon section defines. The canonical name always wins.
+// Map EnvironmentSetting aliases onto every key in the Beacon section.
 static Dictionary<string, string?> ResolveSettingAliases(IConfiguration configuration)
 {
     var aliases = new Dictionary<string, string?>();
 
     foreach (var setting in configuration.GetSection("Beacon").GetChildren())
     {
-        var name = setting.Key;
-        if (name.StartsWith("___", StringComparison.Ordinal)) continue;
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable($"Beacon__{name}"))) continue;
-
-        var value = Environment.GetEnvironmentVariable(name)
-                 ?? Environment.GetEnvironmentVariable(ToScreamingSnake(name));
-
-        if (!string.IsNullOrEmpty(value))
-            aliases[$"Beacon:{name}"] = value;
+        if (EnvironmentSetting.Resolve(setting.Key) is { } value)
+            aliases[$"Beacon:{setting.Key}"] = value;
     }
 
     return aliases;
 }
 
-// "SigningKey" -> "BEACON_SIGNING_KEY"
-static string ToScreamingSnake(string name) =>
-    "BEACON_" + string.Concat(name.Select((c, i) =>
-        char.IsUpper(c) && i > 0 ? "_" + c : c.ToString())).ToUpperInvariant();
-
 // Static Helpers
+// Host and database only; the connection string can contain credentials.
+static string DescribeDatabaseTarget(string connectionString)
+{
+    try
+    {
+        var parts = new System.Data.Common.DbConnectionStringBuilder { ConnectionString = connectionString };
+        string? Get(params string[] keys) => keys.Select(k => parts.TryGetValue(k, out var v) ? v?.ToString() : null).FirstOrDefault(v => !string.IsNullOrEmpty(v));
+        var host = Get("Data Source", "Server", "Host", "Address", "Addr");
+        var database = Get("Database", "Initial Catalog");
+        return string.Join("/", new[] { host, database }.Where(v => !string.IsNullOrEmpty(v))) is { Length: > 0 } target ? target : "unknown";
+    }
+    catch (ArgumentException)
+    {
+        return "unparseable connection string";
+    }
+}
+
+// Known configuration or environment failures; everything else keeps its stack trace.
+static string? DescribeStartupFailure(Exception ex)
+{
+    for (var e = ex; e is not null; e = e.InnerException)
+    {
+        switch (e)
+        {
+            case System.Data.Common.DbException db:
+                return $"Database connection failed: {db.Message.TrimEnd('.')}. Check CONNECTION_STRING and DATABASE_PROVIDER.";
+            case System.Net.Sockets.SocketException { SocketErrorCode: System.Net.Sockets.SocketError.AddressAlreadyInUse }:
+                return "A configured port is already in use. Stop the existing process or set API_PORT and ADMIN_PORT.";
+            case UnauthorizedAccessException access:
+                return $"{access.Message.TrimEnd('.')}. Grant the Beacon process write access to its data directory.";
+        }
+    }
+    return null;
+}
+
+// Probes the port Kestrel binds with ListenAnyIP; a taken port otherwise surfaces as a bind stack trace.
+static bool IsPortFree(int port, string setting)
+{
+    try
+    {
+        var probe = System.Net.Sockets.TcpListener.Create(port);
+        probe.Start();
+        probe.Stop();
+        return true;
+    }
+    catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AddressAlreadyInUse)
+    {
+        Log.Fatal("Port {Port} is already in use. Stop the existing process or set {Setting}.", port, setting);
+        return false;
+    }
+}
+
 static bool IsInsecureDefault(string value)
 {
     return value.Contains("INSECURE", StringComparison.OrdinalIgnoreCase);
@@ -858,9 +883,9 @@ static bool IsInsecureDefault(string value)
 // Null when the key is acceptable. Shipped placeholder keys are publicly known.
 static string? DescribeKeyProblem(string value, string keyName) => value switch
 {
-    _ when string.IsNullOrWhiteSpace(value) => $"{keyName} is not set",
-    _ when IsInsecureDefault(value)         => $"{keyName} is still the shipped placeholder",
-    { Length: < 32 }                        => $"{keyName} is shorter than 32 characters",
+    _ when string.IsNullOrWhiteSpace(value) => $"{keyName} is not set.",
+    _ when IsInsecureDefault(value)         => $"{keyName} contains the placeholder value from appsettings.json.",
+    { Length: < 32 }                        => $"{keyName} is shorter than 32 characters.",
     _                                       => null
 };
 
@@ -878,6 +903,40 @@ static string NormalizeKey(string key, int requiredBytes)
 static bool IsAuthenticated(HttpContext ctx, byte[] jwtKey) =>
     ctx.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var token) &&
     JwtAuthHandler.TryValidateToken(jwtKey, token, out _, out _, out _);
+
+// Admin pages call the API origin for embed previews (iframe, embed.js, form post).
+static (string ApiBase, string PublicUrl) ResolveApiOrigins(HttpContext context)
+{
+    var routingOptions = context.RequestServices.GetRequiredService<HostRoutingOptions>();
+    var host = context.Request.Host.Host.ToLowerInvariant();
+    var primaryApiHost = routingOptions.ApiHosts.FirstOrDefault()?
+        .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
+        .Replace("http://", "", StringComparison.OrdinalIgnoreCase);
+    var isConfiguredHost = routingOptions.AdminHosts.Contains(host) || routingOptions.ApiHosts.Contains(host);
+    var apiBase = isConfiguredHost && !string.IsNullOrEmpty(primaryApiHost)
+        ? $"https://{primaryApiHost}"
+        : $"{context.Request.Scheme}://{host}:{routingOptions.ApiPort}";
+    var publicUrl = string.IsNullOrEmpty(primaryApiHost) ? "" : $"https://{primaryApiHost}";
+    return (apiBase, publicUrl);
+}
+
+static string AdminCsp(HttpContext context)
+{
+    var (apiBase, publicUrl) = ResolveApiOrigins(context);
+    var api = $"{apiBase} {publicUrl}".TrimEnd();
+    return string.Join("; ",
+        "default-src 'self'",
+        $"script-src 'self' {api}",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+        $"connect-src 'self' {api}",
+        $"frame-src {api}",
+        $"form-action 'self' {api}",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+        "object-src 'none'");
+}
 
 static Task ServeFile(HttpContext ctx, string path, string contentType, bool noCache = false, CancellationToken ct = default)
 {

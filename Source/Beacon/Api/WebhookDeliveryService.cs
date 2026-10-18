@@ -38,9 +38,15 @@ public sealed class WebhookDeliveryService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var message in _queue.DequeueAllAsync(stoppingToken))
+        try
         {
-            await DeliverWithRetryAsync(message, stoppingToken);
+            await foreach (var message in _queue.DequeueAllAsync(stoppingToken))
+            {
+                await DeliverWithRetryAsync(message, stoppingToken);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 

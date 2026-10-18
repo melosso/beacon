@@ -8,19 +8,16 @@ dotnet run --project Source/Beacon
 - API: http://localhost:5000
 - Admin Panel: http://localhost:5001
 
-### Development Secrets
+### Secrets
 
-Production refuses to start on the shipped placeholder keys. Keep real ones out of the repository:
+Production refuses to start with the placeholder keys from `appsettings.json`. Generate a `.env` (gitignored):
 
 ```bash
 cd Source/Beacon
-dotnet user-secrets set "Beacon:SigningKey"    "$(openssl rand -base64 32)"
-dotnet user-secrets set "Beacon:EncryptionKey" "$(openssl rand -base64 32)"
-dotnet user-secrets set "Beacon:Pepper"        "$(openssl rand -base64 32)"
-dotnet user-secrets set "Beacon:AdminApiKey"   "$(openssl rand -base64 36 | tr -d '\n')"
+if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && chmod 600 .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
 ```
 
-These secrets are then stored outside the working tree. Environment variables and a `.env` beside the binary work too. Every setting accepts three names, canonical first: `Beacon__SigningKey`, `BEACON_SIGNING_KEY`, `SigningKey`.
+Beacon reads `.env` from the binary folder and the working directory. Environment variables take precedence over `.env`. See [CONFIGURATION.md](CONFIGURATION.md#naming) for accepted names.
 
 ### Test
 
@@ -33,7 +30,7 @@ Provider tests need Docker. They spin up SQL Server, PostgreSQL and MySQL via Te
 ### Database Providers
 
 ```bash
-BEACON_DATABASE_PROVIDER=postgres BEACON_CONNECTION_STRING="Host=localhost;Database=beacon;Username=postgres;Password=..." dotnet run --project Source/Beacon
+DATABASE_PROVIDER=postgres CONNECTION_STRING="Host=localhost;Database=beacon;Username=postgres;Password=..." dotnet run --project Source/Beacon
 ```
 
 Accepts `sqlite`, `sqlserver`, `postgres`, `mysql`.

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Beacon.Core.Models;
-using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;

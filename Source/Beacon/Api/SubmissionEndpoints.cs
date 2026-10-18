@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Beacon.Core.Models;
+using Beacon.Core.Security;
 using Beacon.Core.Services;
 using Beacon.Core.Validation;
 using Beacon.Security;
@@ -787,7 +788,13 @@ public static class SubmissionEndpoints
         [FromServices] BucketRepository bucketRepository,
         [FromServices] SubmissionRateLimiter rateLimiter,
         [FromServices] AdminNotificationService notifications,
-        [FromServices] ISystemConfigurationService configService)
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] InstanceOptions instanceOptions,
+        [FromServices] BucketOptionsRepository bucketOptionsRepo,
+        [FromServices] EmailQueueRepository emailQueueRepo,
+        [FromServices] EmailDispatchTrigger emailDispatchTrigger,
+        [FromServices] Encryptor encryptor,
+        [FromServices] EmailHasher emailHasher)
     {
         if (!configService.Get().EnableSubmissionForms)
             return Results.NotFound(new { error = "Form not found or disabled" });
@@ -932,7 +939,21 @@ public static class SubmissionEndpoints
         // Subscribe
         var effectiveConsentText = form.ConsentText ?? subT.ConsentText;
         var effectiveName = form.CollectName && !string.IsNullOrWhiteSpace(name) ? name.Trim() : null;
-        await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin, effectiveName);
+        var systemConfig = configService.Get();
+        var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
+        var doubleOptIn = await DoubleOptIn.IsActiveAsync(instanceOptions, systemConfig, bucketOptionsRepo, normalizedBucket, form.DoubleOptIn);
+
+        // ponytail: consent write and queue entry are not in one transaction; wrap both if a partial write is observed.
+        await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin, effectiveName,
+            doubleOptIn ? ConsentStatus.PendingConfirmation : ConsentStatus.OptedIn);
+
+        if (doubleOptIn)
+        {
+            var permissions = form.Permission.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            await DoubleOptIn.EnqueueAsync(emailQueueRepo, encryptor, DoubleOptIn.BaseUrl(instanceOptions, context), systemConfig.PerPermissionEmail,
+                normalizedBucket, email!, emailHasher.Hash(email!), permissions, form.Language ?? systemConfig.DefaultLanguage);
+            emailDispatchTrigger.Signal();
+        }
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(form.Bucket));
 
         if (isFormPost && IsValidRedirectUrl(redirectSuccess))

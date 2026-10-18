@@ -6,7 +6,7 @@
           <span class="status-badge select-none" id="settingsSectionBadge">General</span>
         </div>
         <div class="bucket-actions">
-          <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+          <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
         </div>
       </section>
       <div class="settings-layout" style="flex:1;min-height:0">
@@ -14,13 +14,13 @@
         <!-- Left sub-nav -->
         <aside class="settings-subnav select-none">
           <nav class="settings-subnav-nav">
-            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" onclick="showSettingsSection('account');return false;" style="display:none">
+            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" data-click="showSettingsSection account" style="display:none">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
               Account
             </a>
-            <a href="#" class="settings-subnav-item" data-section="appearance" onclick="showSettingsSection('appearance');return false;">
+            <a href="#" class="settings-subnav-item" data-section="appearance" data-click="showSettingsSection appearance">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
                 <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
@@ -31,26 +31,26 @@
 
             <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
-            <a href="#" class="settings-subnav-item active" id="settingsNavGeneral" data-section="general" onclick="showSettingsSection('general');return false;">
+            <a href="#" class="settings-subnav-item active" id="settingsNavGeneral" data-section="general" data-click="showSettingsSection general">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>
               </svg>
               General
             </a>
-            <a href="#" class="settings-subnav-item" id="settingsNavModules" data-section="modules" onclick="showSettingsSection('modules');return false;">
+            <a href="#" class="settings-subnav-item" id="settingsNavModules" data-section="modules" data-click="showSettingsSection modules">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
                 <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
               </svg>
               Modules
             </a>
-            <a href="#" class="settings-subnav-item" id="settingsNavDataPolicies" data-section="data-policies" onclick="showSettingsSection('data-policies');return false;">
+            <a href="#" class="settings-subnav-item" id="settingsNavDataPolicies" data-section="data-policies" data-click="showSettingsSection data-policies">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
               Policies
             </a>
-            <a href="#" class="settings-subnav-item" id="settingsNavUsers" data-section="users" onclick="showSettingsSection('users');return false;" style="display:none">
+            <a href="#" class="settings-subnav-item" id="settingsNavUsers" data-section="users" data-click="showSettingsSection users" style="display:none">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -60,7 +60,7 @@
 
             <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
-            <a href="#" class="settings-subnav-item" id="settingsNavApiKeys" data-section="api-keys" onclick="showSettingsSection('api-keys');return false;" style="display:none">
+            <a href="#" class="settings-subnav-item" id="settingsNavApiKeys" data-section="api-keys" data-click="showSettingsSection api-keys" style="display:none">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>
               </svg>
@@ -69,7 +69,7 @@
 
             <hr id="settingsNavDivider" style="border-right: medium; border-bottom: medium; border-left: medium; border-image: none; border-top: 1px solid hsl(var(--border)); margin: 0.5rem 0.75rem;">
 
-            <a href="#" class="settings-subnav-item" id="settingsNavIntegration" data-section="integration" onclick="showSettingsSection('integration');return false;">
+            <a href="#" class="settings-subnav-item" id="settingsNavIntegration" data-section="integration" data-click="showSettingsSection integration">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
@@ -79,14 +79,14 @@
             
             <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
-            <a href="#" class="settings-subnav-item" id="settingsNavConnectors" data-section="connectors" onclick="showSettingsSection('connectors');return false;">
+            <a href="#" class="settings-subnav-item" id="settingsNavConnectors" data-section="connectors" data-click="showSettingsSection connectors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/> 
               </svg>
               Connectors
             </a>
 
-            <a href="#" class="settings-subnav-item" id="settingsNavPersonalisation" data-section="personalisation" onclick="showSettingsSection('personalisation');return false;">
+            <a href="#" class="settings-subnav-item" id="settingsNavPersonalisation" data-section="personalisation" data-click="showSettingsSection personalisation">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
@@ -95,7 +95,7 @@
 
             <hr id="settingsNavSystemDivider" style="border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
-            <a href="#" class="settings-subnav-item" id="settingsNavSystem" data-section="system" onclick="showSettingsSection('system');return false;">
+            <a href="#" class="settings-subnav-item" id="settingsNavSystem" data-section="system" data-click="showSettingsSection system">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
                 <line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/>
@@ -121,7 +121,7 @@
                   <span class="settings-item-title select-none">Default language</span>
                   <p class="settings-item-desc">Default language pre-selected when generating tokens or creating forms in the admin panel.</p>
                 </div>
-                <select id="setting-uiLanguage" class="appearance-select" onchange="saveSetting('uiLanguage', this.value)">
+                <select id="setting-uiLanguage" class="appearance-select" data-change="saveSetting uiLanguage $value">
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
                   <option value="fr">Français</option>
@@ -136,12 +136,12 @@
                   <p class="settings-item-desc">When enabled, the (user) consent page loads permissions from the database instead of the token.</p>
                 </div>
                 <div class="settings-item-control">
-                  <input type="checkbox" id="setting-allowDbLookup" onchange="saveSettingImmediate('allowDbLookup', this.checked)">
+                  <input type="checkbox" id="setting-allowDbLookup" data-change="saveSettingImmediate allowDbLookup $checked">
                   <span class="toggle-track"></span>
                 </div>
               </label>
               <div class="settings-save-row">
-                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
               </div>
             </div>
           </div>
@@ -167,12 +167,12 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableSubmissionForms" onchange="saveSettingImmediate('enableSubmissionForms', this.checked)">
+                      <input type="checkbox" id="setting-enableSubmissionForms" data-change="saveSettingImmediate enableSubmissionForms $checked">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
                 </label>
-                <button class="btn-settings-gear" onclick="openSubmissionFormsSettingsModal()" aria-label="Submission forms settings">
+                <button class="btn-settings-gear" data-click="openSubmissionFormsSettingsModal" aria-label="Submission forms settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -186,11 +186,11 @@
                     <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active. Requires email notifications to be configured.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableDoubleOptIn" onchange="saveSettingImmediate('enableDoubleOptIn', this.checked)">
+                    <input type="checkbox" id="setting-enableDoubleOptIn" data-change="saveSettingImmediate enableDoubleOptIn $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
-                <button class="btn-settings-gear" onclick="openDoubleOptInSettingsModal()" aria-label="Double opt-in settings">
+                <button class="btn-settings-gear" data-click="openDoubleOptInSettingsModal" aria-label="Double opt-in settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -204,13 +204,13 @@
                     <p class="settings-item-desc">When enabled, UTM parameters (utm_source, utm_medium, utm_campaign, etc.) from the preference page URL are stored alongside consent records. Only enable if disclosed in your privacy policy.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableUtmTracking" onchange="saveSettingImmediate('enableUtmTracking', this.checked)">
+                    <input type="checkbox" id="setting-enableUtmTracking" data-change="saveSettingImmediate enableUtmTracking $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
               </div>
               <div class="settings-save-row">
-                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
               </div>
             </div>
           </div>
@@ -230,7 +230,7 @@
                     <p class="settings-item-desc">Run automated data lifecycle rules on a scheduled basis. Disabling this pauses all policies without changing their configuration.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-dataPoliciesEnabled" onchange="toggleDataPoliciesEnabled(this.checked)">
+                    <input type="checkbox" id="setting-dataPoliciesEnabled" data-change="toggleDataPoliciesEnabled $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -245,8 +245,8 @@
                   <div class="autocomplete-wrapper" style="flex-shrink:0;width:180px">
                     <input type="text" id="setting-dataPolicyCron" value="0 0 * * *"
                       class="appearance-select" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
-                      oninput="showDataPolicyCronSuggestions(false); validateCronInput(this); saveSetting('dataPolicyCron', this.value)"
-                      onfocus="showDataPolicyCronSuggestions(true)"
+                      data-input="onCronInput $el"
+                      data-focus="showCronSuggestions true setting-dataPolicyCron"
                       style="font-family:var(--font-mono);width:100%">
                     <div class="autocomplete-dropdown" id="dataPolicyCronAutocomplete"></div>
                   </div>
@@ -260,19 +260,19 @@
                         <p class="settings-item-desc">Removes personal data from opted-out records after a set period. The email hash and opt-out status are retained for suppression.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeEnabled" onchange="saveSettingImmediate('retentionPurgeEnabled', this.checked)">
+                        <input type="checkbox" id="setting-retentionPurgeEnabled" data-change="saveSettingImmediate retentionPurgeEnabled $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-retentionPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" onchange="saveSettingImmediate('retentionPurgeRequireApproval', this.checked)">
+                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" data-change="saveSettingImmediate retentionPurgeRequireApproval $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                   </div>
-                  <button class="btn-settings-gear" onclick="openRetentionPurgeModal()" aria-label="Opted-out anonymisation settings">
+                  <button class="btn-settings-gear" data-click="openRetentionPurgeModal" aria-label="Opted-out anonymisation settings">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                   </button>
                 </div>
@@ -285,33 +285,33 @@
                         <p class="settings-item-desc">Deletes unconfirmed double opt-in attempts after a set period.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" onchange="saveSettingImmediate('pendingConfirmationPurgeEnabled', this.checked)">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" data-change="saveSettingImmediate pendingConfirmationPurgeEnabled $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-pendingConfirmationPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" onchange="saveSettingImmediate('pendingConfirmationPurgeRequireApproval', this.checked)">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" data-change="saveSettingImmediate pendingConfirmationPurgeRequireApproval $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                   </div>
-                  <button class="btn-settings-gear" onclick="openPendingConfirmationModal()" aria-label="Pending confirmation cleanup settings">
+                  <button class="btn-settings-gear" data-click="openPendingConfirmationModal" aria-label="Pending confirmation cleanup settings">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                   </button>
                 </div>
               </div>
 
               <div class="settings-save-row" style="gap:0.5rem">
-                <button class="btn btn-outline" id="dataPoliciesRunBtn" onclick="triggerDataPoliciesRun()"><span class="btn-label">Run Now</span><span class="spinner"></span></button>
-                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+                <button class="btn btn-outline" id="dataPoliciesRunBtn" data-click="triggerDataPoliciesRun"><span class="btn-label">Run Now</span><span class="spinner"></span></button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
               </div>
 
               <div style="margin-top:1.5rem">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
                   <span class="settings-item-title select-none" style="font-size:0.875rem">Run history</span>
-                  <button class="btn btn-icon" onclick="loadWorkflowTasks()" title="Refresh" style="opacity:0.6;width:28px;height:28px">
+                  <button class="btn btn-icon" data-click="loadWorkflowTasks" title="Refresh" style="opacity:0.6;width:28px;height:28px">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                   </button>
                 </div>
@@ -350,7 +350,7 @@
                   <span class="settings-item-title">Font</span>
                   <p class="settings-item-desc">Set the font you want to use in the dashboard.</p>
                 </div>
-                <select id="setting-font" class="appearance-select" onchange="saveSetting('font', this.value); applyAppearance()">
+                <select id="setting-font" class="appearance-select" data-change="saveAppearance font $value">
                   <option value="inter">Inter</option>
                   <option value="manrope">Manrope</option>
                   <option value="system">System</option>
@@ -364,7 +364,7 @@
                 </div>
                 <div class="theme-radio-group">
                   <label class="theme-option" for="setting-theme-light">
-                    <input type="radio" name="setting-theme" id="setting-theme-light" value="light" onchange="saveSetting('theme', 'light'); applyAppearance()">
+                    <input type="radio" name="setting-theme" id="setting-theme-light" value="light" data-change="saveAppearance theme light">
                     <div class="theme-card">
                       <div class="theme-preview-inner theme-preview--light">
                         <div class="tp-card"><div class="tp-line" style="width:70%"></div><div class="tp-line" style="width:50%"></div></div>
@@ -375,7 +375,7 @@
                     <span class="theme-option-label">Light</span>
                   </label>
                   <label class="theme-option" for="setting-theme-dark">
-                    <input type="radio" name="setting-theme" id="setting-theme-dark" value="dark" onchange="saveSetting('theme', 'dark'); applyAppearance()">
+                    <input type="radio" name="setting-theme" id="setting-theme-dark" value="dark" data-change="saveAppearance theme dark">
                     <div class="theme-card">
                       <div class="theme-preview-inner theme-preview--dark">
                         <div class="tp-card"><div class="tp-line" style="width:70%"></div><div class="tp-line" style="width:50%"></div></div>
@@ -386,7 +386,7 @@
                     <span class="theme-option-label">Dark</span>
                   </label>
                   <label class="theme-option" for="setting-theme-system">
-                    <input type="radio" name="setting-theme" id="setting-theme-system" value="system" onchange="saveSetting('theme', 'system'); applyAppearance()">
+                    <input type="radio" name="setting-theme" id="setting-theme-system" value="system" data-change="saveAppearance theme system">
                     <div class="theme-card">
                       <div class="theme-preview-inner theme-preview--system">
                         <div class="tp-half tp-half--light">
@@ -411,11 +411,11 @@
                     <p class="settings-item-desc">Show a message at the top of the dashboard after login.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-promoBarEnabled" onchange="onPromoBarToggle(this)">
+                    <input type="checkbox" id="setting-promoBarEnabled" data-change="onPromoBarToggle $el">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
-                <button class="btn-settings-gear" onclick="openPromoBarModal()" aria-label="Announcement bar settings">
+                <button class="btn-settings-gear" data-click="openPromoBarModal" aria-label="Announcement bar settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -431,11 +431,11 @@
                     <p class="settings-item-desc">Show a custom message below the sign-in box.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-loginFooterEnabled" onchange="onLoginFooterToggle(this)">
+                    <input type="checkbox" id="setting-loginFooterEnabled" data-change="onLoginFooterToggle $el">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
-                <button class="btn-settings-gear" onclick="openLoginFooterModal()" aria-label="Login footer settings">
+                <button class="btn-settings-gear" data-click="openLoginFooterModal" aria-label="Login footer settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -445,7 +445,7 @@
 
             </div>
             <div class="settings-save-row">
-              <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+              <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
             </div>
           </div>
 
@@ -469,11 +469,11 @@
                     <p class="settings-item-desc">Send outgoing emails via a configured provider, e.g. for opt-in confirmations.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-emailNotifications" onchange="onEmailNotificationsToggle(this)">
+                    <input type="checkbox" id="setting-emailNotifications" data-change="onEmailNotificationsToggle $el">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
-                <button class="btn-settings-gear" onclick="openEmailSettingsModal()" aria-label="Email notification settings">
+                <button class="btn-settings-gear" data-click="openEmailSettingsModal" aria-label="Email notification settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -488,12 +488,12 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-objectStorage" onchange="onObjectStorageToggle(this)">
+                      <input type="checkbox" id="setting-objectStorage" data-change="onObjectStorageToggle $el">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
                 </label>
-                <button class="btn-settings-gear" onclick="openObjectStorageModal()" aria-label="Object storage settings">
+                <button class="btn-settings-gear" data-click="openObjectStorageModal" aria-label="Object storage settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -501,7 +501,7 @@
                 </button>
               </div>
               <div class="settings-save-row">
-                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
               </div>
             </div>
           </div>
@@ -514,8 +514,8 @@
                 <p>Manage user accounts and role-based access control.</p>
               </div>
               <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
-                <button class="btn btn-outline" onclick="loadUsers()">Refresh</button>
-                <button class="btn btn-primary" onclick="openAddUserModal()">Add User</button>
+                <button class="btn btn-outline" data-click="loadUsers">Refresh</button>
+                <button class="btn btn-primary" data-click="openAddUserModal">Add User</button>
               </div>
             </div>
             <hr class="settings-sep">
@@ -543,7 +543,7 @@
               <div class="pagination-settings">
                 <div class="page-size-selector">
                   <span>Show</span>
-                  <select class="page-size-input" id="usersPageSize" onchange="updateUsersPageSize()">
+                  <select class="page-size-input" id="usersPageSize" data-change="updateUsersPageSize">
                     <option value="10">10</option>
                     <option value="25" selected>25</option>
                     <option value="50">50</option>
@@ -553,8 +553,8 @@
                 <div class="pagination-info" id="usersPaginationInfo"></div>
               </div>
               <div style="display:flex;gap:0.5rem">
-                <button class="btn btn-outline" id="usersPrevBtn" onclick="changeUsersPage(-1)">Previous</button>
-                <button class="btn btn-outline" id="usersNextBtn" onclick="changeUsersPage(1)">Next</button>
+                <button class="btn btn-outline" id="usersPrevBtn" data-click="changeUsersPage -1">Previous</button>
+                <button class="btn btn-outline" id="usersNextBtn" data-click="changeUsersPage 1">Next</button>
               </div>
             </div>
           </div>
@@ -567,8 +567,8 @@
                 <p>Manage your API keys and tokens with custom permissions and expiration dates.</p>
               </div>
               <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
-                <button class="btn btn-outline" onclick="loadApiKeys()">Refresh</button>
-                <button class="btn btn-primary" onclick="openAddApiKeyModal()">Add Key</button>
+                <button class="btn btn-outline" data-click="loadApiKeys">Refresh</button>
+                <button class="btn btn-primary" data-click="openAddApiKeyModal">Add Key</button>
               </div>
             </div>
             <hr class="settings-sep">
@@ -592,7 +592,7 @@
               <div class="pagination-settings">
                 <div class="page-size-selector">
                   <span>Show</span>
-                  <select class="page-size-input" id="apiKeysPageSize" onchange="updateApiKeysPageSize()">
+                  <select class="page-size-input" id="apiKeysPageSize" data-change="updateApiKeysPageSize">
                     <option value="10">10</option>
                     <option value="25" selected>25</option>
                     <option value="50">50</option>
@@ -602,8 +602,8 @@
                 <div class="pagination-info" id="apiKeysPaginationInfo"></div>
               </div>
               <div style="display:flex;gap:0.5rem">
-                <button class="btn btn-outline" id="apiKeysPrevBtn" onclick="changeApiKeysPage(-1)">Previous</button>
-                <button class="btn btn-outline" id="apiKeysNextBtn" onclick="changeApiKeysPage(1)">Next</button>
+                <button class="btn btn-outline" id="apiKeysPrevBtn" data-click="changeApiKeysPage -1">Previous</button>
+                <button class="btn btn-outline" id="apiKeysNextBtn" data-click="changeApiKeysPage 1">Next</button>
               </div>
             </div>
           </div>
@@ -641,14 +641,14 @@
                     <span class="settings-item-title select-none">Password</span>
                     <p class="settings-item-desc">Update your login password.</p>
                   </div>
-                  <button class="btn btn-outline" onclick="openAccountPasswordModal()">Change Password</button>
+                  <button class="btn btn-outline" data-click="openAccountPasswordModal">Change Password</button>
                 </div>
                 <div class="settings-item-block" style="align-items:center">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">API Key</span>
                     <p class="settings-item-desc">Use this for programmatic access. If you regenerate it, your previous key will stop working immediately.</p>
                   </div>
-                  <button class="btn btn-outline" onclick="regenerateOwnApiKey()">Regenerate</button>
+                  <button class="btn btn-outline" data-click="regenerateOwnApiKey">Regenerate</button>
                 </div>
               </div>
               <p id="accountGlobalAdminNotice" class="select-none" style="display:none;font-size:0.875rem;color:hsl(var(--muted-foreground));margin:0.75rem 0 0">
@@ -670,7 +670,7 @@
                   <span class="settings-item-title select-none">Fallback language</span>
                   <p class="settings-item-desc">Fallback language for the consent page when no language is specified in the token (request).</p>
                 </div>
-                <select id="setting-defaultLanguage" class="appearance-select" onchange="saveSetting('defaultLanguage', this.value)">
+                <select id="setting-defaultLanguage" class="appearance-select" data-change="saveSetting defaultLanguage $value">
                   <option value="en">English</option>
                   <option value="de">German</option>
                   <option value="fr">French</option>
@@ -687,8 +687,8 @@
                 <div class="autocomplete-wrapper" style="flex-shrink:0;width:180px">
                   <input type="text" id="setting-emailQueueCron" value="*/5 * * * *"
                     class="appearance-select" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
-                    oninput="showCronSuggestions(false); validateCronInput(this); saveSetting('emailQueueCron', this.value)"
-                    onfocus="showCronSuggestions(true)"
+                    data-input="onCronInput $el"
+                    data-focus="showCronSuggestions true"
                     style="font-family:monospace;width:100%">
                   <div class="autocomplete-dropdown" id="cronAutocomplete"></div>
                 </div>
@@ -701,12 +701,12 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableCaching" onchange="saveSettingImmediate('enableCaching', this.checked)">
+                      <input type="checkbox" id="setting-enableCaching" data-change="saveSettingImmediate enableCaching $checked">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
                 </label>
-                <button class="btn-settings-gear" onclick="openCacheSettingsModal()" aria-label="Cache configuration">
+                <button class="btn-settings-gear" data-click="openCacheSettingsModal" aria-label="Cache configuration">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -714,7 +714,7 @@
                 </button>
               </div>
               <div class="settings-save-row">
-                <button class="btn btn-outline" onclick="saveCurrentSettings()">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
               </div>
             </div>
           </div>
@@ -727,7 +727,7 @@
                 <p>Brand your emails and unsubscribe pages.</p>
               </div>
               <div style="flex-shrink:0;padding-top:0.25rem">
-                <button class="btn btn-primary" onclick="createBrandIdentity()">Add Identity</button>
+                <button class="btn btn-primary" data-click="createBrandIdentity">Add Identity</button>
               </div>
             </div>
             <hr class="settings-sep">
