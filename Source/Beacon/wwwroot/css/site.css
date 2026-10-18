@@ -2561,7 +2561,8 @@ textarea.input,
   color: hsl(var(--muted-foreground));
 }
 
-label.settings-item-card {
+label.settings-item-card,
+.settings-item-card--static {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -2572,6 +2573,10 @@ label.settings-item-card {
   gap: var(--space-6);
   cursor: pointer;
   transition: background var(--duration-fast);
+}
+
+.settings-item-card--static {
+  cursor: default;
 }
 
 label.settings-item-card:hover {
