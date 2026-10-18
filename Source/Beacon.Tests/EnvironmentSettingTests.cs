@@ -66,4 +66,27 @@ public class EnvironmentSettingTests
         Assert.DoesNotContain(names, n => n.Equals(reserved, StringComparison.OrdinalIgnoreCase));
         Assert.Equal([$"Beacon__{key}", $"BEACON_{reserved}"], names.Take(2));
     }
+
+    [Fact]
+    public void LoadEnvFile_SetsUnsetVariables_KeepsExisting()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        var path = Path.Combine(Path.GetTempPath(), $"beacon-{suffix}.env");
+        var fresh = $"BEACON_TEST_FRESH_{suffix}";
+        var existing = $"BEACON_TEST_EXISTING_{suffix}";
+        Environment.SetEnvironmentVariable(existing, "from-env");
+        File.WriteAllLines(path, ["# comment", "", $"export {fresh}=\"from-file\"", $"{existing}=from-file", "not-a-pair"]);
+        try
+        {
+            EnvironmentSetting.LoadEnvFile(path);
+            Assert.Equal("from-file", Environment.GetEnvironmentVariable(fresh));
+            Assert.Equal("from-env", Environment.GetEnvironmentVariable(existing));
+        }
+        finally
+        {
+            File.Delete(path);
+            Environment.SetEnvironmentVariable(fresh, null);
+            Environment.SetEnvironmentVariable(existing, null);
+        }
+    }
 }

@@ -25,19 +25,21 @@ QUICK START
 CONFIGURATION
 =============
 
-Required environment variables (set before running):
+Required settings, in a .env file next to Beacon.exe:
 
-  Beacon__SigningKey      HMAC signing key for token validation
-  Beacon__EncryptionKey   AES-256 master key for data encryption
-  Beacon__Pepper          Email hashing pepper
+  SIGNING_KEY         HMAC signing key for token validation
+  ENCRYPTION_KEY      AES-256 master key for data encryption
+  PEPPER              Email hashing pepper
+  ADMIN_API_KEY       API key for the admin panel and API
 
 Optional:
 
-  Beacon__DatabaseProvider   sqlite, sqlserver, postgres, mysql
-                             (default: sqlite)
-  Beacon__ConnectionString   Database connection string
-                             (default: Data Source=Beacon.db)
+  DATABASE_PROVIDER   sqlite, sqlserver, postgres, mysql
+                      (default: sqlite)
+  CONNECTION_STRING   Database connection string
+                      (default: Data Source=Beacon.db)
 
+Environment variables with the same names take precedence over .env.
 Or edit appsettings.json for additional configuration.
 
 SERVICE MANAGEMENT

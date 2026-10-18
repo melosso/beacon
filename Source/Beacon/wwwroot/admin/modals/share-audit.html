@@ -1,30 +1,113 @@
-  <!-- Audit Custom Fields Modal -->
-  <div class="modal-backdrop" id="auditCustomFieldsModal" onclick="if(event.target===this)closeAuditCustomFieldsModal()">
-    <div class="modal">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
-        <h3 style="margin:0">Custom fields</h3>
-        <button class="btn btn-icon" onclick="closeAuditCustomFieldsModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-      <p>Additional data captured at the time of this consent change.</p>
-      <div class="custom-fields-list" id="auditCustomFieldsList" style="margin-top:1rem"></div>
-      <div class="modal-actions" style="margin-top:1.5rem">
-        <button class="btn btn-primary" onclick="closeAuditCustomFieldsModal()">Done</button>
-      </div>
+<!-- Audit Custom Fields Modal -->
+<div
+  class="modal-backdrop"
+  id="auditCustomFieldsModal"
+  data-self
+  data-click="closeAuditCustomFieldsModal"
+>
+  <div class="modal">
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      "
+    >
+      <h3 style="margin: 0">Custom fields</h3>
+      <button
+        class="btn btn-icon"
+        data-click="closeAuditCustomFieldsModal"
+        aria-label="Close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <p>Additional data captured at the time of this consent change.</p>
+    <div
+      class="custom-fields-list"
+      id="auditCustomFieldsList"
+      style="margin-top: 1rem"
+    ></div>
+    <div class="modal-actions" style="margin-top: 1.5rem">
+      <button class="btn btn-primary" data-click="closeAuditCustomFieldsModal">
+        Done
+      </button>
     </div>
   </div>
+</div>
 
-  <!-- Confirm Modal -->
-  <div class="modal-backdrop" id="confirmModal" style="display:none" onclick="if(event.target===this)closeConfirmModal()">
-    <div class="modal" style="max-width:400px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
-        <h3 id="confirmModalTitle" style="margin:0"></h3>
-        <button class="btn btn-icon" onclick="closeConfirmModal()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-      <p id="confirmModalMessage" style="color:hsl(var(--muted-foreground));font-size:0.875rem;margin-bottom:1.5rem"></p>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeConfirmModal()">Cancel</button>
-        <button class="btn btn-destructive" id="confirmModalBtn" onclick="executeConfirmAction()"><span class="btn-label"></span></button>
-      </div>
+<!-- Confirm Modal -->
+<div
+  class="modal-backdrop"
+  id="confirmModal"
+  style="display: none"
+  data-self
+  data-click="closeConfirmModal"
+>
+  <div class="modal" style="max-width: 400px">
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      "
+    >
+      <h3 id="confirmModalTitle" style="margin: 0"></h3>
+      <button
+        class="btn btn-icon"
+        data-click="closeConfirmModal"
+        aria-label="Close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <p
+      id="confirmModalMessage"
+      style="
+        color: hsl(var(--muted-foreground));
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+      "
+    ></p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" data-click="closeConfirmModal">
+        Cancel
+      </button>
+      <button
+        class="btn btn-destructive"
+        id="confirmModalBtn"
+        data-click="executeConfirmAction"
+      >
+        <span class="btn-label"></span>
+      </button>
     </div>
   </div>
-
+</div>

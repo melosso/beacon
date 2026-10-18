@@ -137,34 +137,9 @@ public class EncryptionService {
 
     private const string KeySetting = "EncryptionKey";
 
-    /// <summary>Environment first, then a .env beside the binary, then a generated per-instance key.</summary>
+    /// <summary>Environment first, then a generated per-instance key. Program loads .env into the environment.</summary>
     private string LoadEncryptionKey() =>
-        EnvironmentSetting.Resolve(KeySetting) ?? ReadEnvFile() ?? LoadOrCreateInstanceKey();
-
-    private static string? ReadEnvFile()
-    {
-        var path = Path.Combine(FindProjectRoot(AppContext.BaseDirectory), ".env");
-        if (!File.Exists(path))
-            return null;
-
-        try
-        {
-            var entries = new Dictionary<string, string>();
-            foreach (var line in File.ReadLines(path))
-            {
-                var parts = line.Trim().Split('=', 2);
-                if (parts.Length == 2)
-                    entries.TryAdd(parts[0].Trim(), parts[1].Trim().Trim('"', '\''));
-            }
-            return EnvironmentSetting.Resolve(KeySetting, entries.GetValueOrDefault);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Failed to read .env file; continuing key discovery");
-        }
-
-        return null;
-    }
+        EnvironmentSetting.Resolve(KeySetting) ?? LoadOrCreateInstanceKey();
 
     private string LoadOrCreateInstanceKey()
     {

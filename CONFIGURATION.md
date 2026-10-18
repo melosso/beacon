@@ -2,6 +2,16 @@
 
 Depending on your environment, these settings are changed in your `.env`, `docker-compose.yml` or `appsettings.json` file.
 
+Source precedence, highest first:
+
+1. Environment variables
+2. `.env` in the binary folder, then `.env` in the working directory. A line is skipped if that variable is already set
+3. .NET user secrets (Development only)
+4. `appsettings.{Environment}.json`
+5. `appsettings.json`
+
+Within one source, the name order in [Naming](#naming) applies. Name order is evaluated after sources merge: a real `SigningKey` loses to `SIGNING_KEY` from `.env`. Use one spelling per setting.
+
 ### Naming
 
 Every setting below accepts four environment variable names:
@@ -17,17 +27,14 @@ If more than one name is set: the lowest precedence number wins. Empty values ar
 
 Unprefixed names are not accepted if they equal a name the .NET host reads (`URLS`, `PORT`, `HTTP_PORTS`, `HTTPS_PORTS`, `ASPNETCORE_*`, `DOTNET_*`). Use a prefixed name on hosts where unprefixed names collide with other software.
 
-For local development, keep secrets out of the repository with .NET user secrets:
+Generate a `.env` with the required keys (gitignored):
 
 ```bash
 cd Source/Beacon
-dotnet user-secrets set "Beacon:SigningKey"    "$(openssl rand -base64 32)"
-dotnet user-secrets set "Beacon:EncryptionKey" "$(openssl rand -base64 32)"
-dotnet user-secrets set "Beacon:Pepper"        "$(openssl rand -base64 32)"
-dotnet user-secrets set "Beacon:AdminApiKey"   "$(openssl rand -base64 36 | tr -d '\n')"
+if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && chmod 600 .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
 ```
 
-These are stored outside the working tree, so they cannot be committed. Beacon also never writes back to `appsettings.json` in Development, and never writes a value that came from an environment variable, so your working tree stays clean.
+Beacon never writes a value read from an environment variable or `.env` back to `appsettings.json`.
 
 ### Core Settings
 
@@ -40,6 +47,8 @@ These are stored outside the working tree, so they cannot be committed. Beacon a
 | `PEPPER` | Email hashing pepper | **Required** |
 | `ADMIN_API_KEY` | API key for authenticated endpoints | **Required** |
 | `TOKEN_EXPIRY_DAYS` | Default token validity period | 30 |
+
+In Production, Beacon encrypts `CONNECTION_STRING`, `SIGNING_KEY`, `ENCRYPTION_KEY`, `PEPPER` and `ADMIN_API_KEY` in `appsettings.json` on first run. Values read from environment variables or `.env` are not written.
 
 ### Host-Based Routing
 
@@ -74,3 +83,5 @@ You can configure the following additional, completely optional settings:
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `USER_AUTHENTICATION` | Allow user authentication, API tokens, or both (`user`, `api`, `both`). Leave blank to only allow `ADMIN_API_KEY` | both |
+| `ENFORCE_HTTPS` | Redirect HTTP to HTTPS and send HSTS headers. Set only if Beacon terminates TLS. Leave off behind a TLS proxy | false |
+| `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email for this instance. Not editable in the admin panel | false |

@@ -31,6 +31,30 @@ public static class EnvironmentSetting
     /// <summary>First non-empty process environment value among <see cref="Names"/>, or null.</summary>
     public static string? Resolve(string key) => Resolve(key, Environment.GetEnvironmentVariable);
 
+    /// <summary>
+    /// Copies <c>KEY=value</c> lines from <paramref name="path"/> into the process environment.
+    /// Variables already set in the environment win. Blank lines and <c>#</c> comments are skipped.
+    /// </summary>
+    public static void LoadEnvFile(string path)
+    {
+        if (!File.Exists(path)) return;
+
+        foreach (var raw in File.ReadLines(path))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith('#')) continue;
+            if (line.StartsWith("export ", StringComparison.Ordinal)) line = line[7..];
+
+            var parts = line.Split('=', 2);
+            if (parts.Length != 2) continue;
+
+            var name = parts[0].Trim();
+            var value = parts[1].Trim().Trim('"', '\'');
+            if (name.Length > 0 && string.IsNullOrEmpty(Environment.GetEnvironmentVariable(name)))
+                Environment.SetEnvironmentVariable(name, value);
+        }
+    }
+
     private static bool IsHostReserved(string name) =>
         HostReserved.Contains(name) ||
         name.StartsWith("ASPNETCORE_", StringComparison.OrdinalIgnoreCase) ||

@@ -1,4 +1,3 @@
-using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

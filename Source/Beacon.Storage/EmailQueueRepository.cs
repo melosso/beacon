@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using Beacon.Core.Models;
-using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Beacon.Storage;

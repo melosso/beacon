@@ -1,176 +1,201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>404: NOT_FOUND</title>
-  <meta name="color-scheme" content="light dark" />
-  <style>
-    :root {
-      --bg: #ffffff;
-      --fg: #111111;
-      --accent: #2563eb;
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --error: #ef4444;
-      --info: #3b82f6;
-      --radius: 14px;
-      --max-width: 520px;
-      --code-bg: color-mix(in srgb, var(--fg) 5%, transparent);
-    }
-
-    @media (prefers-color-scheme: dark) {
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404: NOT_FOUND</title>
+    <meta name="color-scheme" content="light dark" />
+    <style>
       :root {
-        --bg: #0f0f0f;
-        --fg: #e7e7e7;
-        --accent: #7aa2ff;
+        --bg: #ffffff;
+        --fg: #111111;
+        --accent: #111111;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --info: #3b82f6;
+        --radius: 16px;
+        --max-width: 520px;
+        --code-bg: color-mix(in srgb, var(--fg) 4%, transparent);
+        --border-color: color-mix(in srgb, var(--fg) 12%, transparent);
       }
-    }
 
-    * { box-sizing: border-box; }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a0a0a;
+          --fg: #ededed;
+          --accent: #ededed;
+          --error: #f87171;
+        }
+      }
 
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.5;
-    }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
 
-    main {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
 
-    .card {
-      width: 100%;
-      max-width: var(--max-width);
-      border: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
-      border-radius: var(--radius);
-      padding: 28px;
-    }
+      main {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
 
-    .error-header {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 24px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
-    }
+      .card {
+        width: 100%;
+        max-width: var(--max-width);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        padding: 32px;
+        background: color-mix(in srgb, var(--bg) 80%, var(--fg) 2%);
+      }
 
-    .status-code {
-      font-size: 1.5rem;
-      font-weight: 700;
-      padding-right: 16px;
-      border-right: 2px solid var(--error);
-    }
+      .error-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+      }
 
-    h1 {
-      font-size: 1.2rem;
-      margin: 0;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      text-transform: uppercase;
-    }
+      .status-code {
+        font-size: 1.75rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        padding-right: 16px;
+        border-right: 3px solid var(--error);
+        color: var(--error);
+      }
 
-    .dev-info {
-      background: var(--code-bg);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 24px;
-    }
+      h1 {
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        text-transform: uppercase;
+      }
 
-    .dev-line {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.85rem;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-    }
+      p {
+        margin-top: 0;
+        margin-bottom: 20px;
+        color: color-mix(in srgb, var(--fg) 80%, transparent);
+      }
 
-    .dev-line:last-child { margin-bottom: 0; }
+      .dev-info {
+        background: var(--code-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 20px;
+      }
 
-    .label {
-      color: color-mix(in srgb, var(--fg) 50%, transparent);
-    }
+      .dev-line {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
 
-    .value {
-      font-weight: 500;
-    }
+      .dev-line:last-child {
+        margin-bottom: 0;
+      }
 
-    .note {
-      display: block;
-      padding: 12px 16px;
-      border-radius: 8px;
-      border: 1px solid var(--accent);
-      font-size: 0.9rem;
-      line-height: 1.4;
-      color: var(--accent);
-      text-decoration: none;
-      transition: background 0.2s ease;
-    }
+      .label {
+        color: color-mix(in srgb, var(--fg) 50%, transparent);
+      }
 
-    .note:hover {
-      background: color-mix(in srgb, var(--accent) 5%, transparent);
-    }
+      .value {
+        font-weight: 500;
+      }
 
-    .footer {
-      margin-top: 24px;
-      text-align: center;
-    }
+      .footer {
+        margin-top: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
 
-    .back-link {
-      color: color-mix(in srgb, var(--fg) 60%, transparent);
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
+      .back-link {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: opacity 0.2s ease;
+      }
 
-    .back-link:hover {
-      color: var(--fg);
-      text-decoration: underline;
-    }
+      .back-link:hover {
+        opacity: 0.8;
+      }
 
-    .select-none {
-      user-select: none;
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <section class="card">
-      <div class="error-header select-none">
-        <span class="status-code">404</span>
-        <h1>Not Found</h1>
-      </div>
-
-      <p class="select-none">The requested resource could not be found on this server.</p>
-
-      <div class="dev-info">
-        <div class="dev-line">
-          <span class="label select-none">Code:</span>
-          <span class="value"><code>NOT_FOUND</code></span>
+      .select-none {
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card" role="alert">
+        <div class="error-header select-none">
+          <span class="status-code">404</span>
+          <h1>Not Found</h1>
         </div>
-        <div class="dev-line">
-          <span class="label select-none">Timestamp:</span>
-          <span class="value"><code id="ts">Loading...</code></span>
+
+        <p class="select-none">
+          The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+        </p>
+
+        <div class="dev-info">
+          <div class="dev-line">
+            <span class="label select-none">Code:</span>
+            <span class="value"><code>NOT_FOUND</code></span>
+          </div>
+          <div class="dev-line">
+            <span class="label select-none">Timestamp:</span>
+            <span class="value"><code id="ts">Loading...</code></span>
+          </div>
         </div>
-      </div>
 
-      <p class="select-none">Didn't expect this? Please let us know.</p>
+        <p class="select-none" style="font-size: 0.85rem; margin-bottom: 0;">Didn't expect this? Please check the URL or return home.</p>
 
-      <div class="footer">
-        <a href="/" class="back-link select-none">Return to Home</a>
-      </div>
-    </section>
-  </main>
+        <div class="footer">
+          <a href="/" class="back-link select-none">
+            &larr; Go back
+          </a>
+        </div>
+      </section>
+    </main>
 
-  <script>
-    document.getElementById('ts').textContent = new Date().toISOString();
-  </script>
-</body>
+    <script>
+      const now = new Date();
+      document.getElementById("ts").textContent = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+    </script>
+  </body>
 </html>
