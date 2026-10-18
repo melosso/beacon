@@ -59,10 +59,10 @@ public static class AuthEndpoints
             return Results.Json(new { error }, statusCode: statusCode);
         }
 
-        IResult Granted(string subject, string role)
+        IResult Granted(string subject, string role, bool adminKey = false)
         {
             lockout.Reset(lockKey);
-            return OkWithCookie(httpContext, env, signingKey, subject, expiresAt, role);
+            return OkWithCookie(httpContext, env, signingKey, subject, expiresAt, role, adminKey);
         }
 
         if (userAuthentication == "user")
@@ -89,7 +89,7 @@ public static class AuthEndpoints
 
             var adminApiKey = opts.AdminApiKey ?? "";
             if (!string.IsNullOrEmpty(adminApiKey) && ApiKeyGenerator.SecretEquals(request.ApiKey, adminApiKey))
-                return Granted("admin", "admin");
+                return Granted("admin", "admin", adminKey: true);
 
             if (userRepo != null)
             {
@@ -125,7 +125,7 @@ public static class AuthEndpoints
             {
                 var adminApiKey = opts.AdminApiKey ?? "";
                 if (!string.IsNullOrEmpty(adminApiKey) && ApiKeyGenerator.SecretEquals(request.ApiKey, adminApiKey))
-                    return Granted("admin", "admin");
+                    return Granted("admin", "admin", adminKey: true);
 
                 var keyHash = ApiKeyGenerator.ComputeHash(request.ApiKey);
                 var userByKey = await userRepo.FindByApiKeyHashAsync(keyHash);
@@ -147,7 +147,7 @@ public static class AuthEndpoints
         if (!ApiKeyGenerator.SecretEquals(request.ApiKey, legacyAdminKey))
             return Denied("Invalid API key.");
 
-        return Granted("admin", "admin");
+        return Granted("admin", "admin", adminKey: true);
     }
 
     private static IResult Refresh(
@@ -155,10 +155,15 @@ public static class AuthEndpoints
         IWebHostEnvironment env,
         IOptionsMonitor<JwtAuthOptions> jwtOptions)
     {
+        // Only a cookie session can be extended; an API-key principal has no session to refresh.
+        if (httpContext.User.Identity?.AuthenticationType != JwtAuthExtensions.SchemeName)
+            return Results.Forbid();
+
         var signingKey = jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey;
         var sub  = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
-        return OkWithCookie(httpContext, env, signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role);
+        var adminKey = httpContext.User.HasClaim(JwtAuthHandler.AdminKeyClaim, "true");
+        return OkWithCookie(httpContext, env, signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role, adminKey);
     }
 
     private static IResult Logout(HttpContext httpContext)
@@ -197,9 +202,10 @@ public static class AuthEndpoints
         byte[] signingKey,
         string subject,
         DateTimeOffset expiresAt,
-        string role)
+        string role,
+        bool adminKey = false)
     {
-        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role);
+        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey);
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
             HttpOnly = true,

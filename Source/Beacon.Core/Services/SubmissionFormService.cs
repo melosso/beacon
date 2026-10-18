@@ -86,7 +86,7 @@ public sealed class SubmissionFormService {
         }
     }
 
-    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null, string? name = null)
+    public async Task SubscribeAsync(SubmissionForm form, string email, string? consentText = null, string? origin = null, string? name = null, ConsentStatus status = ConsentStatus.OptedIn)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
@@ -104,7 +104,7 @@ public sealed class SubmissionFormService {
                 normalizedBucket,
                 normalizedEmail,
                 permission,
-                ConsentStatus.OptedIn,
+                status,
                 customFieldsJson: resolvedCustomFields,
                 actorId: actorId,
                 source: ConsentSource.Api,

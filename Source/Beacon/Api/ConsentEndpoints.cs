@@ -498,7 +498,7 @@ public static class ConsentEndpoints
         string utmHiddenInputs = "",
         BrandIdentitySettings? brand = null)
     {
-        var lang = (language ?? "en").ToLowerInvariant();
+        var lang = Beacon.Localization.FormLocalization.Normalize(language);
         var t = GetConsentPageStrings(lang);
 
         var title = brand?.PageTitle is { Length: > 0 } pt ? pt : t.Title;
@@ -777,7 +777,7 @@ public static class ConsentEndpoints
 
     private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
     {
-        var lang = (language ?? "en").ToLowerInvariant();
+        var lang = Beacon.Localization.FormLocalization.Normalize(language);
         var t = GetStatusStrings(lang);
 
         var (icon, iconClass, title, message) = status switch
