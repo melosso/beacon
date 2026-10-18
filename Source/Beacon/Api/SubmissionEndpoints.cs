@@ -943,7 +943,7 @@ public static class SubmissionEndpoints
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
         var doubleOptIn = await DoubleOptIn.IsActiveAsync(instanceOptions, systemConfig, bucketOptionsRepo, normalizedBucket, form.DoubleOptIn);
 
-        // ponytail: consent write and queue entry are not in one transaction; wrap both if a partial write is observed.
+        // Consent write and queue entry are not in one transaction; wrap both if a partial write is observed.
         await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin, effectiveName,
             doubleOptIn ? ConsentStatus.PendingConfirmation : ConsentStatus.OptedIn);
 
