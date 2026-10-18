@@ -166,8 +166,11 @@ public static class AuthEndpoints
         return OkWithCookie(httpContext, env, signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role, adminKey);
     }
 
-    private static IResult Logout(HttpContext httpContext)
+    private static async Task<IResult> Logout(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions, TokenUsageRepository tokenUsage)
     {
+        httpContext.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var current);
+        await JwtAuthHandler.RevokeAsync(tokenUsage, jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey, current);
+
         // Expire the auth cookie
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, "", new CookieOptions
         {

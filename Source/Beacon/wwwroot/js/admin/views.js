@@ -582,31 +582,8 @@ async function confirmSubExport() {
       : { format };
 
   try {
-    const res = await fetch(
-      `${window.location.origin}/api/admin/identities/export`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      notify("error", "Export failed", err.error || `HTTP ${res.status}`);
-      return;
-    }
-    const blob = await res.blob();
-    const cd = res.headers.get("Content-Disposition") || "";
-    const fnMatch = cd.match(/filename="([^"]+)"/);
-    const filename = fnMatch ? fnMatch[1] : `subscribers.${format}`;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    closeSubExportModal();
+    if (await downloadExport(`${window.location.origin}/api/admin/identities/export`, body, `beacon-subscribers.${format}`))
+      closeSubExportModal();
   } finally {
     btn.disabled = false;
     btn.textContent = "Export";

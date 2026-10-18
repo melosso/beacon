@@ -1448,8 +1448,8 @@ public static class AdminEndpoints
         CancellationToken ct)
     {
         var format = (request?.Format ?? "csv").ToLowerInvariant();
-        if (format is not ("csv" or "json"))
-            return Results.BadRequest(new { error = "Invalid format. Must be 'csv' or 'json'" });
+        if (!ExportWriter.Formats.Contains(format))
+            return Results.BadRequest(new { error = "Invalid format. Must be 'csv', 'json', 'xml', or 'yaml'" });
 
         PagedResult<IdentityInfo> result;
 
@@ -1491,26 +1491,16 @@ public static class AdminEndpoints
                 });
         }
 
-        var filename = $"subscribers-{DateTime.UtcNow:yyyyMMdd}.{format}";
-        context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
-
-        if (format == "json")
-            return Results.Json(records.Select(r => new
-            {
-                email = r.Email,
-                name = r.Name,
-                beaconId = r.EmailHash,
-                buckets = r.BucketCount,
-                created = r.FirstSeen.ToString("O"),
-                updated = r.LastChanged.ToString("O")
-            }));
-
-        var sb = new StringBuilder();
-        sb.AppendLine("Email,Name,Beacon ID,Buckets,Created,Updated");
-        foreach (var r in records)
-            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.Name ?? "")},{CsvEscape(r.EmailHash)},{r.BucketCount},{r.FirstSeen:O},{r.LastChanged:O}");
-
-        return Results.Content(sb.ToString(), "text/csv");
+        var rows = records.Select(r => new ExportWriter.Row
+        {
+            { "beaconId", r.EmailHash },
+            { "email", r.Email },
+            { "name", r.Name },
+            { "buckets", r.BucketCount },
+            { "createdAt", ExportWriter.Timestamp(r.FirstSeen) },
+            { "updatedAt", ExportWriter.Timestamp(r.LastChanged) }
+        }).ToList();
+        return ExportWriter.Write(context, $"beacon-subscribers-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "subscriber", rows);
     }
 
     private static async Task<IResult> GetIdentityDetails(
@@ -1770,7 +1760,11 @@ public static class AdminEndpoints
             Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language
         };
 
-        var rows = new List<(string Email, string Url)>(records.Count);
+        var format = (request.Format ?? "csv").ToLowerInvariant();
+        if (!ExportWriter.Formats.Contains(format))
+            return Results.BadRequest(new { error = "Invalid format. Must be 'csv', 'json', 'xml', or 'yaml'" });
+
+        var rows = new List<ExportWriter.Row>(records.Count);
 
         foreach (var record in records)
         {
@@ -1795,39 +1789,24 @@ public static class AdminEndpoints
             if (permissionNames.Length == 0) continue;
 
             var token = generator.Generate(normalized, email, permissionNames, tokenOptions);
-            rows.Add((email, $"{baseUrl}/u/{token}{qs}"));
+            rows.Add(new ExportWriter.Row
+            {
+                { "beaconId", record.EmailHash },
+                { "email", email },
+                { "name", TryDecrypt(encryptor, record.EncryptedName) },
+                { "tracking", TrackingGroup(normalized, $"{baseUrl}/u/{token}{qs}", TryDecodeTokenExpiry(token)) }
+            });
         }
 
-        var format = (request.Format ?? "csv").ToLowerInvariant();
-        var filename = $"unsubscribe-links-{normalized}.{format}";
-        context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
-
-        return format switch
-        {
-            "json" => Results.Json(rows.Select(r => new { email = r.Email, url = r.Url })),
-            "xml" => Results.Content(BuildXml(rows), "application/xml"),
-            _ => Results.Content(BuildCsv(rows), "text/csv")
-        };
+        return ExportWriter.Write(context, $"beacon-links-{normalized}-{DateTime.UtcNow:yyyyMMdd}", format, "links", "link", rows);
     }
 
-    private static string BuildCsv(IEnumerable<(string Email, string Url)> rows)
+    private static ExportWriter.Row TrackingGroup(string bucket, string? url, DateTime? expiresAt) => new()
     {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("email,url");
-        foreach (var (email, url) in rows)
-            sb.AppendLine($"{CsvEscape(email)},{CsvEscape(url)}");
-        return sb.ToString();
-    }
-
-    private static string BuildXml(IEnumerable<(string Email, string Url)> rows)
-    {
-        var doc = new System.Xml.Linq.XDocument(
-            new System.Xml.Linq.XElement("subscribers",
-                rows.Select(r => new System.Xml.Linq.XElement("subscriber",
-                    new System.Xml.Linq.XElement("email", r.Email),
-                    new System.Xml.Linq.XElement("url", r.Url)))));
-        return doc.ToString();
-    }
+        { "campaign", bucket },
+        { "url", url },
+        { "expiresAt", expiresAt is { } e ? ExportWriter.Timestamp(e) : null }
+    };
 
     internal static string CsvEscape(string value)
     {
@@ -1881,7 +1860,7 @@ public static class AdminEndpoints
         if (!bucketVal.IsValid) return Results.BadRequest(new { error = bucketVal.Error });
 
         var format = (request?.Format ?? "csv").ToLowerInvariant();
-        if (format is not ("csv" or "json" or "xml" or "yaml"))
+        if (!ExportWriter.Formats.Contains(format))
             return Results.BadRequest(new { error = "Invalid format. Must be 'csv', 'json', 'xml', or 'yaml'" });
 
         // Tracking links are replayable preference tokens: minting them is a consent write.
@@ -1971,35 +1950,33 @@ public static class AdminEndpoints
             }
         }
 
-        var filename = $"records-{normalized}-{DateTime.UtcNow:yyyyMMdd}.{format}";
-        context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
-
-        return format switch
+        var rows = records.Select(r =>
         {
-            "json" => Results.Json(BuildRecordsJson(records, permissions, normalized, trackingByHash)),
-            "xml" => Results.Content(BuildRecordsXml(records, permissions, normalized, trackingByHash), "application/xml"),
-            "yaml" => Results.Content(BuildRecordsYaml(records, permissions, normalized, trackingByHash), "text/yaml"),
-            _ => Results.Content(BuildRecordsCsv(records, permissions, customFieldKeys, normalized, trackingByHash), "text/csv")
-        };
-    }
+            var row = new ExportWriter.Row
+            {
+                { "beaconId", r.EmailHash },
+                { "email", r.Email },
+                { "name", r.Name }
+            };
+            var consent = new ExportWriter.Row();
+            foreach (var p in permissions)
+                consent.Add(p, r.Permissions.TryGetValue(p, out var v) && v);
+            row.Add("consent", consent);
+            if (customFieldKeys.Count > 0)
+            {
+                var fields = new ExportWriter.Row();
+                foreach (var k in customFieldKeys)
+                    fields.Add(k, r.CustomFields?.TryGetValue(k, out var v) == true ? v : null);
+                row.Add("customFields", fields);
+            }
+            row.Add("createdAt", ExportWriter.Timestamp(r.FirstSeen));
+            row.Add("updatedAt", ExportWriter.Timestamp(r.LastChanged));
+            if (trackingByHash != null)
+                row.Add("tracking", trackingByHash.TryGetValue(r.EmailHash, out var t) ? TrackingGroup(normalized, t.Url, t.ExpiresAt) : TrackingGroup(normalized, null, null));
+            return row;
+        }).ToList();
 
-    private static string ToCamelCase(string name)
-    {
-        var parts = name.Split('_');
-        if (parts.Length == 1) return parts[0];
-        return parts[0] + string.Concat(parts[1..].Select(p => p.Length > 0 ? char.ToUpperInvariant(p[0]) + p[1..] : ""));
-    }
-
-    private static string ToPascalCase(string name) =>
-        string.Concat(name.Split('_').Select(p => p.Length > 0 ? char.ToUpperInvariant(p[0]) + p[1..] : ""));
-
-    private static string YamlEscape(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return "\"\"";
-        if (value.IndexOfAny(['"', ':', '\n', '\r', '#', '[', ']', '{', '}', '&', '*', '?', '|', '<', '>', '=', '!', '%', '@', '`', '\\']) >= 0
-            || value.StartsWith(' ') || value.EndsWith(' '))
-            return $"\"{value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
-        return value;
+        return ExportWriter.Write(context, $"beacon-records-{normalized}-{DateTime.UtcNow:yyyyMMdd}", format, "records", "record", rows);
     }
 
     private static DateTime? TryDecodeTokenExpiry(string token)
@@ -2016,125 +1993,6 @@ public static class AdminEndpoints
         }
         catch { }
         return null;
-    }
-
-    private static IEnumerable<Dictionary<string, object?>> BuildRecordsJson(
-        List<EmailPermissions> records,
-        List<string> permissions,
-        string bucket,
-        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
-    {
-        return records.Select(r =>
-        {
-            var consent = permissions.ToDictionary(
-                p => ToCamelCase(p),
-                p => (object?)(r.Permissions.TryGetValue(p, out var v) ? v : false));
-            var obj = new Dictionary<string, object?>(8)
-            {
-                ["beaconId"] = r.EmailHash,
-                ["email"] = r.Email,
-                ["fullName"] = r.Name,
-                ["consent"] = consent,
-                ["createdDate"] = r.FirstSeen.ToString("O"),
-                ["updatedDate"] = r.LastChanged.ToString("O")
-            };
-            if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
-                obj["tracking"] = new Dictionary<string, object?>
-                {
-                    ["campaign"] = bucket,
-                    ["expiresAt"] = t.ExpiresAt?.ToString("O"),
-                    ["url"] = t.Url
-                };
-            return obj;
-        });
-    }
-
-    private static string BuildRecordsCsv(
-        List<EmailPermissions> records,
-        List<string> permissions,
-        List<string> customFieldKeys,
-        string bucket,
-        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
-    {
-        var sb = new StringBuilder();
-        var cfHeaders = customFieldKeys.Count > 0 ? string.Join(",", customFieldKeys.Select(CsvEscape)) + "," : "";
-        var permHeaders = string.Join(",", permissions.Select(CsvEscape));
-        var trackHeaders = tracking != null ? ",campaignId,trackingUrl" : "";
-        sb.AppendLine($"email,fullName,beaconId,{cfHeaders}{permHeaders},createdDate,updatedDate{trackHeaders}");
-        foreach (var r in records)
-        {
-            var cfVals = customFieldKeys.Count > 0
-                ? string.Join(",", customFieldKeys.Select(k => CsvEscape(r.CustomFields?.TryGetValue(k, out var v) == true ? v ?? "" : ""))) + ","
-                : "";
-            var permVals = string.Join(",", permissions.Select(p => r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
-            var trackVals = tracking != null
-                ? "," + CsvEscape(bucket) + "," + (tracking.TryGetValue(r.EmailHash, out var t) ? CsvEscape(t.Url) : "")
-                : "";
-            sb.AppendLine($"{CsvEscape(r.Email ?? "")},{CsvEscape(r.Name ?? "")},{CsvEscape(r.EmailHash)},{cfVals}{permVals},{r.FirstSeen:O},{r.LastChanged:O}{trackVals}");
-        }
-        return sb.ToString();
-    }
-
-    private static string BuildRecordsXml(
-        List<EmailPermissions> records,
-        List<string> permissions,
-        string bucket,
-        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
-    {
-        var doc = new System.Xml.Linq.XDocument(
-            new System.Xml.Linq.XElement("Export",
-                records.Select(r =>
-                {
-                    var el = new System.Xml.Linq.XElement("ConsentRecord",
-                        new System.Xml.Linq.XElement("BeaconId", r.EmailHash),
-                        new System.Xml.Linq.XElement("Email", r.Email ?? ""),
-                        new System.Xml.Linq.XElement("FullName", r.Name ?? ""),
-                        new System.Xml.Linq.XElement("Consent",
-                            permissions.Select(p => new System.Xml.Linq.XElement(
-                                ToPascalCase(p),
-                                r.Permissions.TryGetValue(p, out var v) && v ? "true" : "false"))),
-                        new System.Xml.Linq.XElement("CreatedDate", r.FirstSeen.ToString("O")),
-                        new System.Xml.Linq.XElement("UpdatedDate", r.LastChanged.ToString("O")));
-                    if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
-                        el.Add(new System.Xml.Linq.XElement("Tracking",
-                            new System.Xml.Linq.XElement("Campaign", bucket),
-                            new System.Xml.Linq.XElement("ExpiresAt", t.ExpiresAt?.ToString("O") ?? ""),
-                            new System.Xml.Linq.XElement("Url", t.Url)));
-                    return el;
-                })));
-        return doc.ToString();
-    }
-
-    private static string BuildRecordsYaml(
-        List<EmailPermissions> records,
-        List<string> permissions,
-        string bucket,
-        Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("subscribers:");
-        foreach (var r in records)
-        {
-            sb.AppendLine($"  - beaconId: {YamlEscape(r.EmailHash)}");
-            sb.AppendLine($"    email: {YamlEscape(r.Email)}");
-            sb.AppendLine($"    fullName: {YamlEscape(r.Name)}");
-            if (permissions.Count > 0)
-            {
-                sb.AppendLine("    consent:");
-                foreach (var p in permissions)
-                    sb.AppendLine($"      {ToCamelCase(p)}: {(r.Permissions.TryGetValue(p, out var v) && v ? "true" : "false")}");
-            }
-            sb.AppendLine($"    createdDate: \"{r.FirstSeen:O}\"");
-            sb.AppendLine($"    updatedDate: \"{r.LastChanged:O}\"");
-            if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
-            {
-                sb.AppendLine("    tracking:");
-                sb.AppendLine($"      campaign: {YamlEscape(bucket)}");
-                sb.AppendLine($"      expiresAt: \"{t.ExpiresAt?.ToString("O") ?? ""}\"");
-                sb.AppendLine($"      url: {YamlEscape(t.Url)}");
-            }
-        }
-        return sb.ToString();
     }
 
     internal sealed record ExportBucketTokensRequest(

@@ -149,10 +149,45 @@ public class SecurityAuditTests : IDisposable
         Assert.Equal("key:jane", result.Principal!.Identity!.Name);
     }
 
+    [Fact]
+    public void ExportWriter_FlattensGroupsAndQuotesYamlStrings()
+    {
+        List<ExportWriter.Row> rows =
+        [
+            new() { { "email", "a@x.com" }, { "name", "true" }, { "consent", new ExportWriter.Row { { "Newsletter", true } } } },
+            new() { { "email", "b@x.com" }, { "name", null }, { "consent", new ExportWriter.Row { { "Alerts", false } } } }
+        ];
+
+        var csv = ExportWriter.ToCsv(rows);
+        Assert.StartsWith("email,name,consent.Newsletter,consent.Alerts\r\n", csv);
+        Assert.Contains("b@x.com,,,false\r\n", csv);
+
+        var yaml = ExportWriter.ToYaml("records", rows);
+        Assert.Contains("name: \"true\"", yaml);
+        Assert.Contains("name: null", yaml);
+        Assert.Equal("records: []\n", ExportWriter.ToYaml("records", []));
+    }
+
+    [Fact]
+    public void ExportWriter_TimestampIsUtcIso8601() =>
+        Assert.Equal("2026-10-18T20:01:41Z", ExportWriter.Timestamp(new DateTime(2026, 10, 18, 20, 1, 41, 123, DateTimeKind.Unspecified)));
+
+    [Fact]
+    public async Task Jwt_RevokedSession_IsRejected()
+    {
+        var token = JwtAuthHandler.CreateToken(SigningKey, "admin", DateTimeOffset.UtcNow.AddHours(1), "admin", adminKey: true);
+        Assert.True((await AuthenticateAsync(token)).Succeeded);
+
+        await JwtAuthHandler.RevokeAsync(new TokenUsageRepository(_db), SigningKey, token);
+        await JwtAuthHandler.RevokeAsync(new TokenUsageRepository(_db), SigningKey, token);
+
+        Assert.False((await AuthenticateAsync(token)).Succeeded);
+    }
+
     private async Task<AuthenticateResult> AuthenticateAsync(string token)
     {
         var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = "both" };
-        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db));
+        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db));
         var context = new DefaultHttpContext();
         context.Request.Headers.Cookie = $"{JwtAuthHandler.CookieName}={token}";
         await handler.InitializeAsync(new AuthenticationScheme(JwtAuthExtensions.SchemeName, null, typeof(JwtAuthHandler)), context);

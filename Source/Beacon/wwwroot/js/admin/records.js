@@ -128,7 +128,7 @@ async function confirmBucketExport() {
       await downloadExport(
         `/api/admin/buckets/${encodeURIComponent(currentBucket)}/records/export`,
         body,
-        `records-${currentBucket}.${format}`,
+        `beacon-records-${currentBucket}.${format}`,
       )
     )
       closeBucketExportModal();
@@ -497,6 +497,7 @@ async function loadBucket(bucket = currentBucket) {
   const archivedBadge = document.getElementById("archivedBadge");
   if (archivedBadge)
     archivedBadge.hidden = !currentBucketArchived;
+  document.getElementById("bucketTitle")?.classList.toggle("is-archived", currentBucketArchived);
 
   const removeBtn = document.getElementById("removeBucketBtn");
   const removeTip = document.getElementById("removeBucketTooltip");

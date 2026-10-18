@@ -85,6 +85,7 @@ function renderBucketsSidebar() {
     sorted.sort((a, b) => a.name.localeCompare(b.name));
   else if (sidebarPrefs.sort === "za")
     sorted.sort((a, b) => b.name.localeCompare(a.name));
+  else sorted.sort((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived));
 
   const expanded = Boolean(sidebarPrefs.expanded);
   const displayBuckets = expanded ? sorted : sorted.slice(0, MAX_SIDEBAR_BUCKETS);
@@ -96,14 +97,16 @@ function renderBucketsSidebar() {
       (b) =>
         html`<a
           href="#"
-          class="nav-item"
+          class="nav-item ${b.isArchived ? "nav-item--archived" : ""}"
           data-bucket=${b.name}
-          title=${b.name}
+          title=${b.isArchived ? `${b.name} (archived)` : b.name}
           @click=${(e) => {
             e.preventDefault();
             showBucket(b.name);
           }}
-          >${showCode ? b.name : formatPermission(b.name)}</a
+          ><span class="nav-item-text">${showCode ? b.name : formatPermission(b.name)}</span>${b.isArchived
+            ? html`<svg class="nav-item-badge" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Archived" role="img"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`
+            : nothing}</a
         >`,
     )}
     ${remaining > 0
