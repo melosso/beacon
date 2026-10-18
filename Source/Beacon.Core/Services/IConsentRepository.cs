@@ -19,7 +19,7 @@ public interface IConsentRepository
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);
     Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
-    Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync();
+    Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail, string? EncryptedName)>> GetEmailHashMappingsAsync();
     Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null);
     Task<Dictionary<string, EncryptedContact>> GetEncryptedEmailsForHashesAsync(IReadOnlyList<string> hashes, CancellationToken ct = default);
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);

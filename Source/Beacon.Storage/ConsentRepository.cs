@@ -431,7 +431,7 @@ public sealed class ConsentRepository : IConsentRepository
         return rows.ToDictionary(r => r.EmailHash, r => new EncryptedContact(r.EncryptedEmail, r.EncryptedName));
     }
 
-    public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail)>> GetEmailHashMappingsAsync()
+    public async Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail, string? EncryptedName)>> GetEmailHashMappingsAsync()
     {
         // Capped: encrypted values cannot be searched in SQL, so we decrypt in memory.
         // 10k is a pragmatic upper bound to prevent unbounded work.
@@ -440,13 +440,14 @@ public sealed class ConsentRepository : IConsentRepository
             .Select(g => new
             {
                 EmailHash = g.Key,
-                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault()
+                EncryptedEmail = g.Where(r => r.EncryptedEmail != null).Select(r => r.EncryptedEmail).FirstOrDefault(),
+                EncryptedName = g.Where(r => r.EncryptedName != null).Select(r => r.EncryptedName).FirstOrDefault()
             })
             .OrderBy(r => r.EmailHash)
             .Take(10_000)
             .ToListAsync();
 
-        return rows.Select(r => (r.EmailHash, r.EncryptedEmail)).ToList();
+        return rows.Select(r => (r.EmailHash, r.EncryptedEmail, r.EncryptedName)).ToList();
     }
 
     public async Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(

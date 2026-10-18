@@ -172,6 +172,47 @@ async function downloadExport(endpoint, body, fallbackName) {
 // OVERVIEW
 let webhookBuckets = new Set();
 
+let overviewErrorBuckets = new Set();
+let overviewQuery = "";
+const _overviewSortPrefs = JSON.parse(localStorage.getItem("beacon_overview_sort_prefs") || "{}");
+let overviewSortBy = _overviewSortPrefs.sortBy || "";
+let overviewSortDir = _overviewSortPrefs.sortDir || "asc";
+
+function toggleOverviewSort(column) {
+  if (overviewSortBy === column) overviewSortDir = overviewSortDir === "asc" ? "desc" : "asc";
+  else {
+    overviewSortBy = column;
+    overviewSortDir = column === "records" ? "desc" : "asc";
+  }
+  localStorage.setItem("beacon_overview_sort_prefs", JSON.stringify({ sortBy: overviewSortBy, sortDir: overviewSortDir }));
+  renderOverview();
+}
+
+function toggleOverviewSearchPopover(event) {
+  event.stopPropagation();
+  const popover = document.getElementById("overviewSearchPopover");
+  popover.classList.toggle("open");
+  document.getElementById("overviewSearchTrigger").classList.toggle("active", popover.classList.contains("open"));
+  if (popover.classList.contains("open")) setTimeout(() => document.getElementById("overviewSearchInput")?.focus(), 50);
+}
+
+function searchOverview(query) {
+  overviewQuery = (query ?? document.getElementById("overviewSearchInput")?.value ?? "").trim();
+  document.getElementById("overviewSearchPopover")?.classList.remove("open");
+  document.getElementById("overviewSearchTrigger")?.classList.remove("active");
+  renderOverview();
+}
+
+// Same rule as the server's MatchesWildcard: without * a substring match, with * a full match.
+function overviewMatches(b) {
+  if (!overviewQuery) return true;
+  const q = overviewQuery.toLowerCase();
+  const test = q.includes("*")
+    ? (text) => new RegExp(`^${q.split("*").map((p) => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`).test(text)
+    : (text) => text.includes(q);
+  return test(b.name.toLowerCase()) || test(formatPermission(b.name).toLowerCase());
+}
+
 async function loadOverview(refresh = false) {
   if (refresh) {
     const result = await apiRequest("/api/admin/buckets");
@@ -191,7 +232,7 @@ async function loadOverview(refresh = false) {
   if (biResult.ok && biResult.data) _brandIdentities = biResult.data;
 
   // Fetch errors for webhook-enabled buckets
-  const webhookErrorBuckets = new Set();
+  overviewErrorBuckets = new Set();
   overviewErrorsCache = [];
   if (webhookBuckets.size > 0) {
     const errorChecks = await Promise.all(
@@ -205,7 +246,7 @@ async function loadOverview(refresh = false) {
     );
     errorChecks.forEach((c) => {
       if (c.errors.length > 0) {
-        webhookErrorBuckets.add(c.name);
+        overviewErrorBuckets.add(c.name);
         c.errors.forEach((e) =>
           overviewErrorsCache.push({ bucket: c.name, ...e }),
         );
@@ -221,7 +262,43 @@ async function loadOverview(refresh = false) {
       overviewErrorsCache.length > 0,
     );
 
+  renderOverview();
+}
+
+function renderOverview() {
+  paint(
+    document.getElementById("overviewHead"),
+    html`<th>
+        ${searchColumn({
+          label: "Bucket",
+          sortActive: overviewSortBy === "name",
+          sortDir: overviewSortDir,
+          onSort: () => toggleOverviewSort("name"),
+          ids: { trigger: "overviewSearchTrigger", popover: "overviewSearchPopover", input: "overviewSearchInput" },
+          fixedLabel: "Bucket name or label, use * as wildcard",
+          placeholder: "e.g., newsletter*",
+          query: overviewQuery,
+          title: "Search buckets",
+          onToggle: toggleOverviewSearchPopover,
+          onSearch: () => searchOverview(),
+          onClear: () => searchOverview(""),
+        })}
+      </th>
+      ${sortHeader("Records", overviewSortBy === "records", overviewSortDir, () => toggleOverviewSort("records"))}
+      <th>Permissions</th>
+      <th class="col-actions"></th>`,
+  );
+
   const body = document.getElementById("overviewBody");
+  const dir = overviewSortDir === "asc" ? 1 : -1;
+  const shown = buckets.filter(overviewMatches);
+  if (overviewSortBy === "name") shown.sort((a, b) => dir * a.name.localeCompare(b.name));
+  else if (overviewSortBy === "records") shown.sort((a, b) => dir * ((a.totalEmails ?? 0) - (b.totalEmails ?? 0)));
+
+  if (buckets.length > 0 && shown.length === 0) {
+    paint(body, html`<tr><td class="table-empty" colspan="4">No buckets match "${overviewQuery}".</td></tr>`);
+    return;
+  }
 
   if (buckets.length === 0) {
     paint(
@@ -238,7 +315,7 @@ async function loadOverview(refresh = false) {
 
   paint(
     body,
-    html`${buckets.map((b, idx) => {
+    html`${shown.map((b, idx) => {
       const brandId = getBrandIdentityForBucket(b.name);
       const brandStroke =
         brandId?.settings?.primaryAccent || "hsl(var(--muted-foreground))";
@@ -269,7 +346,7 @@ async function loadOverview(refresh = false) {
         <td class="col-actions">
           <div class="row-actions">
             <span class="row-status-icons">
-              ${webhookErrorBuckets.has(b.name)
+              ${overviewErrorBuckets.has(b.name)
                 ? html`<span class="tooltip-wrapper">
                     <svg class="align-middle"
                       width="14"
@@ -481,7 +558,7 @@ async function loadBucket(bucket = currentBucket) {
           onClear: clearSearch,
         })}
       </th>
-      <th>Name</th>
+      ${sortHeader("Name", sortBy === "name", sortDir, () => toggleSort("name"))}
       ${currentBucketPermissions.map(
         (p) =>
           html`<th>

@@ -113,7 +113,7 @@ function renderBucketsSidebar() {
           aria-expanded=${expanded ? "true" : "false"}
           @click=${toggleSidebarBuckets}
         >
-          ${expanded ? "Show fewer" : `… ${remaining} more`}
+          ${expanded ? "Show less" : `… ${remaining} more`}
         </button>`
       : nothing}`,
   );

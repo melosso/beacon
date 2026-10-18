@@ -678,7 +678,7 @@ async function loadIdentities(pushState = true) {
           onClear: clearSubSearch,
         })}
       </th>
-      <th>Name</th>
+      ${sortHeader("Name", subSortBy === "name", subSortDir, () => toggleSubSort("name"))}
       ${sortHeader("Buckets", subSortBy === "buckets", subSortDir, () =>
         toggleSubSort("buckets"),
       )}

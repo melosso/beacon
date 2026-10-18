@@ -661,6 +661,9 @@ public static class AdminEndpoints
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
 
+        if (sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)))
+            return Results.Ok(await GetBucketRecordsSortedByContactAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search, searchType, repository!, encryptor!));
+
         // For ID search, pass to repository. For email search, we filter after decryption.
         var idSearch = searchType == "email" ? null : search;
         var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, idSearch);
@@ -691,6 +694,45 @@ public static class AdminEndpoints
             page = result.Page,
             pageSize = result.PageSize
         });
+    }
+
+    // Email and name are encrypted: load the bucket, decrypt, sort and page in memory.
+    private static async Task<object> GetBucketRecordsSortedByContactAsync(
+        string bucket, int page, int pageSize, string sortBy, string? sortDir, string? search, string? searchType,
+        IConsentRepository repository, Encryptor encryptor)
+    {
+        var all = await repository.GetAllBucketRecordsAsync(bucket);
+        foreach (var record in all)
+        {
+            record.Email = TryDecrypt(encryptor, record.EncryptedEmail);
+            record.Name = TryDecrypt(encryptor, record.EncryptedName);
+        }
+
+        IEnumerable<EmailPermissions> filtered = all;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.Trim().ToLowerInvariant();
+            filtered = searchType == "email"
+                ? all.Where(r => MatchesWildcard(r.Email, searchLower))
+                : all.Where(r => MatchesWildcard(r.EmailHash, searchLower));
+        }
+
+        Func<EmailPermissions, string> key = sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)
+            ? r => r.Name ?? string.Empty
+            : r => r.Email ?? string.Empty;
+        // Records without a value sort last in both directions.
+        var withValueFirst = filtered.OrderBy(r => key(r).Length == 0);
+        var sorted = (sortDir?.ToLowerInvariant() == "asc"
+            ? withValueFirst.ThenBy(key, StringComparer.OrdinalIgnoreCase)
+            : withValueFirst.ThenByDescending(key, StringComparer.OrdinalIgnoreCase)).ToList();
+
+        return new
+        {
+            records = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList(),
+            total = sorted.Count,
+            page,
+            pageSize
+        };
     }
 
     private static async Task<IResult> DeleteBucket(
@@ -1234,7 +1276,7 @@ public static class AdminEndpoints
     }
 
     private static readonly HashSet<string> ValidIdentitySortFields =
-        new(StringComparer.OrdinalIgnoreCase) { "id", "buckets", "lastchanged", "email", "firstseen" };
+        new(StringComparer.OrdinalIgnoreCase) { "id", "buckets", "lastchanged", "email", "name", "firstseen" };
 
     private static async Task<IResult> GetIdentities(
         [FromQuery] int page = 1,
@@ -1262,11 +1304,11 @@ public static class AdminEndpoints
 
         PagedResult<IdentityInfo> result;
 
-        if (string.Equals(sortBy, "email", StringComparison.OrdinalIgnoreCase))
+        if (sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)))
         {
-            // Deferred: decrypt all emails in parallel, sort in memory, then paginate
-            result = await GetIdentitiesSortedByEmailAsync(
-                page, pageSize, sortDir, search, searchType, repository, encryptor, ct);
+            // Encrypted columns: decrypt in parallel, sort in memory, then paginate.
+            result = await GetIdentitiesSortedByContactAsync(
+                page, pageSize, sortBy, sortDir, search, searchType, repository, encryptor, ct);
         }
         else if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
         {
@@ -1313,25 +1355,22 @@ public static class AdminEndpoints
         });
     }
 
-    private static async Task<PagedResult<IdentityInfo>> GetIdentitiesSortedByEmailAsync(
-        int page, int pageSize, string? sortDir, string? search, string? searchType,
+    private static async Task<PagedResult<IdentityInfo>> GetIdentitiesSortedByContactAsync(
+        int page, int pageSize, string sortBy, string? sortDir, string? search, string? searchType,
         IConsentRepository repository, Encryptor encryptor, CancellationToken ct)
     {
         var mappings = await repository.GetEmailHashMappingsAsync();
 
-        var decrypted = new System.Collections.Concurrent.ConcurrentBag<(string Hash, string? Email)>();
+        var decrypted = new System.Collections.Concurrent.ConcurrentBag<(string Hash, string? Email, string? Name)>();
         await Parallel.ForEachAsync(mappings,
             new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
             (mapping, token) =>
             {
-                string? email = null;
-                if (mapping.EncryptedEmail != null)
-                    try { email = encryptor.Decrypt(mapping.EncryptedEmail); } catch { }
-                decrypted.Add((mapping.EmailHash, email));
+                decrypted.Add((mapping.EmailHash, TryDecrypt(encryptor, mapping.EncryptedEmail), TryDecrypt(encryptor, mapping.EncryptedName)));
                 return ValueTask.CompletedTask;
             });
 
-        IEnumerable<(string Hash, string? Email)> filtered = decrypted;
+        IEnumerable<(string Hash, string? Email, string? Name)> filtered = decrypted;
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
@@ -1340,9 +1379,14 @@ public static class AdminEndpoints
                 : decrypted.Where(x => MatchesWildcard(x.Hash, searchLower));
         }
 
+        Func<(string Hash, string? Email, string? Name), string> key = sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)
+            ? x => x.Name ?? string.Empty
+            : x => x.Email ?? string.Empty;
+        // Records without a value sort last in both directions.
+        var withValueFirst = filtered.OrderBy(x => key(x).Length == 0);
         var sorted = (sortDir?.ToLowerInvariant() == "asc"
-            ? filtered.OrderBy(x => x.Email ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            : filtered.OrderByDescending(x => x.Email ?? string.Empty, StringComparer.OrdinalIgnoreCase))
+            ? withValueFirst.ThenBy(key, StringComparer.OrdinalIgnoreCase)
+            : withValueFirst.ThenByDescending(key, StringComparer.OrdinalIgnoreCase))
             .ToList();
 
         var total = sorted.Count;
@@ -1369,6 +1413,12 @@ public static class AdminEndpoints
             .ToList();
 
         return new PagedResult<IdentityInfo> { Records = ordered, Total = total, Page = page, PageSize = pageSize };
+    }
+
+    private static string? TryDecrypt(Encryptor encryptor, string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        try { return encryptor.Decrypt(value); } catch { return null; }
     }
 
     private static async Task DecryptIdentityEmailsAsync(
