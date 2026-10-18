@@ -1142,13 +1142,16 @@ public static class AdminEndpoints
 
     private static async Task StreamEvents(
         HttpContext context,
-        [FromServices] AdminNotificationService notifications)
+        [FromServices] AdminNotificationService notifications,
+        [FromServices] IHostApplicationLifetime lifetime)
     {
         context.Response.Headers.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
         context.Response.Headers.Connection = "keep-alive";
 
-        var cancellationToken = context.RequestAborted;
+        // End on shutdown too; Kestrel otherwise waits the full shutdown timeout for open streams.
+        using var stopping = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, lifetime.ApplicationStopping);
+        var cancellationToken = stopping.Token;
 
         try
         {
@@ -1186,7 +1189,7 @@ public static class AdminEndpoints
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return; // client disconnected; expected for SSE
+            return; // client disconnected or app stopping; expected for SSE
         }
     }
 
@@ -1643,7 +1646,7 @@ public static class AdminEndpoints
     private static string MaskSecret(string? decryptedValue)
     {
         if (string.IsNullOrEmpty(decryptedValue)) return string.Empty;
-        
+
         // Resend keys: re_12345678... (show prefix + 8 chars)
         if (decryptedValue.StartsWith("re_", StringComparison.OrdinalIgnoreCase) && decryptedValue.Length > 12)
         {
@@ -1752,8 +1755,8 @@ public static class AdminEndpoints
         return format switch
         {
             "json" => Results.Json(rows.Select(r => new { email = r.Email, url = r.Url })),
-            "xml"  => Results.Content(BuildXml(rows), "application/xml"),
-            _      => Results.Content(BuildCsv(rows), "text/csv")
+            "xml" => Results.Content(BuildXml(rows), "application/xml"),
+            _ => Results.Content(BuildCsv(rows), "text/csv")
         };
     }
 
@@ -1924,9 +1927,9 @@ public static class AdminEndpoints
         return format switch
         {
             "json" => Results.Json(BuildRecordsJson(records, permissions, normalized, trackingByHash)),
-            "xml"  => Results.Content(BuildRecordsXml(records, permissions, normalized, trackingByHash), "application/xml"),
+            "xml" => Results.Content(BuildRecordsXml(records, permissions, normalized, trackingByHash), "application/xml"),
             "yaml" => Results.Content(BuildRecordsYaml(records, permissions, normalized, trackingByHash), "text/yaml"),
-            _      => Results.Content(BuildRecordsCsv(records, permissions, customFieldKeys, normalized, trackingByHash), "text/csv")
+            _ => Results.Content(BuildRecordsCsv(records, permissions, customFieldKeys, normalized, trackingByHash), "text/csv")
         };
     }
 
@@ -1978,19 +1981,19 @@ public static class AdminEndpoints
                 p => (object?)(r.Permissions.TryGetValue(p, out var v) ? v : false));
             var obj = new Dictionary<string, object?>(8)
             {
-                ["beaconId"]    = r.EmailHash,
-                ["email"]       = r.Email,
-                ["fullName"]    = r.Name,
-                ["consent"]     = consent,
+                ["beaconId"] = r.EmailHash,
+                ["email"] = r.Email,
+                ["fullName"] = r.Name,
+                ["consent"] = consent,
                 ["createdDate"] = r.FirstSeen.ToString("O"),
                 ["updatedDate"] = r.LastChanged.ToString("O")
             };
             if (tracking != null && tracking.TryGetValue(r.EmailHash, out var t))
                 obj["tracking"] = new Dictionary<string, object?>
                 {
-                    ["campaign"]  = bucket,
+                    ["campaign"] = bucket,
                     ["expiresAt"] = t.ExpiresAt?.ToString("O"),
-                    ["url"]       = t.Url
+                    ["url"] = t.Url
                 };
             return obj;
         });
@@ -2004,13 +2007,13 @@ public static class AdminEndpoints
         Dictionary<string, (string Url, DateTime? ExpiresAt)>? tracking)
     {
         var sb = new StringBuilder();
-        var cfHeaders  = customFieldKeys.Count > 0 ? string.Join(",", customFieldKeys.Select(CsvEscape)) + "," : "";
+        var cfHeaders = customFieldKeys.Count > 0 ? string.Join(",", customFieldKeys.Select(CsvEscape)) + "," : "";
         var permHeaders = string.Join(",", permissions.Select(CsvEscape));
         var trackHeaders = tracking != null ? ",campaignId,trackingUrl" : "";
         sb.AppendLine($"email,fullName,beaconId,{cfHeaders}{permHeaders},createdDate,updatedDate{trackHeaders}");
         foreach (var r in records)
         {
-            var cfVals   = customFieldKeys.Count > 0
+            var cfVals = customFieldKeys.Count > 0
                 ? string.Join(",", customFieldKeys.Select(k => CsvEscape(r.CustomFields?.TryGetValue(k, out var v) == true ? v ?? "" : ""))) + ","
                 : "";
             var permVals = string.Join(",", permissions.Select(p => r.Permissions.TryGetValue(p, out var v) ? (v ? "true" : "false") : "false"));
@@ -2359,14 +2362,14 @@ public static class AdminEndpoints
         if (s.Font is not null && !_allowedFonts.Contains(s.Font))
             return $"font must be one of: {string.Join(", ", _allowedFonts)}.";
 
-        if (s.PageTitle?.Length > 200)    return "pageTitle must be 200 characters or fewer.";
+        if (s.PageTitle?.Length > 200) return "pageTitle must be 200 characters or fewer.";
         if (s.BrowserTitle?.Length > 200) return "browserTitle must be 200 characters or fewer.";
-        if (s.EmailTitle?.Length > 200)   return "emailTitle must be 200 characters or fewer.";
+        if (s.EmailTitle?.Length > 200) return "emailTitle must be 200 characters or fewer.";
         if (s.ConfirmTitle?.Length > 200) return "confirmTitle must be 200 characters or fewer.";
-        if (s.PageBody?.Length > 1000)    return "pageBody must be 1000 characters or fewer.";
-        if (s.EmailBody?.Length > 1000)   return "emailBody must be 1000 characters or fewer.";
-        if (s.ConfirmMsg?.Length > 1000)  return "confirmMsg must be 1000 characters or fewer.";
-        if (s.Footer?.Length > 500)       return "footer must be 500 characters or fewer.";
+        if (s.PageBody?.Length > 1000) return "pageBody must be 1000 characters or fewer.";
+        if (s.EmailBody?.Length > 1000) return "emailBody must be 1000 characters or fewer.";
+        if (s.ConfirmMsg?.Length > 1000) return "confirmMsg must be 1000 characters or fewer.";
+        if (s.Footer?.Length > 500) return "footer must be 500 characters or fewer.";
 
         if (s.Logo is not null)
         {

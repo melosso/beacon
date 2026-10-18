@@ -395,16 +395,29 @@ public static class ConsentEndpoints
             char.ToUpper(w[0]) + (w.Length > 1 ? w[1..] : string.Empty)));
     }
 
-    private static string GetBaseStyles() => """
+    /// <summary>Spacing, type and status tokens shared with the admin stylesheet (wwwroot/css/site.css).</summary>
+    internal const string SharedStyleTokens = """
+        :root {
+          --space-1: 0.25rem; --space-1-5: 0.375rem; --space-2: 0.5rem; --space-2-5: 0.625rem;
+          --space-3: 0.75rem; --space-3-5: 0.875rem; --space-4: 1rem; --space-5: 1.25rem;
+          --space-6: 1.5rem; --space-8: 2rem;
+          --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-base: 0.875rem; --text-md: 1rem;
+          --text-lg: 1.125rem; --text-xl: 1.25rem;
+          --duration-fast: 0.15s; --duration: 0.2s;
+          --success: #15803d; --error: #b91c1c; --warning: #a16207; --info: #1d4ed8;
+        }
+        @media (prefers-color-scheme: dark) {
+          :root { --success: #4ade80; --error: #f87171; --warning: #fbbf24; --info: #60a5fa; }
+        }
+        button, input, select, textarea { font: inherit; }
+        """;
+
+    private static string GetBaseStyles() => SharedStyleTokens + """
         :root {
           --bg: #ffffff;
           --fg: #111111;
           --accent: var(--fg);
           --accent-fg: var(--bg);
-          --success: #22c55e;
-          --warning: #f59e0b;
-          --error: #ef4444;
-          --info: #3b82f6;
           --radius: 14px;
           --max-width: 520px;
         }
@@ -432,7 +445,7 @@ public static class ConsentEndpoints
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 24px;
+          padding: var(--space-6);
         }
 
         .card {
@@ -440,25 +453,25 @@ public static class ConsentEndpoints
           max-width: var(--max-width);
           border: 1px solid color-mix(in srgb, var(--fg) 15%, transparent);
           border-radius: var(--radius);
-          padding: 28px;
+          padding: var(--space-6);
         }
 
         h1 {
-          font-size: 1.4rem;
-          margin: 0 0 8px;
+          font-size: var(--text-xl);
+          margin: 0 0 var(--space-2);
           font-weight: 600;
           letter-spacing: -0.01em;
           user-select: none;
         }
 
         p {
-          margin: 0 0 24px;
+          margin: 0 0 var(--space-6);
           color: color-mix(in srgb, var(--fg) 75%, transparent);
         }
 
         .icon {
           font-size: 3rem;
-          margin-bottom: 16px;
+          margin-bottom: var(--space-4);
           user-select: none;
         }
 
@@ -468,7 +481,7 @@ public static class ConsentEndpoints
         .icon.info { color: var(--info); }
 
         .status-brand { margin: 0; padding: 0; }
-        .status-brand:not(:empty) { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid color-mix(in srgb, var(--fg) 10%, transparent); }
+        .status-brand:not(:empty) { margin-bottom: var(--space-6); padding-bottom: var(--space-5); border-bottom: 1px solid color-mix(in srgb, var(--fg) 10%, transparent); }
         .status-body { text-align: center; }
 
         .brand-logo {
@@ -477,7 +490,7 @@ public static class ConsentEndpoints
           max-height: 52px;
           width: auto;
           height: auto;
-          margin: 0 0 20px;
+          margin: 0 0 var(--space-5);
           user-select: none;
         }
         """;
@@ -542,20 +555,20 @@ public static class ConsentEndpoints
                 {{GetBaseStyles()}}
                 {{brandCss}}
 
-                .preferences { margin-bottom: 24px; }
+                .preferences { margin-bottom: var(--space-6); }
 
                 .toggle {
                   display: flex;
                   align-items: center;
                   justify-content: space-between;
-                  padding: 14px 0;
+                  padding: var(--space-3-5) 0;
                   border-top: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
                 }
 
                 .toggle:first-child { border-top: none; }
 
                 .toggle label {
-                  font-size: 1rem;
+                  font-size: var(--text-md);
                   cursor: pointer;
                 }
 
@@ -592,25 +605,25 @@ public static class ConsentEndpoints
                   appearance: none;
                   border: none;
                   width: 100%;
-                  padding: 14px 16px;
+                  padding: var(--space-3-5) var(--space-4);
                   border-radius: 10px;
                   background: var(--accent);
                   color: var(--accent-fg);
-                  font-size: 1rem;
+                  font-size: var(--text-md);
                   font-weight: 500;
                   cursor: pointer;
-                  transition: filter 0.15s;
+                  transition: filter var(--duration-fast);
                 }
 
                 button:not(.secondary):hover { filter: brightness(0.88); }
                 button:not(.secondary):active { filter: brightness(0.78); }
 
                 button.secondary {
-                  margin-top: 12px;
+                  margin-top: var(--space-3);
                   background: transparent;
                   color: var(--fg);
                   border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent);
-                  transition: background 0.15s;
+                  transition: background var(--duration-fast);
                 }
 
                 button.secondary:hover {
@@ -622,14 +635,13 @@ public static class ConsentEndpoints
                 }
 
                 footer {
-                  margin-top: 24px;
-                  font-size: 0.85rem;
+                  margin-top: var(--space-6);
+                  font-size: var(--text-sm);
                   text-align: center;
                   color: color-mix(in srgb, var(--fg) 60%, transparent);
                 }
 
                 .email {
-                  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
                   color: color-mix(in srgb, var(--fg) 70%, transparent);
                   word-break: break-all;
                 }
@@ -642,7 +654,7 @@ public static class ConsentEndpoints
                 <section class="card">
                   {{logoHtml}}
                   <h1 class="select-none">{{WebUtility.HtmlEncode(title)}}</h1>
-                  <p>{{WebUtility.HtmlEncode(description)}}</p>
+                  <p class="select-none">{{WebUtility.HtmlEncode(description)}}</p>
 
                   <form method="post" action="/u/{{WebUtility.HtmlEncode(token)}}">
                     <input name="{{formFieldName}}" type="hidden" value="{{antiforgeryToken}}" />
@@ -791,7 +803,7 @@ public static class ConsentEndpoints
             // ConfirmMsg is operator-supplied free text, not markup — encode it.
             "confirmed" => ("✓", "success",
                 brand?.ConfirmTitle is { Length: > 0 } ct ? ct : t.ConfirmedTitle,
-                brand?.ConfirmMsg   is { Length: > 0 } cm ? WebUtility.HtmlEncode(cm) : t.ConfirmedMsg),
+                brand?.ConfirmMsg is { Length: > 0 } cm ? WebUtility.HtmlEncode(cm) : t.ConfirmedMsg),
             _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
         };
 

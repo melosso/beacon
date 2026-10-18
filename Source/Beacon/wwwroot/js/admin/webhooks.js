@@ -32,7 +32,7 @@ function resetWebhookBodyTemplate() {
 function checkWebhookEmailVar(body) {
   const warning = document.getElementById("webhookEmailWarning");
   if (warning)
-    warning.style.display = /\{\{\s*email\s*\}\}/i.test(body) ? "" : "none";
+    warning.hidden = !(/\{\{\s*email\s*\}\}/i.test(body));
 }
 
 function toggleWebhookTemplateMenu(trigger) {
@@ -62,12 +62,6 @@ function formatBodyTemplate(template) {
   }
 }
 
-function toggleOptionsSection(header) {
-  header.classList.toggle("expanded");
-  const body = header.nextElementSibling;
-  body.classList.toggle("open");
-}
-
 function setWebhookBadge(configured) {
   const badge = document.getElementById("webhookStatusBadge");
   if (configured) {
@@ -88,11 +82,10 @@ async function showOptionsModal(pushState = true) {
   // Update archive button state
   const archiveBtn = document.getElementById("optionsArchiveBtn");
   archiveBtn.title = currentBucketArchived
-    ? "Unarchive Bucket"
-    : "Archive Bucket";
-  archiveBtn.style.color = currentBucketArchived
-    ? "hsl(var(--primary))"
-    : "hsl(var(--muted-foreground))";
+    ? "Unarchive bucket"
+    : "Archive bucket";
+  archiveBtn.setAttribute("aria-label", archiveBtn.title);
+  archiveBtn.classList.toggle("is-active", currentBucketArchived);
 
   // Load bucket permissions
   loadBucketPerms();
@@ -103,25 +96,13 @@ async function showOptionsModal(pushState = true) {
   document.getElementById("webhookMethod").value = "POST";
   document.getElementById("webhookBody").value = WEBHOOK_DEFAULT_BODY;
   paint(document.getElementById("webhookHeadersGrid"), nothing);
-  document.getElementById("deleteWebhookBtn").style.display = "none";
-  document.getElementById("webhookSecretSection").style.display = "none";
+  document.getElementById("deleteWebhookBtn").hidden = true;
+  document.getElementById("webhookSecretSection").hidden = true;
   document.getElementById("webhookSecretValue").value = "";
   setWebhookBadge(false);
 
-  // Expand basic section, collapse webhook by default
-  const sections = document.querySelectorAll(
-    "#optionsModal .options-section-header",
-  );
-  sections.forEach((h, i) => {
-    const body = h.nextElementSibling;
-    if (i === 0) {
-      h.classList.add("expanded");
-      body.classList.add("open");
-    } else {
-      h.classList.remove("expanded");
-      body.classList.remove("open");
-    }
-  });
+  const sections = document.querySelectorAll("#optionsModal .options-section");
+  sections.forEach((d, i) => (d.open = i === 0));
 
   // Load bucket options (email settings)
   loadBucketOptions();
@@ -141,12 +122,10 @@ async function showOptionsModal(pushState = true) {
       checkWebhookEmailVar(webhookBodyVal);
       webhookHeaders = config.headers || {};
       renderWebhookHeaders();
-      document.getElementById("deleteWebhookBtn").style.display = "block";
+      document.getElementById("deleteWebhookBtn").hidden = false;
       setWebhookBadge(true);
 
-      // Auto-expand webhook section if configured
-      sections[1]?.classList.add("expanded");
-      sections[1]?.nextElementSibling?.classList.add("open");
+      sections[2].open = true;
     }
   } catch (err) {
     // No webhook configured
@@ -159,20 +138,20 @@ async function showOptionsModal(pushState = true) {
   if (biContent) {
     if (identity) {
       const accent = safeColor(identity.settings?.primaryAccent, null);
-      paint(biContent, html`<div style="display:flex;align-items:center;padding:0.625rem 0.75rem;background:hsl(var(--muted));border-radius:var(--radius);font-size:0.875rem">${accent
-        ? html`<span style="display:inline-block;width:0.875rem;height:0.875rem;border-radius:50%;background:${accent};border:1px solid hsl(var(--border));vertical-align:middle;margin-right:0.375rem;flex-shrink:0"></span>`
+      paint(biContent, html`<div class="identity-chip">${accent
+        ? html`<span class="swatch" data-vars="--swatch:${accent}"></span>`
         : nothing}<span>${identity.name}</span></div>`);
       if (biBadge) {
         biBadge.textContent = identity.name;
-        biBadge.style.display = "";
+        biBadge.hidden = false;
       }
     } else {
-      paint(biContent, html`<p style="font-size:0.875rem;color:hsl(var(--muted-foreground));margin:0">Using default identity.</p>`);
-      if (biBadge) biBadge.style.display = "none";
+      paint(biContent, html`<p class="list-empty">Uses the default identity.</p>`);
+      if (biBadge) biBadge.hidden = true;
     }
   }
 
-  document.getElementById("optionsModal").style.display = "flex";
+  openModal("optionsModal");
 
   // Update URL to include modal state
   if (pushState) {
@@ -183,7 +162,7 @@ async function showOptionsModal(pushState = true) {
 }
 
 function closeOptionsModal() {
-  document.getElementById("optionsModal").style.display = "none";
+  closeModal("optionsModal");
   webhookHeaders = {};
   bucketPermsData = [];
   document.getElementById("newBucketPermInput").value = "";
@@ -207,10 +186,10 @@ async function loadBucketOptions() {
   // Default state: inherit global (true), grayed out when global feature is off or email is disabled
   if (toggle) toggle.checked = true;
   if (toggle) toggle.disabled = !globalEnabled;
-  if (label) label.style.opacity = globalEnabled ? "1" : "0.5";
+  label?.closest(".toggle-row")?.classList.toggle("is-disabled", !globalEnabled);
   if (desc)
     desc.textContent = globalEnabled
-      ? "Subscribers must confirm via email. Disable to opt this bucket out of the global setting."
+      ? "Subscribers confirm by email. Off: this bucket opts out of the global setting."
       : emailDisabled
         ? "Email notifications are disabled by your administrator."
         : "Enable the global double opt-in setting first to configure this option.";
@@ -255,9 +234,9 @@ async function saveBucketDoubleOptIn(value) {
     },
   );
   if (res.ok) {
-    notify("success", "Saved", "Bucket email settings updated.");
+    notify("success", "Email settings saved");
   } else {
-    notify("error", "Save Failed", "Failed to save bucket email settings.");
+    notify("error", "Save failed", "Email settings not saved. Retry.");
     const toggle = document.getElementById("bucketDoubleOptIn");
     if (toggle) toggle.checked = !value;
   }
@@ -288,7 +267,7 @@ function renderWebhookHeaders() {
   const entries = Object.entries(webhookHeaders);
 
   paint(grid, entries.length === 0
-    ? html`<div style="color:hsl(var(--muted-foreground));font-size:0.875rem">No headers configured</div>`
+    ? html`<p class="list-empty">No headers.</p>`
     : html`${entries.map(([key, value]) => html`
         <div class="custom-field-row">
           <div class="custom-field-key">${key}</div>
@@ -308,7 +287,7 @@ async function saveWebhook() {
   const bodyTemplate = document.getElementById("webhookBody").value.trim();
 
   if (!url) {
-    notify("error", "Validation Error", "Webhook URL is required");
+    notify("error", "URL required", "Enter a webhook endpoint URL.");
     return;
   }
 
@@ -325,20 +304,19 @@ async function saveWebhook() {
     if (result.data?.signingSecret) {
       document.getElementById("webhookSecretValue").value =
         result.data.signingSecret;
-      document.getElementById("webhookSecretSection").style.display = "block";
-      document.getElementById("deleteWebhookBtn").style.display = "block";
+      document.getElementById("webhookSecretSection").hidden = false;
+      document.getElementById("deleteWebhookBtn").hidden = false;
       setWebhookBadge(true);
       notify(
         "success",
-        "Webhook Saved",
-        "Configuration saved. Copy the signing secret now. It won't be shown again.",
+        "Webhook saved",
+        "Copy the signing secret now. The secret is shown once.",
       );
     } else {
       setWebhookBadge(true);
       notify(
         "success",
-        "Webhook Saved",
-        "Webhook configuration updated successfully",
+        "Webhook saved",
       );
       closeOptionsModal();
     }
@@ -354,8 +332,7 @@ async function deleteWebhook() {
   if (result.ok) {
     notify(
       "success",
-      "Webhook Deleted",
-      "Webhook configuration removed successfully",
+      "Webhook deleted",
     );
     setWebhookBadge(false);
     closeOptionsModal();
@@ -409,10 +386,9 @@ function closeAllMenus() {
   document
     .getElementById("overviewWebhookErrorsDropdown")
     ?.classList.remove("open");
-  document.querySelectorAll(".autocomplete-dropdown").forEach((d) => {
-    d.style.display = "";
-    d.classList.remove("open");
-  });
+  document
+    .querySelectorAll(".autocomplete-dropdown.open")
+    .forEach((d) => d.classList.remove("open"));
 }
 
 document.addEventListener("click", function (e) {
@@ -440,14 +416,14 @@ async function loadWebhookErrors(bucket) {
   trigger.classList.toggle("has-errors", errors.length > 0);
   paint(dropdown, errors.length === 0
     ? EMPTY_NOTIFICATIONS
-    : html`<div class="error-header"><span>Recent Errors</span><button class="clear-all-btn" @click=${(e) => { e.stopPropagation(); clearAllWebhookErrors(); }}>Clear All</button></div>
+    : html`<div class="error-header"><span>Recent errors</span><button class="clear-all-btn" @click=${(e) => { e.stopPropagation(); clearAllWebhookErrors(); }}>Clear all</button></div>
       ${errors.map((err) => html`<div class="error-item" @click=${(e) => { e.stopPropagation(); openErrorDetail(err); }}>
         <div class="error-time">${formatDate(err.occurredAt)}</div>
         <div class="error-msg">${truncate(err.errorMessage, 120)}${errorStatus(err)}</div>
       </div>`)}`);
 }
 
-const EMPTY_NOTIFICATIONS = html`<div class="error-header" style="padding-bottom:0.8rem;">Notifications</div><div class="error-item" style="text-align:center;color:hsl(var(--muted-foreground));padding:1rem 0.875rem;cursor:default">No notifications.</div>`;
+const EMPTY_NOTIFICATIONS = html`<div class="error-header">Notifications</div><div class="error-empty">No notifications.</div>`;
 
 function truncate(text, max) {
   return text.length > max ? text.substring(0, max) + "…" : text;
@@ -486,17 +462,17 @@ function openErrorDetail(error) {
   const stackWrap = document.getElementById("errorDetailStackWrap");
   if (error.stackTrace) {
     document.getElementById("errorDetailStack").textContent = error.stackTrace;
-    stackWrap.style.display = "block";
+    stackWrap.hidden = false;
   } else {
-    stackWrap.style.display = "none";
+    stackWrap.hidden = true;
   }
 
   closeAllMenus();
-  document.getElementById("errorDetailModal").style.display = "flex";
+  openModal("errorDetailModal");
 }
 
 function closeErrorDetailModal() {
-  document.getElementById("errorDetailModal").style.display = "none";
+  closeModal("errorDetailModal");
   activeErrorDetail = null;
   const url = new URL(window.location);
   if (url.searchParams.get("modal") === "error-detail") {
@@ -519,7 +495,7 @@ function copyErrorMessage() {
   if (meta.length) text = meta.join("\n") + "\n\n" + text;
   if (e.stackTrace) text += "\n\nStack Trace:\n" + e.stackTrace;
   clipboardWrite(text).then(() => {
-    notify("success", "Copied to clipboard");
+    notify("success", "Copied");
   });
 }
 
@@ -622,7 +598,7 @@ function openEditPermissions(record) {
   editCustomFields = { ...(editingRecord.customFields || {}) };
   renderEditCustomFieldsList();
 
-  document.getElementById("editPermissionsModal").style.display = "flex";
+  openModal("editPermissionsModal");
   closeAllMenus();
 }
 
@@ -635,7 +611,7 @@ function openEditFromSubscription(bucket, permissions, record) {
 }
 
 function closeEditPermissionsModal() {
-  document.getElementById("editPermissionsModal").style.display = "none";
+  closeModal("editPermissionsModal");
   document.getElementById("editName").value = "";
   editingRecord = null;
   editingBucket = "";
@@ -673,16 +649,16 @@ function showPermissionsConfirmModal() {
   if (!editingRecord || !editingRecord.email) {
     notify(
       "error",
-      "Update Failed",
-      "Record data is missing, try reloading the page.",
+      "Update failed",
+      "Record data is missing. Reload the page and retry.",
     );
     return;
   }
-  document.getElementById("permissionsConfirmModal").style.display = "flex";
+  openModal("permissionsConfirmModal");
 }
 
 function closePermissionsConfirmModal() {
-  document.getElementById("permissionsConfirmModal").style.display = "none";
+  closeModal("permissionsConfirmModal");
 }
 
 async function confirmSavePermissions() {
@@ -694,26 +670,26 @@ function showDeleteRecordModal() {
   if (!editingRecord || !editingRecord.emailHash) {
     notify(
       "error",
-      "Delete Failed",
-      "Record data is missing, try reloading the page.",
+      "Delete failed",
+      "Record data is missing. Reload the page and retry.",
     );
     return;
   }
   document.getElementById("deleteRecordEmail").textContent =
     editingRecord.email || editingRecord.emailHash;
-  document.getElementById("deleteRecordModal").style.display = "flex";
+  openModal("deleteRecordModal");
 }
 
 function closeDeleteRecordModal() {
-  document.getElementById("deleteRecordModal").style.display = "none";
+  closeModal("deleteRecordModal");
 }
 
 async function confirmDeleteRecord() {
   if (!editingRecord || !editingRecord.emailHash) {
     notify(
       "error",
-      "Delete Failed",
-      "Record data is missing, try reloading the page.",
+      "Delete failed",
+      "Record data is missing. Reload the page and retry.",
     );
     return;
   }
@@ -727,7 +703,7 @@ async function confirmDeleteRecord() {
   );
 
   if (result.ok) {
-    notify("success", "Record Removed", "Consent record has been deleted");
+    notify("success", "Record deleted");
     closeDeleteRecordModal();
     closeEditPermissionsModal();
     if (currentView === "subscriptions" && subDetailHash) {
@@ -742,8 +718,8 @@ async function savePermissions() {
   if (!editingRecord || !editingRecord.email) {
     notify(
       "error",
-      "Update Failed",
-      "Record data is missing, try reloading the page.",
+      "Update failed",
+      "Record data is missing. Reload the page and retry.",
     );
     return;
   }
@@ -780,8 +756,7 @@ async function savePermissions() {
   if (result.ok) {
     notify(
       "success",
-      "Permissions Updated",
-      "Consent preferences have been saved",
+      "Permissions saved",
     );
     closeEditPermissionsModal();
     if (currentBucket) loadBucket(currentBucket);
@@ -794,8 +769,8 @@ async function openOptOutPage(record) {
   if (!record.email) {
     notify(
       "error",
-      "Link Generation Failed",
-      "Email address not available for this record.",
+      "Link generation failed",
+      "The record has no email address.",
     );
     return;
   }
@@ -897,7 +872,7 @@ function handleSSEEvent(type, data) {
   try {
     const evt = JSON.parse(data);
     if (type === "webhook-error") {
-      notify("warning", "Webhook Error", `${evt.bucket}: ${evt.errorMessage}`);
+      notify("warning", "Webhook failed", `${evt.bucket}: ${evt.errorMessage}`);
       if (currentBucket && evt.bucket === currentBucket) {
         loadWebhookErrors(currentBucket);
       }
@@ -915,7 +890,7 @@ function handleSSEEvent(type, data) {
 window.addEventListener("popstate", () => {
   const params = new URLSearchParams(window.location.search);
   if (!params.has("modal")) {
-    document.getElementById("optionsModal").style.display = "none";
+    closeModal("optionsModal");
   }
   restoreViewFromUrl();
 });

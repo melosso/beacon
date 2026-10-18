@@ -143,7 +143,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             expiresAt = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
 
             subject = payload.Value.TryGetProperty("sub", out var subEl) ? subEl.GetString() : null;
-            role    = payload.Value.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
+            role = payload.Value.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
             return !string.IsNullOrEmpty(subject);
         }
         catch { return false; }

@@ -1,20 +1,14 @@
 <!-- Email Settings Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="emailSettingsModal"
+  aria-labelledby="emailSettingsModalTitle"
   data-self
   data-click="closeEmailSettingsModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Email notifications</h3>
+    <div class="modal-header">
+      <h3 id="emailSettingsModalTitle">Email notifications</h3>
       <button
         class="btn btn-icon"
         data-click="closeEmailSettingsModal"
@@ -39,12 +33,11 @@
     <p>
       Configure how Beacon sends outgoing emails, such as opt-in confirmations.
     </p>
-    <div class="form-group" style="margin-top: 1.25rem">
+    <div class="form-group">
       <label for="emailProvider">Provider</label>
       <select
         id="emailProvider"
         data-change="showEmailProviderFields $value"
-        style="width: 100%"
       >
         <option value="none">None</option>
         <option value="resend">Resend</option>
@@ -53,9 +46,9 @@
     </div>
 
     <!-- Resend-specific fields -->
-    <div id="email-fields-resend" style="display: none">
+    <div id="email-fields-resend" hidden>
       <div class="form-group">
-        <label for="emailResendApiKey">API Key</label>
+        <label for="emailResendApiKey">API key</label>
         <div class="input-reveal-wrapper">
           <input
             type="password"
@@ -67,7 +60,7 @@
             type="button"
             class="btn-reveal"
             data-click="toggleReveal emailResendApiKey $el"
-            aria-label="Show/hide API key"
+            aria-label="Show or hide API key"
           >
             <svg
               width="14"
@@ -88,10 +81,8 @@
     </div>
 
     <!-- SMTP-specific fields -->
-    <div id="email-fields-smtp" style="display: none">
-      <div
-        style="display: grid; grid-template-columns: 1fr 100px; gap: 0.75rem"
-      >
+    <div id="email-fields-smtp" hidden>
+      <div class="grid grid-2-narrow gap-3">
         <div class="form-group">
           <label for="emailSmtpHost">Host</label>
           <input
@@ -112,7 +103,7 @@
           />
         </div>
       </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem">
+      <div class="grid grid-2 gap-3">
         <div class="form-group">
           <label for="emailSmtpUsername">Username</label>
           <input
@@ -155,14 +146,12 @@
         </div>
       </div>
       <label
-        class="settings-item-card"
+        class="settings-item-card mb-3"
         for="emailSmtpUseTls"
-        style="margin-bottom: 0.75rem"
       >
         <div class="settings-item-info">
           <span
             class="settings-item-title select-none"
-            style="font-size: 0.875rem"
             >Use TLS / STARTTLS</span
           >
           <p class="settings-item-desc">
@@ -177,8 +166,8 @@
     </div>
 
     <!-- Shared sender fields (Resend + SMTP) -->
-    <div id="email-fields-sender" style="display: none">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem">
+    <div id="email-fields-sender" hidden>
+      <div class="grid grid-2 gap-3">
         <div class="form-group">
           <label for="emailFromAddress">From address</label>
           <input
@@ -201,18 +190,17 @@
     </div>
 
     <!-- Queue section (Resend + SMTP) -->
-    <div id="email-fields-queue" style="display: none">
-      <hr class="settings-sep" style="margin: 1rem 0" />
+    <div id="email-fields-queue" hidden>
+      <hr class="settings-sep" />
       <label class="settings-item-card" for="emailQueueEnabled">
         <div class="settings-item-info">
           <span
             class="settings-item-title select-none"
-            style="font-size: 0.875rem"
             >Built-in email queue</span
           >
           <p class="settings-item-desc">
             Queue outgoing emails within Beacon and retry on delivery failure.
-            Recommended when not using a managed e-mail platform.
+            Recommended without a managed email platform.
           </p>
         </div>
         <div class="settings-item-control">
@@ -222,7 +210,7 @@
       </label>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeEmailSettingsModal">
         Cancel
       </button>
@@ -231,4 +219,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

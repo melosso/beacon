@@ -1,80 +1,52 @@
 <!-- Submission Create/Edit View -->
-<div id="view-submission-create" class="view" style="overflow-y: auto">
-  <section class="header-container" style="flex-shrink: 0">
+<div id="view-submission-create" class="view view--scroll">
+  <section class="header-container">
     <div>
       <h1 id="submissionWizardTitle" class="select-none">
-        Create Submission Form
+        New submission form
       </h1>
       <span class="status-badge select-none">Configuration</span>
     </div>
   </section>
-  <div style="display: flex; gap: 2rem; align-items: flex-start; min-width: 0">
-    <div
-      class="modal"
-      style="
-        box-shadow: none;
-        border: 1px solid hsl(var(--border));
-        margin-bottom: 2rem;
-        flex: 0 0 560px;
-        min-width: 0;
-      "
-    >
+  <div class="wizard-layout">
+    <div class="panel wizard-panel">
       <div id="nlCreateIntro">
-        <h3 id="nlIntroTitle">Create Form</h3>
+        <h3 id="nlIntroTitle">New form</h3>
         <p id="nlIntroDesc">
-          You're about to create a new consent form. This form can be safely
-          embedded on an external website and will submit permission states
-          directly to Beacon.
+          A submission form embeds on an external website and submits
+          permission states to Beacon.
         </p>
       </div>
       <!-- Step indicators -->
-      <div
-        style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem"
-        id="nlStepIndicators"
-      >
-        <span
-          class="status-badge select-none"
-          id="nlStep1Indicator"
-          style="opacity: 1; cursor: pointer"
-          >1. Basic Info</span
+      <div class="wizard-steps" id="nlStepIndicators">
+        <span class="status-badge wizard-step select-none" id="nlStep1Indicator"
+          >1. Basics</span
         >
-        <span
-          class="status-badge select-none"
-          id="nlStep2Indicator"
-          style="opacity: 0.4; cursor: pointer"
-          >2. Form Details</span
+        <span class="status-badge wizard-step select-none" id="nlStep2Indicator"
+          >2. Details</span
         >
-        <span
-          class="status-badge select-none"
-          id="nlStep3Indicator"
-          style="opacity: 0.4; cursor: pointer"
+        <span class="status-badge wizard-step select-none" id="nlStep3Indicator"
           >3. Appearance</span
         >
-        <span
-          class="status-badge select-none"
-          id="nlStep4Indicator"
-          style="opacity: 0.4; cursor: pointer"
-          >4. Custom Fields</span
+        <span class="status-badge wizard-step select-none" id="nlStep4Indicator"
+          >4. Custom fields</span
         >
-        <span
-          class="status-badge select-none"
-          id="nlStep5Indicator"
-          style="opacity: 0.4; display: none; cursor: pointer"
-          >5. Embed Code</span
+        <span class="status-badge wizard-step select-none" id="nlStep5Indicator" hidden
+          >5. Embed code</span
         >
       </div>
 
       <!-- Step 1: Basic Info -->
       <div id="nlStep1">
         <div class="form-group">
-          <label
-            >Form Name
+          <label for="nlName"
+            >Form name
             <span class="required" title="Required field">*</span></label
           >
           <input type="text" id="nlName" placeholder="e.g., Main Signup Form" />
         </div>
         <div class="form-group">
-          <label
+          <label for="nlBucket"
             >Bucket
             <span class="required" title="Required field">*</span></label
           >
@@ -89,16 +61,10 @@
             />
             <div class="autocomplete-dropdown" id="nlBucketAutocomplete"></div>
           </div>
-          <p
-            id="nlBucketArchivedWarning"
-            style="
-              display: none;
-              color: hsl(var(--destructive));
-              font-size: 0.8rem;
-              margin: 0.375rem 0 0;
-            "
-          >
+          <p class="field-hint text-danger" id="nlBucketArchivedWarning" hidden>
             <svg
+              class="icon-inline"
+              aria-hidden="true"
               width="12"
               height="12"
               viewBox="0 0 24 24"
@@ -107,7 +73,6 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              style="vertical-align: -1px; margin-right: 2px"
             >
               <path
                 d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
@@ -115,11 +80,11 @@
               <line x1="12" y1="9" x2="12" y2="13"></line>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
-            This bucket is archived, submissions will be rejected.
+            Bucket is archived. Submissions are rejected.
           </p>
         </div>
         <div class="form-group">
-          <label
+          <label for="nlPermission"
             title="Use commas to grant multiple permissions, e.g. newsletter, updates"
           >
             Permission <span class="required" title="Required field">*</span>
@@ -144,7 +109,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label>Language</label>
+          <label for="nlLanguage">Language</label>
           <select id="nlLanguage" data-change="updateNlLocale">
             <option value="en" selected>English</option>
             <option value="de">Deutsch</option>
@@ -162,7 +127,7 @@
             <div>
               <div class="checkbox-toggle-label">Form enabled</div>
               <div class="checkbox-toggle-desc">
-                When disabled, the form will reject all submissions
+                When disabled, the form rejects all submissions.
               </div>
             </div>
             <input type="checkbox" id="nlIsEnabled" checked />
@@ -179,24 +144,23 @@
         </div>
       </div>
 
-      <!-- Step 2: Allowed Origins -->
-      <div id="nlStep2" style="display: none">
-        <p style="margin-bottom: 1rem; color: hsl(var(--muted-foreground))">
+      <!-- Step 2: Allowed origins -->
+      <div id="nlStep2" hidden>
+        <p class="text-muted mb-4">
           Specify which website origins are allowed to embed and submit this
           form. Use the full origin (e.g., <code>https://example.com</code>).
         </p>
         <div class="form-group">
-          <label
-            >Allowed Origins
+          <label for="nlNewOrigin"
+            >Allowed origins
             <span class="required" title="Required field">*</span></label
           >
           <div id="nlOriginsList"></div>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
-            <input
+          <div class="flex gap-2 mt-3">
+            <input class="grow"
               type="text"
               id="nlNewOrigin"
               placeholder="https://example.com"
-              style="flex: 1"
               data-enter="addSubmissionOrigin"
             />
             <button
@@ -208,74 +172,49 @@
             </button>
           </div>
         </div>
-        <div
-          style="
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid hsl(var(--border));
-          "
-        >
-          <p style="font-weight: 600; margin-bottom: 0.75rem">Consent</p>
-          <label class="checkbox-toggle">
+        <div class="form-section">
+          <p class="form-section-title">Consent</p>
+          <label class="checkbox-toggle mb-3">
             <div>
               <div class="checkbox-toggle-label">Require consent checkbox</div>
               <div class="checkbox-toggle-desc">
-                When enabled, subscribers must check a consent box before
-                submitting
+                Subscribers check a consent box before submitting.
               </div>
             </div>
             <input type="checkbox" id="nlConsentRequired" checked />
             <span class="toggle-track"></span>
           </label>
           <div class="form-group">
-            <label style="margin-top: 0.75rem">Consent Text</label>
+            <label for="nlConsentText">Consent text</label>
             <input
               type="text"
               id="nlConsentText"
               placeholder="I agree to receive emails and understand I can unsubscribe at any time."
               maxlength="500"
             />
-            <p
-              style="
-                font-size: 0.8rem;
-                color: hsl(var(--muted-foreground));
-                margin-top: 0.25rem;
-              "
-            >
+            <p class="field-hint">
               Custom consent checkbox label. Leave empty for default text.
             </p>
           </div>
           <div class="form-group">
-            <label>Privacy Policy URL</label>
+            <label for="nlPrivacyPolicyUrl">Privacy policy URL</label>
             <input
               type="url"
               id="nlPrivacyPolicyUrl"
               placeholder="https://yoursite.com/privacy"
             />
-            <p
-              style="
-                font-size: 0.8rem;
-                color: hsl(var(--muted-foreground));
-                margin-top: 0.25rem;
-              "
-            >
+            <p class="field-hint">
               Link displayed below the form. Must use HTTPS.
             </p>
           </div>
         </div>
-        <div
-          style="
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid hsl(var(--border));
-          "
-        >
-          <p style="font-weight: 600; margin-bottom: 0.75rem">Name Field</p>
+        <div class="form-section">
+          <p class="form-section-title">Name field</p>
           <label class="checkbox-toggle">
             <div>
               <div class="checkbox-toggle-label">Collect full name</div>
               <div class="checkbox-toggle-desc">
-                Show an optional name field above the email input
+                Adds an optional name field above the email input.
               </div>
             </div>
             <input
@@ -285,43 +224,25 @@
             />
             <span class="toggle-track"></span>
           </label>
-          <div
-            class="form-group"
-            id="nlNameLabelGroup"
-            style="margin-top: 0.75rem"
-          >
-            <label>Name Field Label</label>
+          <div class="form-group mt-3" id="nlNameLabelGroup">
+            <label for="nlNameLabel">Name field label</label>
             <input
               type="text"
               id="nlNameLabel"
               placeholder="Your full name"
               maxlength="100"
             />
-            <p
-              style="
-                font-size: 0.8rem;
-                color: hsl(var(--muted-foreground));
-                margin-top: 0.25rem;
-              "
-            >
+            <p class="field-hint">
               Custom label for the name input. Leave empty to use the default.
             </p>
           </div>
         </div>
-        <div
-          style="
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid hsl(var(--border));
-          "
-        >
-          <p style="font-weight: 600; margin-bottom: 0.75rem">
-            Form Completion
-          </p>
+        <div class="form-section">
+          <p class="form-section-title">Form completion</p>
           <div class="form-group">
-            <label
+            <label for="nlRedirectSuccess"
               title="After a successful form POST submission, redirect the user to this URL. Leave empty to return JSON instead."
-              >Redirect on Success</label
+              >Redirect on success</label
             >
             <input
               type="url"
@@ -330,9 +251,9 @@
             />
           </div>
           <div class="form-group">
-            <label
+            <label for="nlRedirectError"
               title="After a failed form POST submission, redirect the user to this URL with an ?error= query parameter. Leave empty to return JSON instead."
-              >Redirect on Error</label
+              >Redirect on error</label
             >
             <input
               type="url"
@@ -346,35 +267,32 @@
                 Redirect HTML form submissions
               </div>
               <div class="checkbox-toggle-desc">
-                Turn this on to send users to the URLs above after they submit
-                the form. Turn it off to show a built-in success or error page
-                instead.
+                On: redirects to the URLs above after submit. Off: shows a
+                built-in success or error page.
               </div>
             </div>
             <input type="checkbox" id="nlRedirectFormPost" checked />
             <span class="toggle-track"></span>
           </label>
-          <label class="checkbox-toggle" style="margin-top: 0.5rem">
+          <label class="checkbox-toggle mt-2">
             <div>
               <div class="checkbox-toggle-label">
                 Redirect JavaScript and iframe embeds
               </div>
               <div class="checkbox-toggle-desc">
-                Turn this on to send users to the URLs above after they
-                subscribe via a JS or iframe embed. Turn it off to show an
-                inline message instead.
+                On: redirects to the URLs above after a JS or iframe embed
+                submit. Off: shows an inline message.
               </div>
             </div>
             <input type="checkbox" id="nlRedirectJsEmbed" />
             <span class="toggle-track"></span>
           </label>
-          <label class="checkbox-toggle" style="margin-top: 0.5rem">
+          <label class="checkbox-toggle mt-2">
             <div>
               <div class="checkbox-toggle-label">Disable all redirects</div>
               <div class="checkbox-toggle-desc">
-                Turn this on to ignore all redirect settings above. HTML forms
-                will show a built-in result page and JS/iframe embeds will show
-                an inline message instead.
+                Ignores all redirect settings above. HTML forms show a built-in
+                result page. JS and iframe embeds show an inline message.
               </div>
             </div>
             <input
@@ -396,9 +314,9 @@
       </div>
 
       <!-- Step 3: Appearance -->
-      <div id="nlStep3" style="display: none">
+      <div id="nlStep3" hidden>
         <div class="form-group">
-          <label>Title</label>
+          <label for="nlTitle">Title</label>
           <input
             type="text"
             id="nlTitle"
@@ -407,7 +325,7 @@
           />
         </div>
         <div class="form-group">
-          <label>Description</label>
+          <label for="nlDescription">Description</label>
           <input
             type="text"
             id="nlDescription"
@@ -416,7 +334,7 @@
           />
         </div>
         <div class="form-group">
-          <label>Button Text</label>
+          <label for="nlButtonText">Button text</label>
           <input
             type="text"
             id="nlButtonText"
@@ -425,7 +343,7 @@
           />
         </div>
         <div class="form-group">
-          <label>Success Message</label>
+          <label for="nlSuccessMessage">Success message</label>
           <input
             type="text"
             id="nlSuccessMessage"
@@ -433,18 +351,13 @@
             value="Thanks for subscribing!"
           />
         </div>
-        <div style="display: flex; gap: 1rem; align-items: flex-end">
-          <div class="form-group" style="flex: 1">
-            <label>Accent Color</label>
-            <input
-              type="color"
-              id="nlPrimaryColor"
-              value="#2563eb"
-              style="height: 38px; padding: 4px"
-            />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nlPrimaryColor">Accent colour</label>
+            <input type="color" id="nlPrimaryColor" value="#2563eb" />
           </div>
-          <div class="form-group" style="flex: 1">
-            <label>Border Radius</label>
+          <div class="form-group">
+            <label for="nlBorderRadius">Border radius</label>
             <input
               type="text"
               id="nlBorderRadius"
@@ -453,28 +366,16 @@
             />
           </div>
         </div>
-        <div
-          style="
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid hsl(var(--border));
-          "
-        >
-          <p
-            style="
-              font-size: 0.8rem;
-              color: hsl(var(--muted-foreground));
-              margin-bottom: 0.75rem;
-            "
-          >
-            Forms automatically inherit the host site's colors and support dark
-            mode. Override only when needed (e.g. for the iframe embed).
+        <div class="form-section">
+          <p class="text-sm text-muted mb-3">
+            Forms inherit the host site's colours and support dark mode.
+            Override for the iframe embed or a fixed palette.
           </p>
           <label class="checkbox-toggle">
             <div>
-              <div class="checkbox-toggle-label">Custom background color</div>
+              <div class="checkbox-toggle-label">Custom background colour</div>
               <div class="checkbox-toggle-desc">
-                Forces a specific background, overriding the host site
+                Overrides the host site background.
               </div>
             </div>
             <input
@@ -484,22 +385,14 @@
             />
             <span class="toggle-track"></span>
           </label>
-          <div
-            id="nlBgColorGroup"
-            style="margin-top: 0.5rem; opacity: 0.4; pointer-events: none"
-          >
-            <input
-              type="color"
-              id="nlBgColor"
-              value="#ffffff"
-              style="height: 38px; padding: 4px"
-            />
+          <div class="mt-2 is-disabled" id="nlBgColorGroup">
+            <input type="color" id="nlBgColor" value="#ffffff" aria-label="Background colour" />
           </div>
-          <label class="checkbox-toggle" style="margin-top: 0.75rem">
+          <label class="checkbox-toggle mt-3">
             <div>
-              <div class="checkbox-toggle-label">Custom text color</div>
+              <div class="checkbox-toggle-label">Custom text colour</div>
               <div class="checkbox-toggle-desc">
-                Forces a specific text color, overriding the host site
+                Overrides the host site text colour.
               </div>
             </div>
             <input
@@ -509,16 +402,8 @@
             />
             <span class="toggle-track"></span>
           </label>
-          <div
-            id="nlTextColorGroup"
-            style="margin-top: 0.5rem; opacity: 0.4; pointer-events: none"
-          >
-            <input
-              type="color"
-              id="nlTextColor"
-              value="#111111"
-              style="height: 38px; padding: 4px"
-            />
+          <div class="mt-2 is-disabled" id="nlTextColorGroup">
+            <input type="color" id="nlTextColor" value="#111111" aria-label="Text colour" />
           </div>
         </div>
         <div class="modal-actions">
@@ -532,28 +417,29 @@
       </div>
 
       <!-- Step 4: Custom Fields -->
-      <div id="nlStep4" style="display: none">
-        <p style="margin-bottom: 1rem; color: hsl(var(--muted-foreground))">
-          Define key-value pairs that will be stored on every consent record
-          created by this form. Values can be static text or dynamic variables
-          resolved per submission.
+      <div id="nlStep4" hidden>
+        <p class="text-muted mb-4">
+          Key-value pairs stored on every consent record created by this form.
+          Values are static text or variables resolved per submission.
         </p>
         <div class="form-group">
-          <label>Custom Fields</label>
+          <label for="nlFieldKey">Custom fields</label>
           <div id="nlCustomFieldsList" class="custom-fields-list"></div>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
+          <div class="flex gap-2 mt-3">
             <input
+              class="grow mono"
               type="text"
               id="nlFieldKey"
+              aria-label="Key"
               placeholder="Key"
-              style="flex: 1"
               data-enter="addCustomField nl"
             />
             <input
+              class="grow"
               type="text"
               id="nlFieldValue"
+              aria-label="Value"
               placeholder="Value or variable"
-              style="flex: 1"
               data-enter="addCustomField nl"
             />
             <button
@@ -564,81 +450,60 @@
               Add
             </button>
           </div>
-          <div style="margin-top: 0.75rem">
-            <p
-              style="
-                font-size: 0.8rem;
-                color: hsl(var(--muted-foreground));
-                margin-bottom: 0.5rem;
-              "
-            >
-              Variables (resolved per submission):
-            </p>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.35rem">
+          <div class="mt-3">
+            <p class="text-sm text-muted mb-2">Variables, resolved per submission:</p>
+            <div class="flex flex-wrap gap-1-5">
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{uuid}}"
               >
                 <code>{{uuid}}</code>
               </button>
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{timestamp}}"
               >
                 <code>{{timestamp}}</code>
               </button>
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{date}}"
               >
                 <code>{{date}}</code>
               </button>
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{source}}"
               >
                 <code>{{source}}</code>
               </button>
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{form_id}}"
               >
                 <code>{{form_id}}</code>
               </button>
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{form_name}}"
               >
                 <code>{{form_name}}</code>
               </button>
               <button
                 type="button"
-                class="btn btn-outline"
-                style="font-size: 0.8rem; padding: 4px 10px"
+                class="btn btn-outline btn-xs"
                 data-click="insertNlFieldVariable {{ip_hash}}"
               >
                 <code>{{ip_hash}}</code>
               </button>
             </div>
-            <p
-              style="
-                font-size: 0.75rem;
-                color: hsl(var(--muted-foreground));
-                margin-top: 0.4rem;
-              "
-            >
+            <p class="field-hint">
               <code>{{date}}</code> supports timezones:
               <code>{{date:Europe/Amsterdam}}</code>
             </p>
@@ -653,38 +518,35 @@
             id="nlSaveBtn"
             data-click="saveSubmissionForm"
           >
-            Create Form
+            Create form
           </button>
         </div>
       </div>
 
       <!-- Step 5: Embed Code (after save) -->
-      <div id="nlStep5" style="display: none">
-        <div
-          id="nlApiTokenDisplay"
-          style="display: none; margin-bottom: 1.5rem"
-        >
-          <h3 style="margin-bottom: 0.5rem">API Token (shown once)</h3>
-          <p style="color: hsl(var(--muted-foreground)); margin-bottom: 0.5rem">
-            Save this token securely. It will not be shown again.
+      <div id="nlStep5" hidden>
+        <div class="mb-6" id="nlApiTokenDisplay" hidden>
+          <h3 class="mb-2">API token</h3>
+          <p class="text-muted mb-2">
+            Store this token securely. It is shown once.
           </p>
-          <div style="display: flex; gap: 0.5rem; align-items: stretch">
-            <span class="tooltip-wrapper" style="flex: 1; min-width: 0">
+          <div class="flex gap-2 items-stretch">
+            <span class="tooltip-wrapper grow min-w-0">
               <div
-                class="token-output"
+                class="token-output m-0"
                 id="nlApiToken"
                 data-click="copyNlApiToken"
-                style="display: block; cursor: pointer; margin: 0"
               ></div>
               <span class="tooltip tooltip-above">Click to copy</span>
             </span>
             <span class="tooltip-wrapper">
               <button
-                class="btn btn-outline"
+                class="btn btn-outline h-full"
                 data-click="downloadNlApiToken"
-                style="height: 100%; white-space: nowrap"
+                aria-label="Download as .txt"
               >
                 <svg
+                  aria-hidden="true"
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
@@ -693,7 +555,6 @@
                   stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  style="vertical-align: -2px; margin-right: 4px"
                 >
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
@@ -711,7 +572,7 @@
             JavaScript
           </button>
           <button class="embed-tab" data-click="switchEmbedTab form">
-            HTML Form
+            HTML form
           </button>
           <button class="embed-tab" data-click="switchEmbedTab api">API</button>
           <button class="embed-tab" data-click="switchEmbedTab iframe">
@@ -719,30 +580,24 @@
           </button>
         </div>
         <div class="embed-tab-panel" id="embedPanel-iframe">
-          <p
-            style="
-              color: hsl(var(--muted-foreground));
-              margin-bottom: 0.5rem;
-              font-size: 0.85rem;
-            "
-          >
-            Paste this into your website HTML. The form is fully self-contained.
+          <p class="text-sm text-muted mb-2">
+            Paste into the website HTML. The iframe is self-contained.
           </p>
           <span class="tooltip-wrapper">
             <div
               class="token-output"
               id="nlIframeCode"
               data-click="copyEmbedCode iframe"
-              style="display: block; cursor: pointer"
             ></div>
             <span class="tooltip tooltip-above">Click to copy</span>
           </span>
           <button
-            class="btn btn-outline"
+            class="btn btn-outline mt-3 w-full"
             data-click="testSubmissionForm iframe"
-            style="margin-top: 0.75rem; width: 100%"
           >
             <svg
+              class="icon-inline"
+              aria-hidden="true"
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -751,7 +606,6 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              style="vertical-align: -2px; margin-right: 4px"
             >
               <path
                 d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
@@ -763,13 +617,7 @@
           </button>
         </div>
         <div class="embed-tab-panel active" id="embedPanel-js">
-          <p
-            style="
-              color: hsl(var(--muted-foreground));
-              margin-bottom: 0.5rem;
-              font-size: 0.85rem;
-            "
-          >
+          <p class="text-sm text-muted mb-2">
             Renders inline using Shadow DOM for style isolation.
           </p>
           <span class="tooltip-wrapper">
@@ -777,16 +625,16 @@
               class="token-output"
               id="nlJsCode"
               data-click="copyEmbedCode js"
-              style="display: block; cursor: pointer"
             ></div>
             <span class="tooltip tooltip-above">Click to copy</span>
           </span>
           <button
-            class="btn btn-outline"
+            class="btn btn-outline mt-3 w-full"
             data-click="testSubmissionForm js"
-            style="margin-top: 0.75rem; width: 100%"
           >
             <svg
+              class="icon-inline"
+              aria-hidden="true"
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -795,7 +643,6 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              style="vertical-align: -2px; margin-right: 4px"
             >
               <path
                 d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
@@ -807,31 +654,24 @@
           </button>
         </div>
         <div class="embed-tab-panel" id="embedPanel-form">
-          <p
-            style="
-              color: hsl(var(--muted-foreground));
-              margin-bottom: 0.5rem;
-              font-size: 0.85rem;
-            "
-          >
-            A standard <code>&lt;form&gt;</code> that submits via POST. Style it
-            yourself.
+          <p class="text-sm text-muted mb-2">
+            A plain <code>&lt;form&gt;</code> that submits via POST. Unstyled.
           </p>
           <span class="tooltip-wrapper">
             <div
-              class="token-output"
+              class="token-output pre-wrap"
               id="nlFormCode"
               data-click="copyEmbedCode form"
-              style="display: block; cursor: pointer; white-space: pre-wrap"
             ></div>
             <span class="tooltip tooltip-above">Click to copy</span>
           </span>
           <button
-            class="btn btn-outline"
+            class="btn btn-outline mt-3 w-full"
             data-click="testSubmissionForm form"
-            style="margin-top: 0.75rem; width: 100%"
           >
             <svg
+              class="icon-inline"
+              aria-hidden="true"
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -840,7 +680,6 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              style="vertical-align: -2px; margin-right: 4px"
             >
               <path
                 d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
@@ -852,27 +691,20 @@
           </button>
         </div>
         <div class="embed-tab-panel" id="embedPanel-api">
-          <p
-            style="
-              color: hsl(var(--muted-foreground));
-              margin-bottom: 0.5rem;
-              font-size: 0.85rem;
-            "
-          >
-            Use <code>fetch</code> for full control over UI and behavior.
+          <p class="text-sm text-muted mb-2">
+            A <code>fetch</code> call with full control over UI and behaviour.
             Returns JSON.
           </p>
           <span class="tooltip-wrapper">
             <div
-              class="token-output"
+              class="token-output pre-wrap"
               id="nlApiCode"
               data-click="copyEmbedCode api"
-              style="display: block; cursor: pointer; white-space: pre-wrap"
             ></div>
             <span class="tooltip tooltip-above">Click to copy</span>
           </span>
         </div>
-        <div class="modal-actions" style="margin-top: 1.5rem">
+        <div class="modal-actions">
           <button class="btn btn-primary" data-click="showView submissions">
             Done
           </button>
@@ -881,37 +713,9 @@
     </div>
 
     <!-- Live preview panel -->
-    <div
-      style="
-        flex: 1;
-        min-width: 240px;
-        position: sticky;
-        top: 1.5rem;
-        margin-bottom: 2rem;
-        align-self: flex-start;
-      "
-    >
-      <p
-        style="
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: hsl(var(--muted-foreground));
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          margin-bottom: 0.5rem;
-        "
-      >
-        Live Preview
-      </p>
-      <div
-        style="
-          border: 1px solid hsl(var(--border));
-          border-radius: var(--radius);
-          overflow: hidden;
-        "
-      >
-        <div id="nlLivePreviewForm" style="min-height: 180px"></div>
-      </div>
+    <div class="wizard-preview">
+      <p class="section-label">Live preview</p>
+      <div class="preview-surface" id="nlLivePreviewForm"></div>
     </div>
   </div>
   <!-- end flex row -->

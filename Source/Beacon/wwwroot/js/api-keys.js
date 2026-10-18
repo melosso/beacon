@@ -8,7 +8,7 @@ function triggerClass(el, cls, duration = 700) {
 }
 
 const KNOWN_PERMISSIONS = [
-  { value: "_all", label: "Full Access (_all)" },
+  { value: "_all", label: "Full access (_all)" },
   { value: "consent:read", label: "Consent — Read" },
   { value: "consent:write", label: "Consent — Write" },
   { value: "tokens:write", label: "Tokens — Generate" },
@@ -49,7 +49,7 @@ function renderApiKeysPagination() {
   const nextBtn = document.getElementById("apiKeysNextBtn");
   const total = _apiKeysAll.length;
   const totalPages = Math.ceil(total / _apiKeysPageSize) || 1;
-  if (bar) bar.style.display = total > _apiKeysPageSize ? "" : "none";
+  if (bar) bar.hidden = !(total > _apiKeysPageSize);
   if (info) {
     const start = (_apiKeysPage - 1) * _apiKeysPageSize + 1;
     const end = Math.min(_apiKeysPage * _apiKeysPageSize, total);
@@ -75,19 +75,19 @@ function updateApiKeysPageSize() {
 }
 
 function renderPermissionBadges(permissions) {
-  if (!permissions?.length) return html`<span style="color:hsl(var(--muted-foreground))">—</span>`;
-  return permissions.map((p) => html`<span class="status-badge${p === "_all" ? "" : " status-badge-muted"}" style="margin-right:0.25rem;font-size:0.7rem">${p}</span>`);
+  if (!permissions?.length) return html`<span class="text-muted">—</span>`;
+  return permissions.map((p) => html`<span class="status-badge status-badge--sm${p === "_all" ? "" : " status-badge-muted"}">${p}</span>`);
 }
 
 function apiKeyStatus(k) {
   if (!k.isEnabled)
-    return { label: "Disabled", color: "hsl(var(--muted-foreground))" };
+    return { label: "Disabled", tone: "text-muted" };
   const now = new Date();
   if (k.activeFrom && now < new Date(k.activeFrom))
-    return { label: "Pending", color: "hsl(var(--warning))" };
+    return { label: "Pending", tone: "text-warning" };
   if (k.activeUntil && now > new Date(k.activeUntil))
-    return { label: "Expired", color: "hsl(var(--destructive))" };
-  return { label: "Active", color: "hsl(var(--success,142 71% 45%))" };
+    return { label: "Expired", tone: "text-danger" };
+  return { label: "Active", tone: "text-success" };
 }
 
 function renderApiKeysTable(keys) {
@@ -96,7 +96,7 @@ function renderApiKeysTable(keys) {
     paint(tbody, html`<tr><td colspan="7"><div class="table-empty-state">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
           <p class="empty-title">No API keys</p>
-          <p class="empty-sub">Grant programmatic access by creating a key above.</p>
+          <p class="empty-sub">Add an API key to grant programmatic access.</p>
         </div></td></tr>`);
     return;
   }
@@ -106,15 +106,15 @@ function renderApiKeysTable(keys) {
         <tr>
           <td><strong>${k.name}</strong></td>
           <td>${renderPermissionBadges(k.permissions)}</td>
-          <td><span style="color:${st.color}">${st.label}</span></td>
-          <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString() : html`<span style="color:hsl(var(--muted-foreground))">—</span>`}</td>
+          <td><span class=${st.tone}>${st.label}</span></td>
+          <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString() : html`<span class="text-muted">—</span>`}</td>
           <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString() : "-"}</td>
-          <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span style="color:hsl(var(--muted-foreground))">Never</span>`}</td>
+          <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">Never</span>`}</td>
           <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, [
-            ["Edit Permissions", () => openEditApiKeyPermissionsModal(k.id, k.name, k.permissions || [])],
-            ["Edit Dates", () => openEditApiKeyDatesModal(k.id, k.name, k.activeFrom || "", k.activeUntil || "")],
+            ["Edit permissions", () => openEditApiKeyPermissionsModal(k.id, k.name, k.permissions || [])],
+            ["Edit validity window", () => openEditApiKeyDatesModal(k.id, k.name, k.activeFrom || "", k.activeUntil || "")],
             [k.isEnabled ? "Disable" : "Enable", () => toggleApiKeyEnabled(k.id, k.isEnabled)],
-            ["Rotate Key", () => rotateApiKey(k.id, k.name)],
+            ["Rotate key", () => rotateApiKey(k.id, k.name)],
             ["Delete", () => deleteApiKey(k.id, k.name), true],
           ])}</td>
         </tr>`;
@@ -135,8 +135,8 @@ function buildPermissionCheckboxes(containerId, selected) {
     });
   };
   paint(container, html`${KNOWN_PERMISSIONS.map((p) => html`
-        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.875rem;font-weight:400;margin-bottom:0.35rem">
-          <input type="checkbox" value=${p.value} ?checked=${selected.includes(p.value)} style="width:auto;padding:0;margin:0;flex-shrink:0"
+        <label class="check-row">
+          <input type="checkbox" value=${p.value} ?checked=${selected.includes(p.value)}
             @change=${p.value === "_all" ? syncAllState : null}>
           ${p.label}
         </label>`)}`);
@@ -155,20 +155,20 @@ function openAddApiKeyModal() {
   document.getElementById("newApiKeyName").value = "";
   document.getElementById("newApiKeyActiveFrom").value = "";
   document.getElementById("newApiKeyActiveUntil").value = "";
-  document.getElementById("newApiKeyRevealSection").style.display = "none";
+  document.getElementById("newApiKeyRevealSection").hidden = true;
   buildPermissionCheckboxes("newApiKeyPermissions", []);
   const btn = document.getElementById("addApiKeyBtn");
   btn.classList.remove("is-loading");
   btn.disabled = false;
-  btn.querySelector(".btn-label").textContent = "Create Key";
-  document.getElementById("addApiKeyCancelBtn").style.display = "";
+  btn.querySelector(".btn-label").textContent = "Create API key";
+  document.getElementById("addApiKeyCancelBtn").hidden = false;
   _newRawApiKey = "";
-  document.getElementById("addApiKeyModal").style.display = "flex";
+  openModal("addApiKeyModal");
   setTimeout(() => document.getElementById("newApiKeyName")?.focus(), 50);
 }
 
 function closeAddApiKeyModal() {
-  document.getElementById("addApiKeyModal").style.display = "none";
+  closeModal("addApiKeyModal");
 }
 
 async function createApiKey() {
@@ -182,15 +182,15 @@ async function createApiKey() {
   const activeUntil = document.getElementById("newApiKeyActiveUntil").value;
 
   if (!name) {
-    notify("error", "Validation", "Name is required.");
+    notify("error", "Name required", "Enter a name.");
     return;
   }
   if (_apiKeysAll.some((k) => k.name.toLowerCase() === name.toLowerCase())) {
-    notify("error", "Validation", "An API key with this name already exists.");
+    notify("error", "Duplicate name", "An API key with this name exists. Choose another name.");
     return;
   }
   if (!permissions.length) {
-    notify("error", "Validation", "Select at least one permission.");
+    notify("error", "Permission required", "Select at least one permission.");
     return;
   }
   if (
@@ -198,7 +198,7 @@ async function createApiKey() {
     activeUntil &&
     new Date(activeUntil) <= new Date(activeFrom)
   ) {
-    notify("error", "Validation", "Active Until must be after Active From.");
+    notify("error", "Invalid dates", "Set active until after active from.");
     return;
   }
 
@@ -222,10 +222,10 @@ async function createApiKey() {
     _newRawApiKey = result.data.apiKey;
     const newKeyOut = document.getElementById("newApiKeyOutput");
     newKeyOut.textContent = _newRawApiKey;
-    document.getElementById("newApiKeyRevealSection").style.display = "block";
+    document.getElementById("newApiKeyRevealSection").hidden = false;
     triggerClass(newKeyOut, "key-new", 1200);
     btn.querySelector(".btn-label").textContent = "Done";
-    document.getElementById("addApiKeyCancelBtn").style.display = "none";
+    document.getElementById("addApiKeyCancelBtn").hidden = true;
     loadApiKeys();
   }
 }
@@ -234,7 +234,7 @@ function copyNewApiKey() {
   if (!_newRawApiKey) return;
   clipboardWrite(_newRawApiKey).then(() => {
     triggerClass(document.getElementById("newApiKeyOutput"), "key-copied", 700);
-    notify("success", "Copied", "API key copied to clipboard.");
+    notify("success", "API key copied");
   });
 }
 
@@ -249,7 +249,7 @@ async function deleteApiKey(id, name) {
       });
       if (result.ok) {
         loadApiKeys();
-        notify("success", "Deleted", `API key deleted.`);
+        notify("success", "API key deleted");
       }
     },
   );
@@ -278,7 +278,7 @@ async function rotateApiKey(id, name) {
           `New key for "${name}". Copy it now — it won't be shown again.`;
         const revealOut = document.getElementById("apiKeyRevealOutput");
         revealOut.textContent = _rotatedApiKey;
-        document.getElementById("apiKeyRevealModal").style.display = "flex";
+        openModal("apiKeyRevealModal");
         triggerClass(revealOut, "key-new", 1200);
         loadApiKeys();
       }
@@ -287,7 +287,7 @@ async function rotateApiKey(id, name) {
 }
 
 function closeApiKeyRevealModal() {
-  document.getElementById("apiKeyRevealModal").style.display = "none";
+  closeModal("apiKeyRevealModal");
 }
 
 function copyRotatedApiKey() {
@@ -298,7 +298,7 @@ function copyRotatedApiKey() {
       "key-copied",
       700,
     );
-    notify("success", "Copied", "API key copied to clipboard.");
+    notify("success", "API key copied");
   });
 }
 
@@ -310,18 +310,18 @@ function openEditApiKeyPermissionsModal(id, name, permissions) {
   const btn = document.getElementById("editApiKeyPermissionsSaveBtn");
   btn.classList.remove("is-loading");
   btn.disabled = false;
-  document.getElementById("editApiKeyPermissionsModal").style.display = "flex";
+  openModal("editApiKeyPermissionsModal");
 }
 
 function closeEditApiKeyPermissionsModal() {
-  document.getElementById("editApiKeyPermissionsModal").style.display = "none";
+  closeModal("editApiKeyPermissionsModal");
   _editApiKeyId = null;
 }
 
 async function saveApiKeyPermissions() {
   const permissions = getCheckedPermissions("editApiKeyPermissionsList");
   if (!permissions.length) {
-    notify("error", "Validation", "Select at least one permission.");
+    notify("error", "Permission required", "Select at least one permission.");
     return;
   }
   const btn = document.getElementById("editApiKeyPermissionsSaveBtn");
@@ -339,7 +339,7 @@ async function saveApiKeyPermissions() {
   if (result.ok) {
     closeEditApiKeyPermissionsModal();
     loadApiKeys();
-    notify("success", "Saved", "Permissions updated.");
+    notify("success", "Permissions saved");
   }
 }
 
@@ -356,11 +356,11 @@ function openEditApiKeyDatesModal(id, name, activeFrom, activeUntil) {
   const btn = document.getElementById("editApiKeyDatesSaveBtn");
   btn.classList.remove("is-loading");
   btn.disabled = false;
-  document.getElementById("editApiKeyDatesModal").style.display = "flex";
+  openModal("editApiKeyDatesModal");
 }
 
 function closeEditApiKeyDatesModal() {
-  document.getElementById("editApiKeyDatesModal").style.display = "none";
+  closeModal("editApiKeyDatesModal");
   _editApiKeyId = null;
 }
 
@@ -374,7 +374,7 @@ async function saveApiKeyDates() {
     activeUntil &&
     new Date(activeUntil) <= new Date(activeFrom)
   ) {
-    notify("error", "Validation", "Active Until must be after Active From.");
+    notify("error", "Invalid dates", "Set active until after active from.");
     return;
   }
 
@@ -391,6 +391,6 @@ async function saveApiKeyDates() {
   if (result.ok) {
     closeEditApiKeyDatesModal();
     loadApiKeys();
-    notify("success", "Saved", "Validity window updated.");
+    notify("success", "Validity window saved");
   }
 }

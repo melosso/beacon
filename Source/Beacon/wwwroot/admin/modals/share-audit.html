@@ -1,20 +1,14 @@
 <!-- Audit Custom Fields Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="auditCustomFieldsModal"
+  aria-labelledby="auditCustomFieldsModalTitle"
   data-self
   data-click="closeAuditCustomFieldsModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Custom fields</h3>
+    <div class="modal-header">
+      <h3 id="auditCustomFieldsModalTitle">Custom fields</h3>
       <button
         class="btn btn-icon"
         data-click="closeAuditCustomFieldsModal"
@@ -36,38 +30,27 @@
         </svg>
       </button>
     </div>
-    <p>Additional data captured at the time of this consent change.</p>
-    <div
-      class="custom-fields-list"
-      id="auditCustomFieldsList"
-      style="margin-top: 1rem"
-    ></div>
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <p>Data captured with this consent change.</p>
+    <div class="custom-fields-list" id="auditCustomFieldsList"></div>
+    <div class="modal-actions">
       <button class="btn btn-primary" data-click="closeAuditCustomFieldsModal">
         Done
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Confirm Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="confirmModal"
-  style="display: none"
+  aria-labelledby="confirmModalTitle"
   data-self
   data-click="closeConfirmModal"
 >
-  <div class="modal" style="max-width: 400px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 id="confirmModalTitle" style="margin: 0"></h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="confirmModalTitle"></h3>
       <button
         class="btn btn-icon"
         data-click="closeConfirmModal"
@@ -89,14 +72,7 @@
         </svg>
       </button>
     </div>
-    <p
-      id="confirmModalMessage"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1.5rem;
-      "
-    ></p>
+    <p id="confirmModalMessage"></p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeConfirmModal">
         Cancel
@@ -110,4 +86,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

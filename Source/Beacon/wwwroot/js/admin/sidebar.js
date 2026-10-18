@@ -55,7 +55,7 @@ function updateSidebarButtons() {
       : sidebarPrefs.sort === "za"
         ? "Sorted Z\u2013A"
         : "Sort buckets";
-  icon.style.transform = sidebarPrefs.sort === "za" ? "scaleY(-1)" : "";
+  icon.classList.toggle("is-flipped", sidebarPrefs.sort === "za");
   document
     .getElementById("btnDisplayMode")
     .classList.toggle("active", sidebarPrefs.display === "code");
@@ -69,9 +69,7 @@ function renderBucketsSidebar() {
   if (buckets.length === 0) {
     paint(
       container,
-      html`<div class="nav-item" style="opacity:0.5;font-size:0.8rem">
-        Create a token to get started
-      </div>`,
+      html`<div class="nav-empty">No buckets, yet!</div>`,
     );
     return;
   }
@@ -147,12 +145,9 @@ function renderPermissionsGrid() {
   if (tokenPermissions.size === 0) {
     paint(
       container,
-      html`<div
-        style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0"
-      >
-        No permissions yet. Add a custom permission below or generate a token
-        first.
-      </div>`,
+      html`<p class="list-empty">
+        No permissions. Add a custom permission below.
+      </p>`,
     );
     _syncConfirmationEmailToggle();
     return;
@@ -247,11 +242,11 @@ function showPermissionSuggestions() {
       )}`,
   );
   positionDropdown(input, dropdown);
-  dropdown.style.display = "block";
+  dropdown.classList.add("open");
 }
 
 function hidePermissionSuggestions() {
-  document.getElementById("permissionAutocomplete").style.display = "";
+  document.getElementById("permissionAutocomplete").classList.remove("open");
 }
 
 function selectPermission(perm) {
@@ -268,12 +263,12 @@ function addCustomPermission() {
     .replace(/[^a-z0-9_-]/g, "");
 
   if (!perm) {
-    notify("warning", "Invalid Permission", "Please enter a permission name");
+    notify("warning", "Permission name required", "Enter a permission name.");
     return;
   }
 
   if (tokenPermissions.has(perm)) {
-    notify("warning", "Duplicate", "Permission already exists");
+    notify("warning", "Duplicate permission", "The token already has this permission.");
     return;
   }
 
@@ -290,8 +285,8 @@ function removePermission(perm) {
   renderPermissionsGrid();
   notify(
     "success",
-    "Permission Removed",
-    `"${formatPermission(perm)}" removed from this token`,
+    "Permission removed",
+    `${formatPermission(perm)} is removed from this token.`,
   );
 }
 
@@ -310,13 +305,12 @@ function setPermState(button, state) {
 
 function _syncConfirmationEmailToggle() {
   const group = document.getElementById("tokenSkipEmailGroup");
-  if (!group || group.style.display === "none") return;
+  if (!group || group.hidden) return;
   const hasOptIn = Object.values(getPermissionStates()).some((v) => v === true);
   const checkbox = document.getElementById("tokenSendConfirmation");
   const label = group.querySelector("label.checkbox-toggle");
   checkbox.disabled = !hasOptIn;
-  label.style.opacity = hasOptIn ? "" : "0.45";
-  label.style.pointerEvents = hasOptIn ? "" : "none";
+  label.classList.toggle("is-disabled", !hasOptIn);
 }
 
 function getPermissionStates() {
@@ -341,12 +335,12 @@ function openCustomFieldsDialog() {
   renderCustomFieldsGrid(frozen);
   const modal = document.getElementById("customFieldsModal");
   const addRow = modal.querySelector(".custom-fields-add-row");
-  if (addRow) addRow.style.display = frozen ? "none" : "";
-  modal.style.display = "flex";
+  if (addRow) addRow.hidden = frozen;
+  openModal("customFieldsModal");
 }
 
 function closeCustomFieldsDialog() {
-  document.getElementById("customFieldsModal").style.display = "none";
+  closeModal("customFieldsModal");
   renderTokenCustomFieldsDisplay();
 }
 
@@ -363,7 +357,7 @@ function addCustomField(context) {
   const value = valueInput.value.trim();
 
   if (!key) {
-    notify("warning", "Missing Key", "Please enter a field key");
+    notify("warning", "Key required", "Enter a field key.");
     return;
   }
 
@@ -414,10 +408,7 @@ function customFieldRows(fields, context, readonly = false) {
         <span class="custom-field-key">${k}</span>
         <span class="custom-field-value"
           >${context === "nl" && /^\{\{.+\}\}$/.test(v)
-            ? html`<code
-                style="font-size:0.8rem;background:hsl(var(--muted));padding:1px 6px;border-radius:4px"
-                >${v}</code
-              >`
+            ? html`<code>${v}</code>`
             : v}</span
         >
         ${readonly
@@ -444,7 +435,7 @@ function renderCustomFieldsGrid(readonly = false) {
 
 function renderTokenCustomFieldsDisplay() {
   const group = document.getElementById("tokenCustomFieldsGroup");
-  group.style.display = Object.keys(tokenCustomFields).length ? "" : "none";
+  group.hidden = !(Object.keys(tokenCustomFields).length);
   paint(
     document.getElementById("tokenCustomFieldsList"),
     customFieldRows(tokenCustomFields, "token"),
@@ -452,7 +443,7 @@ function renderTokenCustomFieldsDisplay() {
 }
 
 function renderEditCustomFieldsList() {
-  document.getElementById("editCustomFieldsGroup").style.display = "";
+  document.getElementById("editCustomFieldsGroup").hidden = false;
   paint(
     document.getElementById("editCustomFieldsList"),
     customFieldRows(editCustomFields, "edit"),

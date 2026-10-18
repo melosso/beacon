@@ -669,7 +669,7 @@ try
     // (favicon, robots.txt, css, fonts, js/*.js) is already served by UseStaticFiles above.
     app.MapGet("/openapi", ctx =>
     {
-        ctx.Response.Headers.ContentSecurityPolicy = AdminCsp(ctx);
+        ctx.Response.Headers.ContentSecurityPolicy = AdminCsp(ctx, allowInlineStyles: true);
         return ServeFile(ctx, Path.Combine(webRoot, "openapi.html"), "text/html");
     }).ExcludeFromDescription();
 
@@ -884,9 +884,9 @@ static bool IsInsecureDefault(string value)
 static string? DescribeKeyProblem(string value, string keyName) => value switch
 {
     _ when string.IsNullOrWhiteSpace(value) => $"{keyName} is not set.",
-    _ when IsInsecureDefault(value)         => $"{keyName} contains the placeholder value from appsettings.json.",
-    { Length: < 32 }                        => $"{keyName} is shorter than 32 characters.",
-    _                                       => null
+    _ when IsInsecureDefault(value) => $"{keyName} contains the placeholder value from appsettings.json.",
+    { Length: < 32 } => $"{keyName} is shorter than 32 characters.",
+    _ => null
 };
 
 static string NormalizeKey(string key, int requiredBytes)
@@ -920,14 +920,15 @@ static (string ApiBase, string PublicUrl) ResolveApiOrigins(HttpContext context)
     return (apiBase, publicUrl);
 }
 
-static string AdminCsp(HttpContext context)
+// Scalar injects inline styles; every other admin page renders without them.
+static string AdminCsp(HttpContext context, bool allowInlineStyles = false)
 {
     var (apiBase, publicUrl) = ResolveApiOrigins(context);
     var api = $"{apiBase} {publicUrl}".TrimEnd();
     return string.Join("; ",
         "default-src 'self'",
         $"script-src 'self' {api}",
-        "style-src 'self' 'unsafe-inline'",
+        allowInlineStyles ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
         "img-src 'self' data: https:",
         "font-src 'self' data:",
         $"connect-src 'self' {api}",

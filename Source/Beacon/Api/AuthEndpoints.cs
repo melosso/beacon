@@ -160,7 +160,7 @@ public static class AuthEndpoints
             return Results.Forbid();
 
         var signingKey = jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey;
-        var sub  = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
+        var sub = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
         var adminKey = httpContext.User.HasClaim(JwtAuthHandler.AdminKeyClaim, "true");
         return OkWithCookie(httpContext, env, signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role, adminKey);
@@ -172,17 +172,17 @@ public static class AuthEndpoints
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, "", new CookieOptions
         {
             HttpOnly = true,
-            Secure   = !httpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(),
+            Secure = !httpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(),
             SameSite = SameSiteMode.Lax,
-            Path     = "/",
-            Expires  = DateTimeOffset.UnixEpoch
+            Path = "/",
+            Expires = DateTimeOffset.UnixEpoch
         });
         return Results.NoContent();
     }
 
     private static IResult Me(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions)
     {
-        var sub  = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
+        var sub = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
 
         DateTimeOffset? expiresAt = null;
@@ -209,10 +209,10 @@ public static class AuthEndpoints
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
             HttpOnly = true,
-            Secure   = !env.IsDevelopment(),     // HTTPS-only in production
+            Secure = !env.IsDevelopment(),     // HTTPS-only in production
             SameSite = SameSiteMode.Lax,         // CSRF protection; works same-site (incl. different ports on localhost)
-            Path     = "/",
-            Expires  = expiresAt
+            Path = "/",
+            Expires = expiresAt
         });
         return Results.Ok(new { role, username = subject, expiresAt = expiresAt.ToString("o") });
     }

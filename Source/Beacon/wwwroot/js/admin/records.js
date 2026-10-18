@@ -4,7 +4,7 @@ let bucketSelectedHashes = new Set();
 function updateBucketBulkBar() {
   const bar = document.getElementById("bucketBulkBar");
   const count = bucketSelectedHashes.size;
-  if (bar) bar.style.display = count > 0 ? "flex" : "none";
+  if (bar) bar.hidden = !(count > 0);
   const countEl = document.getElementById("bucketBulkCount");
   if (countEl) countEl.textContent = `${count} selected`;
 }
@@ -75,11 +75,11 @@ function openBucketExportModal() {
   document.getElementById("exportUtmMedium").value = "";
   updateExportToggles();
 
-  document.getElementById("bucketExportModal").style.display = "flex";
+  openModal("bucketExportModal");
 }
 
 function closeBucketExportModal() {
-  document.getElementById("bucketExportModal").style.display = "none";
+  closeModal("bucketExportModal");
 }
 
 function updateExportToggles() {
@@ -87,12 +87,9 @@ function updateExportToggles() {
     "exportIncludeTracking",
   ).checked;
   const includeUtm = document.getElementById("exportIncludeUtm")?.checked;
-  document.getElementById("exportTrackingConfig").style.display =
-    includeTracking ? "" : "none";
+  document.getElementById("exportTrackingConfig").hidden = !includeTracking;
   if (document.getElementById("exportUtmConfig"))
-    document.getElementById("exportUtmConfig").style.display = includeUtm
-      ? ""
-      : "none";
+    document.getElementById("exportUtmConfig").hidden = !includeUtm;
 }
 
 async function confirmBucketExport() {
@@ -167,7 +164,7 @@ async function downloadExport(endpoint, body, fallbackName) {
     setTimeout(() => URL.revokeObjectURL(url), 0);
     return true;
   } catch {
-    notify("error", "Export failed", "Could not connect to server.");
+    notify("error", "Export failed", "Server unreachable. Check the connection and retry.");
     return false;
   }
 }
@@ -230,12 +227,9 @@ async function loadOverview(refresh = false) {
     paint(
       body,
       html`<tr>
-        <td
-          colspan="4"
-          style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))"
+        <td class="table-empty" colspan="4"
         >
-          No buckets yet. Buckets are created automatically when a token makes
-          its first API call.
+          No buckets. A bucket is created with its first token.
         </td>
       </tr>`,
     );
@@ -249,13 +243,9 @@ async function loadOverview(refresh = false) {
       const brandStroke =
         brandId?.settings?.primaryAccent || "hsl(var(--muted-foreground))";
       return html` <tr>
-        <td style="cursor:pointer" @click=${() => showBucket(b.name)}>
+        <td class="cursor-pointer" @click=${() => showBucket(b.name)}>
           <strong>${b.name || "N/A"}</strong>${b.isArchived
-            ? html` <span
-                class="status-badge"
-                style="background:hsl(var(--muted));color:hsl(var(--muted-foreground));font-size:0.7rem"
-                >Archived</span
-              >`
+            ? html` <span class="status-badge status-badge--sm">Archived</span>`
             : nothing}
         </td>
         <td>
@@ -268,8 +258,7 @@ async function loadOverview(refresh = false) {
             ? b.permissions.map(
                 (p) =>
                   html`<span
-                    class="tooltip-wrapper select-none"
-                    style="cursor:pointer"
+                    class="tooltip-wrapper select-none cursor-pointer"
                     @click=${() => copyTextNow(p)}
                     ><span class="status-badge">${formatPermission(p)}</span
                     ><span class="tooltip">${p}</span></span
@@ -282,7 +271,7 @@ async function loadOverview(refresh = false) {
             <span class="row-status-icons">
               ${webhookErrorBuckets.has(b.name)
                 ? html`<span class="tooltip-wrapper">
-                    <svg
+                    <svg class="align-middle"
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
@@ -291,7 +280,6 @@ async function loadOverview(refresh = false) {
                       stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
-                      style="vertical-align:middle"
                       aria-hidden="true"
                     >
                       <path
@@ -306,7 +294,7 @@ async function loadOverview(refresh = false) {
                 : nothing}
               ${webhookBuckets.has(b.name)
                 ? html`<span class="tooltip-wrapper">
-                    <svg
+                    <svg class="align-middle"
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
@@ -315,7 +303,6 @@ async function loadOverview(refresh = false) {
                       stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
-                      style="vertical-align:middle"
                       aria-hidden="true"
                     >
                       <path
@@ -332,7 +319,7 @@ async function loadOverview(refresh = false) {
                 : nothing}
               ${brandId
                 ? html`<span class="tooltip-wrapper">
-                    <svg
+                    <svg class="align-middle"
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
@@ -341,7 +328,6 @@ async function loadOverview(refresh = false) {
                       stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
-                      style="vertical-align:middle"
                       aria-hidden="true"
                     >
                       <circle cx="13.5" cy="6.5" r=".5" fill=${brandStroke} />
@@ -370,7 +356,7 @@ async function loadOverview(refresh = false) {
             </span>
             <div class="dropdown-menu" id="overviewMenu-${idx}">
               <button class="dropdown-item" @click=${() => showBucket(b.name)}>
-                View Records
+                View records
               </button>
               <button
                 class="dropdown-item"
@@ -379,7 +365,7 @@ async function loadOverview(refresh = false) {
                     ? showUnarchiveModal(b.name)
                     : showArchiveModal(b.name)}
               >
-                ${b.isArchived ? "Unarchive Bucket" : "Archive Bucket"}
+                ${b.isArchived ? "Unarchive bucket" : "Archive bucket"}
               </button>
               <button
                 class="dropdown-item${b.isArchived ? "" : " disabled"}"
@@ -392,7 +378,7 @@ async function loadOverview(refresh = false) {
                         "Archive this bucket before removing it.",
                       )}
               >
-                Remove Bucket
+                Remove bucket
               </button>
             </div>
           </div>
@@ -409,7 +395,7 @@ async function copyBucketName() {
   const tooltipElement = document.getElementById("bucketTooltip");
   try {
     await clipboardWrite(currentBucket);
-    tooltipElement.innerText = "Copied!";
+    tooltipElement.innerText = "Copied";
     setTimeout(() => {
       tooltipElement.innerText = currentBucket;
     }, 2000);
@@ -433,17 +419,17 @@ async function loadBucket(bucket = currentBucket) {
   currentBucketArchived = details.isArchived || false;
   const archivedBadge = document.getElementById("archivedBadge");
   if (archivedBadge)
-    archivedBadge.style.display = currentBucketArchived ? "" : "none";
+    archivedBadge.hidden = !currentBucketArchived;
 
   const removeBtn = document.getElementById("removeBucketBtn");
   const removeTip = document.getElementById("removeBucketTooltip");
   if (removeBtn) {
     removeBtn.disabled = !currentBucketArchived;
-    removeBtn.style.opacity = currentBucketArchived ? "" : "0.4";
+
     if (removeTip)
       removeTip.textContent = currentBucketArchived
-        ? "Permanently delete this bucket"
-        : "Archive this bucket first to enable removal";
+        ? "Deletes the bucket and its records"
+        : "Archive the bucket to enable removal";
   }
 
   const brandBadge = document.getElementById("bucketBrandBadge");
@@ -451,11 +437,14 @@ async function loadBucket(bucket = currentBucket) {
   if (brandIdentity) {
     const accent = brandIdentity.accent;
     brandBadge.textContent = brandIdentity.name;
-    brandBadge.style.background = accent || "";
-    brandBadge.style.color = accent ? contrastFg(accent) : "";
-    brandBadge.style.display = "";
+    brandBadge.classList.toggle("status-badge--brand", !!accent);
+    if (accent) {
+      brandBadge.style.setProperty("--badge-bg", accent);
+      brandBadge.style.setProperty("--badge-fg", contrastFg(accent));
+    }
+    brandBadge.hidden = false;
   } else {
-    brandBadge.style.display = "none";
+    brandBadge.hidden = true;
   }
 
   // Fetch webhook errors for this bucket
@@ -497,17 +486,16 @@ async function loadBucket(bucket = currentBucket) {
         (p) =>
           html`<th>
             <span
-              class="tooltip-wrapper select-none"
-              style="cursor:pointer"
+              class="tooltip-wrapper select-none cursor-pointer"
               @click=${() => copyTextNow(p)}
               >${formatPermission(p)}<span class="tooltip">${p}</span></span
             >
           </th>`,
       )}
-      ${sortHeader("Last Changed", sortBy === "lastchanged", sortDir, () =>
+      ${sortHeader("Last changed", sortBy === "lastchanged", sortDir, () =>
         toggleSort("lastchanged"),
       )}
-      <th style="width:50px"></th>`,
+      <th class="col-actions"></th>`,
   );
 
   let url = `/api/admin/buckets/${encodeURIComponent(bucket)}/records?page=${currentPage}&pageSize=${pageSize}&sortBy=${sortBy}&sortDir=${sortDir}`;
@@ -522,14 +510,12 @@ async function loadBucket(bucket = currentBucket) {
 
   if (data.records.length === 0) {
     const noResultsMsg = searchQuery
-      ? `No records matching "${searchQuery}". Try a different identifier or search type.`
-      : "No consent records yet. Records appear after the first API call for this bucket.";
+      ? `No records match "${searchQuery}". Try another identifier or search type.`
+      : "No consent records. Records appear after the first API call for this bucket.";
     paint(
       body,
       html`<tr>
-        <td
-          colspan=${currentBucketPermissions.length + 5}
-          style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))"
+        <td class="table-empty" colspan=${currentBucketPermissions.length + 5}
         >
           ${noResultsMsg}
         </td>
@@ -565,8 +551,7 @@ async function loadBucket(bucket = currentBucket) {
             ${r.email
               ? html`<span class="tooltip-wrapper"
                   ><span
-                    class="email-text select-none"
-                    style="cursor:pointer"
+                    class="email-text select-none cursor-pointer"
                     @click=${() => copyText(r.email)}
                     @dblclick=${() =>
                       copyTextNow(r.emailHash?.substring(0, 12) || "")}
@@ -577,7 +562,7 @@ async function loadBucket(bucket = currentBucket) {
                 >`
               : html`<span class="email-hash" title=${r.emailHash || ""}
                   >${r.emailHash
-                    ? r.emailHash.substring(0, 16) + "..."
+                    ? r.emailHash.substring(0, 16) + "…"
                     : "N/A"}</span
                 >`}
           </td>
@@ -607,10 +592,7 @@ async function loadBucket(bucket = currentBucket) {
           <td>${formatDate(r.lastChanged)}</td>
           <td>
             <div
-              class="row-actions"
-              style=${currentBucketArchived
-                ? "opacity:0.4;pointer-events:none"
-                : ""}
+              class="row-actions${currentBucketArchived ? " is-disabled" : ""}"
             >
               <span class="tooltip-wrapper">
                 <button
@@ -632,14 +614,15 @@ async function loadBucket(bucket = currentBucket) {
                   class="dropdown-item"
                   @click=${() => openEditPermissions(record)}
                 >
-                  Edit Permissions
+                  Edit permissions
                 </button>
                 <button
                   class="dropdown-item"
                   @click=${() => openOptOutPage(record)}
                 >
-                  Open Consent Page
+                  Open consent page
                   <svg
+                    class="dropdown-item-icon"
                     width="12"
                     height="12"
                     viewBox="0 0 24 24"
@@ -648,7 +631,6 @@ async function loadBucket(bucket = currentBucket) {
                     stroke-width="2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    style="margin-left:auto;flex-shrink:0"
                     aria-hidden="true"
                   >
                     <path
@@ -663,7 +645,7 @@ async function loadBucket(bucket = currentBucket) {
                   @click=${() =>
                     showAuditForBucketAndIdentity(currentBucket, r.emailHash)}
                 >
-                  View Audit
+                  View audit
                 </button>
               </div>
             </div>
@@ -751,7 +733,7 @@ function setSearchType(type) {
     .forEach((btn) => {
       btn.classList.toggle(
         "active",
-        btn.textContent.trim() === (type === "id" ? "By ID" : "By Email"),
+        btn.textContent.trim() === (type === "id" ? "By ID" : "By email"),
       );
     });
   const label = document.querySelector("#searchPopover label");
@@ -864,10 +846,8 @@ async function selectBucket(name) {
   }
 
   // Show/hide confirmation email notice + skip-email toggle
-  document.getElementById("tokenDoubleOptInNotice").style.display =
-    tokenDefaultOptOut ? "flex" : "none";
-  document.getElementById("tokenSkipEmailGroup").style.display =
-    tokenDefaultOptOut ? "block" : "none";
+  document.getElementById("tokenDoubleOptInNotice").hidden = !tokenDefaultOptOut;
+  document.getElementById("tokenSkipEmailGroup").hidden = !tokenDefaultOptOut;
   if (tokenDefaultOptOut)
     document.getElementById("tokenSendConfirmation").checked = true;
 
@@ -962,11 +942,7 @@ function renderNewBucketPerms() {
   paint(
     container,
     newBucketPerms.length === 0
-      ? html`<div
-          style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:0.5rem 0"
-        >
-          No permissions yet. Add one below.
-        </div>`
+      ? html`<p class="list-empty">No permissions. Add one below.</p>`
       : html`${newBucketPerms.map(
           (p) =>
             html` <div class="permission-row" data-perm=${p}>
@@ -993,11 +969,11 @@ function addNewBucketPerm() {
     .replace(/\s+/g, "_")
     .replace(/[^a-z0-9_-]/g, "");
   if (!perm) {
-    notify("warning", "Invalid", "Please enter a permission name");
+    notify("warning", "Permission name required", "Enter a permission name.");
     return;
   }
   if (newBucketPerms.includes(perm)) {
-    notify("warning", "Duplicate", "Permission already added");
+    notify("warning", "Duplicate permission", "The permission is already in the list.");
     return;
   }
   newBucketPerms.push(perm);
@@ -1018,15 +994,15 @@ async function createNewBucket() {
     .replace(/\s+/g, "_")
     .replace(/[^a-z0-9_-]/g, "");
   if (!name) {
-    notify("warning", "Missing Name", "Please enter a bucket name");
+    notify("warning", "Bucket name required", "Enter a bucket name.");
     return;
   }
   if (newBucketPerms.length === 0) {
-    notify("warning", "No Permissions", "Add at least one permission");
+    notify("warning", "Permission required", "Add at least one permission.");
     return;
   }
   if (buckets.some((b) => b.name === name)) {
-    notify("warning", "Already Exists", `Bucket "${name}" already exists`);
+    notify("warning", "Bucket exists", `Bucket "${name}" already exists. Choose another name.`);
     return;
   }
 
@@ -1048,8 +1024,8 @@ async function createNewBucket() {
   if (ok) {
     notify(
       "success",
-      "Bucket Created",
-      `"${name}" created with ${newBucketPerms.length} permission(s)`,
+      "Bucket created",
+      `${name} has ${newBucketPerms.length} permission(s).`,
     );
     newBucketPerms = [];
     document.getElementById("newBucketName").value = "";

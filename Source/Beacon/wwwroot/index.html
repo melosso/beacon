@@ -4,195 +4,33 @@
     <meta charset="utf-8" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>421: MISDIRECTED_REQUEST</title>
     <meta name="color-scheme" content="light dark" />
-    <style>
-      :root {
-        --bg: #ffffff;
-        --fg: #111111;
-        --accent: #111111;
-        --success: #22c55e;
-        --warning: #f59e0b;
-        --error: #ef4444;
-        --info: #3b82f6;
-        --radius: 16px;
-        --max-width: 520px;
-        --code-bg: color-mix(in srgb, var(--fg) 4%, transparent);
-        --border-color: color-mix(in srgb, var(--fg) 12%, transparent);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #0a0a0a;
-          --fg: #ededed;
-          --accent: #ededed;
-          --error: #f87171;
-        }
-      }
-
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family:
-          system-ui,
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          Roboto,
-          Helvetica,
-          Arial,
-          sans-serif;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-      }
-
-      main {
-        min-height: 100dvh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-      }
-
-      .card {
-        width: 100%;
-        max-width: var(--max-width);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        padding: 32px;
-        background: color-mix(in srgb, var(--bg) 80%, var(--fg) 2%);
-      }
-
-      .error-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        margin-bottom: 24px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .status-code {
-        font-size: 1.75rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        padding-right: 16px;
-        border-right: 3px solid var(--error);
-        color: var(--error);
-      }
-
-      h1 {
-        font-size: 1.1rem;
-        margin: 0;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        text-transform: uppercase;
-      }
-
-      p {
-        margin-top: 0;
-        margin-bottom: 20px;
-        color: color-mix(in srgb, var(--fg) 80%, transparent);
-      }
-
-      .dev-info {
-        background: var(--code-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 20px;
-      }
-
-      .dev-line {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.85rem;
-        margin-bottom: 8px;
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      .dev-line:last-child {
-        margin-bottom: 0;
-      }
-
-      .label {
-        color: color-mix(in srgb, var(--fg) 50%, transparent);
-      }
-
-      .value {
-        font-weight: 500;
-      }
-
-      .footer {
-        margin-top: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-
-      .back-link {
-        color: var(--accent);
-        text-decoration: none;
-        font-size: 0.9rem;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: opacity 0.2s ease;
-      }
-
-      .back-link:hover {
-        opacity: 0.8;
-      }
-
-      .select-none {
-        user-select: none;
-      }
-    </style>
+    <title>421: MISDIRECTED_REQUEST</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link href="/css/site.css" rel="stylesheet" />
   </head>
   <body>
-    <main>
-      <section class="card" role="alert">
-        <div class="error-header select-none">
+    <main class="status-page">
+      <section class="status-card" role="alert">
+        <div class="status-head select-none">
           <span class="status-code">421</span>
-          <h1>Misdirected Request</h1>
+          <h1>Misdirected request</h1>
         </div>
-
-        <p class="select-none">
-          The server was not able to produce a response because the connection was routed incorrectly.
-        </p>
-
-        <div class="dev-info">
-          <div class="dev-line">
-            <span class="label select-none">Code:</span>
-            <span class="value"><code>MISDIRECTED_REQUEST</code></span>
+        <p>This host does not serve the requested resource.</p>
+        <dl class="status-meta">
+          <div>
+            <dt class="select-none">Code</dt>
+            <dd><code>MISDIRECTED_REQUEST</code></dd>
           </div>
-          <div class="dev-line">
-            <span class="label select-none">Timestamp:</span>
-            <span class="value"><code id="ts">Loading...</code></span>
+          <div>
+            <dt class="select-none">Timestamp</dt>
+            <dd><code id="ts">—</code></dd>
           </div>
-        </div>
-
-        <p class="select-none" style="font-size: 0.85rem; margin-bottom: 0;">Didn't expect this? Please try refreshing or contact support.</p>
-
-        <div class="footer">
-          <a href="/" class="back-link select-none" data-back>
-            &larr; Go back
-          </a>
-        </div>
+        </dl>
+        <p class="status-hint select-none">Check the host and port, or contact the administrator.</p>
+        <a href="/" class="back-link select-none" data-back>&larr; Go back</a>
       </section>
     </main>
-
     <script src="/js/status.js" defer></script>
   </body>
 </html>

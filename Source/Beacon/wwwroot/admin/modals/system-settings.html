@@ -1,19 +1,14 @@
 <!-- Error Detail Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="errorDetailModal"
+  aria-labelledby="errorDetailModalTitle"
+  data-self
   data-click="closeErrorDetailModal"
 >
-  <div class="modal" style="width: 560px; max-width: 95vw" data-stop>
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Error Details</h3>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="errorDetailModalTitle">Error details</h3>
       <button
         class="btn btn-icon"
         data-click="closeErrorDetailModal"
@@ -39,44 +34,14 @@
       <span id="errorDetailTime">-</span>
       <span id="errorDetailBadge"></span>
     </div>
-    <div
-      id="errorDetailRequest"
-      style="
-        margin-bottom: 1rem;
-        font-size: 0.8rem;
-        color: hsl(var(--muted-foreground));
-      "
-    ></div>
-    <label
-      style="
-        display: block;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: hsl(var(--muted-foreground));
-        margin-bottom: 0.35rem;
-      "
-      >Error Message</label
-    >
+    <div class="mb-4 text-sm text-muted" id="errorDetailRequest"></div>
+    <p class="field-label">Error message</p>
     <div class="error-detail-message" id="errorDetailMessage">-</div>
-    <div id="errorDetailStackWrap" style="display: none">
-      <label
-        style="
-          display: block;
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: hsl(var(--muted-foreground));
-          margin-bottom: 0.35rem;
-        "
-        >Stack Trace</label
-      >
+    <div id="errorDetailStackWrap" hidden>
+      <p class="field-label">Stack trace</p>
       <div
-        class="error-detail-message"
+        class="error-detail-message error-detail-message--stack"
         id="errorDetailStack"
-        style="
-          font-size: 0.7rem;
-          max-height: 200px;
-          color: hsl(var(--muted-foreground));
-        "
       ></div>
     </div>
     <div class="modal-actions">
@@ -91,25 +56,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Double Opt-In Settings Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="doubleOptInSettingsModal"
+  aria-labelledby="doubleOptInSettingsModalTitle"
   data-self
   data-click="closeDoubleOptInSettingsModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Double opt-in settings</h3>
+    <div class="modal-header">
+      <h3 id="doubleOptInSettingsModalTitle">Double opt-in settings</h3>
       <button
         class="btn btn-icon"
         data-click="closeDoubleOptInSettingsModal"
@@ -135,8 +94,8 @@
       Configure how confirmation emails are sent when double opt-in is active.
     </p>
 
-    <div class="settings-items" style="margin-top: 1.25rem">
-      <div class="settings-item-block" style="align-items: center">
+    <div class="settings-items">
+      <div class="settings-item-block items-center">
         <div class="settings-item-info">
           <span class="settings-item-title select-none">Email grouping</span>
           <p class="settings-item-desc">
@@ -155,7 +114,7 @@
       </div>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button
         class="btn btn-primary"
         data-click="closeDoubleOptInSettingsModal"
@@ -164,25 +123,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Submission Forms Settings Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="submissionFormsSettingsModal"
+  aria-labelledby="submissionFormsSettingsModalTitle"
   data-self
   data-click="closeSubmissionFormsSettingsModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Submission form defaults</h3>
+    <div class="modal-header">
+      <h3 id="submissionFormsSettingsModalTitle">Submission form defaults</h3>
       <button
         class="btn btn-icon"
         data-click="closeSubmissionFormsSettingsModal"
@@ -204,10 +157,10 @@
         </svg>
       </button>
     </div>
-    <p>Set default values applied to newly created submission forms.</p>
+    <p>Defaults applied to new submission forms.</p>
 
-    <div class="settings-items" style="margin-top: 1.25rem">
-      <div class="settings-item-block" style="align-items: center">
+    <div class="settings-items">
+      <div class="settings-item-block items-center">
         <div class="settings-item-info">
           <span class="settings-item-title select-none"
             >Default rate limit</span
@@ -221,15 +174,13 @@
           id="setting-submissionDefaultRateLimitPerMinute"
           min="1"
           max="600"
-          style="width: 80px; text-align: right"
-          class="input-auth"
+          class="input input--number"
           value="10"
         />
       </div>
       <label
-        class="settings-item-card-label"
+        class="settings-item-card-label settings-item-card-label--flush"
         for="setting-submissionDefaultHoneypotEnabled"
-        style="padding: 0.75rem 0"
       >
         <div class="settings-item-info">
           <span class="settings-item-title select-none"
@@ -248,9 +199,8 @@
         </div>
       </label>
       <label
-        class="settings-item-card-label"
+        class="settings-item-card-label settings-item-card-label--flush"
         for="setting-submissionDefaultConsentRequired"
-        style="padding: 0.75rem 0"
       >
         <div class="settings-item-info">
           <span class="settings-item-title select-none"
@@ -270,7 +220,7 @@
       </label>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button
         class="btn btn-outline"
         data-click="closeSubmissionFormsSettingsModal"
@@ -282,25 +232,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Object Storage Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="objectStorageModal"
+  aria-labelledby="objectStorageModalTitle"
   data-self
   data-click="closeObjectStorageModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Object storage</h3>
+    <div class="modal-header">
+      <h3 id="objectStorageModalTitle">Object storage</h3>
       <button
         class="btn btn-icon"
         data-click="closeObjectStorageModal"
@@ -327,12 +271,11 @@
       externally.
     </p>
 
-    <div class="form-group" style="margin-top: 1.25rem">
+    <div class="form-group">
       <label for="objectStorageProvider">Provider</label>
       <select
         id="objectStorageProvider"
         data-change="showObjectStorageProviderFields $value"
-        style="width: 100%"
       >
         <option value="none">None</option>
         <option value="s3">AWS S3</option>
@@ -341,19 +284,18 @@
       </select>
     </div>
 
-    <div id="objectStorageEndpointRow" style="display: none">
+    <div id="objectStorageEndpointRow" hidden>
       <div class="form-group">
         <label for="objectStorageEndpoint">Endpoint URL</label>
         <input
           type="url"
           id="objectStorageEndpoint"
           placeholder="https://account.r2.cloudflarestorage.com"
-          style="width: 100%"
         />
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem">
+    <div class="grid grid-2 gap-3">
       <div class="form-group">
         <label for="objectStorageBucket">Bucket name</label>
         <input
@@ -419,9 +361,7 @@
     <div class="form-group">
       <label for="objectStoragePublicUrl"
         >Public URL
-        <span style="font-weight: 400; color: hsl(var(--muted-foreground))"
-          >(optional CDN prefix)</span
-        ></label
+        <span class="font-normal text-muted">(optional CDN prefix)</span></label
       >
       <input
         type="url"
@@ -431,14 +371,7 @@
       />
     </div>
 
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-top: 0.25rem;
-      "
-    >
+    <div class="inline-actions">
       <button
         id="btnTestObjectStorage"
         class="btn btn-outline"
@@ -446,10 +379,10 @@
       >
         Test connection
       </button>
-      <span id="objectStorageTestResult" style="font-size: 0.875rem"></span>
+      <span id="objectStorageTestResult"></span>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeObjectStorageModal">
         Cancel
       </button>
@@ -458,25 +391,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Promo Bar Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="promoBarModal"
+  aria-labelledby="promoBarModalTitle"
   data-self
   data-click="closePromoBarModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Admin announcement bar</h3>
+    <div class="modal-header">
+      <h3 id="promoBarModalTitle">Admin announcement bar</h3>
       <button
         class="btn btn-icon"
         data-click="closePromoBarModal"
@@ -499,55 +426,34 @@
       </button>
     </div>
     <p>
-      You can show a custom message in the backend. Supports
+      Message shown at the top of the admin panel. Supports
       <strong>**bold**</strong>, <em>_italic_</em>, and
       <code>[text](url)</code> links. Max 500 characters.
     </p>
 
-    <div class="form-group" style="margin-top: 1.25rem">
+    <div class="form-group">
       <textarea
         id="modal-promoBar"
         rows="3"
         maxlength="500"
         placeholder="e.g. Scheduled maintenance on [Saturday 14:00 UTC](https://status.example.com)."
         data-input="updateCharCount $el"
-        style="
-          width: 100%;
-          resize: vertical;
-          font-family: var(--font-mono);
-          font-size: 0.8125rem;
-          padding: 0.625rem 0.75rem;
-          border: 1px solid hsl(var(--border));
-          border-radius: var(--radius);
-          background: transparent;
-          color: inherit;
-          line-height: 1.5;
-        "
       ></textarea>
-      <p
-        style="
-          font-size: 0.75rem;
-          color: hsl(var(--muted-foreground));
-          margin-top: 0.25rem;
-        "
-        id="modal-promoBar-count"
-      >
+      <p class="field-hint" id="modal-promoBar-count">
         0 / 500
       </p>
     </div>
 
     <label
-      class="settings-item-card-label"
+      class="settings-item-card-label settings-item-card-label--flush"
       for="modal-promoBarDismissable"
-      style="padding: 0.75rem 0; margin-top: 0.5rem"
     >
       <div class="settings-item-info">
         <span class="settings-item-title select-none"
           >Allow users to dismiss</span
         >
         <p class="settings-item-desc">
-          When enabled, users can close the bar. Dismissed state resets each new
-          session.
+          Users can close the bar. The dismissed state resets each session.
         </p>
       </div>
       <div class="settings-item-control">
@@ -556,9 +462,8 @@
       </div>
     </label>
     <label
-      class="settings-item-card-label"
+      class="settings-item-card-label settings-item-card-label--flush"
       for="modal-promoBarShowOnLogin"
-      style="padding: 0.75rem 0"
     >
       <div class="settings-item-info">
         <span class="settings-item-title select-none">Show on login page</span>
@@ -572,7 +477,7 @@
       </div>
     </label>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closePromoBarModal">
         Cancel
       </button>
@@ -581,25 +486,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Login Footer Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="loginFooterModal"
+  aria-labelledby="loginFooterModalTitle"
   data-self
   data-click="closeLoginFooterModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Login page footer</h3>
+    <div class="modal-header">
+      <h3 id="loginFooterModalTitle">Login page footer</h3>
       <button
         class="btn btn-icon"
         data-click="closeLoginFooterModal"
@@ -622,44 +521,24 @@
       </button>
     </div>
     <p>
-      You can show a simple message below the sign-in box for the backend.
-      Supports <strong>**bold**</strong>, <em>_italic_</em>, and
+      Message shown below the sign-in box. Supports <strong>**bold**</strong>, <em>_italic_</em>, and
       <code>[text](url)</code> links. Max 500 characters.
     </p>
 
-    <div class="form-group" style="margin-top: 1.25rem">
+    <div class="form-group">
       <textarea
         id="modal-loginFooter"
         rows="4"
         maxlength="500"
         placeholder="e.g. Contact your [administrator](mailto:admin@example.com) for access."
         data-input="updateCharCount $el"
-        style="
-          width: 100%;
-          resize: vertical;
-          font-family: var(--font-mono);
-          font-size: 0.8125rem;
-          padding: 0.625rem 0.75rem;
-          border: 1px solid hsl(var(--border));
-          border-radius: var(--radius);
-          background: transparent;
-          color: inherit;
-          line-height: 1.5;
-        "
       ></textarea>
-      <p
-        style="
-          font-size: 0.75rem;
-          color: hsl(var(--muted-foreground));
-          margin-top: 0.25rem;
-        "
-        id="modal-loginFooter-count"
-      >
+      <p class="field-hint" id="modal-loginFooter-count">
         0 / 500
       </p>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeLoginFooterModal">
         Cancel
       </button>
@@ -668,25 +547,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Cache Settings Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="cacheSettingsModal"
+  aria-labelledby="cacheSettingsModalTitle"
   data-self
   data-click="closeCacheSettingsModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Cache settings</h3>
+    <div class="modal-header">
+      <h3 id="cacheSettingsModalTitle">Cache settings</h3>
       <button
         class="btn btn-icon"
         data-click="closeCacheSettingsModal"
@@ -710,8 +583,8 @@
     </div>
     <p>Configure in-memory caching for consent lookups and bucket data.</p>
 
-    <div class="settings-items" style="margin-top: 1.25rem">
-      <div class="settings-item-block" style="align-items: center">
+    <div class="settings-items">
+      <div class="settings-item-block items-center">
         <div class="settings-item-info">
           <span class="settings-item-title select-none">TTL (seconds)</span>
           <p class="settings-item-desc">
@@ -724,15 +597,13 @@
           id="setting-cacheTtlSeconds"
           min="10"
           max="86400"
-          style="width: 90px; text-align: right"
-          class="input-auth"
+          class="input input--number"
           value="300"
         />
       </div>
       <label
-        class="settings-item-card-label"
+        class="settings-item-card-label settings-item-card-label--flush"
         for="setting-cacheConsentRecords"
-        style="padding: 0.75rem 0"
       >
         <div class="settings-item-info">
           <span class="settings-item-title select-none"
@@ -748,9 +619,8 @@
         </div>
       </label>
       <label
-        class="settings-item-card-label"
+        class="settings-item-card-label settings-item-card-label--flush"
         for="setting-cacheBucketData"
-        style="padding: 0.75rem 0"
       >
         <div class="settings-item-info">
           <span class="settings-item-title select-none"
@@ -767,9 +637,7 @@
       </label>
     </div>
 
-    <div
-      style="display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem"
-    >
+    <div class="inline-actions">
       <button
         id="btnFlushCache"
         class="btn btn-outline"
@@ -777,13 +645,10 @@
       >
         Flush cache
       </button>
-      <span
-        id="cacheStatsResult"
-        style="font-size: 0.875rem; color: hsl(var(--muted-foreground))"
-      ></span>
+      <span class="text-muted" id="cacheStatsResult"></span>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeCacheSettingsModal">
         Cancel
       </button>
@@ -792,4 +657,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

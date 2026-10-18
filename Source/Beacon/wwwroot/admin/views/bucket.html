@@ -3,8 +3,7 @@
   <section class="header-container">
     <div>
       <h1
-        class="tooltip-wrapper"
-        style="display: block; cursor: pointer"
+        class="tooltip-wrapper block cursor-pointer"
         data-click="copyBucketName"
       >
         <span id="bucketTitle">-</span>
@@ -15,14 +14,12 @@
       <span class="status-badge select-none" id="readOnlyBadge">Overview</span>
       <span
         class="status-badge archived select-none"
-        id="archivedBadge"
-        style="display: none"
+        id="archivedBadge" hidden
         >Archived</span
       >
       <span
         class="status-badge select-none"
-        id="bucketBrandBadge"
-        style="display: none"
+        id="bucketBrandBadge" hidden
       ></span>
     </div>
     <div class="bucket-actions">
@@ -31,8 +28,10 @@
           class="webhook-errors-trigger"
           id="webhookErrorsTrigger"
           data-click="toggleWebhookErrors $event"
+          aria-label="Notifications"
         >
           <svg
+            aria-hidden="true"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -49,8 +48,13 @@
         <span class="tooltip">Notifications</span>
       </span>
       <span class="tooltip-wrapper">
-        <button class="webhook-errors-trigger" data-click="newTokenForBucket">
+        <button
+          class="webhook-errors-trigger"
+          data-click="newTokenForBucket"
+          aria-label="Add record"
+        >
           <svg
+            aria-hidden="true"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -64,15 +68,17 @@
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
-        <span class="tooltip">Add Record</span>
+        <span class="tooltip">Add record</span>
       </span>
       <div class="webhook-errors-dropdown" id="webhookErrorsDropdown"></div>
       <span class="tooltip-wrapper">
         <button
           class="webhook-errors-trigger"
           data-click="openBucketExportModal"
+          aria-label="Export bucket"
         >
           <svg
+            aria-hidden="true"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -89,10 +95,7 @@
         </button>
         <span class="tooltip">Export bucket</span>
       </span>
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="loadBucket">Refresh</button>
-        <span class="tooltip">Refresh</span>
-      </span>
+      <button class="btn btn-outline" data-click="loadBucket">Refresh</button>
       <span class="tooltip-wrapper">
         <button class="btn btn-outline" data-click="showOptionsModal">
           Options
@@ -105,7 +108,7 @@
           id="removeBucketBtn"
           data-click="initiateRemoval"
         >
-          Remove Bucket
+          Remove bucket
         </button>
         <span class="tooltip tooltip-right" id="removeBucketTooltip"
           >Permanently delete this bucket</span
@@ -114,34 +117,16 @@
     </div>
   </section>
   <!-- Bucket bulk action bar -->
-  <div
-    id="bucketBulkBar"
-    style="
-      display: none;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.5rem 0.75rem;
-      margin-bottom: 0.5rem;
-      background: hsl(var(--muted));
-      border-radius: var(--radius);
-      border: 1px solid hsl(var(--border));
-    "
-  >
-    <span
-      id="bucketBulkCount"
-      style="font-size: 0.875rem; color: hsl(var(--muted-foreground))"
-      >0 selected</span
-    >
+  <div class="bulk-bar" id="bucketBulkBar" hidden>
+    <span class="text-muted" id="bucketBulkCount">0 selected</span>
     <button
-      class="btn btn-outline"
-      style="font-size: 0.8rem; padding: 0.3rem 0.75rem"
+      class="btn btn-outline btn-sm"
       data-click="openBucketExportModal"
     >
       Export
     </button>
     <button
-      class="btn btn-outline"
-      style="font-size: 0.8rem; padding: 0.3rem 0.75rem; margin-left: auto"
+      class="btn btn-outline btn-sm ml-auto"
       data-click="clearBucketSelection"
     >
       Clear
@@ -162,7 +147,7 @@
               /></label>
             </th>
             <th>Email</th>
-            <th>Loading...</th>
+            <th>Loading…</th>
           </tr>
         </thead>
         <tbody id="bucketBody"></tbody>
@@ -186,7 +171,7 @@
         </div>
         <div class="pagination-info" id="paginationInfo"></div>
       </div>
-      <div style="display: flex; gap: 0.5rem">
+      <div class="flex gap-2">
         <button class="btn btn-outline" id="prevBtn" data-click="changePage -1">
           Previous
         </button>
@@ -199,23 +184,16 @@
 </div>
 
 <!-- Bucket Record Export Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="bucketExportModal"
-  style="display: none"
+  aria-labelledby="bucketExportModalTitle"
   data-self
   data-click="closeBucketExportModal"
 >
   <div class="modal modal--lg">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 class="select-none" style="margin: 0">Export Records</h3>
+    <div class="modal-header">
+      <h3 id="bucketExportModalTitle" class="select-none">Export records</h3>
       <button
         class="btn btn-icon"
         data-click="closeBucketExportModal"
@@ -237,19 +215,14 @@
         </svg>
       </button>
     </div>
-    <p style="margin-bottom: 1.25rem">
+    <p>
       Exporting <strong id="bucketExportCount">0</strong> record(s) from
       <strong id="bucketExportName">-</strong>.
     </p>
 
     <div class="form-group">
       <label for="bucketExportFormat">Format</label>
-      <select
-        id="bucketExportFormat"
-        class="input-auth"
-        style="text-align: left; text-transform: none; font-family: inherit"
-        data-change="updateExportToggles"
-      >
+      <select id="bucketExportFormat" data-change="updateExportToggles">
         <option value="csv">CSV</option>
         <option value="json">JSON</option>
         <option value="yaml">YAML</option>
@@ -257,56 +230,29 @@
       </select>
     </div>
 
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        border-top: 1px solid hsl(var(--border));
-        margin-top: 0.5rem;
-      "
-    >
+    <div class="toggle-row">
       <div>
-        <div style="font-size: 0.875rem; font-weight: 500">
-          Preference links
-        </div>
-        <div
-          style="
-            font-size: 0.8rem;
-            color: hsl(var(--muted-foreground));
-            margin-top: 0.125rem;
-          "
-        >
-          Generate personalised unsubscribe URLs for each subscriber
+        <div class="font-medium">Preference links</div>
+        <div class="text-sm text-muted">
+          Adds a personalised unsubscribe URL to each subscriber.
         </div>
       </div>
-      <label class="switch" style="flex-shrink: 0; margin-left: 1rem">
+      <label class="switch">
         <input
           type="checkbox"
           id="exportIncludeTracking"
+          aria-label="Preference links"
           data-change="updateExportToggles"
         />
         <span class="slider"></span>
       </label>
     </div>
 
-    <div
-      id="exportTrackingConfig"
-      style="
-        display: none;
-        padding: 0.75rem 0 0.25rem;
-        border-top: 1px solid hsl(var(--border));
-      "
-    >
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem">
+    <div class="toggle-panel" id="exportTrackingConfig" hidden>
+      <div class="grid grid-2 gap-3">
         <div class="form-group">
           <label for="exportPermission">Permission scope</label>
-          <select
-            id="exportPermission"
-            class="input-auth"
-            style="text-align: left; text-transform: none; font-family: inherit"
-          >
+          <select id="exportPermission">
             <option value="">All permissions</option>
           </select>
         </div>
@@ -315,7 +261,6 @@
           <input
             type="number"
             id="exportExpiryDays"
-            class="input-auth"
             value="30"
             min="1"
             max="365"
@@ -323,62 +268,46 @@
         </div>
       </div>
 
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0.5rem 0;
-        "
-      >
-        <div style="font-size: 0.875rem; font-weight: 500">UTM parameters</div>
-        <label class="switch" style="flex-shrink: 0">
+      <div class="toggle-row toggle-row--plain">
+        <div class="font-medium">UTM parameters</div>
+        <label class="switch">
           <input
             type="checkbox"
             id="exportIncludeUtm"
+            aria-label="UTM parameters"
             data-change="updateExportToggles"
           />
           <span class="slider"></span>
         </label>
       </div>
 
-      <div id="exportUtmConfig" style="display: none">
-        <div
-          style="
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-          "
-        >
-          <div class="form-group" style="margin: 0">
+      <div id="exportUtmConfig" hidden>
+        <div class="grid grid-3 gap-3 mb-3">
+          <div class="form-group m-0">
             <label for="exportUtmCampaign">utm_campaign</label>
             <input
               type="text"
               id="exportUtmCampaign"
-              class="input-auth"
               placeholder="e.g. summer-sale"
               autocomplete="off"
               spellcheck="false"
             />
           </div>
-          <div class="form-group" style="margin: 0">
+          <div class="form-group m-0">
             <label for="exportUtmSource">utm_source</label>
             <input
               type="text"
               id="exportUtmSource"
-              class="input-auth"
               placeholder="e.g. newsletter"
               autocomplete="off"
               spellcheck="false"
             />
           </div>
-          <div class="form-group" style="margin: 0">
+          <div class="form-group m-0">
             <label for="exportUtmMedium">utm_medium</label>
             <input
               type="text"
               id="exportUtmMedium"
-              class="input-auth"
               placeholder="e.g. email"
               autocomplete="off"
               spellcheck="false"
@@ -388,7 +317,7 @@
       </div>
     </div>
 
-    <div class="modal-actions" style="margin-top: 1rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeBucketExportModal">
         Cancel
       </button>
@@ -401,4 +330,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

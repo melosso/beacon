@@ -3,8 +3,7 @@ function toggleDataPoliciesEnabled(enabled) {
   saveSetting("dataPoliciesEnabled", enabled);
   const controls = document.getElementById("data-policies-controls");
   if (controls) {
-    controls.style.opacity = enabled ? "" : "0.5";
-    controls.style.pointerEvents = enabled ? "" : "none";
+    controls.classList.toggle("is-disabled", !enabled);
   }
 }
 
@@ -62,20 +61,20 @@ async function loadAudit() {
   renderAuditHeader();
 
   const tbody = document.getElementById("auditBody");
-  paint(tbody, html`<tr><td colspan="8" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">Loading…</td></tr>`);
+  paint(tbody, html`<tr><td class="table-empty" colspan="8">Loading…</td></tr>`);
 
   const res = await apiRequest(`/api/admin/audit?${params}`);
   if (!res.ok) {
-    paint(tbody, html`<tr><td colspan="8" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">Failed to load audit log.</td></tr>`);
+    paint(tbody, html`<tr><td class="table-empty" colspan="8">Failed to load audit log.</td></tr>`);
     return;
   }
 
   auditTotalRecords = res.data.total;
   const msg = auditFilterBucket || auditFilterIdentity || auditFilterEmail
-    ? "No audit entries match the active filter"
-    : "No audit entries yet";
+    ? "No audit entries match the filter."
+    : "No audit entries.";
   paint(tbody, res.data.records.length === 0
-    ? html`<tr><td colspan="8" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">${msg}</td></tr>`
+    ? html`<tr><td class="table-empty" colspan="8">${msg}</td></tr>`
     : html`${res.data.records.map(renderAuditRow)}`);
   updateAuditPagination();
 }
@@ -86,14 +85,14 @@ function renderAuditHeader() {
   paint(thead, html`
     <th>Timestamp</th>
     <th>${searchColumn({
-      label: "E-mail / ID", title: "Filter by identity", actionLabel: "Filter", minWidth: "280px",
+      label: "Email or ID", title: "Filter by identity", actionLabel: "Filter",
       ids: { trigger: "auditIdentitySearchTrigger", popover: "auditIdentityPopover", input: "auditIdentityInput" },
       type: auditFilterType, query: auditFilterType === "email" ? auditFilterEmail : auditFilterIdentity,
       idLabel: "Filter by identity hash (partial)", emailLabel: "Filter by email — use * as wildcard",
       onToggle: toggleAuditIdentityPopover, onType: setAuditFilterType, onSearch: applyAuditIdentityFilter, onClear: clearAuditIdentityFilter,
     })}</th>
     <th>${searchColumn({
-      label: "Bucket", title: "Filter by bucket", actionLabel: "Filter", minWidth: "220px",
+      label: "Bucket", title: "Filter by bucket", actionLabel: "Filter",
       ids: { trigger: "auditBucketSearchTrigger", popover: "auditBucketPopover", input: "auditBucketInput" },
       fixedLabel: "Filter by bucket name", placeholder: "e.g., newsletter", query: auditFilterBucket,
       onToggle: toggleAuditBucketPopover, onSearch: applyAuditBucketFilter, onClear: clearAuditBucketFilter,
@@ -151,7 +150,7 @@ function setAuditFilterType(type) {
     .forEach((btn) => {
       btn.classList.toggle(
         "active",
-        btn.textContent.trim() === (type === "id" ? "By ID" : "By Email"),
+        btn.textContent.trim() === (type === "id" ? "By ID" : "By email"),
       );
     });
   const label = document.querySelector("#auditIdentityPopover label");
@@ -233,14 +232,14 @@ function renderAuditRow(e) {
       <td>
         <span class="tooltip-wrapper" @click=${() => auditIdentityClick(e.emailHash)} @dblclick=${() => auditIdentityDblClick(e.emailHash)}>
           ${e.email
-            ? html`<span class="email-text" style="cursor:pointer">${e.email}</span>`
-            : html`<span class="email-hash" style="cursor:pointer">${e.displayId}</span>`}${e.name ? html`<span class="muted" style="display:block;font-size:0.75rem">${e.name}</span>` : nothing}
+            ? html`<span class="email-text cursor-pointer">${e.email}</span>`
+            : html`<span class="email-hash cursor-pointer">${e.displayId}</span>`}${e.name ? html`<span class="cell-sub">${e.name}</span>` : nothing}
           <span class="tooltip">Click to filter · double-click to copy ID</span>
         </span>
       </td>
-      <td><span class="bucket-name" style="cursor:pointer" @click=${() => showAuditForBucket(e.bucket)}>${e.bucket}</span></td>
+      <td><span class="bucket-name cursor-pointer" @click=${() => showAuditForBucket(e.bucket)}>${e.bucket}</span></td>
       <td>${e.permission}</td>
-      <td style="white-space:nowrap">${auditStatusChip(e.oldStatus)} → ${auditStatusChip(e.newStatus)}</td>
+      <td class="nowrap">${auditStatusChip(e.oldStatus)} → ${auditStatusChip(e.newStatus)}</td>
       <td>${sourceLabel}</td>
       <td>${e.actorId || html`<span class="muted">—</span>`}</td>
       <td><div class="row-actions">
@@ -265,12 +264,12 @@ function openAuditCustomFields(customFields) {
           <span class="custom-field-key">${k}</span>
           <span class="custom-field-value">${String(v)}</span>
         </div>`)}`
-    : html`<p class="muted" style="font-size:0.85rem">No custom fields.</p>`);
-  document.getElementById("auditCustomFieldsModal").style.display = "flex";
+    : html`<p class="list-empty">No custom fields.</p>`);
+  openModal("auditCustomFieldsModal");
 }
 
 function closeAuditCustomFieldsModal() {
-  document.getElementById("auditCustomFieldsModal").style.display = "none";
+  closeModal("auditCustomFieldsModal");
 }
 
 function auditIdentityClick(hash) {
@@ -353,7 +352,7 @@ async function loadWorkflowPage() {
   const noPolicies =
     !appSettings.retentionPurgeEnabled &&
     !appSettings.pendingConfirmationPurgeEnabled;
-  if (notice) notice.style.display = noPolicies ? "" : "none";
+  if (notice) notice.hidden = !noPolicies;
   _locallyActionedIds.clear();
   _workflowArchivedVisible = false;
   _workflowPage = 1;
@@ -388,7 +387,7 @@ const SHORT_DATE = { month: "short", day: "numeric", hour: "2-digit", minute: "2
 
 function workflowStatus(t) {
   return html`${WORKFLOW_BADGES[t.status] || WORKFLOW_BADGES.Rejected}${t.errorMessage
-    ? html`<span title=${t.errorMessage} style="margin-left:0.4rem;opacity:0.6;cursor:help;font-size:0.75rem">ⓘ</span>`
+    ? html`<span class="info-tip" title=${t.errorMessage} aria-label=${t.errorMessage}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>`
     : nothing}`;
 }
 
@@ -409,9 +408,9 @@ function renderWorkflowTable() {
   const tbody = document.getElementById("workflowTbody");
   if (!tbody) return;
 
-  const msg = _workflowArchivedVisible ? "No runs yet." : "No items awaiting approval.";
+  const msg = _workflowArchivedVisible ? "No runs." : "No items awaiting approval.";
   paint(tbody, total === 0
-    ? html`<tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">${msg}</td></tr>`
+    ? html`<tr><td class="table-empty" colspan="6">${msg}</td></tr>`
     : html`${page.map((t) => html`
         <tr>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
@@ -419,15 +418,15 @@ function renderWorkflowTable() {
           <td>${t.scheduledAt ? new Date(t.scheduledAt).toLocaleString(undefined, SHORT_DATE) : "—"}</td>
           <td>${t.status === "Completed" || t.status === "Failed" ? t.recordsAffected : "—"}</td>
           <td>${workflowStatus(t)}</td>
-          <td>${t.status === "PendingApproval" ? html`<div style="display:flex;gap:0.5rem;white-space:nowrap">
+          <td>${t.status === "PendingApproval" ? html`<div class="inline-actions nowrap">
             <button class="btn btn-outline btn-sm" @click=${(e) => actOnWorkflowTask(t.id, "approve", e.currentTarget)}>Approve</button>
-            <button class="btn btn-outline btn-sm" style="color:hsl(var(--muted-foreground))" @click=${(e) => actOnWorkflowTask(t.id, "reject", e.currentTarget)}>Reject</button>
+            <button class="btn btn-outline btn-sm text-muted" @click=${(e) => actOnWorkflowTask(t.id, "reject", e.currentTarget)}>Reject</button>
           </div>` : nothing}</td>
         </tr>`)}`);
 
   // Pagination
   const bar = document.getElementById("workflowPaginationBar");
-  if (bar) bar.style.display = "flex";
+  if (bar) bar.hidden = false;
   const startN = total === 0 ? 0 : start + 1;
   const endN = Math.min(start + _workflowPageSize, total);
   const info = document.getElementById("workflowPaginationInfo");
@@ -467,7 +466,7 @@ function renderSettingsRunHistory(tasks) {
   const tbody = document.getElementById("workflowTasksTbody");
   if (!tbody) return;
   paint(tbody, !tasks?.length
-    ? html`<tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No completed runs yet.</td></tr>`
+    ? html`<tr><td class="table-empty" colspan="6">No completed runs.</td></tr>`
     : html`${tasks.map((t) => {
         const started = t.startedAt ? new Date(t.startedAt) : null;
         const durationMs = started && t.completedAt ? new Date(t.completedAt) - started : null;
@@ -514,12 +513,12 @@ async function triggerDataPoliciesRun() {
     method: "POST",
   });
   if (res.ok || res.status === 202) {
-    notify("success", "Run triggered", "Policies will run in a moment.");
+    notify("success", "Run started", "Policies run in the background.");
     // Poll twice: once quickly, once after giving the worker time to finish
     setTimeout(loadWorkflowTasks, 1500);
     setTimeout(loadWorkflowTasks, 6000);
   } else {
-    notify("error", "Run Failed", "Could not trigger a manual run.");
+    notify("error", "Run failed", "The run did not start. Retry.");
   }
   btns.forEach((b) => {
     b.classList.remove("is-loading");
@@ -531,10 +530,10 @@ async function triggerDataPoliciesRun() {
 function openRetentionPurgeModal() {
   const el = document.getElementById("setting-retentionPurgeDays");
   if (el) el.value = appSettings.retentionPurgeDays ?? 1095;
-  document.getElementById("retentionPurgeModal").style.display = "flex";
+  openModal("retentionPurgeModal");
 }
 function closeRetentionPurgeModal() {
-  document.getElementById("retentionPurgeModal").style.display = "none";
+  closeModal("retentionPurgeModal");
 }
 function saveRetentionPurgeDays() {
   const days = parseInt(
@@ -553,10 +552,10 @@ function saveRetentionPurgeDays() {
 function openPendingConfirmationModal() {
   const el = document.getElementById("setting-pendingConfirmationPurgeDays");
   if (el) el.value = appSettings.pendingConfirmationPurgeDays ?? 30;
-  document.getElementById("pendingConfirmationModal").style.display = "flex";
+  openModal("pendingConfirmationModal");
 }
 function closePendingConfirmationModal() {
-  document.getElementById("pendingConfirmationModal").style.display = "none";
+  closeModal("pendingConfirmationModal");
 }
 function savePendingConfirmationPurgeDays() {
   const days = parseInt(

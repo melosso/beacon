@@ -97,27 +97,23 @@ function applyInstanceConstraints() {
 
   // Show notice banner in Integrations section
   const notice = document.getElementById("email-disabled-notice");
-  if (notice) notice.style.display = "block";
+  if (notice) notice.hidden = false;
 
   // Show notice banner in Modules section
   const modulesNotice = document.getElementById("modules-disabled-notice");
-  if (modulesNotice) modulesNotice.style.display = "block";
+  if (modulesNotice) modulesNotice.hidden = false;
 
   // Disable email notifications toggle + gear button
   const emailToggle = document.getElementById("setting-emailNotifications");
   if (emailToggle) {
     emailToggle.disabled = true;
-    emailToggle
-      .closest(".settings-item-card-label")
-      ?.style.setProperty("opacity", "0.5");
+    emailToggle.closest(".settings-item-card-label")?.classList.add("is-disabled");
   }
   const emailGear = document.querySelector(
     "#email-settings-items .btn-settings-gear",
   );
   if (emailGear) {
     emailGear.disabled = true;
-    emailGear.style.opacity = "0.4";
-    emailGear.style.cursor = "not-allowed";
   }
 
   // Disable double opt-in toggle and gray its card
@@ -125,10 +121,7 @@ function applyInstanceConstraints() {
   if (doiToggle) {
     doiToggle.disabled = true;
     const card = doiToggle.closest(".settings-item-card");
-    if (card) {
-      card.style.opacity = "0.5";
-      card.style.pointerEvents = "none";
-    }
+    card?.classList.add("is-disabled");
   }
 }
 
@@ -309,7 +302,7 @@ async function onObjectStorageToggle(checkbox) {
     notify(
       "error",
       "No provider configured",
-      "Select an object storage provider via the settings gear before enabling.",
+      "Select a provider in the object storage settings first.",
     );
     return;
   }
@@ -378,7 +371,7 @@ async function saveCurrentSettings() {
     },
   });
   if (res.ok) {
-    notify("success", "Settings saved", "Your changes have been applied.");
+    notify("success", "Settings saved");
   }
 }
 
@@ -387,7 +380,7 @@ const CRON_REGEX =
 
 function validateCronInput(input) {
   const valid = CRON_REGEX.test(input.value.trim());
-  input.style.borderColor = valid ? "" : "hsl(var(--destructive))";
+  input.setAttribute("aria-invalid", String(!valid));
   return valid;
 }
 
@@ -493,7 +486,7 @@ function saveAppearance(key, value) {
 }
 
 function openSettingsSection(section) {
-  if (document.getElementById("optionsModal").style.display === "flex") closeOptionsModal();
+  if (isModalOpen("optionsModal")) closeOptionsModal();
   showView("settings");
   showSettingsSection(section);
 }

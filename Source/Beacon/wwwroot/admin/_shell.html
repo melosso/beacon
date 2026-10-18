@@ -9,19 +9,34 @@
     <title>Beacon</title>
   </head>
   <body>
-    <!-- Toast Container -->
     <div
       class="toast-container"
       id="toastContainer"
       role="status"
       aria-live="polite"
+      popover="manual"
     ></div>
 
+    <header class="mobile-bar select-none">
+      <button
+        type="button"
+        class="btn-icon mobile-bar-toggle"
+        popovertarget="sidebar"
+        aria-label="Open navigation"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <line x1="4" y1="7" x2="20" y2="7" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="17" x2="20" y2="17" />
+        </svg>
+      </button>
+      <span class="brand-name">Beacon</span>
+    </header>
+
     <div class="app-shell">
-      <aside>
+      <aside id="sidebar" popover>
         <div class="brand select-none">
           <div class="brand-avatar">
-            <!-- Gradient background (Resend-style) -->
             <svg
               viewBox="0 0 20 20"
               fill="none"
@@ -72,7 +87,7 @@
                   fill-opacity="0.15"
                   rx="5.5"
                 />
-                <g style="mix-blend-mode: hard-light">
+                <g class="blend-hard-light">
                   <rect
                     width="20"
                     height="20"
@@ -168,7 +183,6 @@
                 </clipPath>
               </defs>
             </svg>
-            <!-- Beacon icon overlaid -->
             <svg
               class="brand-avatar-icon"
               width="12"
@@ -185,22 +199,6 @@
             </svg>
           </div>
           <span class="brand-name select-none">Beacon</span>
-          <svg
-            style="visibility: hidden"
-            class="brand-chevron"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="m7 15 5 5 5-5"></path>
-            <path d="m7 9 5-5 5 5"></path>
-          </svg>
         </div>
 
         <div class="nav-group select-none">
@@ -238,6 +236,7 @@
                   class="btn-sidebar"
                   id="btnSort"
                   data-click="cycleSidebarSort"
+                  aria-label="Sort buckets"
                 >
                   <svg
                     width="14"
@@ -264,6 +263,7 @@
                   class="btn-sidebar"
                   id="btnDisplayMode"
                   data-click="toggleSidebarDisplay"
+                  aria-label="Show code names"
                 >
                   <svg
                     width="14"
@@ -287,6 +287,8 @@
                 <button
                   class="btn-plus"
                   data-click="toggleBucketSubmenu $event"
+                  aria-label="Bucket actions"
+                  aria-controls="bucketSubmenu"
                 >
                   <svg
                     width="14"
@@ -301,7 +303,7 @@
                   </svg>
                 </button>
                 <span class="tooltip tooltip-above tooltip-right"
-                  >Bucket Actions</span
+                  >Bucket actions</span
                 >
               </span>
             </div>
@@ -314,14 +316,13 @@
               data-view="new-bucket"
               data-click="showView new-bucket"
             >
-              <svg
+              <svg class="nav-icon" aria-hidden="true"
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                style="vertical-align: -2px; margin-right: 6px"
               >
                 <path
                   d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
@@ -335,14 +336,13 @@
               data-view="new-token"
               data-click="showView new-token"
             >
-              <svg
+              <svg class="nav-icon" aria-hidden="true"
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                style="vertical-align: -2px; margin-right: 6px"
               >
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
@@ -362,6 +362,8 @@
                 <button
                   class="btn-plus"
                   data-click="toggleModulesSubmenu $event"
+                  aria-label="Module actions"
+                  aria-controls="modulesSubmenu"
                 >
                   <svg
                     width="14"
@@ -376,7 +378,7 @@
                   </svg>
                 </button>
                 <span class="tooltip tooltip-above tooltip-right"
-                  >Module Actions</span
+                  >Module actions</span
                 >
               </span>
             </div>
@@ -389,14 +391,13 @@
               data-view="submission-create"
               data-click="showView submission-create"
             >
-              <svg
+              <svg class="nav-icon" aria-hidden="true"
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                style="vertical-align: -2px; margin-right: 6px"
               >
                 <path
                   d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
@@ -425,16 +426,7 @@
           </a>
         </div>
 
-        <div
-          class="sidebar-footer select-none"
-          style="
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            padding-top: 1rem;
-            border-top: 1px solid hsl(var(--border));
-          "
-        >
+        <div class="sidebar-footer select-none">
           <div class="sidebar-user" id="sidebarUser">
             <div class="sidebar-user-avatar" id="sidebarUserAvatar">A</div>
             <span class="sidebar-user-name" id="sidebarUserName"
@@ -447,13 +439,10 @@
             class="nav-item sidebar-settings-item"
             data-view="settings"
             data-click="showView settings"
-            style="
-              margin: 0;
-              padding: 0.5rem 0.75rem;
-              justify-content: flex-start;
-            "
           >
             <svg
+              class="nav-icon"
+              aria-hidden="true"
               width="14"
               height="14"
               viewBox="0 0 24 24"
@@ -462,7 +451,6 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
-              style="margin-right: 8px"
             >
               <circle cx="12" cy="12" r="3"></circle>
               <path
@@ -472,12 +460,9 @@
             Settings
           </a>
 
-          <div
-            class="sidebar-footer-actions"
-            style="display: flex; gap: 0.5rem; align-items: center"
-          >
-            <button class="btn-logout" style="flex: 1" data-click="logout">
-              Log Out
+          <div class="sidebar-footer-actions">
+            <button class="btn btn-outline btn-sm grow" data-click="logout">
+              Log out
             </button>
 
             <span class="tooltip-wrapper">
@@ -486,9 +471,10 @@
                 href="/openapi"
                 target="_blank"
                 class="github-link"
-                style="display: flex; padding: 0.5rem"
+                aria-label="OpenAPI documentation"
               >
                 <svg
+                  aria-hidden="true"
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
@@ -508,7 +494,7 @@
                 </svg>
               </a>
               <span class="tooltip tooltip-above tooltip-right"
-                >OpenAPI Documentation</span
+                >OpenAPI documentation</span
               >
             </span>
 
@@ -516,10 +502,12 @@
               <a
                 href="https://github.com/melosso/beacon"
                 target="_blank"
+                rel="noopener"
                 class="github-link"
-                style="display: flex; padding: 0.5rem"
+                aria-label="View on GitHub"
               >
                 <svg
+                  aria-hidden="true"
                   width="16"
                   height="16"
                   class="github-icon"

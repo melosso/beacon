@@ -8,6 +8,7 @@ const ACTION_EVENTS = {
   focus: "focus",
   blur: "blur",
   enter: "keydown",
+  submit: "submit",
 };
 
 function actionArg(token, el, event) {
@@ -39,6 +40,7 @@ function bindActions(root = document) {
           if (event.key !== "Enter") return;
           event.preventDefault();
         }
+        if (attr === "submit") event.preventDefault();
         if (attr === "click") {
           if (el.hasAttribute("data-self") && event.target !== el) return;
           if (el.hasAttribute("data-stop")) event.stopPropagation();
@@ -54,11 +56,48 @@ function bindActions(root = document) {
   }
 }
 
+// Esc on a dialog runs its data-click close handler, which also resets view state.
+document.addEventListener(
+  "cancel",
+  (e) => {
+    const close = e.target.matches?.("dialog[data-click]") && e.target.dataset.click.split(" ")[0];
+    if (!close) return;
+    e.preventDefault();
+    window[close]();
+  },
+  true,
+);
+
+function openModal(id) {
+  const dialog = document.getElementById(id);
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeModal(id) {
+  document.getElementById(id)?.close();
+}
+
+function isModalOpen(id) {
+  return !!document.getElementById(id)?.open;
+}
+
 // Escapes interpolations like lit; replaces all children like innerHTML.
 function paint(el, template) {
   const fragment = document.createDocumentFragment();
   render(template, fragment);
+  applyVars(fragment);
   el.replaceChildren(fragment);
+}
+
+// CSP blocks style attributes: data-vars="--name:value;…" sets custom properties through the CSSOM.
+function applyVars(root) {
+  for (const el of root.querySelectorAll("[data-vars]")) {
+    for (const decl of el.dataset.vars.split(";")) {
+      const i = decl.indexOf(":");
+      const name = decl.slice(0, i).trim();
+      if (i > 0 && name.startsWith("--")) el.style.setProperty(name, decl.slice(i + 1).trim());
+    }
+  }
 }
 
 const TOAST_ICONS = {
@@ -111,7 +150,11 @@ function notify(type, title, message = "") {
         ${message ? html`<div class="toast-message">${message}</div>` : nothing}
       </div>`,
   );
-  document.getElementById("toastContainer").appendChild(toast);
+  const container = document.getElementById("toastContainer");
+  container.appendChild(toast);
+  // Re-show moves the popover above any modal dialog in the top layer.
+  if (container.matches(":popover-open")) container.hidePopover();
+  container.showPopover();
   setTimeout(() => {
     toast.classList.add("hiding");
     setTimeout(() => toast.remove(), 200);
@@ -136,56 +179,16 @@ const AUTH_METHOD =
 let _authFormMode = "password"; // 'password' | 'apikey'; switchable only in 'both' mode
 
 function _applyAuthFormMode(isPassword) {
-  const usernameInput = document.getElementById("usernameInput");
-  const apiKeyInput = document.getElementById("apiKeyInput");
-  const desc = document.getElementById("authOverlayDesc");
-  const toggleBtn = document.querySelector("#authToggleBtn button");
-  usernameInput.style.display = isPassword ? "" : "none";
-  apiKeyInput.placeholder = isPassword ? "Password" : "API Key";
-  apiKeyInput.setAttribute("aria-label", apiKeyInput.placeholder);
-  apiKeyInput.autocomplete = isPassword ? "current-password" : "off";
-  desc.textContent = isPassword
-    ? "Enter your username and password to access the admin panel."
-    : "Enter your personal API key to sign in.";
-  paint(
-    toggleBtn,
-    isPassword
-      ? html`<svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            style="flex-shrink:0"
-          >
-            <circle cx="7.5" cy="15.5" r="5.5" />
-            <path d="m21 2-9.6 9.6" />
-            <path d="m15.5 7.5 3 3L22 7l-3-3" />
-          </svg>
-          Access Token`
-      : html`<svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            style="flex-shrink:0"
-          >
-            <circle cx="12" cy="8" r="4" />
-            <path d="M20 21a8 8 0 0 0-16 0" />
-          </svg>
-          Password`,
-  );
+  const username = document.getElementById("usernameInput");
+  const secret = document.getElementById("apiKeyInput");
+  document.getElementById("usernameGroup").hidden = !isPassword;
+  username.disabled = !isPassword;
+  document.getElementById("apiKeyLabel").textContent = isPassword ? "Password" : "API key";
+  secret.autocomplete = isPassword ? "current-password" : "off";
+  document.getElementById("authOverlayDesc").textContent = isPassword
+    ? "Enter your username and password to sign in."
+    : "Enter your API key to sign in.";
+  document.getElementById("authToggleBtn").textContent = isPassword ? "Use API key" : "Use password";
 }
 
 function setupAuthOverlay() {
@@ -197,16 +200,20 @@ function setupAuthOverlay() {
   } else if (AUTH_METHOD === "user" || AUTH_METHOD === "api") {
     _applyAuthFormMode(AUTH_METHOD === "user");
   }
-  document.getElementById("authToggleBtn").style.display = isBoth ? "" : "none";
-  document.getElementById("authToggleSep").style.display = isBoth
-    ? "flex"
-    : "none";
+  document.getElementById("authToggleBtn").hidden = !isBoth;
+  document.getElementById("authToggleSep").hidden = !isBoth;
+}
+
+function showAuthError(message) {
+  const error = document.getElementById("authError");
+  error.textContent = message;
+  error.hidden = !message;
 }
 
 function toggleAuthMode() {
   _authFormMode = _authFormMode === "password" ? "apikey" : "password";
   localStorage.setItem("beacon_auth_preference", _authFormMode);
-  document.getElementById("authError").style.display = "none";
+  showAuthError("");
   document.getElementById("apiKeyInput").value = "";
   _applyAuthFormMode(_authFormMode === "password");
 }
@@ -215,26 +222,12 @@ function toggleAuthMode() {
 async function authenticate() {
   const btn = document.getElementById("signInBtn");
   const secret = document.getElementById("apiKeyInput");
-  let body;
-  if (
-    AUTH_METHOD === "user" ||
-    (AUTH_METHOD === "both" && _authFormMode === "password")
-  ) {
-    const username = document.getElementById("usernameInput").value.trim();
-    if (!username || !secret.value) {
-      notify("warning", "Input Required", "Enter your username and password.");
-      return;
-    }
-    body = { username, password: secret.value };
-  } else {
-    const apiKey = secret.value.trim();
-    if (!apiKey) {
-      notify("warning", "Input Required", "Enter an API key.");
-      return;
-    }
-    body = { apiKey };
-  }
+  const username = document.getElementById("usernameInput");
+  const body = username.disabled
+    ? { apiKey: secret.value.trim() }
+    : { username: username.value.trim(), password: secret.value };
 
+  showAuthError("");
   btn.classList.add("is-loading");
   btn.disabled = true;
   try {
@@ -245,15 +238,13 @@ async function authenticate() {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      document.getElementById("authError").style.display = "block";
       secret.value = "";
-      notify(
-        "error",
-        "Authentication Failed",
+      showAuthError(
         res.status === 429
-          ? "Too many attempts. Wait and retry."
-          : "Invalid credentials.",
+          ? "Too many attempts. Wait a minute and retry."
+          : "Sign-in failed. Check your credentials and retry.",
       );
+      secret.focus();
       return;
     }
     const data = await res.json();
@@ -263,7 +254,7 @@ async function authenticate() {
       sessionStorage.setItem("beacon_jwt_exp", data.expiresAt);
     window.location.href = "/admin";
   } catch {
-    notify("error", "Network Error", "Could not connect to server.");
+    showAuthError("Server unreachable. Check your connection and retry.");
   } finally {
     btn.classList.remove("is-loading");
     btn.disabled = false;
@@ -292,13 +283,13 @@ function initLoginPage() {
       new URLSearchParams(location.search).get("reason") === "expired";
     document.title = "Signed out · Beacon";
     document.getElementById("loginHeading").textContent = expired
-      ? "Session Expired"
-      : "Signed Out";
+      ? "Session expired"
+      : "Signed out";
     document.getElementById("authOverlayDesc").textContent = expired
-      ? "Your session has expired. Sign in again to continue."
-      : "You have been signed out.";
+      ? "Your session expired. Sign in to continue."
+      : "You are signed out. Sign in to continue.";
   }
-  overlay.style.display = "flex";
+  overlay.hidden = false;
 }
 
 bindActions();

@@ -11,8 +11,10 @@
           class="webhook-errors-trigger"
           id="overviewWebhookErrorsTrigger"
           data-click="toggleOverviewWebhookErrors $event"
+          aria-label="Notifications"
         >
           <svg
+            aria-hidden="true"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -32,16 +34,13 @@
         class="webhook-errors-dropdown"
         id="overviewWebhookErrorsDropdown"
       ></div>
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="loadOverview true">
+      <button class="btn btn-outline" data-click="loadOverview true">
           Refresh
         </button>
-        <span class="tooltip tooltip-right">Refresh</span>
-      </span>
     </div>
   </section>
   <div class="table-wrapper">
-    <div class="scroll-area" style="overflow-x: hidden">
+    <div class="scroll-area">
       <table>
         <thead>
           <tr>

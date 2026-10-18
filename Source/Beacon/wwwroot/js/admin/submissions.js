@@ -120,16 +120,16 @@ async function loadSubmissionForms() {
   const forms = result.data || [];
   const body = document.getElementById("submissionBody");
   paint(body, forms.length === 0
-    ? html`<tr><td colspan="7" style="text-align:center;padding:3rem;color:hsl(var(--muted-foreground))">No submission forms yet. Use the button above to create an embeddable form.</td></tr>`
+    ? html`<tr><td class="table-empty" colspan="7">No submission forms. Create a form to embed on a website.</td></tr>`
     : html`${forms.map((f, idx) => html`
         <tr>
           <td><strong>${f.name}</strong></td>
-          <td><span class="tooltip-wrapper select-none" style="cursor:pointer" @click=${() => showBucket(f.bucket)}>${f.bucket}<span class="tooltip">${f.bucket}</span></span></td>
-          <td><span class="tooltip-wrapper select-none" style="cursor:pointer" @click=${() => copyTextNow(f.permission)}><span class="status-badge">${formatPermission(f.permission)}</span><span class="tooltip">${f.permission}</span></span></td>
+          <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => showBucket(f.bucket)}>${f.bucket}<span class="tooltip">${f.bucket}</span></span></td>
+          <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => copyTextNow(f.permission)}><span class="status-badge">${formatPermission(f.permission)}</span><span class="tooltip">${f.permission}</span></span></td>
           <td>${(f.allowedOrigins || []).length}</td>
           <td>${f.submissionCount}</td>
           <td>
-            <label class="checkbox-toggle" style="margin:0;border:none">
+            <label class="checkbox-toggle checkbox-toggle--bare">
               <input type="checkbox" .checked=${f.isEnabled} aria-label="Enabled" @change=${(e) => toggleSubmissionEnabled(f.id, e.target.checked)}>
               <span class="toggle-track"></span>
             </label>
@@ -138,7 +138,7 @@ async function loadSubmissionForms() {
             <div class="row-actions">
               <span class="row-status-icons">
                 ${buckets.some((b) => b.name === f.bucket && b.isArchived) ? html`<span class="tooltip-wrapper">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--destructive))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle" aria-hidden="true">
+                  <svg class="align-middle text-danger" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
@@ -152,8 +152,8 @@ async function loadSubmissionForms() {
               </span>
               <div class="dropdown-menu" id="nlMenu-${idx}">
                 <button class="dropdown-item" @click=${() => editSubmissionForm(f.id)}>Settings</button>
-                <button class="dropdown-item" @click=${() => showEmbedCode(f.id)}>View & Share <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line></svg></button>
-                <button class="dropdown-item" @click=${() => deleteSubmissionForm(f.id, f.name)}>Remove Form <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                <button class="dropdown-item" @click=${() => showEmbedCode(f.id)}>View and share <svg class="dropdown-item-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line></svg></button>
+                <button class="dropdown-item" @click=${() => deleteSubmissionForm(f.id, f.name)}>Remove form <svg class="dropdown-item-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
               </div>
             </div>
           </td>
@@ -175,44 +175,28 @@ function toggleRedirectFields() {
   ids.forEach((id) => {
     const el = document.getElementById(id);
     const wrapper = el.closest(".form-group") || el.closest(".checkbox-toggle");
-    if (wrapper) {
-      wrapper.style.opacity = disabled ? "0.45" : "";
-      wrapper.style.pointerEvents = disabled ? "none" : "";
-    }
-    const track = el
-      .closest(".checkbox-toggle")
-      ?.querySelector(".toggle-track");
-    if (track) track.style.filter = disabled ? "saturate(0)" : "";
+    wrapper?.classList.toggle("is-disabled", disabled);
   });
 }
 
 function toggleNlNameLabel() {
   const enabled = document.getElementById("nlCollectName").checked;
   const group = document.getElementById("nlNameLabelGroup");
-  if (group) {
-    group.style.opacity = enabled ? "" : "0.45";
-    group.style.pointerEvents = enabled ? "" : "none";
-  }
+  group?.classList.toggle("is-disabled", !enabled);
   updateLivePreview();
 }
 
 function toggleNlBgColor() {
   const on = document.getElementById("nlBgColorEnabled").checked;
   const g = document.getElementById("nlBgColorGroup");
-  if (g) {
-    g.style.opacity = on ? "1" : "0.4";
-    g.style.pointerEvents = on ? "" : "none";
-  }
+  g?.classList.toggle("is-disabled", !on);
   updateLivePreview();
 }
 
 function toggleNlTextColor() {
   const on = document.getElementById("nlTextColorEnabled").checked;
   const g = document.getElementById("nlTextColorGroup");
-  if (g) {
-    g.style.opacity = on ? "1" : "0.4";
-    g.style.pointerEvents = on ? "" : "none";
-  }
+  g?.classList.toggle("is-disabled", !on);
   updateLivePreview();
 }
 
@@ -256,19 +240,19 @@ function updateLivePreview() {
   const privacyUrl = document
     .getElementById("nlPrivacyPolicyUrl")
     ?.value.trim();
-  const inputBase = `padding:9px 12px;border:1px solid rgba(128,128,128,0.25);border-radius:${radius};font-size:0.875rem;background:rgba(128,128,128,0.06);color:inherit;outline:none;font-family:inherit`;
-  panel.style.cssText = `background:${bg};color:${fg};padding:1.25rem`;
+  for (const [k, v] of Object.entries({ "--pv-bg": bg, "--pv-fg": fg, "--pv-accent": primary, "--pv-radius": radius }))
+    panel.style.setProperty(k, v);
   const shortConsent = consentTxt.length > 110 ? consentTxt.slice(0, 110) + "…" : consentTxt;
   paint(panel, html`
-    ${title ? html`<h2 style="font-size:1.1rem;font-weight:600;margin-bottom:6px;line-height:1.3">${title}</h2>` : nothing}
-    ${description ? html`<p style="font-size:0.85rem;opacity:0.7;margin-bottom:14px;line-height:1.5">${description}</p>` : nothing}
-    ${collectName ? html`<input type="text" placeholder=${nameLabel} disabled style="width:100%;${inputBase};margin-bottom:8px;display:block;cursor:default">` : nothing}
-    <div style="display:flex;gap:8px;margin-bottom:8px">
-      <input type="email" placeholder="you@example.com" disabled style="flex:1;${inputBase};cursor:default">
-      <button disabled style="padding:9px 18px;background:${primary};color:#fff;border:none;border-radius:${radius};font-size:0.875rem;font-weight:500;white-space:nowrap;cursor:default;font-family:inherit">${buttonText}</button>
+    ${title ? html`<h2 class="pv-title">${title}</h2>` : nothing}
+    ${description ? html`<p class="pv-desc">${description}</p>` : nothing}
+    ${collectName ? html`<input class="pv-input pv-input--block" type="text" placeholder=${nameLabel} disabled>` : nothing}
+    <div class="pv-row">
+      <input class="pv-input" type="email" placeholder="you@example.com" disabled>
+      <button class="pv-button" disabled>${buttonText}</button>
     </div>
-    ${consent ? html`<div style="display:flex;align-items:flex-start;gap:8px;font-size:0.8rem;line-height:1.4;margin-top:4px"><input type="checkbox" disabled style="margin-top:2px;flex-shrink:0"><span style="opacity:0.8">${shortConsent}</span></div>` : nothing}
-    ${privacyUrl ? html`<p style="margin-top:6px;font-size:0.75rem;opacity:0.6"><a href="#" @click=${(e) => e.preventDefault()} style="color:inherit;text-decoration:underline">Privacy Policy</a></p>` : nothing}`);
+    ${consent ? html`<div class="pv-consent"><input type="checkbox" disabled><span>${shortConsent}</span></div>` : nothing}
+    ${privacyUrl ? html`<p class="pv-privacy"><a href="#" @click=${(e) => e.preventDefault()}>Privacy Policy</a></p>` : nothing}`);
 }
 
 function initSubmissionWizard(editData) {
@@ -308,17 +292,17 @@ function initSubmissionWizard(editData) {
   document.getElementById("nlNameLabel").value = "";
   nlCustomFields = {};
   paint(document.getElementById("nlCustomFieldsList"), nothing);
-  document.getElementById("nlApiTokenDisplay").style.display = "none";
-  document.getElementById("nlBucketArchivedWarning").style.display = "none";
+  document.getElementById("nlApiTokenDisplay").hidden = true;
+  document.getElementById("nlBucketArchivedWarning").hidden = true;
 
   if (editData) {
     nlEditId = editData.id;
     document.getElementById("submissionWizardTitle").textContent =
-      "Edit Submission Form";
-    document.getElementById("nlIntroTitle").textContent = "Edit Form";
+      "Edit submission form";
+    document.getElementById("nlIntroTitle").textContent = "Edit form";
     document.getElementById("nlIntroDesc").textContent =
-      "Update the settings for this submission form. Changes take effect immediately for new submissions.";
-    document.getElementById("nlSaveBtn").textContent = "Save Changes";
+      "Changes apply to new submissions immediately.";
+    document.getElementById("nlSaveBtn").textContent = "Save changes";
     document.getElementById("nlName").value = editData.name || "";
     document.getElementById("nlBucket").value = editData.bucket || "";
     checkNlBucketArchived();
@@ -373,11 +357,11 @@ function initSubmissionWizard(editData) {
     }
   } else {
     document.getElementById("submissionWizardTitle").textContent =
-      "Create Submission Form";
-    document.getElementById("nlIntroTitle").textContent = "Create Form";
+      "New submission form";
+    document.getElementById("nlIntroTitle").textContent = "New form";
     document.getElementById("nlIntroDesc").textContent =
-      "You're about to create a new submission form. This form can be safely embedded on an external website and will submit permission states directly to Beacon.";
-    document.getElementById("nlSaveBtn").textContent = "Create Form";
+      "A submission form embeds on an external website and submits permission states to Beacon.";
+    document.getElementById("nlSaveBtn").textContent = "Create form";
   }
   renderNlOrigins();
   ensurePreviewListener();
@@ -387,11 +371,11 @@ function initSubmissionWizard(editData) {
 
 function submissionWizardShowStep(step) {
   for (let i = 1; i <= 5; i++) {
-    document.getElementById(`nlStep${i}`).style.display =
-      i === step ? "" : "none";
+    document.getElementById(`nlStep${i}`).hidden = !(i === step);
     const ind = document.getElementById(`nlStep${i}Indicator`);
-    ind.style.opacity = i === step ? "1" : i < step ? "0.6" : "0.4";
-    if (i === 5) ind.style.display = step === 5 ? "" : "none";
+    ind.classList.toggle("is-current", i === step);
+    ind.classList.toggle("is-done", i < step);
+    if (i === 5) ind.hidden = !(step === 5);
   }
 }
 
@@ -401,18 +385,18 @@ function submissionWizardNext(step) {
     const bucket = document.getElementById("nlBucket").value.trim();
     const permission = document.getElementById("nlPermission").value.trim();
     if (!name) {
-      notify("warning", "Missing Field", "Please enter a form name");
+      notify("warning", "Form name required", "Enter a form name.");
       return;
     }
     if (!bucket) {
-      notify("warning", "Missing Field", "Please enter a bucket name");
+      notify("warning", "Bucket name required", "Enter a bucket name.");
       return;
     }
     if (!permission) {
       notify(
         "warning",
-        "Missing Field",
-        "Please enter at least one permission",
+        "Permission required",
+        "Enter at least one permission.",
       );
       return;
     }
@@ -421,8 +405,8 @@ function submissionWizardNext(step) {
     if (nlOrigins.length === 0) {
       notify(
         "warning",
-        "Missing Field",
-        "Please add at least one allowed origin",
+        "Origin required",
+        "Add at least one allowed origin.",
       );
       return;
     }
@@ -437,20 +421,20 @@ function addSubmissionOrigin() {
   try {
     const url = new URL(origin);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      notify("warning", "Invalid Origin", "Origin must use http or https");
+      notify("warning", "Invalid origin", "Use an http or https origin.");
       return;
     }
     if (url.pathname !== "/" || url.search || url.hash) {
       notify(
         "warning",
-        "Invalid Origin",
-        "Origin must not contain a path, query, or fragment",
+        "Invalid origin",
+        "Remove the path, query or fragment from the origin.",
       );
       return;
     }
     const clean = `${url.protocol}//${url.host}`;
     if (nlOrigins.includes(clean)) {
-      notify("warning", "Duplicate", "This origin has already been added");
+      notify("warning", "Duplicate origin", "The origin is already in the list.");
       return;
     }
     nlOrigins.push(clean);
@@ -459,8 +443,8 @@ function addSubmissionOrigin() {
   } catch {
     notify(
       "warning",
-      "Invalid Origin",
-      "Please enter a valid URL (e.g. https://example.com)",
+      "Invalid origin",
+      "Enter a valid origin, for example https://example.com.",
     );
   }
 }
@@ -473,10 +457,10 @@ function removeSubmissionOrigin(i) {
 function renderNlOrigins() {
   const container = document.getElementById("nlOriginsList");
   paint(container, nlOrigins.length === 0
-    ? html`<p style="color:hsl(var(--muted-foreground));font-size:0.9rem">No origins added yet.</p>`
+    ? html`<p class="list-empty">No origins.</p>`
     : html`${nlOrigins.map((o, i) => html`
-        <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid hsl(var(--border))">
-          <code style="flex:1;font-size:0.85rem">${o}</code>
+        <div class="custom-field-row">
+          <span class="custom-field-value">${o}</span>
           <button type="button" class="btn-remove" @click=${() => removeSubmissionOrigin(i)} title="Remove" aria-label="Remove origin">&times;</button>
         </div>`)}`);
 }
@@ -491,24 +475,22 @@ function showNlBucketSuggestions() {
     matches.length === 0 ||
     (matches.length === 1 && matches[0].name.toLowerCase() === query)
   ) {
-    dropdown.style.display = "none";
+    dropdown.classList.remove("open");
     return;
   }
   paint(dropdown, html`${matches.map((b) => html`<div class="autocomplete-item" @click=${() => {
     input.value = b.name;
-    dropdown.style.display = "none";
+    dropdown.classList.remove("open");
     checkNlBucketArchived();
   }}>${b.name}</div>`)}`);
   positionDropdown(input, dropdown);
-  dropdown.style.display = "block";
+  dropdown.classList.add("open");
 }
 
 function checkNlBucketArchived() {
   const bucket = document.getElementById("nlBucket").value.trim().toLowerCase();
   const isArchived = buckets.some((b) => b.name === bucket && b.isArchived);
-  document.getElementById("nlBucketArchivedWarning").style.display = isArchived
-    ? ""
-    : "none";
+  document.getElementById("nlBucketArchivedWarning").hidden = !isArchived;
 }
 
 function showNlPermissionSuggestions() {
@@ -532,7 +514,7 @@ function showNlPermissionSuggestions() {
     matches.length === 0 ||
     (matches.length === 1 && matches[0].toLowerCase() === currentPart)
   ) {
-    dropdown.style.display = "none";
+    dropdown.classList.remove("open");
     return;
   }
   paint(dropdown, html`${matches.map((p) => {
@@ -544,11 +526,11 @@ function showNlPermissionSuggestions() {
       const newVal = prefix ? `${prefix}, ${p}` : p;
     return html`<div class="autocomplete-item" @click=${() => {
       input.value = newVal;
-      dropdown.style.display = "none";
-    }}>${formatPermission(p)} <span style="opacity:0.5;font-size:0.8em">${p}</span></div>`;
+      dropdown.classList.remove("open");
+    }}>${formatPermission(p)} <span class="autocomplete-code">${p}</span></div>`;
   })}`);
   positionDropdown(input, dropdown);
-  dropdown.style.display = "block";
+  dropdown.classList.add("open");
 }
 
 async function saveSubmissionForm() {
@@ -613,7 +595,7 @@ async function saveSubmissionForm() {
   renderEmbedSnippets(formId);
 
   if (result.data.apiToken) {
-    document.getElementById("nlApiTokenDisplay").style.display = "";
+    document.getElementById("nlApiTokenDisplay").hidden = false;
     document.getElementById("nlApiToken").textContent = result.data.apiToken;
   }
 
@@ -624,8 +606,8 @@ async function saveSubmissionForm() {
   if (buckets.some((b) => b.name === savedBucket && b.isArchived)) {
     notify(
       "warning",
-      "Bucket Archived",
-      `Bucket "${savedBucket}" is archived. Submissions will be rejected until it's unarchived.`,
+      "Bucket archived",
+      `${savedBucket} is archived. Submissions are rejected until the bucket is unarchived.`,
     );
   }
 }
@@ -645,11 +627,11 @@ async function showEmbedCode(id = previewFormId) {
   updateUrl({ view: "submission-embed", id });
 
   // Set title immediately so it never flashes "Edit" or "Create"
-  document.getElementById("submissionWizardTitle").textContent = "View & Share";
-  document.getElementById("nlIntroTitle").textContent = "Share Form";
+  document.getElementById("submissionWizardTitle").textContent = "View and share";
+  document.getElementById("nlIntroTitle").textContent = "Share form";
   document.getElementById("nlIntroDesc").textContent =
-    "Use the embed code snippets below to add this submission form to your website, or share the direct link to the form itself.";
-  document.getElementById("nlApiTokenDisplay").style.display = "none";
+    "Embed snippets and the direct link for this form.";
+  document.getElementById("nlApiTokenDisplay").hidden = true;
   submissionWizardShowStep(5);
 
   const result = await apiRequest(`/api/admin/submissions/${id}`);
@@ -706,7 +688,7 @@ function deleteSubmissionForm(id, name) {
   document
     .getElementById("confirmSubmissionRemoveBtn")
     .classList.remove("active");
-  document.getElementById("submissionRemoveModal").style.display = "flex";
+  openModal("submissionRemoveModal");
   closeAllMenus();
 }
 
@@ -737,8 +719,8 @@ async function confirmSubmissionRemoval() {
   if (result.ok) {
     notify(
       "success",
-      "Form Removed",
-      `Successfully deleted submission form "${submissionToRemove.name}"`,
+      "Form removed",
+      `${submissionToRemove.name} is deleted.`,
     );
     closeSubmissionRemoveModal();
     loadSubmissionForms();
@@ -746,7 +728,7 @@ async function confirmSubmissionRemoval() {
 }
 
 function closeSubmissionRemoveModal() {
-  document.getElementById("submissionRemoveModal").style.display = "none";
+  closeModal("submissionRemoveModal");
   submissionPassphrase = "";
   submissionToRemove = null;
 }
@@ -781,7 +763,7 @@ function copyEmbedCode(type) {
   };
   const el = document.getElementById(ids[type] || ids.iframe);
   clipboardWrite(el.textContent);
-  notify("success", "Copied", "Embed code copied to clipboard");
+  notify("success", "Embed code copied");
 }
 
 function buildFormPostSnippet(apiBase, formId) {
@@ -863,7 +845,7 @@ function copyNlApiToken() {
   clipboardWrite(
     document.getElementById("nlApiToken").textContent,
   );
-  notify("success", "Copied", "API token copied to clipboard");
+  notify("success", "API token copied");
 }
 
 function downloadNlApiToken() {
@@ -896,7 +878,7 @@ function showPreview(id, mode) {
   const labels = {
     iframe: "iframe",
     js: "JavaScript",
-    form: "HTML Form",
+    form: "HTML form",
     api: "API",
   };
   badge.textContent = labels[mode] || mode;
@@ -905,8 +887,7 @@ function showPreview(id, mode) {
   if (mode === "iframe") {
     const iframe = document.createElement("iframe");
     iframe.src = `${apiBase}/api/submission/${id}/embed`;
-    iframe.style.cssText =
-      "border:none;width:100%;max-width:480px;min-height:235px;border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.08)";
+    iframe.className = "preview-iframe";
     iframe.onload = function () {
       try {
         const h = iframe.contentDocument.documentElement.scrollHeight;
@@ -944,24 +925,24 @@ function showPreview(id, mode) {
     form.method = "POST";
     form.action = actionUrl;
     if (!disableRedirects) form.target = "_self";
-    const field = "width:100%;padding:0.5rem 0.75rem;border:1px solid hsl(var(--border));border-radius:var(--radius);font-size:0.9rem;margin-bottom:0.75rem;background:hsl(var(--background));color:hsl(var(--foreground))";
+    form.className = "preview-form";
     paint(form, html`
-      ${collectName ? html`<input type="text" name="name" placeholder=${nameLabel} aria-label=${nameLabel} autocomplete="name" style=${field}>` : nothing}
-      <input type="email" name="email" placeholder="you@example.com" aria-label="Email" required style=${field}>
+      ${collectName ? html`<input type="text" name="name" placeholder=${nameLabel} aria-label=${nameLabel} autocomplete="name">` : nothing}
+      <input type="email" name="email" placeholder="you@example.com" aria-label="Email" required>
       ${disableRedirects ? nothing : html`<input type="hidden" name="redirect_success" value="about:blank#success"><input type="hidden" name="redirect_error" value="about:blank#error">`}
-      ${consentRequired ? html`<label style="display:flex;align-items:flex-start;gap:8px;margin:0 0 0.75rem;font-size:0.85rem;line-height:1.4;color:hsl(var(--foreground))"><input type="checkbox" name="consent" value="true" required style="margin-top:2px;flex-shrink:0"><span>${consentText}</span></label>` : nothing}
-      ${/^https?:\/\//i.test(privacyUrl || "") ? html`<p style="margin-bottom:0.75rem;font-size:0.8rem;opacity:0.65"><a href=${privacyUrl} target="_blank" rel="noopener noreferrer" style="color:hsl(var(--foreground))">Privacy Policy</a></p>` : nothing}
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">Subscribe</button>`);
+      ${consentRequired ? html`<label class="pv-consent"><input type="checkbox" name="consent" value="true" required><span>${consentText}</span></label>` : nothing}
+      ${/^https?:\/\//i.test(privacyUrl || "") ? html`<p class="pv-privacy"><a href=${privacyUrl} target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>` : nothing}
+      <button type="submit" class="btn btn-primary btn-block">Subscribe</button>`);
     if (disableRedirects) {
       const msg = document.createElement("div");
-      msg.style.cssText =
-        "margin-top:0.75rem;font-size:0.9rem;min-height:1.4em";
+      msg.className = "preview-message";
+      msg.setAttribute("role", "status");
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const btn = form.querySelector("button");
         btn.disabled = true;
         msg.textContent = "";
-        msg.style.color = "";
+        msg.className = "preview-message";
         try {
           const body = {
             email: form.querySelector('input[name="email"]').value,
@@ -980,16 +961,16 @@ function showPreview(id, mode) {
           });
           const data = await res.json();
           if (res.ok) {
-            msg.textContent = data.message || "Success";
-            msg.style.color = "#16a34a";
+            msg.textContent = data.message || "Subscribed.";
+            msg.className = "preview-message text-success";
             form.reset();
           } else {
-            msg.textContent = data.error || "Something went wrong.";
-            msg.style.color = "#dc2626";
+            msg.textContent = data.error || "Submission failed. Retry.";
+            msg.className = "preview-message text-danger";
           }
         } catch {
-          msg.textContent = "Network error. Please try again.";
-          msg.style.color = "#dc2626";
+          msg.textContent = "Network error. Check the connection and retry.";
+          msg.className = "preview-message text-danger";
         }
         btn.disabled = false;
       });
@@ -1000,8 +981,7 @@ function showPreview(id, mode) {
   } else if (mode === "api") {
     const subscribeUrl = `${apiBase}/api/submission/${id}/subscribe`;
     const pre = document.createElement("pre");
-    pre.style.cssText =
-      "background:hsl(var(--muted));color:hsl(var(--foreground));padding:1rem;border-radius:var(--radius);font-size:0.8rem;overflow-x:auto;line-height:1.6;margin:0;white-space:pre-wrap;word-break:break-all";
+    pre.className = "code-block";
     pre.textContent = `fetch('${subscribeUrl}', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ email: 'user@example.com' })\n})\n.then(r => r.json())\n.then(data => console.log(data));`;
     const card = buildPreviewCard(pre);
     container.appendChild(card);
@@ -1013,8 +993,7 @@ function showPreview(id, mode) {
 
 function buildPreviewCard(content) {
   const card = document.createElement("div");
-  card.style.cssText =
-    "background:hsl(var(--background));border:1px solid hsl(var(--border));border-radius:var(--radius);padding:1.5rem;width:100%;max-width:520px;box-shadow:0 1px 3px rgba(0,0,0,.08)";
+  card.className = "preview-card";
   card.appendChild(content);
   return card;
 }

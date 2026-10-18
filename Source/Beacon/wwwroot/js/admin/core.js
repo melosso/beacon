@@ -71,7 +71,7 @@ async function apiRequest(endpoint, options = {}) {
 
     if (!res.ok) {
       const errorMsg = data?.error || `Request failed (${res.status})`;
-      notify("error", "Request Failed", errorMsg);
+      notify("error", "Request failed", errorMsg);
       return { ok: false, status: res.status, data };
     }
 
@@ -79,9 +79,9 @@ async function apiRequest(endpoint, options = {}) {
   } catch (e) {
     const msg =
       e instanceof TypeError
-        ? "Could not connect to server. The server may be down or returned an error. Check the server logs."
-        : e.message || "An unexpected error occurred.";
-    notify("error", "Request Failed", msg);
+        ? "Server unreachable. Check the connection and the server logs."
+        : e.message || "Request failed. Retry.";
+    notify("error", "Request failed", msg);
     return { ok: false, status: 0, data: null };
   }
 }
@@ -128,7 +128,7 @@ function startTokenRefresh() {
             tokenExpiresAt = new Date(result.data.expiresAt);
             sessionStorage.setItem("beacon_jwt_exp", result.data.expiresAt);
           } else if (result.status === 401) {
-            notify("error", "Session Expired", "Please log in again.");
+            notify("error", "Session expired", "Sign in again.");
             window.location.href = "/admin/login";
           }
         } catch {
