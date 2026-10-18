@@ -2,10 +2,18 @@
 
 # Configuration
 API_URL="http://localhost:5000/api/tokens/generate"
-API_KEY="INSECURE-CHANGE-ME-api-key"
+# Key: $ADMIN_API_KEY, else ADMIN_API_KEY from Source/Beacon/.env.
+API_KEY="${ADMIN_API_KEY:-$(grep -s '^ADMIN_API_KEY=' "$(dirname "$0")/Source/Beacon/.env" | cut -d= -f2-)}"
 
-MIN_EMAILS_PER_BUCKET=5
-MAX_EMAILS_PER_BUCKET=300
+AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Api-Key: $API_KEY" "http://localhost:5001/api/admin/auth/me")
+case "$AUTH_STATUS" in
+  200) ;;
+  000) echo "Beacon is not reachable on localhost:5001. Start it with: dotnet run --project Source/Beacon"; exit 1 ;;
+  *)   echo "API key rejected (HTTP $AUTH_STATUS). Set ADMIN_API_KEY or add it to Source/Beacon/.env."; exit 1 ;;
+esac
+
+MIN_EMAILS_PER_BUCKET=${MIN_EMAILS:-5}
+MAX_EMAILS_PER_BUCKET=${MAX_EMAILS:-300}
 
 DOMAINS=(
   "unternehmen.eu"
@@ -28,8 +36,8 @@ PERMISSION_KEYS=(
   "Promotions"
   "Compliance"
   "Analytics"
-  "Third Party Sharing"
-  "SMS Notifications"
+  "Third_Party_Sharing"
+  "SMS_Notifications"
   "Telemarketing"
 )
 
@@ -56,6 +64,9 @@ BUCKETS=(
   "ecommerce_cart_abandonment"
   "user_research_panel"
 )
+
+# EXTRA_BUCKETS=n appends n generated buckets, e.g. to test long bucket lists.
+for i in $(seq 1 "${EXTRA_BUCKETS:-0}"); do BUCKETS+=("regional_newsletter_$(printf '%03d' "$i")"); done
 
 # Name pools keyed by TLD
 get_first_names() {

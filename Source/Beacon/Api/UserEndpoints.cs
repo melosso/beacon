@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Beacon.Security;
 using Beacon.Storage;
 
 namespace Beacon.Api;
@@ -8,6 +9,9 @@ namespace Beacon.Api;
 public static class UserEndpoints
 {
     private static readonly string[] ValidRoles = ["admin", "user"];
+
+    // Subjects of admin API key sessions; a user with these names is indistinguishable in sessions and the audit log.
+    private static readonly string[] ReservedUsernames = ["admin", "ApiKeyUser"];
 
     public static void MapUserEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -189,7 +193,7 @@ public static class UserEndpoints
         if (string.IsNullOrEmpty(username))
             return Results.Json(new { error = "Unauthorized." }, statusCode: 401);
 
-        var user = await repo.FindByUsernameAsync(username);
+        var user = ctx.User.HasClaim(JwtAuthHandler.AdminKeyClaim, "true") ? null : await repo.FindByUsernameAsync(username);
         if (user == null)
         {
             // Global API key / legacy mode
@@ -206,7 +210,7 @@ public static class UserEndpoints
         });
     }
 
-    private static bool ValidateUsername(string? username, out string error)
+    internal static bool ValidateUsername(string? username, out string error)
     {
         error = "";
         if (string.IsNullOrWhiteSpace(username))
@@ -222,6 +226,11 @@ public static class UserEndpoints
         if (!System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9\-_\.@]+$"))
         {
             error = "Username may only contain letters, numbers, hyphens, underscores, dots, and @ signs.";
+            return false;
+        }
+        if (ReservedUsernames.Contains(username, StringComparer.OrdinalIgnoreCase))
+        {
+            error = $"Username \"{username}\" is reserved for the admin API key. Choose another username.";
             return false;
         }
         return true;

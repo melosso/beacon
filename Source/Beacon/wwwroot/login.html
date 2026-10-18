@@ -3,32 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="32x32" />
     <link href="/css/site.css" rel="stylesheet" />
     <script src="/js/theme.js"></script>
-    <title>Sign In &middot; Beacon</title>
+    <title>Sign in &middot; Beacon</title>
   </head>
   <body>
-    <div
-      class="toast-container"
-      id="toastContainer"
-      role="status"
-      aria-live="polite"
-    ></div>
-
     <!-- LOGIN_PROMO_BAR_PLACEHOLDER -->
 
-    <div class="auth-overlay" id="loginOverlay" style="display: none">
-      <div style="display: flex; flex-direction: column; align-items: center">
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1.25rem;
-          "
-        >
-          <div class="brand-avatar" style="width: 28px; height: 28px">
+    <main class="auth-page" id="loginOverlay" hidden>
+      <div class="auth-brand select-none">
+        <div class="brand-avatar brand-avatar--lg">
             <svg
               viewBox="0 0 20 20"
               fill="none"
@@ -79,7 +65,7 @@
                   fill-opacity="0.15"
                   rx="5.5"
                 />
-                <g style="mix-blend-mode: hard-light">
+                <g class="blend-hard-light">
                   <rect
                     width="20"
                     height="20"
@@ -192,99 +178,47 @@
               />
             </svg>
           </div>
-          <h1
-            class="select-none"
-            style="font-size: 1.1rem; font-weight: 500; margin: 0"
-          >
-            Beacon
-          </h1>
-        </div>
-        <div class="auth-box select-none">
-          <h2 id="loginHeading">Sign in to Beacon</h2>
-          <p id="authOverlayDesc">
-            Enter your API key to access the admin panel.
-          </p>
+        <span class="auth-brand-name">Beacon</span>
+      </div>
+      <form class="auth-box" id="authForm" data-submit="authenticate">
+        <h1 id="loginHeading">Sign in to Beacon</h1>
+        <p id="authOverlayDesc">Enter your API key to sign in.</p>
+        <div class="form-group" id="usernameGroup" hidden>
+          <label for="usernameInput">Username</label>
           <input
             type="text"
             id="usernameInput"
-            placeholder="Username"
-            aria-label="Username"
             autocomplete="username"
-            style="display: none"
-            data-enter="authenticate"
+            placeholder="user@example.com"
+            required
+            disabled
           />
+        </div>
+        <div class="form-group">
+          <label for="apiKeyInput" id="apiKeyLabel">API key</label>
           <input
             type="password"
             id="apiKeyInput"
-            placeholder="API Key"
-            aria-label="API Key"
             autocomplete="current-password"
-            data-enter="authenticate"
+            placeholder="*****"
+            required
           />
-          <div class="error" id="authError">Invalid credentials</div>
-          <button
-            class="btn btn-primary"
-            id="signInBtn"
-            style="width: 100%; justify-content: center"
-            data-click="authenticate"
-          >
-            <span class="btn-label"
-              ><svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                style="vertical-align: middle; margin-right: 0.4rem"
-              >
-                <path d="m10 17 5-5-5-5" />
-                <path d="M15 12H3" />
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /></svg
-              >Sign In</span
-            ><span class="spinner"></span>
-          </button>
-          <div
-            id="authToggleSep"
-            style="
-              display: none;
-              align-items: center;
-              gap: 0.5rem;
-              margin: 1rem 0 0;
-            "
-          >
-            <span
-              style="flex: 1; height: 1px; background: hsl(var(--border))"
-            ></span>
-            <span
-              style="
-                font-size: 0.7rem;
-                color: hsl(var(--muted-foreground));
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
-                white-space: nowrap;
-              "
-              >Or continue with</span
-            >
-            <span
-              style="flex: 1; height: 1px; background: hsl(var(--border))"
-            ></span>
-          </div>
-          <div id="authToggleBtn" style="display: none; margin-top: 0.75rem">
-            <button
-              class="btn btn-outline"
-              style="width: 100%; justify-content: center; font-family: inherit"
-              data-click="toggleAuthMode"
-            ></button>
-          </div>
         </div>
-        <div class="auth-footer"><!-- LOGIN_FOOTER_PLACEHOLDER --></div>
-      </div>
-    </div>
+        <p class="auth-error" id="authError" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block" id="signInBtn">
+          <span class="btn-label">Sign in</span><span class="spinner"></span>
+        </button>
+        <div class="auth-divider" id="authToggleSep" hidden>Or</div>
+        <button
+          type="button"
+          class="btn btn-outline btn-block"
+          id="authToggleBtn"
+          data-click="toggleAuthMode"
+          hidden
+        ></button>
+      </form>
+      <div class="auth-footer"><!-- LOGIN_FOOTER_PLACEHOLDER --></div>
+    </main>
 
     <script src="/admin/config.js" defer></script>
     <script type="module" src="/js/lit.js"></script>

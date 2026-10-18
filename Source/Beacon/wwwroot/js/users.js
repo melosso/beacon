@@ -26,8 +26,7 @@ function renderUsersPagination() {
     `Showing ${start} to ${end} of ${total}`;
   document.getElementById("usersPrevBtn").disabled = _usersPage <= 1;
   document.getElementById("usersNextBtn").disabled = _usersPage >= totalPages;
-  document.getElementById("usersPaginationBar").style.display =
-    total > _usersPageSize ? "flex" : "none";
+  document.getElementById("usersPaginationBar").hidden = !(total > _usersPageSize);
 }
 
 function changeUsersPage(dir) {
@@ -56,7 +55,7 @@ function formatRelativeTime(isoString) {
   else if (abs < 86_400_000) rel = `${Math.floor(abs / 3_600_000)}h ago`;
   else if (abs < 7 * 86_400_000) rel = `${Math.floor(abs / 86_400_000)}d ago`;
   else rel = date.toLocaleDateString();
-  return html`<span class="tooltip-wrapper" style="cursor:default">${rel}<span class="tooltip tooltip-above">${full}</span></span>`;
+  return html`<span class="tooltip-wrapper cursor-default">${rel}<span class="tooltip tooltip-above">${full}</span></span>`;
 }
 
 const KEBAB_ICON = html`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
@@ -85,7 +84,7 @@ function renderUsersTable(users) {
     paint(tbody, html`<tr><td colspan="6"><div class="table-empty-state">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <p class="empty-title">No users</p>
-          <p class="empty-sub">Create the first user with the button above.</p>
+          <p class="empty-sub">Add a user to grant sign-in access.</p>
         </div></td></tr>`);
     return;
   }
@@ -93,14 +92,14 @@ function renderUsersTable(users) {
         <tr>
           <td><strong>${u.username}</strong></td>
           <td><span class="status-badge ${u.role === "admin" ? "" : "status-badge-muted"}">${u.role}</span></td>
-          <td>${u.isEnabled ? html`<span style="color:hsl(var(--success,142 71% 45%))">Enabled</span>` : html`<span style="color:hsl(var(--muted-foreground))">Disabled</span>`}</td>
+          <td>${u.isEnabled ? html`<span class="text-success">Enabled</span>` : html`<span class="text-muted">Disabled</span>`}</td>
           <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "-"}</td>
-          <td>${u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : html`<span style="color:hsl(var(--muted-foreground))">Never</span>`}</td>
+          <td>${u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : html`<span class="text-muted">Never</span>`}</td>
           <td class="col-actions">${rowMenu(`userDropdown-${u.id}`, [
             ["Rename", () => openRenameUserModal(u.id, u.username)],
-            ["Change Password", () => openUserPasswordModal(u.id, u.username)],
-            ["Change Role", () => openUserRoleModal(u.id, u.username, u.role)],
-            ["Regenerate API Key", () => regenerateUserApiKey(u.id, u.username)],
+            ["Change password", () => openUserPasswordModal(u.id, u.username)],
+            ["Change role", () => openUserRoleModal(u.id, u.username, u.role)],
+            ["Regenerate API key", () => regenerateUserApiKey(u.id, u.username)],
             ["Delete", () => deleteUser(u.id, u.username), true],
           ])}</td>
         </tr>`)}`);
@@ -113,8 +112,8 @@ function openUserPasswordModal(id, username) {
   if (username === currentUsername) {
     notify(
       "warning",
-      "Use Account Settings",
-      "To change your own password, go to Settings → Account.",
+      "Use account settings",
+      "Change your own password in Settings → Account.",
     );
     return;
   }
@@ -122,18 +121,18 @@ function openUserPasswordModal(id, username) {
   document.getElementById("userPasswordModalDesc").textContent =
     `Set a new password for ${username}.`;
   document.getElementById("userPasswordInput").value = "";
-  document.getElementById("userPasswordModal").style.display = "flex";
+  openModal("userPasswordModal");
   setTimeout(() => document.getElementById("userPasswordInput").focus(), 50);
 }
 
 function closeUserPasswordModal() {
-  document.getElementById("userPasswordModal").style.display = "none";
+  closeModal("userPasswordModal");
 }
 
 async function saveUserPassword() {
   const pwd = document.getElementById("userPasswordInput").value;
   if (pwd.length < 12) {
-    notify("error", "Password too short", "Minimum 12 characters required.");
+    notify("error", "Password too short", "Use at least 12 characters.");
     return;
   }
   const btn = document.getElementById("userPasswordSaveBtn");
@@ -147,7 +146,7 @@ async function saveUserPassword() {
   btn.disabled = false;
   if (result.ok) {
     closeUserPasswordModal();
-    notify("success", "Password updated", "The password has been changed.");
+    notify("success", "Password updated");
   }
 }
 
@@ -156,11 +155,11 @@ function openUserRoleModal(id, username, currentRole) {
   document.getElementById("userRoleModalDesc").textContent =
     `Change role for ${username}.`;
   document.getElementById("userRoleSelect").value = currentRole;
-  document.getElementById("userRoleModal").style.display = "flex";
+  openModal("userRoleModal");
 }
 
 function closeUserRoleModal() {
-  document.getElementById("userRoleModal").style.display = "none";
+  closeModal("userRoleModal");
 }
 
 async function saveUserRole() {
@@ -176,7 +175,7 @@ async function saveUserRole() {
   btn.disabled = false;
   if (result.ok) {
     closeUserRoleModal();
-    notify("success", "Role updated", "The role has been changed.");
+    notify("success", "Role updated");
     loadUsers();
   }
 }
@@ -186,18 +185,18 @@ function openRenameUserModal(id, username) {
   document.getElementById("renameUserModalDesc").textContent =
     `Current username: ${username}`;
   document.getElementById("renameUserInput").value = username;
-  document.getElementById("renameUserModal").style.display = "flex";
+  openModal("renameUserModal");
   setTimeout(() => document.getElementById("renameUserInput").focus(), 50);
 }
 
 function closeRenameUserModal() {
-  document.getElementById("renameUserModal").style.display = "none";
+  closeModal("renameUserModal");
 }
 
 async function saveRenameUser() {
   const username = document.getElementById("renameUserInput").value.trim();
   if (!username) {
-    notify("error", "Validation", "Username is required.");
+    notify("error", "Username required", "Enter a username.");
     return;
   }
   const btn = document.getElementById("renameUserSaveBtn");
@@ -211,14 +210,14 @@ async function saveRenameUser() {
   btn.disabled = false;
   if (result.ok) {
     closeRenameUserModal();
-    notify("success", "User renamed", "The username has been updated.");
+    notify("success", "User renamed");
     loadUsers();
   }
 }
 
 async function deleteUser(id, username) {
   openConfirmModal(
-    "Delete User",
+    "Delete user",
     `Delete "${username}"? This cannot be undone.`,
     "Delete",
     async () => {
@@ -226,7 +225,7 @@ async function deleteUser(id, username) {
         method: "DELETE",
       });
       if (result.ok) {
-        notify("success", "User deleted", `${username} has been removed.`);
+        notify("success", "User deleted", `${username} is deleted.`);
         loadUsers();
       }
     },
@@ -247,21 +246,21 @@ async function regenerateUserApiKey(id, username) {
           `New API key for ${username} — copy it now, it will not be shown again.`;
         document.getElementById("userApiKeyRevealOutput").textContent =
           result.data.apiKey;
-        document.getElementById("userApiKeyRevealModal").style.display = "flex";
+        openModal("userApiKeyRevealModal");
       }
     },
   );
 }
 
 function closeUserApiKeyRevealModal() {
-  document.getElementById("userApiKeyRevealModal").style.display = "none";
+  closeModal("userApiKeyRevealModal");
 }
 
 function copyUserApiKey() {
   const key = document.getElementById("userApiKeyRevealOutput").textContent;
   if (!key) return;
   clipboardWrite(key)
-    .then(() => notify("success", "Copied", "API key copied to clipboard."));
+    .then(() => notify("success", "API key copied"));
 }
 
 // CONFIRM MODAL
@@ -273,11 +272,11 @@ function openConfirmModal(title, message, actionLabel, action) {
   paint(document.getElementById("confirmModalMessage"), message);
   document.querySelector("#confirmModalBtn .btn-label").textContent =
     actionLabel;
-  document.getElementById("confirmModal").style.display = "flex";
+  openModal("confirmModal");
 }
 
 function closeConfirmModal() {
-  document.getElementById("confirmModal").style.display = "none";
+  closeModal("confirmModal");
   _confirmAction = null;
 }
 
@@ -297,18 +296,18 @@ function openAddUserModal() {
   document.getElementById("newUserPassword").value = "";
   document.getElementById("newUserConfirmPassword").value = "";
   document.getElementById("newUserRole").value = "user";
-  document.getElementById("newUserApiKeySection").style.display = "none";
+  document.getElementById("newUserApiKeySection").hidden = true;
   document.getElementById("newUserApiKeyOutput").textContent = "";
   _newUserApiKey = "";
   const addBtn = document.getElementById("addUserBtn");
   addBtn.disabled = false;
-  addBtn.style.display = "";
+  addBtn.hidden = false;
   document.querySelector("#addUserModal .modal-actions .btn-outline").textContent = "Cancel";
-  document.getElementById("addUserModal").style.display = "flex";
+  openModal("addUserModal");
 }
 
 function closeAddUserModal() {
-  document.getElementById("addUserModal").style.display = "none";
+  closeModal("addUserModal");
 }
 
 async function createUser() {
@@ -318,11 +317,11 @@ async function createUser() {
   const role = document.getElementById("newUserRole").value;
 
   if (!username) {
-    notify("error", "Validation", "Username is required.");
+    notify("error", "Username required", "Enter a username.");
     return;
   }
   if (password !== confirm) {
-    notify("error", "Validation", "Passwords do not match.");
+    notify("error", "Passwords differ", "Enter the same password twice.");
     return;
   }
 
@@ -341,11 +340,11 @@ async function createUser() {
   if (result.ok) {
     _newUserApiKey = result.data.apiKey;
     document.getElementById("newUserApiKeyOutput").textContent = _newUserApiKey;
-    document.getElementById("newUserApiKeySection").style.display = "block";
+    document.getElementById("newUserApiKeySection").hidden = false;
     document.querySelector(
       "#addUserModal .modal-actions .btn-outline",
     ).textContent = "Done";
-    document.getElementById("addUserBtn").style.display = "none";
+    document.getElementById("addUserBtn").hidden = true;
     notify(
       "success",
       "User created",
@@ -358,5 +357,5 @@ async function createUser() {
 function copyNewUserApiKey() {
   if (!_newUserApiKey) return;
   clipboardWrite(_newUserApiKey)
-    .then(() => notify("success", "Copied", "API key copied to clipboard."));
+    .then(() => notify("success", "API key copied"));
 }

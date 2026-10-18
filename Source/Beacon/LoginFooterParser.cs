@@ -5,11 +5,11 @@ namespace Beacon;
 
 internal static partial class LoginFooterParser
 {
-    [GeneratedRegex(@"\*\*(.*?)\*\*")]      private static partial Regex BoldAsterisks();
-    [GeneratedRegex(@"__(.*?)__")]           private static partial Regex BoldUnderscores();
-    [GeneratedRegex(@"\*(.*?)\*")]           private static partial Regex ItalicAsterisks();
-    [GeneratedRegex(@"_(.*?)_")]             private static partial Regex ItalicUnderscores();
-    [GeneratedRegex(@"\[(.*?)\]\((.*?)\)")]  private static partial Regex MarkdownLink();
+    [GeneratedRegex(@"\*\*(.*?)\*\*")] private static partial Regex BoldAsterisks();
+    [GeneratedRegex(@"__(.*?)__")] private static partial Regex BoldUnderscores();
+    [GeneratedRegex(@"\*(.*?)\*")] private static partial Regex ItalicAsterisks();
+    [GeneratedRegex(@"_(.*?)_")] private static partial Regex ItalicUnderscores();
+    [GeneratedRegex(@"\[(.*?)\]\((.*?)\)")] private static partial Regex MarkdownLink();
 
     internal static string ParseMarkdown(string md)
     {
@@ -18,9 +18,9 @@ internal static partial class LoginFooterParser
         // Encode first — kills all raw HTML/script injection
         var html = WebUtility.HtmlEncode(md);
 
-        html = BoldAsterisks().Replace(html,     "<strong>$1</strong>");
-        html = BoldUnderscores().Replace(html,   "<strong>$1</strong>");
-        html = ItalicAsterisks().Replace(html,   "<em>$1</em>");
+        html = BoldAsterisks().Replace(html, "<strong>$1</strong>");
+        html = BoldUnderscores().Replace(html, "<strong>$1</strong>");
+        html = ItalicAsterisks().Replace(html, "<em>$1</em>");
         html = ItalicUnderscores().Replace(html, "<em>$1</em>");
 
         html = MarkdownLink().Replace(html, m =>
@@ -36,13 +36,13 @@ internal static partial class LoginFooterParser
 
             var isExternal =
                 rawUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                rawUrl.StartsWith("http://",  StringComparison.OrdinalIgnoreCase) ||
-                rawUrl.StartsWith("//",       StringComparison.Ordinal);
+                rawUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                rawUrl.StartsWith("//", StringComparison.Ordinal);
             var isSafe = isExternal ||
-                rawUrl.StartsWith("/",       StringComparison.Ordinal) ||
-                rawUrl.StartsWith("#",       StringComparison.Ordinal) ||
+                rawUrl.StartsWith("/", StringComparison.Ordinal) ||
+                rawUrl.StartsWith("#", StringComparison.Ordinal) ||
                 rawUrl.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
-                rawUrl.StartsWith("tel:",    StringComparison.OrdinalIgnoreCase);
+                rawUrl.StartsWith("tel:", StringComparison.OrdinalIgnoreCase);
 
             if (!isSafe) return text;
 

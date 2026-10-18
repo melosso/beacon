@@ -12,15 +12,15 @@ async function loadAccount() {
   const hasDbRecord = !!me.id;
   const itemsEl = document.getElementById("accountSecurityItems");
   const noticeEl = document.getElementById("accountGlobalAdminNotice");
-  if (itemsEl) itemsEl.style.display = hasDbRecord ? "" : "none";
-  if (noticeEl) noticeEl.style.display = hasDbRecord ? "none" : "";
+  if (itemsEl) itemsEl.hidden = !hasDbRecord;
+  if (noticeEl) noticeEl.hidden = hasDbRecord;
 }
 
 function openAccountPasswordModal() {
   document.getElementById("accountCurrentPassword").value = "";
   document.getElementById("accountNewPassword").value = "";
   document.getElementById("accountConfirmPassword").value = "";
-  document.getElementById("accountPasswordModal").style.display = "flex";
+  openModal("accountPasswordModal");
   setTimeout(
     () => document.getElementById("accountCurrentPassword")?.focus(),
     50,
@@ -28,7 +28,7 @@ function openAccountPasswordModal() {
 }
 
 function closeAccountPasswordModal() {
-  document.getElementById("accountPasswordModal").style.display = "none";
+  closeModal("accountPasswordModal");
 }
 
 async function saveAccountPassword() {
@@ -37,11 +37,11 @@ async function saveAccountPassword() {
   const confirmPwd = document.getElementById("accountConfirmPassword").value;
 
   if (newPwd !== confirmPwd) {
-    notify("error", "Validation", "Passwords do not match.");
+    notify("error", "Passwords differ", "Enter the same password twice.");
     return;
   }
   if (newPwd.length < 12) {
-    notify("error", "Validation", "Password must be at least 12 characters.");
+    notify("error", "Password too short", "Use at least 12 characters.");
     return;
   }
 
@@ -49,8 +49,8 @@ async function saveAccountPassword() {
   if (!userId) {
     notify(
       "error",
-      "Session Error",
-      "Could not determine your user ID. Try signing out and back in.",
+      "Session error",
+      "User ID unavailable. Sign out and sign in again.",
     );
     return;
   }
@@ -69,7 +69,7 @@ async function saveAccountPassword() {
   btn.disabled = false;
   if (result.ok) {
     closeAccountPasswordModal();
-    notify("success", "Password updated", "Your password has been changed.");
+    notify("success", "Password updated");
   }
 }
 
@@ -78,8 +78,8 @@ async function regenerateOwnApiKey() {
   if (!userId) {
     notify(
       "error",
-      "Session Error",
-      "Could not determine your user ID. Try signing out and back in.",
+      "Session error",
+      "User ID unavailable. Sign out and sign in again.",
     );
     return;
   }
@@ -96,7 +96,7 @@ async function regenerateOwnApiKey() {
           "Copy your new API key now, it won't be shown again. Your old key is now revoked.";
         document.getElementById("userApiKeyRevealOutput").textContent =
           result.data.apiKey;
-        document.getElementById("userApiKeyRevealModal").style.display = "flex";
+        openModal("userApiKeyRevealModal");
       }
     },
   );

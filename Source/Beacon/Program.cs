@@ -626,7 +626,11 @@ try
             html = html.Replace("<!-- LOGIN_FOOTER_PLACEHOLDER -->", LoginFooterParser.ParseMarkdown(cfg.LoginFooter));
         html = html.Replace("<!-- LOGIN_PROMO_BAR_PLACEHOLDER -->",
             cfg.PromoBarEnabled && cfg.PromoBarShowOnLogin && !string.IsNullOrWhiteSpace(cfg.PromoBar)
-                ? $"<div class=\"login-promo-bar\">{LoginFooterParser.ParseMarkdown(cfg.PromoBar)}</div>"
+                ? $"<div class=\"promo-bar\" id=\"promoBar\" role=\"region\" aria-label=\"Announcement\"><div class=\"promo-bar-inner\"><div class=\"promo-bar-content\">{LoginFooterParser.ParseMarkdown(cfg.PromoBar)}</div>" +
+                  (cfg.PromoBarDismissable
+                      ? "<button type=\"button\" class=\"promo-bar-close\" aria-label=\"Dismiss announcement\" data-click=\"dismissPromoBar\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M18 6L6 18M6 6l12 12\"/></svg></button>"
+                      : "") +
+                  "</div></div>"
                 : string.Empty);
         context.Response.ContentType = "text/html";
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -669,7 +673,7 @@ try
     // (favicon, robots.txt, css, fonts, js/*.js) is already served by UseStaticFiles above.
     app.MapGet("/openapi", ctx =>
     {
-        ctx.Response.Headers.ContentSecurityPolicy = AdminCsp(ctx);
+        ctx.Response.Headers.ContentSecurityPolicy = AdminCsp(ctx, allowInlineStyles: true);
         return ServeFile(ctx, Path.Combine(webRoot, "openapi.html"), "text/html");
     }).ExcludeFromDescription();
 
@@ -884,9 +888,9 @@ static bool IsInsecureDefault(string value)
 static string? DescribeKeyProblem(string value, string keyName) => value switch
 {
     _ when string.IsNullOrWhiteSpace(value) => $"{keyName} is not set.",
-    _ when IsInsecureDefault(value)         => $"{keyName} contains the placeholder value from appsettings.json.",
-    { Length: < 32 }                        => $"{keyName} is shorter than 32 characters.",
-    _                                       => null
+    _ when IsInsecureDefault(value) => $"{keyName} contains the placeholder value from appsettings.json.",
+    { Length: < 32 } => $"{keyName} is shorter than 32 characters.",
+    _ => null
 };
 
 static string NormalizeKey(string key, int requiredBytes)
@@ -920,14 +924,15 @@ static (string ApiBase, string PublicUrl) ResolveApiOrigins(HttpContext context)
     return (apiBase, publicUrl);
 }
 
-static string AdminCsp(HttpContext context)
+// Scalar injects inline styles; every other admin page renders without them.
+static string AdminCsp(HttpContext context, bool allowInlineStyles = false)
 {
     var (apiBase, publicUrl) = ResolveApiOrigins(context);
     var api = $"{apiBase} {publicUrl}".TrimEnd();
     return string.Join("; ",
         "default-src 'self'",
         $"script-src 'self' {api}",
-        "style-src 'self' 'unsafe-inline'",
+        allowInlineStyles ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
         "img-src 'self' data: https:",
         "font-src 'self' data:",
         $"connect-src 'self' {api}",

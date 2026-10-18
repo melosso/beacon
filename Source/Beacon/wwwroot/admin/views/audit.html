@@ -1,15 +1,12 @@
 <!-- Audit View -->
 <div id="view-audit" class="view">
-  <section class="header-container" style="flex-shrink: 0">
+  <section class="header-container">
     <div>
       <h1 class="select-none">Audit</h1>
-      <span class="status-badge select-none">Consent History</span>
+      <span class="status-badge select-none">Consent history</span>
     </div>
     <div class="bucket-actions">
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="loadAudit">Refresh</button>
-        <span class="tooltip tooltip-right">Reload audit log</span>
-      </span>
+      <button class="btn btn-outline" data-click="loadAudit">Refresh</button>
     </div>
   </section>
   <div class="table-wrapper">
@@ -18,7 +15,7 @@
         <thead>
           <tr id="auditTableHead">
             <th>Timestamp</th>
-            <th>E-mail / ID</th>
+            <th>Email or ID</th>
             <th>Bucket</th>
             <th>Permission</th>
             <th>Change</th>
@@ -48,7 +45,7 @@
         </div>
         <div class="pagination-info" id="auditPaginationInfo"></div>
       </div>
-      <div style="display: flex; gap: 0.5rem">
+      <div class="flex gap-2">
         <button
           class="btn btn-outline"
           id="auditPrevBtn"

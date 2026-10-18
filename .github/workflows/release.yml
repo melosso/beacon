@@ -1,0 +1,194 @@
+name: Build and Push As Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name (e.g. v1.0.0)'
+        required: true
+        type: string
+
+env:
+  PROJECT_PATH: 'Source/Beacon/Beacon.csproj'
+  TAG: ${{ github.event.inputs.tag_name }}
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Bump version and create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          sed -i "s|<Version>.*</Version>|<Version>${TAG#v}</Version>|" Source/Directory.Build.props
+          git add Source/Directory.Build.props
+          git commit -m "chore: bump version to ${TAG#v}" || echo "Version already set to ${TAG#v}, nothing to commit"
+          git push
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Publish
+        run: |
+          # Archives: framework-dependent single file. Packages: self-contained, distro repos do not ship the .NET 10 runtime.
+          for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-x64 osx-arm64; do
+            dotnet publish $PROJECT_PATH -c Release -r $rid --self-contained false \
+              -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_$rid
+          done
+          for rid in linux-x64 linux-arm64; do
+            dotnet publish $PROJECT_PATH -c Release -r $rid --self-contained true \
+              -p:DebugType=None -p:DebugSymbols=false -o publish_pkg-$rid
+          done
+
+      - name: Create deployment structure
+        run: |
+          for dir in publish_*; do
+            (
+              cd $dir
+              mkdir -p log .core license
+              rm -f *.pdb *.xml web.config *.Development.json *.staticwebassets.endpoints.json
+              cp ../LICENSE license/LICENSE.txt
+              echo "https://github.com/${{ github.repository }}" > license/source.txt
+              printf '%s\nBuilt: %s\nCommit: %s\n' "$TAG" "$(date -u +'%Y-%m-%d %H:%M:%S UTC')" "${{ github.sha }}" > .version.txt
+            )
+          done
+          for dir in publish_win-*; do cp Scripts/Beacon.bat Scripts/README.txt $dir/; done
+
+      - name: Create archives
+        run: |
+          for rid in win-x64 win-arm64; do (cd publish_$rid && zip -qr ../Beacon-$TAG-$rid.zip .); done
+          # tar keeps the executable bit on the apphost.
+          for rid in linux-x64 linux-arm64 osx-x64 osx-arm64; do tar -czf Beacon-$TAG-$rid.tar.gz -C publish_$rid .; done
+
+      - name: Install nfpm
+        run: |
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt-get update -q && sudo apt-get install -yq nfpm
+
+      - name: Build .deb and .rpm packages
+        run: |
+          mkdir -p pkg
+          cat > pkg/beacon.service <<'UNIT'
+          [Unit]
+          Description=Beacon consent and opt-out service
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          User=beacon
+          WorkingDirectory=/opt/beacon
+          ExecStart=/opt/beacon/Beacon
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          # Generates keys on first install; production refuses to start on the placeholder keys.
+          cat > pkg/postinstall.sh <<'SH'
+          #!/bin/sh
+          id beacon >/dev/null 2>&1 || useradd --system --home-dir /opt/beacon --shell /usr/sbin/nologin beacon
+          if [ ! -f /opt/beacon/.env ]; then
+            key() { head -c "$1" /dev/urandom | base64 | tr -d '\n'; }
+            (umask 077; printf 'SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n' \
+              "$(key 32)" "$(key 32)" "$(key 32)" "$(key 36)" > /opt/beacon/.env)
+            echo "Beacon: keys generated in /opt/beacon/.env. ADMIN_API_KEY is the admin panel key."
+          fi
+          chown -R beacon:beacon /opt/beacon
+          systemctl daemon-reload >/dev/null 2>&1 || true
+          systemctl try-restart beacon >/dev/null 2>&1 || true
+          SH
+          # deb passes "remove", rpm passes "0" on erase; upgrades keep the service running.
+          cat > pkg/preremove.sh <<'SH'
+          #!/bin/sh
+          case "$1" in remove|0) systemctl disable --now beacon >/dev/null 2>&1 || true ;; esac
+          SH
+          for arch in x64:amd64 arm64:arm64; do
+            src=publish_pkg-linux-${arch%%:*}
+            {
+              echo "name: beacon"
+              echo "arch: ${arch##*:}"
+              echo "version: ${TAG#v}"
+              echo "maintainer: Melosso"
+              echo "description: Lightweight service for email consent and opt-outs"
+              echo "homepage: https://github.com/${{ github.repository }}"
+              echo "license: EUPL-1.2"
+              echo "scripts:"
+              echo "  postinstall: pkg/postinstall.sh"
+              echo "  preremove: pkg/preremove.sh"
+              echo "contents:"
+              echo "  - src: pkg/beacon.service"
+              echo "    dst: /usr/lib/systemd/system/beacon.service"
+              (cd $src && find . -type f -printf '%P\n') | while IFS= read -r f; do
+                echo "  - src: '$src/$f'"
+                echo "    dst: '/opt/beacon/$f'"
+                # Beacon encrypts secrets in appsettings.json in place; upgrades keep the file.
+                case "$f" in appsettings*.json) echo "    type: config|noreplace" ;; esac
+              done
+            } > pkg/nfpm-${arch##*:}.yaml
+            # The .rpm installs on Fedora, RHEL and openSUSE.
+            for fmt in deb rpm; do nfpm package -f pkg/nfpm-${arch##*:}.yaml -p $fmt -t .; done
+          done
+          ls -1 *.deb *.rpm
+
+      - name: Create Docker Compose file
+        run: |
+          cat > docker-compose.yml <<YAML
+          # Beacon $TAG. Create .env next to this file first, see https://github.com/${{ github.repository }}#docker-compose-recommended
+          services:
+            beacon:
+              image: ghcr.io/${{ github.repository_owner }}/beacon:${TAG#v}
+              ports:
+                - "5000:5000"  # Public API
+                - "5001:5001"  # Admin panel
+              volumes:
+                - beacon_data:/app/data
+                - beacon_core:/app/.core
+              env_file: .env
+              environment:
+                - CONNECTION_STRING=Data Source=/app/data/Beacon.db
+              restart: unless-stopped
+
+          volumes:
+            beacon_data:
+            beacon_core:
+          YAML
+
+      - name: Create checksums
+        run: sha256sum Beacon-$TAG-*.zip Beacon-$TAG-*.tar.gz *.deb *.rpm docker-compose.yml > SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          generate_release_notes: true
+          files: |
+            Beacon-${{ env.TAG }}-*.zip
+            Beacon-${{ env.TAG }}-*.tar.gz
+            *.deb
+            *.rpm
+            docker-compose.yml
+            SHA256SUMS
+
+  docker:
+    name: Docker image
+    needs: build-and-release
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ github.event.inputs.tag_name }}

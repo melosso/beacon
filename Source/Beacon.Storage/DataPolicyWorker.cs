@@ -100,6 +100,10 @@ public sealed class DataPolicyWorker : BackgroundService
 
         var config = sp.GetRequiredService<ISystemConfigurationService>().Get();
 
+        // Housekeeping, independent of data policies: revoked sessions and used links past their expiry.
+        if (sp.GetService<TokenUsageRepository>() is { } tokenUsage)
+            await tokenUsage.CleanupExpiredTokensAsync();
+
         // Cron runs only when data policies are explicitly enabled.
         // Manual runs always proceed so the operator can test individual policies.
         if (!isManual && !config.DataPoliciesEnabled)

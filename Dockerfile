@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
 WORKDIR /src
 
 # Copy solution and project files first for better layer caching
@@ -11,13 +12,13 @@ COPY Source/Beacon.Storage/Beacon.Storage.csproj Source/Beacon.Storage/
 COPY Source/Beacon.Tests/Beacon.Tests.csproj Source/Beacon.Tests/
 
 # Restore dependencies
-RUN dotnet restore Source/Beacon.slnx
+RUN dotnet restore Source/Beacon/Beacon.csproj -a $TARGETARCH
 
 # Copy remaining source code
 COPY Source/ Source/
 
 # Build and publish
-RUN dotnet publish Source/Beacon/Beacon.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish Source/Beacon/Beacon.csproj -c Release -a $TARGETARCH --self-contained false -o /app/publish --no-restore
 
 # Runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

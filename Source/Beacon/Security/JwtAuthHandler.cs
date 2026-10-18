@@ -14,14 +14,31 @@ namespace Beacon.Security;
 public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 {
     private readonly UserRepository? _userRepository;
+    private readonly TokenUsageRepository? _tokenUsage;
 
     public JwtAuthHandler(
         IOptionsMonitor<JwtAuthOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        UserRepository? userRepository = null) : base(options, logger, encoder)
+        UserRepository? userRepository = null,
+        TokenUsageRepository? tokenUsage = null) : base(options, logger, encoder)
     {
         _userRepository = userRepository;
+        _tokenUsage = tokenUsage;
+    }
+
+    /// <summary>Key under which a signed-out session token is stored in UsedTokens (64 hex characters, the column limit).</summary>
+    public static string SessionHash(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+    /// <summary>Revokes a valid session token until its expiry; logout calls this.</summary>
+    public static async Task RevokeAsync(TokenUsageRepository tokenUsage, byte[] signingKey, string? token)
+    {
+        if (string.IsNullOrEmpty(token) || !TryValidateToken(signingKey, token, out _, out _, out var expiresAt) || expiresAt is null)
+            return;
+        var hash = SessionHash(token);
+        if (!await tokenUsage.IsTokenUsedAsync(hash))
+            await tokenUsage.MarkTokenUsedAsync(hash, expiresAt.Value.UtcDateTime);
     }
 
     public const string CookieName = "beacon_auth";
@@ -67,6 +84,10 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             {
                 return AuthenticateResult.Fail("Token missing expiry");
             }
+
+            // JWTs are stateless: logout stores the token as revoked.
+            if (_tokenUsage != null && await _tokenUsage.IsTokenUsedAsync(SessionHash(token)))
+                return AuthenticateResult.Fail("Session ended");
 
             var sub = payload.TryGetProperty("sub", out var subElement) ? subElement.GetString() : null;
             if (string.IsNullOrEmpty(sub))
@@ -143,7 +164,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             expiresAt = DateTimeOffset.FromUnixTimeSeconds(expSeconds);
 
             subject = payload.Value.TryGetProperty("sub", out var subEl) ? subEl.GetString() : null;
-            role    = payload.Value.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
+            role = payload.Value.TryGetProperty("role", out var roleEl) ? roleEl.GetString() : null;
             return !string.IsNullOrEmpty(subject);
         }
         catch { return false; }

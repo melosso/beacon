@@ -466,10 +466,10 @@ public static class SubmissionEndpoints
         var formIdStr = form.Id.ToString();
 
         var embedPrimary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
-        var embedRadius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
-        var embedBg      = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "Canvas") : "Canvas";
-        var embedFg      = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "CanvasText") : "CanvasText";
-        var embedT       = GetSubmissionStrings(form.Language);
+        var embedRadius = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
+        var embedBg = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "Canvas") : "Canvas";
+        var embedFg = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "CanvasText") : "CanvasText";
+        var embedT = GetSubmissionStrings(form.Language);
 
         var honeypotHtml = form.HoneypotEnabled
             ? """<div style="position:absolute;left:-9999px;top:-9999px;" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off" /></div>"""
@@ -496,39 +496,39 @@ public static class SubmissionEndpoints
               <meta name="viewport" content="width=device-width, initial-scale=1" />
               <meta name="color-scheme" content="light dark" />
               <title>{{WebUtility.HtmlEncode(config.Title ?? embedT.Subscribe)}}</title>
-              <style>
+              <style>{{ConsentEndpoints.SharedStyleTokens}}
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
                 :root { color-scheme: light dark; }
                 body {
                   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                   background: {{embedBg}};
                   color: {{embedFg}};
-                  padding: 20px;
+                  padding: var(--space-5);
                 }
                 .container { max-width: 480px; margin: 0 auto; }
-                h2 { font-size: 1.25rem; margin-bottom: 8px; font-weight: 600; }
-                .description { font-size: 0.9rem; opacity: 0.7; margin-bottom: 16px; }
-                .form-row { display: flex; gap: 8px; }
+                h2 { font-size: var(--text-xl); margin-bottom: var(--space-2); font-weight: 600; }
+                .description { font-size: var(--text-base); opacity: 0.7; margin-bottom: var(--space-4); }
+                .form-row { display: flex; gap: var(--space-2); }
                 input[type="text"], input[type="email"] {
-                  padding: 10px 14px;
+                  padding: var(--space-2-5) var(--space-3-5);
                   border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
                   border-radius: {{embedRadius}};
-                  font-size: 0.95rem;
+                  font-size: var(--text-base);
                   font-family: inherit;
                   background: color-mix(in srgb, currentColor 5%, transparent);
                   color: inherit;
                   outline: none;
                 }
-                input[type="text"] { width: 100%; display: block; margin-bottom: 8px; }
+                input[type="text"] { width: 100%; display: block; margin-bottom: var(--space-2); }
                 input[type="email"] { flex: 1; }
                 input[type="text"]:focus, input[type="email"]:focus { border-color: {{embedPrimary}}; }
                 button {
-                  padding: 10px 20px;
+                  padding: var(--space-2-5) var(--space-5);
                   background: {{embedPrimary}};
                   color: #fff;
                   border: none;
                   border-radius: {{embedRadius}};
-                  font-size: 0.95rem;
+                  font-size: var(--text-base);
                   font-family: inherit;
                   font-weight: 500;
                   cursor: pointer;
@@ -536,14 +536,14 @@ public static class SubmissionEndpoints
                 }
                 button:hover { opacity: 0.9; }
                 button:disabled { opacity: 0.55; cursor: not-allowed; }
-                .message { margin-top: 12px; font-size: 0.9rem; }
-                .message.success { color: #22c55e; }
-                .message.error { color: #ef4444; }
-                .consent-row { margin-top: 10px; display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
+                .message { margin-top: var(--space-3); font-size: var(--text-base); }
+                .message.success { color: var(--success); }
+                .message.error { color: var(--error); }
+                .consent-row { margin-top: var(--space-2-5); display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); }
                 .consent-row input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: auto; }
                 .consent-row label { line-height: 1.4; }
                 .consent-row a { color: inherit; text-decoration: underline; }
-                .privacy-link { margin-top: 6px; font-size: 0.8rem; opacity: 0.65; }
+                .privacy-link { margin-top: var(--space-1-5); font-size: var(--text-sm); opacity: 0.65; }
                 .privacy-link a { color: inherit; text-decoration: underline; }
               </style>
             </head>
@@ -645,10 +645,10 @@ public static class SubmissionEndpoints
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var formIdStr = form.Id.ToString();
         var configJson = JsonSerializer.Serialize(config);
-        var jsT         = GetSubmissionStrings(form.Language);
+        var jsT = GetSubmissionStrings(form.Language);
         var jsSubscribe = JsonSerializer.Serialize(jsT.Subscribe).Trim('"');
-        var jsSuccess   = JsonSerializer.Serialize(jsT.Success).Trim('"');
-        var jsEmail     = JsonSerializer.Serialize(jsT.EmailPlaceholder).Trim('"');
+        var jsSuccess = JsonSerializer.Serialize(jsT.Success).Trim('"');
+        var jsEmail = JsonSerializer.Serialize(jsT.EmailPlaceholder).Trim('"');
 
         var honeypotJs = form.HoneypotEnabled
             ? "const hpDiv=document.createElement('div');hpDiv.style.cssText='position:absolute;left:-9999px;top:-9999px;';hpDiv.setAttribute('aria-hidden','true');const hpInput=document.createElement('input');hpInput.type='text';hpInput.name='website';hpInput.tabIndex=-1;hpInput.autocomplete='off';hpDiv.appendChild(hpInput);f.appendChild(hpDiv);"
@@ -675,7 +675,7 @@ public static class SubmissionEndpoints
         }
 
         var safePrimary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
-        var safeRadius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
+        var safeRadius = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
         var containerBg = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "transparent") : "transparent";
         var containerFg = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "inherit") : "inherit";
         var nameInputCss = form.CollectName
@@ -943,7 +943,7 @@ public static class SubmissionEndpoints
         var normalizedBucket = form.Bucket.Trim().ToLowerInvariant();
         var doubleOptIn = await DoubleOptIn.IsActiveAsync(instanceOptions, systemConfig, bucketOptionsRepo, normalizedBucket, form.DoubleOptIn);
 
-        // ponytail: consent write and queue entry are not in one transaction; wrap both if a partial write is observed.
+        // Consent write and queue entry are not in one transaction; wrap both if a partial write is observed.
         await service.SubscribeAsync(form, email!, form.ConsentRequired ? effectiveConsentText : null, origin, effectiveName,
             doubleOptIn ? ConsentStatus.PendingConfirmation : ConsentStatus.OptedIn);
 
@@ -970,9 +970,9 @@ public static class SubmissionEndpoints
     {
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var primary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
-        var radius  = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
-        var bg      = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "Canvas") : "Canvas";
-        var fg      = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "CanvasText") : "CanvasText";
+        var radius = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
+        var bg = !string.IsNullOrWhiteSpace(config.BackgroundColor) ? InputValidator.SanitizeCssColor(config.BackgroundColor, "Canvas") : "Canvas";
+        var fg = !string.IsNullOrWhiteSpace(config.TextColor) ? InputValidator.SanitizeCssColor(config.TextColor, "CanvasText") : "CanvasText";
         var msgColor = isError ? "#ef4444" : "#22c55e";
         var encodedMsg = WebUtility.HtmlEncode(message);
         var lang = WebUtility.HtmlEncode(form.Language);
@@ -985,21 +985,21 @@ public static class SubmissionEndpoints
               <meta name="viewport" content="width=device-width, initial-scale=1" />
               <meta name="color-scheme" content="light dark" />
               <title>{{WebUtility.HtmlEncode(isError ? "Error" : "Success")}}</title>
-              <style>
+              <style>{{ConsentEndpoints.SharedStyleTokens}}
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
                 :root { color-scheme: light dark; }
                 body {
                   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                   background: {{bg}}; color: {{fg}};
-                  display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem;
+                  display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--space-8);
                 }
                 .card { max-width: 480px; width: 100%; text-align: center; }
-                .icon { font-size: 2.5rem; margin-bottom: 1rem; }
-                .message { font-size: 1.1rem; line-height: 1.5; color: {{msgColor}}; margin-bottom: 1.5rem; }
+                .icon { font-size: 2.5rem; margin-bottom: var(--space-4); }
+                .message { font-size: var(--text-lg); line-height: 1.5; color: {{msgColor}}; margin-bottom: var(--space-6); }
                 a {
-                  display: inline-block; padding: 10px 24px;
+                  display: inline-block; padding: var(--space-2-5) var(--space-6);
                   background: {{primary}}; color: #fff; text-decoration: none;
-                  border-radius: {{radius}}; font-size: 0.95rem; font-weight: 500;
+                  border-radius: {{radius}}; font-size: var(--text-base); font-weight: 500;
                 }
                 a:hover { opacity: 0.9; }
               </style>
@@ -1114,7 +1114,7 @@ public static class SubmissionEndpoints
               <meta charset="utf-8" />
               <meta name="viewport" content="width=device-width, initial-scale=1" />
               <title>Unavailable</title>
-              <style>
+              <style>{{ConsentEndpoints.SharedStyleTokens}}
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
                 html, body { height: 100%; overflow: hidden; }
                 body {
@@ -1124,10 +1124,10 @@ public static class SubmissionEndpoints
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  padding: 1.5rem;
+                  padding: var(--space-6);
                 }
                 .message {
-                  font-size: 0.9rem;
+                  font-size: var(--text-base);
                   opacity: 0.5;
                   text-align: center;
                   line-height: 1.5;

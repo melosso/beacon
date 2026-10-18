@@ -2,26 +2,20 @@
 <div id="view-submissions" class="view">
   <section class="header-container">
     <div>
-      <h1 class="select-none">Submission Forms</h1>
+      <h1 class="select-none">Submission forms</h1>
       <span class="status-badge select-none">Configuration</span>
     </div>
     <div class="bucket-actions">
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="loadSubmissionForms">
+      <button class="btn btn-outline" data-click="loadSubmissionForms">
           Refresh
         </button>
-        <span class="tooltip tooltip-right">Refresh</span>
-      </span>
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="showView submission-create">
-          Create Form
-        </button>
-        <span class="tooltip tooltip-right">Create a new submission form</span>
-      </span>
+      <button class="btn btn-primary" data-click="showView submission-create">
+        New form
+      </button>
     </div>
   </section>
   <div class="table-wrapper">
-    <div class="scroll-area" style="overflow-x: hidden">
+    <div class="scroll-area">
       <table>
         <thead>
           <tr>

@@ -1,11 +1,9 @@
-// ── Personalisation / Brand Identities ────────────────────────────────────
-
 const NON_EMAIL_SAFE_FONTS = new Set(["inter", "manrope", "system"]);
 const IDENTITY_FONTS = ["Arial", "Helvetica", "Georgia", "Tahoma", "Verdana", "Trebuchet MS", "Courier New", "Inter", "Manrope"];
 
 let _brandIdentities = [];
 
-// Colour values are interpolated into style attributes; anything but a hex colour falls back.
+// Colour values are interpolated into CSS custom properties; anything but a hex colour falls back.
 function safeColor(value, fallback = "#6366f1") {
   return /^#[0-9a-f]{3,8}$/i.test(value || "") ? value : fallback;
 }
@@ -23,7 +21,7 @@ async function loadBrandIdentities() {
   if (!list) return;
   const res = await apiRequest("/api/admin/brand-identities");
   if (!res.ok) {
-    paint(list, html`<div style="padding:1rem;color:hsl(var(--destructive));font-size:0.875rem">Failed to load identities.</div>`);
+    paint(list, html`<p class="list-empty text-danger">Identities failed to load. Refresh to retry.</p>`);
     return;
   }
   _brandIdentities = res.data || [];
@@ -35,12 +33,12 @@ function renderBrandIdentities() {
   if (!list) return;
   paint(list, _brandIdentities.length
     ? html`${_brandIdentities.map(identityCard)}`
-    : html`<div style="padding:1rem 0;font-size:0.875rem;color:hsl(var(--muted-foreground))">No identities found.</div>`);
+    : html`<p class="list-empty">No identities.</p>`);
 }
 
 let _editingIdentityId = null;
 
-const BEACON_AVATAR = html`<div class="brand-avatar" style="width:36px;height:36px;min-width:36px;flex-shrink:0" aria-hidden="true">
+const BEACON_AVATAR = html`<div class="brand-avatar identity-avatar" aria-hidden="true">
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-avatar-bg">
     <g clip-path="url(#beacon-avatar-clip)">
       <rect width="20" height="20" fill="#000" rx="5.5"/>
@@ -49,7 +47,7 @@ const BEACON_AVATAR = html`<div class="brand-avatar" style="width:36px;height:36
       <g filter="url(#beacon-avatar-blur-2)" opacity="0.1"><circle cx="16" cy="16" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
       <g filter="url(#beacon-avatar-blur-3)" opacity="0.4"><circle cx="17" cy="19" r="6" fill="#FF64B4" fill-opacity="0.671"/></g>
       <rect width="20" height="20" fill="#FF64B4" fill-opacity="0.15" rx="5.5"/>
-      <g style="mix-blend-mode:hard-light"><rect width="20" height="20" fill="#6A62FF" fill-opacity="0.1" rx="5.5"/></g>
+      <g class="blend-hard-light"><rect width="20" height="20" fill="#6A62FF" fill-opacity="0.1" rx="5.5"/></g>
     </g>
     <rect width="19" height="19" x="0.5" y="0.5" stroke="#FDFDFD" stroke-opacity="0.1" rx="5"/>
   </svg>
@@ -71,12 +69,10 @@ function identityCard(identity) {
   const src = logoSrc(s.logo);
   const accent = s.primaryAccent ? safeColor(s.primaryAccent) : null;
   const avatar = src
-    ? html`<img src=${src} alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;border:1px solid hsl(var(--border)/0.5)">`
+    ? html`<img class="identity-avatar identity-avatar--image" src=${src} alt="">`
     : identity.isDefault
       ? BEACON_AVATAR
-      : html`<div style="width:36px;height:36px;border-radius:6px;flex-shrink:0;background:${accent
-          ? `linear-gradient(135deg,${accent},${accent}55)`
-          : "linear-gradient(135deg,hsl(var(--primary)/0.7),hsl(var(--primary)/0.25))"}"></div>`;
+      : html`<div class="identity-avatar identity-avatar--accent" data-vars=${accent ? `--accent:${accent}` : ""}></div>`;
   const desc = identity.isDefault
     ? "All unassigned buckets"
     : buckets.length
@@ -84,10 +80,10 @@ function identityCard(identity) {
       : "No buckets assigned";
   return html`
     <div class="settings-item-card settings-item-card--split" id="identity-card-${identity.id}">
-      <div style="flex:1;padding:1rem;display:flex;align-items:center;gap:1rem">
+      <div class="identity-card-body">
         ${avatar}
-        <div class="settings-item-info" style="flex:1">
-          <span class="settings-item-title select-none">${identity.name}${identity.isDefault ? html`<span class="identity-default-badge" style="margin-left:0.5rem">Default</span>` : nothing}</span>
+        <div class="settings-item-info">
+          <span class="settings-item-title select-none">${identity.name}${identity.isDefault ? html` <span class="identity-default-badge">Default</span>` : nothing}</span>
           <p class="settings-item-desc">${desc}</p>
         </div>
       </div>
@@ -102,7 +98,6 @@ function identityEditBody(identity) {
   const accent = safeColor(s.primaryAccent);
   const surface = safeColor(s.surfaceColour, "#ffffff");
   const refresh = () => updateIdentityPreview(id);
-  const mockBtnStyle = isDefault ? "" : `background:${accent};color:${contrastFg(accent)}`;
 
   const preview = html`
     <div class="personalisation-preview">
@@ -115,7 +110,7 @@ function identityEditBody(identity) {
               <div id="bi-preview-logo-email-${id}"></div>
               <div class="preview-mock-title" id="bi-preview-email-title-${id}">One more step to complete your sign-up</div>
               <div class="preview-mock-body" id="bi-preview-email-body-${id}">Click the button below to confirm.</div>
-              <div class="preview-mock-btn" id="bi-preview-email-btn-${id}" style=${mockBtnStyle}>Yes, sign me up</div>
+              <div class="preview-mock-btn" id="bi-preview-email-btn-${id}">Yes, sign me up</div>
               <div class="preview-mock-footer" id="bi-preview-email-footer-${id}"></div>
             </div>
           </div>
@@ -127,7 +122,7 @@ function identityEditBody(identity) {
               <div id="bi-preview-logo-page-${id}"></div>
               <div class="preview-mock-title" id="bi-preview-page-title-${id}">Email preferences</div>
               <div class="preview-mock-body" id="bi-preview-page-body-${id}">You're receiving these emails because you previously opted in.</div>
-              <div class="preview-mock-btn" id="bi-preview-page-btn-${id}" style=${mockBtnStyle}>Save preferences</div>
+              <div class="preview-mock-btn" id="bi-preview-page-btn-${id}">Save preferences</div>
               <div class="preview-mock-footer" id="bi-preview-page-footer-${id}"></div>
             </div>
           </div>
@@ -136,19 +131,19 @@ function identityEditBody(identity) {
     </div>`;
 
   const logoField = html`
-    <div class="identity-field-row" style="align-items:flex-start">
+    <div class="identity-field-row items-start">
       <div class="settings-item-info">
         <span class="identity-field-label">Logo</span>
         <p class="identity-field-desc">Shown above the heading in emails and on the opt-out page.</p>
       </div>
-      <div class="identity-field-control" style="min-width:240px">
+      <div class="identity-field-control identity-field-control--wide">
         <div class="logo-upload-area" id="bi-logo-area-${id}" @click=${() => triggerLogoUpload(id)}>
           ${logoPreview(s.logo)}
           <span class="logo-upload-text"><strong>Upload image</strong><br>or paste a URL below</span>
           ${s.logo ? html`<button class="logo-remove-btn" type="button" @click=${(e) => { e.stopPropagation(); removeLogo(id); }}>Remove</button>` : nothing}
         </div>
-        <input type="file" id="bi-logo-file-${id}" accept="image/*" style="display:none" aria-label="Upload logo"
-          @change=${(e) => handleLogoFileChange(id, e.target)} />
+        <input type="file" id="bi-logo-file-${id}" accept="image/*" aria-label="Upload logo"
+          @change=${(e) => handleLogoFileChange(id, e.target)} hidden />
         <input type="text" class="identity-input" id="bi-logo-url-${id}" aria-label="Logo URL"
           .value=${s.logo?.type === "url" ? s.logo.url || "" : ""}
           placeholder="https://example.com/logo.png"
@@ -157,7 +152,7 @@ function identityEditBody(identity) {
     </div>`;
 
   const themeField = html`
-    <div class="identity-field-row" style="align-items:flex-start">
+    <div class="identity-field-row items-start">
       <div class="settings-item-info">
         <span class="identity-field-label">Theme</span>
         <p class="identity-field-desc">Colour scheme for emails and the opt-out page.</p>
@@ -180,25 +175,26 @@ function identityEditBody(identity) {
     </div>`;
 
   const fontField = html`
-    <div class="identity-field-row" style="align-items:center">
+    <div class="identity-field-row items-center">
       <div class="settings-item-info">
         <span class="identity-field-label">Font</span>
         <p class="identity-field-desc">Applied to emails and the opt-out page.</p>
       </div>
       <div class="identity-field-control">
-        <select class="appearance-select" id="bi-font-${id}" aria-label="Font" @change=${() => onIdentityFontChange(id)} style="min-width:160px">
+        <select class="appearance-select" id="bi-font-${id}" aria-label="Font" @change=${() => onIdentityFontChange(id)}>
           <option value="">System default</option>
           ${IDENTITY_FONTS.map((f) => html`<option value=${f} ?selected=${s.font === f}>${f}</option>`)}
         </select>
-        <span class="font-warning-badge" id="bi-font-warn-${id}" style=${NON_EMAIL_SAFE_FONTS.has((s.font || "").toLowerCase()) ? "" : "display:none"}>
-          &#9888; May not render in all email clients
+        <span class="font-warning-badge" id="bi-font-warn-${id}" ?hidden=${!NON_EMAIL_SAFE_FONTS.has((s.font || "").toLowerCase())}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Some email clients do not render this font.
         </span>
       </div>
     </div>`;
 
   if (isDefault) {
     return html`
-      <p style="font-size:0.8125rem;color:hsl(var(--muted-foreground));margin:0;padding:0.625rem 0.875rem;background:hsl(var(--muted)/0.4);border-radius:var(--radius);user-select: none;">The default identity styles all unassigned buckets. It is a system fallback: name, colours, text and footer are locked.</p>
+      <p class="notice select-none">The default identity applies to all unassigned buckets. Name, colours, copy and footer are fixed.</p>
       <div>
         <p class="identity-section-hd">Appearance</p>
         ${logoField}
@@ -207,13 +203,13 @@ function identityEditBody(identity) {
       </div>
       <div>
         <p class="identity-section-hd">Buckets</p>
-        <p class="identity-field-desc" style="margin:0">Applies to all unassigned buckets.</p>
+        <p class="identity-field-desc">Applies to all unassigned buckets.</p>
       </div>
       ${preview}`;
   }
 
   const colourRow = (type, label, desc, value) => html`
-    <div class="identity-field-row" style="margin-bottom:0.75rem">
+    <div class="identity-field-row">
       <div class="settings-item-info">
         <span class="identity-field-label">${label}</span>
         <p class="identity-field-desc">${desc}</p>
@@ -238,28 +234,28 @@ function identityEditBody(identity) {
     </div>`;
 
   const copySection = (section, label, unlocked, fields, divider = true) => html`
-    <div style="${divider ? "border-top:1px solid hsl(var(--border)/0.5);padding-top:0.75rem;margin-bottom:0.75rem" : "border-top:1px solid hsl(var(--border)/0.5);padding-top:0.75rem"}">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.75rem;margin-bottom:0.375rem">
-        <span style="font-size:0.8125rem;font-weight:500;color:hsl(var(--foreground))">${label}</span>
-        <div id="bi-copy-${section}-gate-${id}" style=${unlocked ? "display:none" : ""}>
-          <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" @click=${() => unlockCopySection(id, section)}>Customise</button>
+    <div class="copy-section${divider ? "" : " copy-section--last"}">
+      <div class="copy-section-head">
+        <span class="copy-section-title">${label}</span>
+        <div id="bi-copy-${section}-gate-${id}" ?hidden=${unlocked}>
+          <button class="btn btn-outline btn-sm" @click=${() => unlockCopySection(id, section)}>Customise</button>
         </div>
       </div>
-      <div id="bi-copy-${section}-fields-${id}" style="display:${unlocked ? "flex" : "none"};flex-direction:column;gap:0.625rem">
-        <div style="display:flex;justify-content:flex-end">
-          <button class="btn btn-outline" style="font-size:0.8125rem;padding:0.25rem 0.75rem" @click=${() => resetCopySection(id, section)}>Reset</button>
+      <div class="copy-section-fields" id="bi-copy-${section}-fields-${id}" ?hidden=${!unlocked}>
+        <div class="flex justify-end">
+          <button class="btn btn-outline btn-sm" @click=${() => resetCopySection(id, section)}>Reset</button>
         </div>
         ${fields}
       </div>
     </div>`;
 
   return html`
-    <div class="identity-field-row" style="align-items:center">
-      <div class="settings-item-info" style="flex:1">
+    <div class="identity-field-row items-center">
+      <div class="settings-item-info">
         <label class="identity-field-label" for="bi-name-${id}">Identity name</label>
       </div>
-      <div class="identity-field-control">
-        <input type="text" class="identity-input" style="min-width:200px" id="bi-name-${id}" .value=${identity.name} @input=${refresh} />
+      <div class="identity-field-control identity-field-control--wide">
+        <input type="text" class="identity-input" id="bi-name-${id}" .value=${identity.name} @input=${refresh} />
       </div>
     </div>
 
@@ -274,7 +270,7 @@ function identityEditBody(identity) {
 
     <div>
       <p class="identity-section-hd">Copy</p>
-      <p class="identity-field-desc" style="margin:0 0 0.875rem">Custom copy overrides automatic locale translations for that section.</p>
+      <p class="identity-field-desc mb-3">Custom copy overrides automatic locale translations for that section.</p>
       ${copySection("page", "Opt-out page", !!(s.pageTitle || s.pageBody || s.browserTitle), html`
         ${field("browser-title", "Browser tab title", s.browserTitle, "Email Preferences")}
         ${field("page-title", "Page heading", s.pageTitle, "Email preferences")}
@@ -289,15 +285,15 @@ function identityEditBody(identity) {
 
     <div>
       <p class="identity-section-hd">Footer</p>
-      <p class="identity-field-desc" style="margin:0 0 0.5rem">Shown at the bottom of emails and the opt-out page.</p>
+      <p class="identity-field-desc mb-2">Shown at the bottom of emails and the opt-out page.</p>
       <textarea class="identity-textarea" id="bi-footer-${id}" rows="2" aria-label="Footer" placeholder="© 2025 Your Company" .value=${s.footer || ""} @input=${refresh}></textarea>
     </div>
 
     <div>
       <p class="identity-section-hd">Buckets</p>
-      <p class="identity-field-desc" style="margin:0 0 0.5rem">Selected buckets use this identity. Unselected buckets use the default.</p>
+      <p class="identity-field-desc mb-2">Selected buckets use this identity. Unselected buckets use the default.</p>
       <div class="bucket-pill-list" id="bi-buckets-${id}">
-        <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">Loading...</span>
+        <span class="list-empty">Loading…</span>
       </div>
     </div>
 
@@ -310,14 +306,14 @@ function openEditBrandIdentityModal(id) {
   _editingIdentityId = id;
   document.getElementById("editBrandIdentityTitle").textContent = `Edit — ${identity.name}`;
   paint(document.getElementById("editBrandIdentityBody"), identityEditBody(identity));
-  document.getElementById("editBrandIdentityDeleteBtn").style.display = identity.isDefault ? "none" : "";
-  document.getElementById("editBrandIdentityModal").style.display = "flex";
+  document.getElementById("editBrandIdentityDeleteBtn").hidden = identity.isDefault;
+  openModal("editBrandIdentityModal");
   renderBucketAssignment(id);
   updateIdentityPreview(id);
 }
 
 function closeEditBrandIdentityModal() {
-  document.getElementById("editBrandIdentityModal").style.display = "none";
+  closeModal("editBrandIdentityModal");
   _editingIdentityId = null;
 }
 
@@ -354,7 +350,7 @@ async function renderBucketAssignment(identityId) {
   if (!container) return;
   const res = await apiRequest("/api/admin/buckets");
   if (!res.ok) {
-    paint(container, html`<span style="font-size:0.8125rem;color:hsl(var(--destructive))">Failed to load buckets.</span>`);
+    paint(container, html`<span class="list-empty text-danger">Buckets failed to load. Refresh to retry.</span>`);
     return;
   }
   const allBuckets = (res.data || []).map((b) => (typeof b === "string" ? b : b.bucket || b.name || String(b)));
@@ -365,7 +361,7 @@ async function renderBucketAssignment(identityId) {
         <button type="button" class="bucket-pill${assigned.has(bucket) ? " is-assigned" : ""}"
           aria-pressed=${assigned.has(bucket)} data-bucket=${bucket}
           @click=${(e) => toggleBucketPill(e.currentTarget)}>${bucket}</button>`)}`
-    : html`<span style="font-size:0.8125rem;color:hsl(var(--muted-foreground))">No buckets configured.</span>`);
+    : html`<span class="list-empty">No buckets.</span>`);
 }
 
 function toggleBucketPill(btn) {
@@ -401,9 +397,7 @@ function onIdentityFontChange(id) {
   const select = document.getElementById(`bi-font-${id}`);
   const warn = document.getElementById(`bi-font-warn-${id}`);
   if (select && warn)
-    warn.style.display = NON_EMAIL_SAFE_FONTS.has(select.value.toLowerCase())
-      ? ""
-      : "none";
+    warn.hidden = !(NON_EMAIL_SAFE_FONTS.has(select.value.toLowerCase()));
   updateIdentityPreview(id);
 }
 
@@ -521,46 +515,39 @@ function updateIdentityPreview(id) {
   const identity = _brandIdentities.find((i) => i.id === id);
   const src = logoSrc(identity?.settings?.logo);
   const logoImg = src
-    ? html`<img class="preview-mock-logo" src=${src} alt="Logo" style="max-width:80px;max-height:32px;display:block;margin:0 0 0.5rem;object-fit:contain" />`
+    ? html`<img class="preview-mock-logo" src=${src} alt="Logo" />`
     : nothing;
 
   const emailMock = document.getElementById(`bi-preview-email-${id}`);
   if (emailMock) {
-    emailMock.style.background = bg;
-    emailMock.style.color = fg;
+    setMockColours(emailMock, bg, fg, identity?.isDefault ? fg : accent);
     paint(document.getElementById(`bi-preview-logo-email-${id}`), logoImg);
     document.getElementById(`bi-preview-email-title-${id}`).textContent =
       emailTitle;
     document.getElementById(`bi-preview-email-body-${id}`).textContent =
       emailBody;
-    const btn = document.getElementById(`bi-preview-email-btn-${id}`);
-    if (btn) {
-      const c = identity?.isDefault ? fg : accent;
-      btn.style.background = c;
-      btn.style.color = contrastFg(c);
-    }
     document.getElementById(`bi-preview-email-footer-${id}`).textContent =
       footer;
   }
 
   const pageMock = document.getElementById(`bi-preview-page-${id}`);
   if (pageMock) {
-    pageMock.style.background = bg;
-    pageMock.style.color = fg;
+    setMockColours(pageMock, bg, fg, identity?.isDefault ? fg : accent);
     paint(document.getElementById(`bi-preview-logo-page-${id}`), logoImg);
     document.getElementById(`bi-preview-page-title-${id}`).textContent =
       pageTitle;
     document.getElementById(`bi-preview-page-body-${id}`).textContent =
       pageBody;
-    const btn2 = document.getElementById(`bi-preview-page-btn-${id}`);
-    if (btn2) {
-      const c = identity?.isDefault ? fg : accent;
-      btn2.style.background = c;
-      btn2.style.color = contrastFg(c);
-    }
     document.getElementById(`bi-preview-page-footer-${id}`).textContent =
       footer;
   }
+}
+
+function setMockColours(mock, bg, fg, accent) {
+  mock.style.setProperty("--mock-bg", bg);
+  mock.style.setProperty("--mock-fg", fg);
+  mock.style.setProperty("--mock-accent", accent);
+  mock.style.setProperty("--mock-accent-fg", contrastFg(accent));
 }
 
 function contrastFg(hexBg) {
@@ -635,16 +622,14 @@ async function saveBrandIdentity(id) {
     body: { buckets },
   });
   if (!r2.ok) return false;
-  notify("success", "Saved", `Brand identity "${name}" updated.`);
+  notify("success", "Identity saved", `${name} is updated.`);
   await loadBrandIdentities();
   return true;
 }
 
 function unlockCopySection(id, section) {
-  document.getElementById(`bi-copy-${section}-gate-${id}`).style.display =
-    "none";
-  document.getElementById(`bi-copy-${section}-fields-${id}`).style.display =
-    "flex";
+  document.getElementById(`bi-copy-${section}-gate-${id}`).hidden = true;
+  document.getElementById(`bi-copy-${section}-fields-${id}`).hidden = false;
   const first = document.querySelector(
     `#bi-copy-${section}-fields-${id} input, #bi-copy-${section}-fields-${id} textarea`,
   );
@@ -656,8 +641,8 @@ function resetCopySection(id, section) {
   fields.querySelectorAll("input, textarea").forEach((el) => {
     el.value = "";
   });
-  fields.style.display = "none";
-  document.getElementById(`bi-copy-${section}-gate-${id}`).style.display = "";
+  fields.hidden = true;
+  document.getElementById(`bi-copy-${section}-gate-${id}`).hidden = false;
   updateIdentityPreview(id);
 }
 
@@ -665,13 +650,13 @@ function showCreateBrandIdentityModal() {
   const input = document.getElementById("newBrandIdentityName");
   const err = document.getElementById("newBrandIdentityError");
   input.value = "";
-  err.style.display = "none";
-  document.getElementById("createBrandIdentityModal").style.display = "flex";
+  err.hidden = true;
+  openModal("createBrandIdentityModal");
   setTimeout(() => input.focus(), 50);
 }
 
 function closeCreateBrandIdentityModal() {
-  document.getElementById("createBrandIdentityModal").style.display = "none";
+  closeModal("createBrandIdentityModal");
 }
 
 function validateBrandIdentityName() {
@@ -681,15 +666,15 @@ function validateBrandIdentityName() {
   const err = document.getElementById("newBrandIdentityError");
   if (!val) {
     err.textContent = "Name is required.";
-    err.style.display = "block";
+    err.hidden = false;
     return false;
   }
   if (val.length > 100) {
     err.textContent = "Name must be 100 characters or fewer.";
-    err.style.display = "block";
+    err.hidden = false;
     return false;
   }
-  err.style.display = "none";
+  err.hidden = true;
   return true;
 }
 
@@ -707,7 +692,7 @@ async function confirmCreateBrandIdentity() {
     if (!res.ok) return;
     closeCreateBrandIdentityModal();
     await loadBrandIdentities();
-    notify("success", "Created", `Brand identity "${name}" created.`);
+    notify("success", "Identity created", `${name} is created.`);
   } finally {
     btn.classList.remove("is-loading");
     btn.disabled = false;
@@ -722,7 +707,7 @@ async function deleteBrandIdentity(id) {
   const identity = _brandIdentities.find((i) => i.id === id);
   if (!identity) return;
   openConfirmModal(
-    "Delete Identity",
+    "Delete identity",
     html`Delete <strong>${identity.name}</strong>? Buckets assigned to it will revert to Default.`,
     "Delete",
     async () => {
@@ -731,7 +716,7 @@ async function deleteBrandIdentity(id) {
       });
       if (result.ok) {
         await loadBrandIdentities();
-        notify("success", "Deleted", "Brand identity deleted.");
+        notify("success", "Identity deleted");
       }
     },
   );

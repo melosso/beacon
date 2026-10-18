@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -112,20 +113,91 @@ public class SecurityAuditTests : IDisposable
     public void CsvEscape_NeutralisesFormulas(string value, string expected) =>
         Assert.Equal(expected, AdminEndpoints.CsvEscape(value));
 
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("Admin")]
+    [InlineData("APIKEYUSER")]
+    public void ValidateUsername_RejectsReservedNames(string username) =>
+        Assert.False(UserEndpoints.ValidateUsername(username, out _));
+
+    [Fact]
+    public void ValidateUsername_AcceptsOtherAdminNames() =>
+        Assert.True(UserEndpoints.ValidateUsername("admin.jane", out _));
+
+    [Fact]
+    public async Task NamedApiKey_PrincipalNeverMatchesAUsername()
+    {
+        var (hash, salt) = PasswordHasher.HashPassword("seeded-password-12!");
+        await new UserRepository(_db).CreateAsync("jane", hash, salt, "admin", ApiKeyGenerator.Generate().apiKeyHash);
+        var (key, keyHash) = ApiKeyGenerator.Generate();
+        await new ApiKeyRepository(_db).CreateAsync("jane", keyHash, ["consent:read"], true, null, null);
+
+        using var provider = new ServiceCollection()
+            .AddDbContext<BeaconDbContext>(o => o.UseSqlite(_connection))
+            .AddScoped<UserRepository>()
+            .AddScoped<ApiKeyRepository>()
+            .BuildServiceProvider();
+
+        var handler = new ApiKeyAuthHandler(new StaticOptionsMonitor<ApiKeyAuthOptions>(new ApiKeyAuthOptions()), NullLoggerFactory.Instance, UrlEncoder.Default,
+            provider.GetRequiredService<IServiceScopeFactory>());
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Api-Key"] = key;
+        await handler.InitializeAsync(new AuthenticationScheme(ApiKeyAuthExtensions.SchemeName, null, typeof(ApiKeyAuthHandler)), context);
+
+        var result = await handler.AuthenticateAsync();
+        Assert.True(result.Succeeded);
+        Assert.Equal("key:jane", result.Principal!.Identity!.Name);
+    }
+
+    [Fact]
+    public void ExportWriter_FlattensGroupsAndQuotesYamlStrings()
+    {
+        List<ExportWriter.Row> rows =
+        [
+            new() { { "email", "a@x.com" }, { "name", "true" }, { "consent", new ExportWriter.Row { { "Newsletter", true } } } },
+            new() { { "email", "b@x.com" }, { "name", null }, { "consent", new ExportWriter.Row { { "Alerts", false } } } }
+        ];
+
+        var csv = ExportWriter.ToCsv(rows);
+        Assert.StartsWith("email,name,consent.Newsletter,consent.Alerts\r\n", csv);
+        Assert.Contains("b@x.com,,,false\r\n", csv);
+
+        var yaml = ExportWriter.ToYaml("records", rows);
+        Assert.Contains("name: \"true\"", yaml);
+        Assert.Contains("name: null", yaml);
+        Assert.Equal("records: []\n", ExportWriter.ToYaml("records", []));
+    }
+
+    [Fact]
+    public void ExportWriter_TimestampIsUtcIso8601() =>
+        Assert.Equal("2026-10-18T20:01:41Z", ExportWriter.Timestamp(new DateTime(2026, 10, 18, 20, 1, 41, 123, DateTimeKind.Unspecified)));
+
+    [Fact]
+    public async Task Jwt_RevokedSession_IsRejected()
+    {
+        var token = JwtAuthHandler.CreateToken(SigningKey, "admin", DateTimeOffset.UtcNow.AddHours(1), "admin", adminKey: true);
+        Assert.True((await AuthenticateAsync(token)).Succeeded);
+
+        await JwtAuthHandler.RevokeAsync(new TokenUsageRepository(_db), SigningKey, token);
+        await JwtAuthHandler.RevokeAsync(new TokenUsageRepository(_db), SigningKey, token);
+
+        Assert.False((await AuthenticateAsync(token)).Succeeded);
+    }
+
     private async Task<AuthenticateResult> AuthenticateAsync(string token)
     {
         var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = "both" };
-        var handler = new JwtAuthHandler(new StaticOptionsMonitor(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db));
+        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db));
         var context = new DefaultHttpContext();
         context.Request.Headers.Cookie = $"{JwtAuthHandler.CookieName}={token}";
         await handler.InitializeAsync(new AuthenticationScheme(JwtAuthExtensions.SchemeName, null, typeof(JwtAuthHandler)), context);
         return await handler.AuthenticateAsync();
     }
 
-    private sealed class StaticOptionsMonitor(JwtAuthOptions value) : IOptionsMonitor<JwtAuthOptions>
+    private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
     {
-        public JwtAuthOptions CurrentValue => value;
-        public JwtAuthOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<JwtAuthOptions, string?> listener) => null;
+        public T CurrentValue => value;
+        public T Get(string? name) => value;
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 }

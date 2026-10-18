@@ -1,20 +1,20 @@
     <!-- Settings View -->
     <div id="view-settings" class="view">
-      <section class="header-container" style="flex-shrink:0">
+      <section class="header-container">
         <div>
           <h1 class="select-none">Settings</h1>
           <span class="status-badge select-none" id="settingsSectionBadge">General</span>
         </div>
         <div class="bucket-actions">
-          <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+          <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
         </div>
       </section>
-      <div class="settings-layout" style="flex:1;min-height:0">
+      <div class="settings-layout">
 
         <!-- Left sub-nav -->
         <aside class="settings-subnav select-none">
           <nav class="settings-subnav-nav">
-            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" data-click="showSettingsSection account" style="display:none">
+            <a href="#" class="settings-subnav-item" id="settingsNavAccount" data-section="account" data-click="showSettingsSection account" hidden>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
@@ -29,7 +29,7 @@
               Appearance
             </a>
 
-            <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
+            <hr class="settings-subnav-sep" id="settingsNavDivider" hidden>
 
             <a href="#" class="settings-subnav-item active" id="settingsNavGeneral" data-section="general" data-click="showSettingsSection general">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -50,7 +50,7 @@
               </svg>
               Policies
             </a>
-            <a href="#" class="settings-subnav-item" id="settingsNavUsers" data-section="users" data-click="showSettingsSection users" style="display:none">
+            <a href="#" class="settings-subnav-item" id="settingsNavUsers" data-section="users" data-click="showSettingsSection users" hidden>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -58,16 +58,15 @@
               Users
             </a>
 
-            <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
-            <a href="#" class="settings-subnav-item" id="settingsNavApiKeys" data-section="api-keys" data-click="showSettingsSection api-keys" style="display:none">
+            <a href="#" class="settings-subnav-item" id="settingsNavApiKeys" data-section="api-keys" data-click="showSettingsSection api-keys" hidden>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>
               </svg>
-              Tokens
+              API keys
             </a>
 
-            <hr id="settingsNavDivider" style="border-right: medium; border-bottom: medium; border-left: medium; border-image: none; border-top: 1px solid hsl(var(--border)); margin: 0.5rem 0.75rem;">
+            <hr class="settings-subnav-sep">
 
             <a href="#" class="settings-subnav-item" id="settingsNavIntegration" data-section="integration" data-click="showSettingsSection integration">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -77,7 +76,6 @@
               Integration
             </a>
             
-            <hr id="settingsNavDivider" style="display:none;border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
 
             <a href="#" class="settings-subnav-item" id="settingsNavConnectors" data-section="connectors" data-click="showSettingsSection connectors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -93,7 +91,7 @@
               Personalisation
             </a>
 
-            <hr id="settingsNavSystemDivider" style="border:none;border-top:1px solid hsl(var(--border));margin:0.5rem 0.75rem">
+            <hr class="settings-subnav-sep" id="settingsNavSystemDivider">
 
             <a href="#" class="settings-subnav-item" id="settingsNavSystem" data-section="system" data-click="showSettingsSection system">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -112,11 +110,11 @@
           <div id="settings-section-general" class="settings-section active">
             <div class="settings-content-hd">
               <h3 class="select-none">General</h3>
-              <p>Manage the core application behaviour, like the settings for the API.</p>
+              <p>Core application and API behaviour.</p>
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
-              <div class="settings-item-block" style="align-items: center">
+              <div class="settings-item-block items-center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Default language</span>
                   <p class="settings-item-desc">Default language pre-selected when generating tokens or creating forms in the admin panel.</p>
@@ -141,7 +139,7 @@
                 </div>
               </label>
               <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
             </div>
           </div>
@@ -153,10 +151,8 @@
               <p>Enable or disable optional application modules.</p>
             </div>
             <hr class="settings-sep">
-            <div id="modules-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
-              <span style="font-size:0.85rem;color:hsl(var(--muted-foreground))">
-                <strong style="color:hsl(var(--foreground))">Some modules are disabled</strong>. Contact your administrator to enable this feature.
-              </span>
+            <div class="notice mb-4" id="modules-disabled-notice" hidden>
+              <strong>Some modules are disabled.</strong> Contact an administrator to enable them.
             </div>
             <div class="settings-items">
               <div class="settings-item-card settings-item-card--split">
@@ -210,7 +206,7 @@
                 </label>
               </div>
               <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
             </div>
           </div>
@@ -218,7 +214,7 @@
           <!-- Data Policies section -->
           <div id="settings-section-data-policies" class="settings-section">
             <div class="settings-content-hd">
-              <h3 class="select-none">Data Policies</h3>
+              <h3 class="select-none">Data policies</h3>
               <p>Automated data lifecycle rules for GDPR compliance.</p>
             </div>
             <hr class="settings-sep">
@@ -242,12 +238,12 @@
                     <span class="settings-item-title select-none">Schedule</span>
                     <p class="settings-item-desc">How often data policies run. Uses standard 5-field cron syntax.</p>
                   </div>
-                  <div class="autocomplete-wrapper" style="flex-shrink:0;width:180px">
+                  <div class="autocomplete-wrapper cron-field">
                     <input type="text" id="setting-dataPolicyCron" value="0 0 * * *"
-                      class="appearance-select" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
+                      class="appearance-select mono w-full" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
                       data-input="onCronInput $el"
                       data-focus="showCronSuggestions true setting-dataPolicyCron"
-                      style="font-family:var(--font-mono);width:100%">
+                     >
                     <div class="autocomplete-dropdown" id="dataPolicyCronAutocomplete"></div>
                   </div>
                 </div>
@@ -303,16 +299,16 @@
                 </div>
               </div>
 
-              <div class="settings-save-row" style="gap:0.5rem">
-                <button class="btn btn-outline" id="dataPoliciesRunBtn" data-click="triggerDataPoliciesRun"><span class="btn-label">Run Now</span><span class="spinner"></span></button>
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+              <div class="settings-save-row">
+                <button class="btn btn-outline" id="dataPoliciesRunBtn" data-click="triggerDataPoliciesRun"><span class="btn-label">Run now</span><span class="spinner"></span></button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
 
-              <div style="margin-top:1.5rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
-                  <span class="settings-item-title select-none" style="font-size:0.875rem">Run history</span>
-                  <button class="btn btn-icon" data-click="loadWorkflowTasks" title="Refresh" style="opacity:0.6;width:28px;height:28px">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              <div class="mt-6">
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="settings-item-title select-none">Run history</h4>
+                  <button class="btn btn-icon btn-icon--sm" data-click="loadWorkflowTasks" title="Refresh" aria-label="Refresh run history">
+                    <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                   </button>
                 </div>
                 <div class="table-wrapper">
@@ -328,7 +324,7 @@
                       </tr>
                     </thead>
                     <tbody id="workflowTasksTbody">
-                      <tr><td colspan="6" style="text-align:center;padding:2rem;color:hsl(var(--muted-foreground));font-size:0.875rem">No runs yet! Enable a policy, then click Run Now.</td></tr>
+                      <tr><td class="table-empty" colspan="6">No runs. Enable a policy, then select Run now.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -340,7 +336,7 @@
           <div id="settings-section-appearance" class="settings-section">
             <div class="settings-content-hd">
               <h3 class="select-none">Appearance</h3>
-              <p>Customize the appearance of the backend, e.g. to automatically switch between day and night themes.</p>
+              <p>Font, theme and announcement settings for the admin panel.</p>
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
@@ -348,7 +344,7 @@
               <div class="settings-item-block">
                 <div class="settings-item-info">
                   <span class="settings-item-title">Font</span>
-                  <p class="settings-item-desc">Set the font you want to use in the dashboard.</p>
+                  <p class="settings-item-desc">Interface font for the admin panel.</p>
                 </div>
                 <select id="setting-font" class="appearance-select" data-change="saveAppearance font $value">
                   <option value="inter">Inter</option>
@@ -360,16 +356,16 @@
               <div class="settings-item-block">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Theme</span>
-                  <p class="settings-item-desc">Select the theme for the dashboard.</p>
+                  <p class="settings-item-desc">Colour theme for the admin panel.</p>
                 </div>
                 <div class="theme-radio-group">
                   <label class="theme-option" for="setting-theme-light">
                     <input type="radio" name="setting-theme" id="setting-theme-light" value="light" data-change="saveAppearance theme light">
                     <div class="theme-card">
                       <div class="theme-preview-inner theme-preview--light">
-                        <div class="tp-card"><div class="tp-line" style="width:70%"></div><div class="tp-line" style="width:50%"></div></div>
-                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line" style="flex:1"></div></div>
-                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line" style="flex:1"></div></div>
+                        <div class="tp-card"><div class="tp-line tp-line--70"></div><div class="tp-line tp-line--50"></div></div>
+                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line grow"></div></div>
+                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line grow"></div></div>
                       </div>
                     </div>
                     <span class="theme-option-label">Light</span>
@@ -378,9 +374,9 @@
                     <input type="radio" name="setting-theme" id="setting-theme-dark" value="dark" data-change="saveAppearance theme dark">
                     <div class="theme-card">
                       <div class="theme-preview-inner theme-preview--dark">
-                        <div class="tp-card"><div class="tp-line" style="width:70%"></div><div class="tp-line" style="width:50%"></div></div>
-                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line" style="flex:1"></div></div>
-                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line" style="flex:1"></div></div>
+                        <div class="tp-card"><div class="tp-line tp-line--70"></div><div class="tp-line tp-line--50"></div></div>
+                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line grow"></div></div>
+                        <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line grow"></div></div>
                       </div>
                     </div>
                     <span class="theme-option-label">Dark</span>
@@ -390,12 +386,12 @@
                     <div class="theme-card">
                       <div class="theme-preview-inner theme-preview--system">
                         <div class="tp-half tp-half--light">
-                          <div class="tp-card"><div class="tp-line"></div><div class="tp-line" style="width:70%"></div></div>
-                          <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line" style="flex:1"></div></div>
+                          <div class="tp-card"><div class="tp-line"></div><div class="tp-line tp-line--70"></div></div>
+                          <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line grow"></div></div>
                         </div>
                         <div class="tp-half tp-half--dark">
-                          <div class="tp-card"><div class="tp-line"></div><div class="tp-line" style="width:70%"></div></div>
-                          <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line" style="flex:1"></div></div>
+                          <div class="tp-card"><div class="tp-line"></div><div class="tp-line tp-line--70"></div></div>
+                          <div class="tp-card tp-row"><div class="tp-dot"></div><div class="tp-line grow"></div></div>
                         </div>
                       </div>
                     </div>
@@ -445,7 +441,7 @@
 
             </div>
             <div class="settings-save-row">
-              <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+              <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
             </div>
           </div>
 
@@ -456,10 +452,8 @@
               <p>Connect outside platforms to handle everything from backups to email.</p>
             </div>
             <hr class="settings-sep">
-            <div id="email-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
-              <span style="font-size:0.85rem;color:hsl(var(--muted-foreground))">
-                <strong style="color:hsl(var(--foreground))">Email notifications are disabled</strong>. Contact your administrator to enable this feature.
-              </span>
+            <div class="notice mb-4" id="email-disabled-notice" hidden>
+              <strong>Email notifications are disabled.</strong> Contact an administrator to enable them.
             </div>
             <div class="settings-items" id="email-settings-items">
               <div class="settings-item-card settings-item-card--split">
@@ -501,45 +495,43 @@
                 </button>
               </div>
               <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
             </div>
           </div>
 
           <!-- Users section -->
           <div id="settings-section-users" class="settings-section">
-            <div class="settings-content-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+            <div class="settings-content-hd settings-content-hd--actions">
               <div>
                 <h3 class="select-none">Users</h3>
                 <p>Manage user accounts and role-based access control.</p>
               </div>
-              <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
+              <div class="settings-content-actions">
                 <button class="btn btn-outline" data-click="loadUsers">Refresh</button>
-                <button class="btn btn-primary" data-click="openAddUserModal">Add User</button>
+                <button class="btn btn-primary" data-click="openAddUserModal">Add user</button>
               </div>
             </div>
             <hr class="settings-sep">
-            <div id="users-auth-disabled-notice" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:hsl(var(--muted));border-radius:var(--radius);border:1px solid hsl(var(--border))">
-              <span style="font-size:0.85rem;color:hsl(var(--muted-foreground))">
-                <strong style="color:hsl(var(--foreground))">User authentication is disabled</strong>. Users can be managed here, but login via either username & password or API key is not available.
-              </span>
+            <div class="notice mb-4" id="users-auth-disabled-notice" hidden>
+              <strong>User authentication is disabled.</strong> Users remain editable. Sign-in with username and password or a personal API key is unavailable.
             </div>
-            <div style="overflow-x:auto">
-              <table style="width:100%">
+            <div class="overflow-x-auto">
+              <table class="w-full">
                 <thead>
                   <tr>
                     <th>Username</th>
                     <th>Role</th>
                     <th>Status</th>
                     <th>Created</th>
-                    <th>Last Login</th>
+                    <th>Last login</th>
                     <th class="col-actions"></th>
                   </tr>
                 </thead>
                 <tbody id="usersBody"></tbody>
               </table>
             </div>
-            <div class="pagination-container" id="usersPaginationBar" style="display:none">
+            <div class="pagination-container" id="usersPaginationBar" hidden>
               <div class="pagination-settings">
                 <div class="page-size-selector">
                   <span>Show</span>
@@ -552,7 +544,7 @@
                 </div>
                 <div class="pagination-info" id="usersPaginationInfo"></div>
               </div>
-              <div style="display:flex;gap:0.5rem">
+              <div class="flex gap-2">
                 <button class="btn btn-outline" id="usersPrevBtn" data-click="changeUsersPage -1">Previous</button>
                 <button class="btn btn-outline" id="usersNextBtn" data-click="changeUsersPage 1">Next</button>
               </div>
@@ -561,34 +553,34 @@
 
           <!-- API Keys section -->
           <div id="settings-section-api-keys" class="settings-section">
-            <div class="settings-content-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+            <div class="settings-content-hd settings-content-hd--actions">
               <div>
-                <h3 class="select-none">Access Tokens</h3>
-                <p>Manage your API keys and tokens with custom permissions and expiration dates.</p>
+                <h3 class="select-none">API keys</h3>
+                <p>API keys with scoped permissions and validity windows.</p>
               </div>
-              <div style="display:flex;gap:0.5rem;flex-shrink:0;padding-top:0.25rem">
+              <div class="settings-content-actions">
                 <button class="btn btn-outline" data-click="loadApiKeys">Refresh</button>
-                <button class="btn btn-primary" data-click="openAddApiKeyModal">Add Key</button>
+                <button class="btn btn-primary" data-click="openAddApiKeyModal">Add API key</button>
               </div>
             </div>
             <hr class="settings-sep">
-            <div style="overflow-x:auto">
-              <table style="width:100%">
+            <div class="overflow-x-auto">
+              <table class="w-full">
                 <thead>
                   <tr>
                     <th>Name</th>
                     <th>Permissions</th>
                     <th>Status</th>
-                    <th>Valid Until</th>
+                    <th>Valid until</th>
                     <th>Created</th>
-                    <th>Last Used</th>
+                    <th>Last used</th>
                     <th class="col-actions"></th>
                   </tr>
                 </thead>
                 <tbody id="apiKeysBody"></tbody>
               </table>
             </div>
-            <div class="pagination-container" id="apiKeysPaginationBar" style="display:none">
+            <div class="pagination-container" id="apiKeysPaginationBar" hidden>
               <div class="pagination-settings">
                 <div class="page-size-selector">
                   <span>Show</span>
@@ -601,7 +593,7 @@
                 </div>
                 <div class="pagination-info" id="apiKeysPaginationInfo"></div>
               </div>
-              <div style="display:flex;gap:0.5rem">
+              <div class="flex gap-2">
                 <button class="btn btn-outline" id="apiKeysPrevBtn" data-click="changeApiKeysPage -1">Previous</button>
                 <button class="btn btn-outline" id="apiKeysNextBtn" data-click="changeApiKeysPage 1">Next</button>
               </div>
@@ -616,43 +608,43 @@
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
-              <div class="settings-item-block" style="align-items:center">
+              <div class="settings-item-block items-center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Username</span>
                 </div>
                 <span id="accountUsername" class="status-badge"></span>
               </div>
-              <div class="settings-item-block" style="align-items:center">
+              <div class="settings-item-block items-center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Role</span>
                 </div>
-                <div id="accountRoleBadge" style="flex-shrink:0"></div>
+                <div class="shrink-0" id="accountRoleBadge"></div>
               </div>
             </div>
-            <div style="margin-top:1.5rem">
+            <div class="mt-6">
               <div class="settings-content-hd">
                 <h3 class="select-none">Security</h3>
                 <p>Manage your password and API access key.</p>
               </div>
               <hr class="settings-sep">
               <div id="accountSecurityItems" class="settings-items">
-                <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-block items-center">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">Password</span>
                     <p class="settings-item-desc">Update your login password.</p>
                   </div>
-                  <button class="btn btn-outline" data-click="openAccountPasswordModal">Change Password</button>
+                  <button class="btn btn-outline" data-click="openAccountPasswordModal">Change password</button>
                 </div>
-                <div class="settings-item-block" style="align-items:center">
+                <div class="settings-item-block items-center">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">API Key</span>
-                    <p class="settings-item-desc">Use this for programmatic access. If you regenerate it, your previous key will stop working immediately.</p>
+                    <p class="settings-item-desc">Programmatic access key. Regenerating revokes the previous key immediately.</p>
                   </div>
-                  <button class="btn btn-outline" data-click="regenerateOwnApiKey">Regenerate</button>
+                  <button class="btn btn-outline" data-click="regenerateOwnApiKey">Regenerate key</button>
                 </div>
               </div>
-              <p id="accountGlobalAdminNotice" class="select-none" style="display:none;font-size:0.875rem;color:hsl(var(--muted-foreground));margin:0.75rem 0 0">
-                Signed in via global admin API key. To update your password or keys, please check your environment configuration.
+              <p id="accountGlobalAdminNotice" class="field-hint select-none" hidden>
+                Signed in with the global admin API key. The key is set in the environment configuration (ADMIN_API_KEY).
               </p>
             </div>
           </div>
@@ -665,7 +657,7 @@
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
-              <div class="settings-item-block" style="align-items: center">
+              <div class="settings-item-block items-center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Fallback language</span>
                   <p class="settings-item-desc">Fallback language for the consent page when no language is specified in the token (request).</p>
@@ -679,17 +671,17 @@
                   <option value="es">Spanish</option>
                 </select>
               </div>
-              <div class="settings-item-block" style="align-items:center">
+              <div class="settings-item-block items-center">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Cron schedule</span>
                   <p class="settings-item-desc">How often the email queue is processed. Uses standard 5-field cron syntax.</p>
                 </div>
-                <div class="autocomplete-wrapper" style="flex-shrink:0;width:180px">
+                <div class="autocomplete-wrapper cron-field">
                   <input type="text" id="setting-emailQueueCron" value="*/5 * * * *"
-                    class="appearance-select" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
+                    class="appearance-select mono w-full" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
                     data-input="onCronInput $el"
                     data-focus="showCronSuggestions true"
-                    style="font-family:monospace;width:100%">
+                   >
                   <div class="autocomplete-dropdown" id="cronAutocomplete"></div>
                 </div>
               </div>
@@ -714,29 +706,58 @@
                 </button>
               </div>
               <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save Changes</button>
+                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
+            </div>
+          </div>
+
+          <div id="settings-section-connectors" class="settings-section">
+            <div class="settings-content-hd">
+              <h3 class="select-none">Connectors</h3>
+              <p>Sync consent with CRM and marketing platforms.</p>
+            </div>
+            <hr class="settings-sep">
+            <div class="settings-items">
+              <div class="settings-item-card settings-item-card--static">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Webhooks</span>
+                  <p class="settings-item-desc">Send consent changes to any HTTP endpoint. Configured in the options of each bucket.</p>
+                </div>
+                <span class="status-badge select-none">Per bucket</span>
+              </div>
+              <div class="settings-item-card settings-item-card--split">
+                <div class="settings-item-card-label settings-item-card-label--static">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">REST API</span>
+                    <p class="settings-item-desc">Read and update consent from other systems with a scoped API key.</p>
+                  </div>
+                </div>
+                <button class="btn-settings-gear" data-click="showSettingsSection api-keys" aria-label="Manage API keys">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="notice select-none">Built-in CRM and marketing platform connectors are planned for a future release.</div>
             </div>
           </div>
 
           <!-- Personalisation section -->
           <div id="settings-section-personalisation" class="settings-section">
-            <div class="settings-content-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem">
+            <div class="settings-content-hd settings-content-hd--actions">
               <div>
                 <h3 class="select-none">Personalisation</h3>
                 <p>Brand your emails and unsubscribe pages.</p>
               </div>
-              <div style="flex-shrink:0;padding-top:0.25rem">
-                <button class="btn btn-primary" data-click="createBrandIdentity">Add Identity</button>
+              <div class="settings-content-actions">
+                <button class="btn btn-primary" data-click="createBrandIdentity">Add identity</button>
               </div>
             </div>
             <hr class="settings-sep">
-            <div class="settings-items" style="max-width:100%">
-              <div id="brand-identities-list" style="display:flex;flex-direction:column;gap:0.75rem">
+            <div class="settings-items settings-items--wide">
+              <div class="flex flex-col gap-3" id="brand-identities-list">
                 <!-- Populated by loadBrandIdentities() -->
-                <div class="settings-empty-state" style="padding:2rem 0;text-align:center;color:hsl(var(--muted-foreground))">
-                  <span style="font-size:0.875rem">Loading identities...</span>
-                </div>
+                <p class="settings-empty-state">Loading identities…</p>
               </div>
             </div>
           </div>

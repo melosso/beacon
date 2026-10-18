@@ -1,20 +1,14 @@
 <!-- Custom Fields Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="customFieldsModal"
+  aria-labelledby="customFieldsModalTitle"
   data-self
   data-click="closeCustomFieldsDialog"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Custom Fields</h3>
+    <div class="modal-header">
+      <h3 id="customFieldsModalTitle">Custom fields</h3>
       <button
         class="btn btn-icon"
         data-click="closeCustomFieldsDialog"
@@ -36,24 +30,26 @@
         </svg>
       </button>
     </div>
-    <p>Add key-value pairs to store alongside consent records.</p>
+    <p>Key-value pairs stored with the consent record.</p>
     <div class="form-group">
-      <label>Custom Fields</label>
+      <label for="newFieldKey">Custom fields</label>
       <div class="custom-fields-list" id="customFieldsGrid"></div>
-      <div class="form-group custom-fields-add-row" style="margin-bottom: 0">
-        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
+      <div class="custom-fields-add-row">
+        <div class="input-row mt-3">
           <input
             type="text"
+            class="input mono"
+            aria-label="Key"
             id="newFieldKey"
             placeholder="Key"
-            style="flex: 1; width: auto"
             data-enter="addCustomField token"
           />
           <input
             type="text"
+            class="input"
+            aria-label="Value"
             id="newFieldValue"
             placeholder="Value"
-            style="flex: 1; width: auto"
             data-enter="addCustomField token"
           />
           <button
@@ -72,25 +68,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Remove Bucket Security Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="removeModal"
+  aria-labelledby="removeModalTitle"
   data-self
   data-click="closeRemoveModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 class="select-none" style="margin: 0">Remove Bucket</h3>
+    <div class="modal-header">
+      <h3 id="removeModalTitle" class="select-none">Remove bucket</h3>
       <button
         class="btn btn-icon"
         data-click="closeRemoveModal"
@@ -113,58 +103,44 @@
       </button>
     </div>
     <p>
-      This action will permanently delete all consent records in this bucket.
-      This cannot be undone.
+      Removing the bucket permanently deletes all of its consent records.
     </p>
-    <p style="font-weight: 500; margin-bottom: 0.5rem">
-      Type the following passphrase to confirm:
-    </p>
+    <p class="confirm-label">Type the passphrase to confirm.</p>
     <div class="passphrase-box select-none" id="passphraseDisplay">-</div>
     <input
       type="text"
       class="input-auth"
       id="passphraseInput"
-      placeholder="Enter the passphrase"
+      placeholder="Passphrase"
+      aria-label="Passphrase"
       data-input="verifyPassphrase"
     />
     <div class="modal-actions">
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="closeRemoveModal">
+      <button class="btn btn-outline" data-click="closeRemoveModal">
           Cancel
         </button>
-        <span class="tooltip tooltip-above">Close without removing</span>
-      </span>
-      <span class="tooltip-wrapper">
-        <button
+      <button
           class="btn btn-confirm"
           id="confirmRemoveBtn"
           data-click="confirmRemoval"
         >
-          Remove Bucket
+          Remove bucket
         </button>
-        <span class="tooltip tooltip-above">There is no way back!</span>
-      </span>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Submission Form Remove Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="submissionRemoveModal"
+  aria-labelledby="submissionRemoveModalTitle"
   data-self
   data-click="closeSubmissionRemoveModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 class="select-none" style="margin: 0">Remove Form</h3>
+    <div class="modal-header">
+      <h3 id="submissionRemoveModalTitle" class="select-none">Remove form</h3>
       <button
         class="btn btn-icon"
         data-click="closeSubmissionRemoveModal"
@@ -187,12 +163,10 @@
       </button>
     </div>
     <p>
-      This action will permanently delete this submission form. Existing consent
-      records in the bucket will not be affected. This cannot be undone.
+      Removing the form deletes it permanently. Consent records in the bucket
+      are kept.
     </p>
-    <p style="font-weight: 500; margin-bottom: 0.5rem">
-      Type the following passphrase to confirm:
-    </p>
+    <p class="confirm-label">Type the passphrase to confirm.</p>
     <div class="passphrase-box select-none" id="submissionPassphraseDisplay">
       -
     </div>
@@ -200,48 +174,36 @@
       type="text"
       class="input-auth"
       id="submissionPassphraseInput"
-      placeholder="Enter the passphrase"
+      placeholder="Passphrase"
+      aria-label="Passphrase"
       data-input="verifySubmissionPassphrase"
     />
     <div class="modal-actions">
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="closeSubmissionRemoveModal">
+      <button class="btn btn-outline" data-click="closeSubmissionRemoveModal">
           Cancel
         </button>
-        <span class="tooltip tooltip-above">Close without removing</span>
-      </span>
-      <span class="tooltip-wrapper">
-        <button
+      <button
           class="btn btn-confirm"
           id="confirmSubmissionRemoveBtn"
           data-click="confirmSubmissionRemoval"
         >
-          Remove Form
+          Remove form
         </button>
-        <span class="tooltip tooltip-above">There is no way back!</span>
-      </span>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Archive Bucket Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="archiveModal"
-  style="display: none"
+  aria-labelledby="archiveModalTitle"
   data-self
   data-click="closeArchiveModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 class="select-none" style="margin: 0">Archive Bucket</h3>
+    <div class="modal-header">
+      <h3 id="archiveModalTitle" class="select-none">Archive bucket</h3>
       <button
         class="btn btn-icon"
         data-click="closeArchiveModal"
@@ -264,14 +226,11 @@
       </button>
     </div>
     <p>
-      <strong id="archiveBucketName">-</strong> will become read-only. New
-      submissions, consent updates, and token usage will be rejected — existing
-      records remain accessible.
+      <strong id="archiveBucketName">-</strong> becomes read-only. New
+      submissions, consent updates and token use are rejected. Existing records
+      stay readable.
     </p>
-    <p style="color: hsl(var(--muted-foreground)); font-size: 0.875rem">
-      This can be undone. You can unarchive this bucket at any time from its
-      settings.
-    </p>
+    <p>Unarchive the bucket from its options at any time.</p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeArchiveModal">
         Cancel
@@ -281,30 +240,23 @@
         id="confirmArchiveBtn"
         data-click="confirmArchive"
       >
-        Archive Bucket
+        Archive bucket
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Unarchive Bucket Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="unarchiveModal"
-  style="display: none"
+  aria-labelledby="unarchiveModalTitle"
   data-self
   data-click="closeUnarchiveModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 class="select-none" style="margin: 0">Unarchive Bucket</h3>
+    <div class="modal-header">
+      <h3 id="unarchiveModalTitle" class="select-none">Unarchive bucket</h3>
       <button
         class="btn btn-icon"
         data-click="closeUnarchiveModal"
@@ -327,10 +279,9 @@
       </button>
     </div>
     <p>
-      Unarchiving <strong id="unarchiveBucketName">-</strong> will re-enable
-      submissions, consent updates, and token generation for this bucket.
+      Unarchiving <strong id="unarchiveBucketName">-</strong> re-enables
+      submissions, consent updates and token generation.
     </p>
-    <p>Are you sure you want to unarchive this bucket?</p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeUnarchiveModal">
         Cancel
@@ -340,29 +291,23 @@
         id="confirmUnarchiveBtn"
         data-click="confirmUnarchive"
       >
-        Unarchive Bucket
+        Unarchive bucket
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Permission Remove Modal -->
-<div
-  class="modal-backdrop-secondary"
+<dialog
+  class="modal-backdrop"
   id="permissionRemoveModal"
+  aria-labelledby="permissionRemoveModalTitle"
   data-self
   data-click="closePermRemoveModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 class="select-none" style="margin: 0">Remove Permission</h3>
+    <div class="modal-header">
+      <h3 id="permissionRemoveModalTitle" class="select-none">Remove permission</h3>
       <button
         class="btn btn-icon"
         data-click="closePermRemoveModal"
@@ -385,66 +330,52 @@
       </button>
     </div>
     <p>
-      This action will permanently delete all consent records for permission
-      <strong id="permRemoveName">-</strong> in this bucket. This cannot be
-      undone.
+      Removing permission <strong id="permRemoveName">-</strong> permanently
+      deletes its consent records in this bucket.
     </p>
-    <p style="font-weight: 500; margin-bottom: 0.5rem">
-      Type the following passphrase to confirm:
-    </p>
+    <p class="confirm-label">Type the passphrase to confirm.</p>
     <div class="passphrase-box select-none" id="permPassphraseDisplay">-</div>
     <input
       type="text"
       class="input-auth"
       id="permPassphraseInput"
-      placeholder="Enter the passphrase"
+      placeholder="Passphrase"
+      aria-label="Passphrase"
       data-input="verifyPermPassphrase"
     />
     <div class="modal-actions">
-      <span class="tooltip-wrapper">
-        <button class="btn btn-outline" data-click="closePermRemoveModal">
+      <button class="btn btn-outline" data-click="closePermRemoveModal">
           Cancel
         </button>
-        <span class="tooltip tooltip-above">Close without removing</span>
-      </span>
-      <span class="tooltip-wrapper">
-        <button
+      <button
           class="btn btn-confirm"
           id="confirmPermRemoveBtn"
           data-click="confirmPermRemoval"
         >
-          Remove Permission
+          Remove permission
         </button>
-        <span class="tooltip tooltip-above">There is no way back!</span>
-      </span>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Bucket Options Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="optionsModal"
+  aria-labelledby="optionsModalTitle"
   data-self
   data-click="closeOptionsModal"
 >
   <div class="modal options-modal">
-    <div
-      style="
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Options</h3>
-      <div style="display: flex; align-items: center; gap: 0.25rem">
+    <div class="modal-header">
+      <h3 id="optionsModalTitle">Options</h3>
+      <div class="flex items-center gap-1">
         <button
-          class="btn-icon"
+          class="btn btn-icon"
           id="optionsArchiveBtn"
           data-click="toggleArchiveFromOptions"
-          title="Archive Bucket"
-          style="color: hsl(var(--muted-foreground)); padding: 0.25rem"
+          title="Archive bucket"
+          aria-label="Archive bucket"
         >
           <svg
             width="18"
@@ -455,6 +386,7 @@
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
+            aria-hidden="true"
           >
             <polyline points="21 8 21 21 3 21 3 8"></polyline>
             <rect x="1" y="3" width="22" height="5"></rect>
@@ -483,15 +415,10 @@
         </button>
       </div>
     </div>
-    <p>Manage settings and integrations for this bucket.</p>
+    <p>Settings and integrations for this bucket.</p>
 
-    <!-- Basic Section -->
-    <div class="options-section">
-      <button
-        type="button"
-        class="options-section-header expanded"
-        data-click="toggleOptionsSection $el"
-      >
+    <details class="options-section" open>
+      <summary class="options-section-header">
         <svg
           class="options-section-icon"
           viewBox="0 0 24 24"
@@ -500,6 +427,7 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <circle cx="12" cy="12" r="3" />
           <path
@@ -517,38 +445,29 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-      </button>
-      <div class="options-section-body open">
+      </summary>
+      <div class="options-section-body">
         <p class="options-section-desc select-none">
-          Basic bucket identification. The bucket ID is used across all API
-          calls and cannot be changed.
+          The bucket ID identifies the bucket in all API calls. The ID is
+          fixed.
         </p>
-        <div class="form-group" style="margin-bottom: 0">
+        <div class="form-group mb-0">
           <label for="optionsBucketId">Bucket ID</label>
-          <div class="options-field-row">
+          <div class="input-row">
             <input
               type="text"
               id="optionsBucketId"
-              class="input-auth"
+              class="input mono"
               readonly
-              style="
-                font-family: monospace;
-                cursor: default;
-                color: hsl(var(--muted-foreground));
-                margin-bottom: 0;
-                text-align: left;
-                text-transform: none;
-                user-select: none;
-              "
               disabled
             />
             <button
               type="button"
               class="btn btn-outline"
-              style="flex-shrink: 0"
               data-click="copyInput optionsBucketId"
             >
               Copy
@@ -556,15 +475,10 @@
           </div>
         </div>
       </div>
-    </div>
+    </details>
 
-    <!-- Permissions Section -->
-    <div class="options-section">
-      <button
-        type="button"
-        class="options-section-header"
-        data-click="toggleOptionsSection $el"
-      >
+    <details class="options-section">
+      <summary class="options-section-header">
         <svg
           class="options-section-icon"
           viewBox="0 0 24 24"
@@ -573,6 +487,7 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
@@ -588,46 +503,39 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-      </button>
+      </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          Permissions tracked in this bucket. Removing a permission permanently
-          deletes all consent records for that permission.
+          Permissions tracked in this bucket. Removing a permission deletes all
+          consent records for that permission.
         </p>
-        <div class="form-group" style="margin-bottom: 0">
-          <div class="permissions-grid" id="bucketPermsGrid">
-            <!-- Generated by JS -->
-          </div>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
-            <input
-              type="text"
-              id="newBucketPermInput"
-              placeholder="Add custom permission..."
-              style="flex: 1"
-              data-enter="addBucketPermission"
-            />
-            <button
-              type="button"
-              class="btn btn-outline"
-              data-click="addBucketPermission"
-            >
-              Add
-            </button>
-          </div>
+        <div class="permissions-grid" id="bucketPermsGrid"></div>
+        <div class="input-row mt-3">
+          <input
+            type="text"
+            class="input"
+            id="newBucketPermInput"
+            placeholder="Add custom permission…"
+            aria-label="Custom permission"
+            data-enter="addBucketPermission"
+          />
+          <button
+            type="button"
+            class="btn btn-outline"
+            data-click="addBucketPermission"
+          >
+            Add
+          </button>
         </div>
       </div>
-    </div>
+    </details>
 
-    <!-- Webhook Section -->
-    <div class="options-section">
-      <button
-        type="button"
-        class="options-section-header"
-        data-click="toggleOptionsSection $el"
-      >
+    <details class="options-section">
+      <summary class="options-section-header">
         <svg
           class="options-section-icon"
           viewBox="0 0 24 24"
@@ -636,6 +544,7 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <path
             d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
@@ -658,15 +567,15 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-      </button>
+      </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          Push consent state changes to an external service in real-time instead
-          of polling. Beacon will send an HTTP request with a signed payload
-          whenever a consent record is created or updated in this bucket.
+          Sends a signed HTTP request to an external service when a consent
+          record in this bucket is created or updated.
         </p>
 
         <div class="form-group">
@@ -675,17 +584,14 @@
             type="url"
             id="webhookUrl"
             placeholder="https://your-service.com/webhook"
-            class="input-auth"
             required
           />
         </div>
 
-        <div style="display: flex; gap: 0.75rem; align-items: flex-start">
-          <div class="form-group" style="flex: 0 0 140px; margin-bottom: 0">
-            <label for="webhookMethod" style="margin-bottom: 16px"
-              >Method</label
-            >
-            <select id="webhookMethod" class="input-auth">
+        <div class="webhook-request-row">
+          <div class="form-group webhook-method">
+            <label for="webhookMethod">Method</label>
+            <select id="webhookMethod">
               <option value="POST">POST</option>
               <option value="PUT">PUT</option>
               <option value="PATCH">PATCH</option>
@@ -693,22 +599,24 @@
               <option value="DELETE">DELETE</option>
             </select>
           </div>
-          <div class="form-group" style="flex: 1; margin-bottom: 0">
-            <label>Headers</label>
+          <div class="form-group grow">
+            <label for="newHeaderKey">Headers</label>
             <div class="custom-fields-list" id="webhookHeadersGrid"></div>
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
+            <div class="input-row">
               <input
                 type="text"
+                class="input mono"
                 id="newHeaderKey"
                 placeholder="Name"
-                style="flex: 1"
+                aria-label="Header name"
                 data-enter="addWebhookHeader"
               />
               <input
                 type="text"
+                class="input"
                 id="newHeaderValue"
                 placeholder="Value"
-                style="flex: 1"
+                aria-label="Header value"
                 data-enter="addWebhookHeader"
               />
               <button
@@ -723,24 +631,12 @@
         </div>
 
         <div class="form-group">
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 0.375rem;
-            "
-          >
-            <label for="webhookBody" style="margin: 0">Body Template:</label>
-            <div style="position: relative">
+          <div class="label-row">
+            <label for="webhookBody">Body template</label>
+            <div class="relative">
               <button
                 type="button"
-                class="btn btn-outline"
-                style="
-                  font-size: 0.75rem;
-                  padding: 0.25rem 0.5rem;
-                  margin-top: 8px;
-                "
+                class="btn btn-outline btn-xs"
                 data-stop
                 data-click="toggleWebhookTemplateMenu $el"
               >
@@ -758,123 +654,57 @@
           </div>
           <textarea
             id="webhookBody"
-            class="input-auth"
+            class="input mono code-input"
             rows="8"
-            style="
-              font-family: monospace;
-              font-size: 0.813rem;
-              tab-size: 2;
-              line-height: 1.5;
-            "
             data-input="checkWebhookEmailVar $value"
             data-blur="checkWebhookEmailVar $value"
           ></textarea>
-          <div
-            id="webhookEmailWarning"
-            style="
-              display: none;
-              margin-top: 0.5rem;
-              padding: 0.625rem 0.75rem;
-              background: hsl(var(--destructive) / 0.08);
-              border: 1px solid hsl(var(--destructive) / 0.3);
-              border-radius: 6px;
-              font-size: 0.8rem;
-              color: hsl(var(--destructive));
-            "
-          >
-            <strong>Data processing notice:</strong> Your template includes
-            <code>{{email}}</code> (plaintext address). Ensure you have a Data
-            Processing Agreement with the webhook recipient and have disclosed
-            this in your privacy policy. Use <code>{{emailHash}}</code> to avoid
-            sending personal data to third parties.
+          <div class="notice notice--danger mt-2" id="webhookEmailWarning" hidden>
+            <strong>Data processing notice.</strong> The template includes
+            <code>{{email}}</code>, the plaintext address. A Data Processing
+            Agreement with the recipient and a privacy policy disclosure are
+            required. <code>{{emailHash}}</code> sends no personal data.
           </div>
-          <div
-            style="
-              display: flex;
-              flex-wrap: wrap;
-              gap: 0.375rem;
-              margin-top: 0.125rem;
-            "
-          >
-            <p style="width: 100%; margin: 0">
-              <span
-                style="
-                  font-size: 0.75rem;
-                  color: hsl(var(--muted-foreground));
-                  line-height: 1.8;
-                  margin-right: 0.125rem;
-                "
-                >Insert:</span
-              >
-            </p>
+          <div class="chip-row">
+            <span class="text-xs text-muted">Insert:</span>
             <button
               type="button"
-              class="btn btn-outline"
-              style="
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-                font-family: monospace;
-              "
+              class="btn btn-outline btn-xs mono"
               data-click="insertWebhookVar bucket"
             >
               bucket
             </button>
             <button
               type="button"
-              class="btn btn-outline"
-              style="
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-                font-family: monospace;
-              "
+              class="btn btn-outline btn-xs mono"
               data-click="insertWebhookVar email"
             >
               email
             </button>
             <button
               type="button"
-              class="btn btn-outline"
-              style="
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-                font-family: monospace;
-              "
+              class="btn btn-outline btn-xs mono"
               data-click="insertWebhookVar emailHash"
             >
               emailHash
             </button>
             <button
               type="button"
-              class="btn btn-outline"
-              style="
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-                font-family: monospace;
-              "
+              class="btn btn-outline btn-xs mono"
               data-click="insertWebhookVar permissions"
             >
               permissions
             </button>
             <button
               type="button"
-              class="btn btn-outline"
-              style="
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-                font-family: monospace;
-              "
+              class="btn btn-outline btn-xs mono"
               data-click="insertWebhookVar timestamp"
             >
               timestamp
             </button>
             <button
               type="button"
-              class="btn btn-outline"
-              style="
-                font-size: 0.7rem;
-                padding: 0.15rem 0.4rem;
-                font-family: monospace;
-              "
+              class="btn btn-outline btn-xs mono"
               data-click="insertWebhookVar customFields"
             >
               customFields
@@ -882,63 +712,21 @@
           </div>
         </div>
 
-        <div
-          id="webhookSecretSection"
-          style="
-            display: none;
-            margin-bottom: 1rem;
-            padding: 0.875rem;
-            background: hsl(var(--muted));
-            border-radius: var(--radius);
-          "
-        >
-          <label
-            style="
-              font-weight: 600;
-              margin-bottom: 0.25rem;
-              display: block;
-              font-size: 0.813rem;
-            "
-            >Signing Secret</label
-          >
-          <p
-            style="
-              color: hsl(var(--muted-foreground));
-              font-size: 0.813rem;
-              margin-bottom: 0.5rem;
-              line-height: 1.5;
-            "
-          >
-            Use this to verify the
-            <code
-              style="
-                font-size: 0.75rem;
-                padding: 0.1rem 0.3rem;
-                background: hsl(var(--background));
-                border-radius: 3px;
-              "
-              >X-Beacon-Signature</code
-            >
-            header (HMAC-SHA256). This is only shown once.
+        <div class="secret-box" id="webhookSecretSection" hidden>
+          <label for="webhookSecretValue">Signing secret</label>
+          <p>
+            Verifies the <code>X-Beacon-Signature</code> header (HMAC-SHA256).
+            The secret is shown once.
           </p>
-          <div class="options-field-row">
+          <div class="input-row">
             <input
               type="text"
               id="webhookSecretValue"
-              class="input-auth"
+              class="input mono"
               readonly
-              style="
-                font-family: monospace;
-                font-size: 0.813rem;
-                flex: 1;
-                margin-bottom: 0;
-                text-align: left;
-                text-transform: none;
-              "
             />
             <button
               class="btn btn-outline"
-              style="flex-shrink: 0"
               data-click="copyInput webhookSecretValue"
             >
               Copy
@@ -946,37 +734,24 @@
           </div>
         </div>
 
-        <div
-          style="
-            display: flex;
-            gap: 0.5rem;
-            justify-content: flex-end;
-            padding-top: 0.5rem;
-            border-top: 1px solid hsl(var(--border));
-          "
-        >
+        <div class="section-actions">
           <button
             class="btn btn-destructive"
             data-click="deleteWebhook"
             id="deleteWebhookBtn"
-            style="display: none"
+            hidden
           >
-            Delete Webhook
+            Delete webhook
           </button>
           <button class="btn btn-primary" data-click="saveWebhook">
-            Save Webhook
+            Save webhook
           </button>
         </div>
       </div>
-    </div>
+    </details>
 
-    <!-- Email Section -->
-    <div class="options-section">
-      <button
-        type="button"
-        class="options-section-header"
-        data-click="toggleOptionsSection $el"
-      >
+    <details class="options-section">
+      <summary class="options-section-header">
         <svg
           class="options-section-icon"
           viewBox="0 0 24 24"
@@ -985,6 +760,7 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <path
             d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
@@ -1002,107 +778,59 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-      </button>
+      </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          Per-bucket email settings. Double opt-in requires subscribers to click
-          a confirmation link before their subscription becomes active.
+          Per-bucket email settings. Double opt-in requires subscribers to
+          confirm by email before the subscription is active.
         </p>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 0.5rem 0;
-          "
-        >
-          <div style="flex: 1; padding-right: 1rem">
-            <span
-              style="font-weight: 500; font-size: 0.9rem"
-              id="bucketDoubleOptInLabel"
+        <label class="toggle-row toggle-row--plain" for="bucketDoubleOptIn">
+          <div>
+            <span class="font-medium" id="bucketDoubleOptInLabel"
               >Double opt-in</span
             >
-            <p
-              style="
-                font-size: 0.8rem;
-                color: hsl(var(--muted-foreground));
-                margin: 0.125rem 0 0;
-                line-height: 1.4;
-              "
-              id="bucketDoubleOptInDesc"
-            >
-              Subscribers must confirm via email. Disable to opt this bucket out
-              of the global setting.
+            <p class="text-sm text-muted" id="bucketDoubleOptInDesc">
+              Subscribers confirm by email. Off: this bucket opts out of the
+              global setting.
             </p>
           </div>
-          <label
-            class="settings-item-control"
-            style="flex-shrink: 0; margin-top: 0.125rem"
-          >
+          <span class="settings-item-control">
             <input
               type="checkbox"
               id="bucketDoubleOptIn"
               data-change="saveBucketDoubleOptIn $checked"
             />
             <span class="toggle-track"></span>
-          </label>
-        </div>
-        <div style="padding: 0.5rem 0 0.25rem">
-          <label
-            style="
-              font-weight: 500;
-              font-size: 0.9rem;
-              display: block;
-              margin-bottom: 0.375rem;
-            "
-            >UTM campaign alias</label
-          >
-          <p
-            style="
-              font-size: 0.8rem;
-              color: hsl(var(--muted-foreground));
-              margin: 0 0 0.5rem;
-              line-height: 1.4;
-            "
-          >
-            Default <code>utm_campaign</code> value pre-filled when generating
-            tracked unsubscribe links for this bucket.
+          </span>
+        </label>
+        <div class="form-group mt-3 mb-0">
+          <label for="bucketUtmCampaign">UTM campaign alias</label>
+          <p class="text-sm text-muted mb-2">
+            Default <code>utm_campaign</code> value for tracked unsubscribe
+            links in this bucket.
           </p>
-          <div class="options-field-row">
+          <div class="input-row">
             <input
               type="text"
               id="bucketUtmCampaign"
+              class="input"
               placeholder="e.g. VK-Deals"
-              class="input-auth"
-              style="
-                margin-bottom: 0;
-                text-align: left;
-                font-size: 0.85rem;
-              "
               autocomplete="off"
             />
-            <button
-              class="btn btn-outline"
-              style="flex-shrink: 0"
-              data-click="saveBucketUtmCampaign"
-            >
+            <button class="btn btn-outline" data-click="saveBucketUtmCampaign">
               Save
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </details>
 
-    <!-- Brand Identity Section -->
-    <div class="options-section">
-      <button
-        type="button"
-        class="options-section-header"
-        data-click="toggleOptionsSection $el"
-      >
+    <details class="options-section">
+      <summary class="options-section-header">
         <svg
           class="options-section-icon"
           viewBox="0 0 24 24"
@@ -1111,16 +839,13 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <path d="M12 20h9" />
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
         </svg>
-        <span class="options-section-label">Brand Identity</span>
-        <span
-          class="options-section-badge"
-          id="optionsBrandBadge"
-          style="display: none"
-        ></span>
+        <span class="options-section-label">Brand identity</span>
+        <span class="options-section-badge" id="optionsBrandBadge" hidden></span>
         <svg
           class="options-chevron"
           width="16"
@@ -1131,34 +856,26 @@
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
+          aria-hidden="true"
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-      </button>
+      </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          The brand identity applied to this bucket's opt-out pages and emails.
-          Manage identities and bucket assignments in
+          Brand identity for this bucket's opt-out pages and emails. Identities
+          and assignments are managed in
           <button
             type="button"
+            class="link-btn"
             data-click="openSettingsSection personalisation"
-            style="
-              background: none;
-              border: none;
-              padding: 0;
-              color: hsl(var(--primary));
-              font-size: inherit;
-              cursor: pointer;
-              text-decoration: underline;
-              text-underline-offset: 2px;
-            "
           >
             Settings → Personalisation</button
           >.
         </p>
-        <div id="optionsBrandIdentityContent" style="margin-top: 0.5rem"></div>
+        <div class="mt-2" id="optionsBrandIdentityContent"></div>
       </div>
-    </div>
+    </details>
 
     <div class="options-close">
       <button class="btn btn-outline" data-click="closeOptionsModal">
@@ -1166,4 +883,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

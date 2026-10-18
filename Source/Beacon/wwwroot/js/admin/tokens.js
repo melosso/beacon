@@ -8,12 +8,12 @@ function handleGenerateToken() {
       console.error("Token generation failed:", err);
       notify(
         "error",
-        "Token Generation Failed",
-        "An unexpected error occurred. Check the server logs.",
+        "Token generation failed",
+        "Check the server logs and retry.",
       );
       document.getElementById("generateTokenBtn").disabled = false;
       document.getElementById("generateTokenBtn").textContent =
-        "Generate Token";
+        "Generate token";
     });
   }
 }
@@ -32,12 +32,12 @@ function clearTokenForm() {
   document.getElementById("tokenAllowReplay").checked = true;
   document.getElementById("tokenLanguage").value =
     appSettings.uiLanguage || "en";
-  document.getElementById("tokenOutputWrapper").style.display = "none";
+  document.getElementById("tokenOutputWrapper").hidden = true;
   document.getElementById("tokenOutput").textContent = "";
-  document.getElementById("generateTokenBtn").textContent = "Generate Token";
-  document.getElementById("viewTokenBucketBtn").style.display = "none";
-  document.getElementById("tokenDoubleOptInNotice").style.display = "none";
-  document.getElementById("tokenSkipEmailGroup").style.display = "none";
+  document.getElementById("generateTokenBtn").textContent = "Generate token";
+  document.getElementById("viewTokenBucketBtn").hidden = true;
+  document.getElementById("tokenDoubleOptInNotice").hidden = true;
+  document.getElementById("tokenSkipEmailGroup").hidden = true;
   document.getElementById("tokenSendConfirmation").checked = true;
   document.getElementById("tokenFormFields").classList.remove("frozen");
 
@@ -58,13 +58,13 @@ async function generateToken() {
     .replace(/\s+/g, "_")
     .replace(/[^a-z0-9_-]/g, "");
   if (!bucket) {
-    notify("warning", "Missing Field", "Please enter a bucket name");
+    notify("warning", "Bucket name required", "Enter a bucket name.");
     return;
   }
 
   const email = document.getElementById("tokenEmail").value.trim();
   if (!email) {
-    notify("warning", "Missing Field", "Please enter an email address");
+    notify("warning", "Email required", "Enter an email address.");
     return;
   }
 
@@ -72,8 +72,8 @@ async function generateToken() {
   if (Object.keys(permissions).length === 0) {
     notify(
       "warning",
-      "No Permissions",
-      "Please set at least one permission to In or Out",
+      "Permission required",
+      "Set at least one permission to In or Out.",
     );
     return;
   }
@@ -94,8 +94,8 @@ async function generateToken() {
     if (checkResult.ok && checkResult.data?.exists) {
       notify(
         "error",
-        "Duplicate Email",
-        `This email address already exists in bucket "${bucket}"`,
+        "Duplicate email",
+        `The email address already exists in ${bucket}.`,
       );
       return;
     }
@@ -133,9 +133,9 @@ async function generateToken() {
     if (result.ok) {
       const tokenUrl = `${PUBLIC_URL || API_BASE}/u/${result.data[0].token}`;
       document.getElementById("tokenOutput").textContent = tokenUrl;
-      document.getElementById("tokenOutputWrapper").style.display = "block";
-      document.getElementById("tokenOutput").style.display = "block";
-      document.getElementById("viewTokenBucketBtn").style.display = "";
+      document.getElementById("tokenOutputWrapper").hidden = false;
+      document.getElementById("tokenOutput").hidden = false;
+      document.getElementById("viewTokenBucketBtn").hidden = false;
       document
         .getElementById("tokenOutputWrapper")
         .scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -146,15 +146,14 @@ async function generateToken() {
         result.data[0].doubleOptIn ?? tokenDefaultOptOut;
       tokenDefaultOptOut = doubleOptInConfirmed;
       const hasOptIn = Object.values(permissions).some((v) => v === true);
-      document.getElementById("tokenDoubleOptInNotice").style.display =
-        doubleOptInConfirmed && hasOptIn ? "flex" : "none";
-      document.getElementById("tokenSkipEmailGroup").style.display = "none";
+      document.getElementById("tokenDoubleOptInNotice").hidden = !(doubleOptInConfirmed && hasOptIn);
+      document.getElementById("tokenSkipEmailGroup").hidden = true;
 
       const toastMsg =
         doubleOptInConfirmed && hasOptIn
           ? "Token generated and confirmation email queued."
-          : "The token has been created successfully.";
-      notify("success", "Token Generated", toastMsg);
+          : "Token created.";
+      notify("success", "Token generated", toastMsg);
 
       // Freeze the form fields until the user starts a new token
       document.getElementById("tokenFormFields").classList.add("frozen");
@@ -175,7 +174,7 @@ function openTokenBucketView() {
     .replace(/[^a-z0-9_-]/g, "");
   const email = document.getElementById("tokenEmail").value.trim();
   if (!bucket) {
-    notify("warning", "Missing Field", "Please enter a bucket name first");
+    notify("warning", "Bucket required", "Enter a bucket name first.");
     return;
   }
   const params = new URLSearchParams({ view: "bucket", bucket });
@@ -189,7 +188,7 @@ function openTokenBucketView() {
 function copyTokenLink() {
   const text = document.getElementById("tokenOutput").textContent;
   clipboardWrite(text);
-  notify("success", "Copied", "Token URL copied to clipboard");
+  notify("success", "Token URL copied");
 }
 
 let copyClickTimer = null;
@@ -214,7 +213,7 @@ function copyTextNow(text) {
 
 function copyInput(id) {
   clipboardWrite(document.getElementById(id).value);
-  notify("success", "Copied to clipboard");
+  notify("success", "Copied");
 }
 
 // HELPERS
@@ -268,12 +267,12 @@ let archiveTargetBucket = "";
 function showArchiveModal(bucket) {
   archiveTargetBucket = bucket;
   document.getElementById("archiveBucketName").textContent = bucket;
-  document.getElementById("archiveModal").style.display = "flex";
+  openModal("archiveModal");
   closeAllMenus();
 }
 
 function closeArchiveModal() {
-  document.getElementById("archiveModal").style.display = "none";
+  closeModal("archiveModal");
   archiveTargetBucket = "";
 }
 
@@ -286,7 +285,7 @@ async function confirmArchive() {
   );
   closeArchiveModal();
   if (result.ok) {
-    notify("success", "Archived", `Bucket "${bucket}" has been archived`);
+    notify("success", "Bucket archived", `${bucket} is read-only.`);
     if (currentBucket === bucket) {
       currentBucketArchived = true;
       loadBucket(currentBucket);
@@ -298,12 +297,12 @@ async function confirmArchive() {
 function showUnarchiveModal(bucket) {
   archiveTargetBucket = bucket;
   document.getElementById("unarchiveBucketName").textContent = bucket;
-  document.getElementById("unarchiveModal").style.display = "flex";
+  openModal("unarchiveModal");
   closeAllMenus();
 }
 
 function closeUnarchiveModal() {
-  document.getElementById("unarchiveModal").style.display = "none";
+  closeModal("unarchiveModal");
   archiveTargetBucket = "";
 }
 
@@ -316,7 +315,7 @@ async function confirmUnarchive() {
   );
   closeUnarchiveModal();
   if (result.ok) {
-    notify("success", "Unarchived", `Bucket "${bucket}" has been unarchived`);
+    notify("success", "Bucket unarchived", `${bucket} accepts changes again.`);
     if (currentBucket === bucket) {
       currentBucketArchived = false;
       loadBucket(currentBucket);
@@ -340,7 +339,7 @@ function initiateRemoval() {
     notify(
       "error",
       "Archive first",
-      "A bucket must be archived before it can be removed. Open Options → Archive Bucket, then try again.",
+      "Archive the bucket in Options before removing it.",
     );
     return;
   }
@@ -361,7 +360,7 @@ function showRemoveModal() {
     generatedPassphrase;
   document.getElementById("passphraseInput").value = "";
   document.getElementById("confirmRemoveBtn").classList.remove("active");
-  document.getElementById("removeModal").style.display = "flex";
+  openModal("removeModal");
 }
 
 function verifyPassphrase() {
@@ -391,8 +390,8 @@ async function confirmRemoval() {
   if (result.ok) {
     notify(
       "success",
-      "Bucket Removed",
-      `Successfully deleted bucket "${bucketToRemove}"`,
+      "Bucket removed",
+      `${bucketToRemove} is deleted.`,
     );
     closeRemoveModal();
     await loadBuckets();
@@ -401,7 +400,7 @@ async function confirmRemoval() {
 }
 
 function closeRemoveModal() {
-  document.getElementById("removeModal").style.display = "none";
+  closeModal("removeModal");
   generatedPassphrase = "";
   bucketToRemove = "";
 }
@@ -435,11 +434,11 @@ function renderBucketPermsGrid() {
   }
 
   paint(container, bucketPermsData.length === 0
-    ? html`<div style="color:hsl(var(--muted-foreground));font-size:0.875rem;padding:1rem 0">No permissions yet. Add one below, or generate a token to create them automatically.</div>`
+    ? html`<p class="list-empty">No permissions. Add one below, or generate a token to create them.</p>`
     : html`${bucketPermsData.map((p) => html`
         <div class="permission-row" data-perm=${p.permission}>
           <span class="permission-name">${formatPermission(p.permission)}</span>
-          <span style="font-size:0.75rem;color:hsl(var(--muted-foreground));white-space:nowrap">${p.optedIn} in / ${p.optedOut} out</span>
+          <span class="permission-count">${p.optedIn} in / ${p.optedOut} out</span>
           <button type="button" class="btn-remove" @click=${() => showPermRemoveModal(p.permission)} title="Remove" aria-label="Remove">&times;</button>
         </div>`)}`);
 }
@@ -468,12 +467,12 @@ async function addBucketPermission() {
     .replace(/[^a-z0-9_-]/g, "");
 
   if (!perm) {
-    notify("warning", "Invalid Permission", "Please enter a permission name");
+    notify("warning", "Permission name required", "Enter a permission name.");
     return;
   }
 
   if (bucketPermsData.some((p) => p.permission === perm)) {
-    notify("warning", "Duplicate", "Permission already exists in this bucket");
+    notify("warning", "Duplicate permission", "The bucket already has this permission.");
     return;
   }
 
@@ -489,8 +488,8 @@ async function addBucketPermission() {
     input.value = "";
     notify(
       "success",
-      "Permission Added",
-      `"${formatPermission(perm)}" added to bucket`,
+      "Permission added",
+      `${formatPermission(perm)} is added to the bucket.`,
     );
     await loadBucketPerms();
     await loadBucket(currentBucket);
@@ -508,8 +507,7 @@ function showPermRemoveModal(perm) {
     permRemovePassphrase;
   document.getElementById("permPassphraseInput").value = "";
   document.getElementById("confirmPermRemoveBtn").classList.remove("active");
-  document.getElementById("permissionRemoveModal").style.display = "flex";
-  document.getElementById("permPassphraseInput").style.zIndex = 1000;
+  openModal("permissionRemoveModal");
 }
 
 function verifyPermPassphrase() {
@@ -539,8 +537,8 @@ async function confirmPermRemoval() {
   if (result.ok) {
     notify(
       "success",
-      "Permission Removed",
-      `"${formatPermission(permToRemove)}" and all its records deleted`,
+      "Permission removed",
+      `${formatPermission(permToRemove)} and its records are deleted.`,
     );
     closePermRemoveModal();
     await loadBucketPerms();
@@ -550,7 +548,7 @@ async function confirmPermRemoval() {
 }
 
 function closePermRemoveModal() {
-  document.getElementById("permissionRemoveModal").style.display = "none";
+  closeModal("permissionRemoveModal");
   permRemovePassphrase = "";
   permToRemove = "";
 }

@@ -1,21 +1,14 @@
 <!-- Change Role Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="userRoleModal"
-  style="display: none"
+  aria-labelledby="userRoleModalTitle"
   data-self
   data-click="closeUserRoleModal"
 >
-  <div class="modal" style="max-width: 380px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Change Role</h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="userRoleModalTitle">Change role</h3>
       <button
         class="btn btn-icon"
         data-click="closeUserRoleModal"
@@ -37,16 +30,9 @@
         </svg>
       </button>
     </div>
-    <p
-      id="userRoleModalDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1.25rem;
-      "
-    ></p>
-    <div class="form-group" style="margin-bottom: 1.5rem">
-      <label>Role</label>
+    <p id="userRoleModalDesc"></p>
+    <div class="form-group">
+      <label for="userRoleSelect">Role</label>
       <select id="userRoleSelect">
         <option value="user">User</option>
         <option value="admin">Admin</option>
@@ -65,26 +51,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Rename User Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="renameUserModal"
-  style="display: none"
+  aria-labelledby="renameUserModalTitle"
   data-self
   data-click="closeRenameUserModal"
 >
-  <div class="modal" style="max-width: 400px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Rename User</h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="renameUserModalTitle">Rename user</h3>
       <button
         class="btn btn-icon"
         data-click="closeRenameUserModal"
@@ -106,21 +85,17 @@
         </svg>
       </button>
     </div>
-    <p
-      id="renameUserModalDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1.25rem;
-      "
-    ></p>
-    <div class="form-group" style="margin-bottom: 1.5rem">
-      <label
-        >New Username <span class="required" title="Required">*</span></label
+    <p id="renameUserModalDesc"></p>
+    <div class="form-group">
+      <label for="renameUserInput"
+        >New username <span class="required" title="Required">*</span></label
       >
       <input
         type="text"
         id="renameUserInput"
+          data-bwignore
+          data-1p-ignore
+          data-lpignore="true"
         placeholder="e.g., user@domain.local"
         autocomplete="off"
         maxlength="100"
@@ -140,26 +115,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Account Password Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="accountPasswordModal"
-  style="display: none"
+  aria-labelledby="accountPasswordModalTitle"
   data-self
   data-click="closeAccountPasswordModal"
 >
-  <div class="modal" style="max-width: 420px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Change Password</h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="accountPasswordModalTitle">Change password</h3>
       <button
         class="btn btn-icon"
         data-click="closeAccountPasswordModal"
@@ -181,18 +149,12 @@
         </svg>
       </button>
     </div>
-    <p
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1.25rem;
-      "
-    >
-      Update your login password. Minimum 12 characters.
+    <p >
+      Minimum 12 characters.
     </p>
     <div id="accountCurrentPasswordGroup" class="form-group">
       <label
-        >Current Password
+        >Current password
         <span class="required" title="Required">*</span></label
       >
       <div class="input-reveal-wrapper">
@@ -223,8 +185,8 @@
       </div>
     </div>
     <div class="form-group">
-      <label
-        >New Password <span class="required" title="Required">*</span></label
+      <label for="accountNewPassword"
+        >New password <span class="required" title="Required">*</span></label
       >
       <div class="input-reveal-wrapper">
         <input
@@ -253,9 +215,9 @@
         </button>
       </div>
     </div>
-    <div class="form-group" style="margin-bottom: 1.5rem">
-      <label
-        >Confirm New Password
+    <div class="form-group">
+      <label for="accountConfirmPassword"
+        >Confirm new password
         <span class="required" title="Required">*</span></label
       >
       <input
@@ -274,31 +236,24 @@
         id="accountPasswordSaveBtn"
         data-click="saveAccountPassword"
       >
-        <span class="btn-label">Update Password</span
+        <span class="btn-label">Update password</span
         ><span class="spinner"></span>
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- User Modals -->
-<div
+<dialog
   class="modal-backdrop"
   id="userPasswordModal"
-  style="display: none"
+  aria-labelledby="userPasswordModalTitle"
   data-self
   data-click="closeUserPasswordModal"
 >
-  <div class="modal" style="max-width: 420px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Change Password</h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="userPasswordModalTitle">Change password</h3>
       <button
         class="btn btn-icon"
         data-click="closeUserPasswordModal"
@@ -320,22 +275,18 @@
         </svg>
       </button>
     </div>
-    <p
-      id="userPasswordModalDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1.25rem;
-      "
-    ></p>
+    <p id="userPasswordModalDesc"></p>
     <div class="form-group">
-      <label
-        >New Password <span class="required" title="Required">*</span></label
+      <label for="userPasswordInput"
+        >New password <span class="required" title="Required">*</span></label
       >
       <div class="input-reveal-wrapper">
         <input
           type="password"
           id="userPasswordInput"
+          data-bwignore
+          data-1p-ignore
+          data-lpignore="true"
           placeholder="Min. 12 characters"
           autocomplete="new-password"
           data-enter="saveUserPassword"
@@ -373,25 +324,18 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
-<div
+<dialog
   class="modal-backdrop"
   id="userApiKeyRevealModal"
-  style="display: none"
+  aria-labelledby="userApiKeyRevealModalTitle"
   data-self
   data-click="closeUserApiKeyRevealModal"
 >
-  <div class="modal" style="max-width: 480px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">New API Key Generated</h3>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="userApiKeyRevealModalTitle">New API key</h3>
       <button
         class="btn btn-icon"
         data-click="closeUserApiKeyRevealModal"
@@ -413,61 +357,31 @@
         </svg>
       </button>
     </div>
-    <p
-      id="userApiKeyRevealDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 0;
-      "
-    ></p>
+    <p id="userApiKeyRevealDesc"></p>
     <div
-      class="passphrase-box select-none"
+      class="passphrase-box passphrase-box--key select-none"
       id="userApiKeyRevealOutput"
       data-click="copyUserApiKey"
-      style="
-        cursor: pointer;
-        word-break: break-all;
-        font-weight: 500;
-        letter-spacing: 0.05em;
-      "
     ></div>
-    <p
-      style="
-        font-size: 0.8rem;
-        color: hsl(var(--muted-foreground));
-        margin-top: -0.75rem;
-        margin-bottom: 1.25rem;
-        text-align: center;
-      "
-    >
-      Click to copy · Will not be shown again
-    </p>
+    <p class="copy-hint">Click to copy. The key is shown once.</p>
     <div class="modal-actions">
       <button class="btn btn-primary" data-click="closeUserApiKeyRevealModal">
         Done
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
-<div
+<dialog
   class="modal-backdrop"
   id="addUserModal"
-  style="display: none"
+  aria-labelledby="addUserModalTitle"
   data-self
   data-click="closeAddUserModal"
 >
-  <div class="modal" style="max-width: 480px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 style="margin: 0">Add User</h3>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="addUserModalTitle">Add user</h3>
       <button
         class="btn btn-icon"
         data-click="closeAddUserModal"
@@ -490,21 +404,27 @@
       </button>
     </div>
     <div class="form-group">
-      <label>Username <span class="required" title="Required">*</span></label>
+      <label for="newUserUsername">Username <span class="required" title="Required">*</span></label>
       <input
         type="text"
         id="newUserUsername"
+          data-bwignore
+          data-1p-ignore
+          data-lpignore="true"
         placeholder="e.g., user@domain.local"
         autocomplete="off"
         maxlength="100"
       />
     </div>
     <div class="form-group">
-      <label>Password <span class="required" title="Required">*</span></label>
+      <label for="newUserPassword">Password <span class="required" title="Required">*</span></label>
       <div class="input-reveal-wrapper">
         <input
           type="password"
           id="newUserPassword"
+          data-bwignore
+          data-1p-ignore
+          data-lpignore="true"
           placeholder="Min. 12 characters"
           autocomplete="new-password"
         />
@@ -529,85 +449,58 @@
       </div>
     </div>
     <div class="form-group">
-      <label
-        >Confirm Password
+      <label for="newUserConfirmPassword"
+        >Confirm password
         <span class="required" title="Required">*</span></label
       >
       <input
         type="password"
         id="newUserConfirmPassword"
+          data-bwignore
+          data-1p-ignore
+          data-lpignore="true"
         placeholder="Repeat password"
         autocomplete="new-password"
       />
     </div>
     <div class="form-group">
-      <label>Role</label>
+      <label for="newUserRole">Role</label>
       <select id="newUserRole">
         <option value="user">User</option>
         <option value="admin">Admin</option>
       </select>
     </div>
-    <div id="newUserApiKeySection" style="display: none; margin-bottom: 1rem">
-      <p
-        style="
-          font-size: 0.85rem;
-          font-weight: 500;
-          color: hsl(var(--foreground));
-          margin-bottom: 0;
-        "
-      >
-        API Key
-      </p>
+    <div class="mb-4" id="newUserApiKeySection" hidden>
+      <p class="confirm-label">API key</p>
       <div
-        class="passphrase-box select-none"
+        class="passphrase-box passphrase-box--key select-none"
         id="newUserApiKeyOutput"
         data-click="copyNewUserApiKey"
-        style="
-          cursor: pointer;
-          word-break: break-all;
-          font-weight: 500;
-          letter-spacing: 0.05em;
-        "
       ></div>
-      <p
-        style="
-          font-size: 0.8rem;
-          color: hsl(var(--muted-foreground));
-          margin-top: -0.75rem;
-        "
-      >
-        Click to copy · Will not be shown again
-      </p>
+      <p class="copy-hint">Click to copy. The key is shown once.</p>
     </div>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeAddUserModal">
         Cancel
       </button>
       <button class="btn btn-primary" id="addUserBtn" data-click="createUser">
-        <span class="btn-label">Create User</span><span class="spinner"></span>
+        <span class="btn-label">Create user</span><span class="spinner"></span>
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Add API Key modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="addApiKeyModal"
-  style="display: none"
+  aria-labelledby="addApiKeyModalTitle"
   data-self
   data-click="closeAddApiKeyModal"
 >
-  <div class="modal" style="max-width: 520px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 style="margin: 0">Add API Key</h3>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="addApiKeyModalTitle">Add API key</h3>
       <button
         class="btn btn-icon"
         data-click="closeAddApiKeyModal"
@@ -630,7 +523,7 @@
       </button>
     </div>
     <div class="form-group">
-      <label>Name <span class="required" title="Required">*</span></label>
+      <label for="newApiKeyName">Name <span class="required" title="Required">*</span></label>
       <input
         type="text"
         id="newApiKeyName"
@@ -643,56 +536,28 @@
       <label
         >Permissions <span class="required" title="Required">*</span></label
       >
-      <div
+      <div class="field-box"
         id="newApiKeyPermissions"
-        style="
-          padding: 0.625rem;
-          border: 1px solid hsl(var(--border));
-          border-radius: var(--radius);
-        "
       ></div>
     </div>
-    <div style="display: flex; gap: 1rem; margin-bottom: 1rem">
-      <div class="form-group" style="flex: 1; margin-bottom: 0">
-        <label>Active From</label>
-        <input type="date" id="newApiKeyActiveFrom" style="width: 100%" />
+    <div class="form-row">
+      <div class="form-group">
+        <label for="newApiKeyActiveFrom">Active from</label>
+        <input type="date" id="newApiKeyActiveFrom" />
       </div>
-      <div class="form-group" style="flex: 1; margin-bottom: 0">
-        <label>Active Until</label>
-        <input type="date" id="newApiKeyActiveUntil" style="width: 100%" />
+      <div class="form-group">
+        <label for="newApiKeyActiveUntil">Active until</label>
+        <input type="date" id="newApiKeyActiveUntil" />
       </div>
     </div>
-    <div id="newApiKeyRevealSection" style="display: none; margin-bottom: 1rem">
-      <p
-        style="
-          font-size: 0.85rem;
-          font-weight: 500;
-          color: hsl(var(--foreground));
-          margin-bottom: 0;
-        "
-      >
-        API Key
-      </p>
+    <div class="mb-4" id="newApiKeyRevealSection" hidden>
+      <p class="confirm-label">API key</p>
       <div
-        class="passphrase-box select-none"
+        class="passphrase-box passphrase-box--key select-none"
         id="newApiKeyOutput"
         data-click="copyNewApiKey"
-        style="
-          cursor: pointer;
-          word-break: break-all;
-          font-weight: 500;
-          letter-spacing: 0.05em;
-        "
       ></div>
-      <p
-        style="
-          font-size: 0.8rem;
-          color: hsl(var(--muted-foreground));
-          margin-top: -0.75rem;
-        "
-      >
-        Click to copy · Will not be shown again
-      </p>
+      <p class="copy-hint">Click to copy. The key is shown once.</p>
     </div>
     <div class="modal-actions">
       <button
@@ -707,30 +572,23 @@
         id="addApiKeyBtn"
         data-click="createApiKey"
       >
-        <span class="btn-label">Create Key</span><span class="spinner"></span>
+        <span class="btn-label">Create API key</span><span class="spinner"></span>
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- API Key rotate/reveal modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="apiKeyRevealModal"
-  style="display: none"
+  aria-labelledby="apiKeyRevealModalTitle"
   data-self
   data-click="closeApiKeyRevealModal"
 >
-  <div class="modal" style="max-width: 480px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">New API Key</h3>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="apiKeyRevealModalTitle">New API key</h3>
       <button
         class="btn btn-icon"
         data-click="closeApiKeyRevealModal"
@@ -752,62 +610,32 @@
         </svg>
       </button>
     </div>
-    <p
-      id="apiKeyRevealDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 0;
-      "
-    ></p>
+    <p id="apiKeyRevealDesc"></p>
     <div
-      class="passphrase-box select-none"
+      class="passphrase-box passphrase-box--key select-none"
       id="apiKeyRevealOutput"
       data-click="copyRotatedApiKey"
-      style="
-        cursor: pointer;
-        word-break: break-all;
-        font-weight: 500;
-        letter-spacing: 0.05em;
-      "
     ></div>
-    <p
-      style="
-        font-size: 0.8rem;
-        color: hsl(var(--muted-foreground));
-        margin-top: -0.75rem;
-        margin-bottom: 1.25rem;
-        text-align: center;
-      "
-    >
-      Click to copy · Will not be shown again
-    </p>
+    <p class="copy-hint">Click to copy. The key is shown once.</p>
     <div class="modal-actions">
       <button class="btn btn-primary" data-click="closeApiKeyRevealModal">
         Done
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Edit API Key permissions modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="editApiKeyPermissionsModal"
-  style="display: none"
+  aria-labelledby="editApiKeyPermissionsModalTitle"
   data-self
   data-click="closeEditApiKeyPermissionsModal"
 >
-  <div class="modal" style="max-width: 520px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Edit Permissions</h3>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="editApiKeyPermissionsModalTitle">Edit permissions</h3>
       <button
         class="btn btn-icon"
         data-click="closeEditApiKeyPermissionsModal"
@@ -829,22 +657,9 @@
         </svg>
       </button>
     </div>
-    <p
-      id="editApiKeyPermissionsDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-      "
-    ></p>
-    <div
+    <p id="editApiKeyPermissionsDesc"></p>
+    <div class="field-box mb-5"
       id="editApiKeyPermissionsList"
-      style="
-        padding: 0.625rem;
-        border: 1px solid hsl(var(--border));
-        border-radius: var(--radius);
-        margin-bottom: 1.25rem;
-      "
     ></div>
     <div class="modal-actions">
       <button
@@ -862,26 +677,19 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Edit API Key dates modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="editApiKeyDatesModal"
-  style="display: none"
+  aria-labelledby="editApiKeyDatesModalTitle"
   data-self
   data-click="closeEditApiKeyDatesModal"
 >
-  <div class="modal" style="max-width: 480px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Edit Validity Window</h3>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="editApiKeyDatesModalTitle">Edit validity window</h3>
       <button
         class="btn btn-icon"
         data-click="closeEditApiKeyDatesModal"
@@ -903,34 +711,18 @@
         </svg>
       </button>
     </div>
-    <p
-      id="editApiKeyDatesDesc"
-      style="
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-      "
-    ></p>
-    <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem">
-      <div class="form-group" style="flex: 1; margin-bottom: 0">
-        <label>Active From</label>
-        <input type="date" id="editApiKeyActiveFrom" style="width: 100%" />
+    <p id="editApiKeyDatesDesc"></p>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="editApiKeyActiveFrom">Active from</label>
+        <input type="date" id="editApiKeyActiveFrom" />
       </div>
-      <div class="form-group" style="flex: 1; margin-bottom: 0">
-        <label>Active Until</label>
-        <input type="date" id="editApiKeyActiveUntil" style="width: 100%" />
+      <div class="form-group">
+        <label for="editApiKeyActiveUntil">Active until</label>
+        <input type="date" id="editApiKeyActiveUntil" />
       </div>
     </div>
-    <p
-      style="
-        font-size: 0.8rem;
-        color: hsl(var(--muted-foreground));
-        margin-top: -0.5rem;
-        margin-bottom: 1.25rem;
-      "
-    >
-      Leave both blank for no time restriction.
-    </p>
+    <p class="field-hint mb-5">Leave both empty for no time restriction.</p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeEditApiKeyDatesModal">
         Cancel
@@ -944,25 +736,18 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
-<div
+<dialog
   class="modal-backdrop"
   id="retentionPurgeModal"
-  style="display: none"
+  aria-labelledby="retentionPurgeModalTitle"
   data-self
   data-click="closeRetentionPurgeModal"
 >
-  <div class="modal" style="max-width: 420px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Opted-out anonymisation</h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="retentionPurgeModalTitle">Opted-out anonymisation</h3>
       <button
         class="btn btn-icon"
         data-click="closeRetentionPurgeModal"
@@ -988,7 +773,7 @@
       PII is removed from opted-out records once they exceed the threshold. The
       email hash and status are kept as a permanent suppression list entry.
     </p>
-    <div class="form-group" style="margin-top: 1.25rem">
+    <div class="form-group">
       <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
       <input
         type="number"
@@ -996,10 +781,9 @@
         min="1"
         max="3650"
         value="1095"
-        style="width: 100%"
       />
     </div>
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeRetentionPurgeModal">
         Cancel
       </button>
@@ -1008,25 +792,18 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
-<div
+<dialog
   class="modal-backdrop"
   id="pendingConfirmationModal"
-  style="display: none"
+  aria-labelledby="pendingConfirmationModalTitle"
   data-self
   data-click="closePendingConfirmationModal"
 >
-  <div class="modal" style="max-width: 420px">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Pending confirmation cleanup</h3>
+  <div class="modal modal--sm">
+    <div class="modal-header">
+      <h3 id="pendingConfirmationModalTitle">Pending confirmation cleanup</h3>
       <button
         class="btn btn-icon"
         data-click="closePendingConfirmationModal"
@@ -1053,7 +830,7 @@
       threshold. No consent was established, so no suppression list entry is
       required.
     </p>
-    <div class="form-group" style="margin-top: 1.25rem">
+    <div class="form-group">
       <label for="setting-pendingConfirmationPurgeDays"
         >Delete after (days)</label
       >
@@ -1063,10 +840,9 @@
         min="1"
         max="365"
         value="30"
-        style="width: 100%"
       />
     </div>
-    <div class="modal-actions" style="margin-top: 1.5rem">
+    <div class="modal-actions">
       <button
         class="btn btn-outline"
         data-click="closePendingConfirmationModal"
@@ -1081,4 +857,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

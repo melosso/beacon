@@ -1,11 +1,26 @@
 version: 2
 updates:
+  # Central package management: Directory.Packages.props and Beacon.slnx are in Source/.
   - package-ecosystem: "nuget"
-    directory: "/"
+    directory: "/Source"
     schedule:
       interval: "weekly"
+    groups:
+      ef-core:
+        patterns: ["Microsoft.EntityFrameworkCore*", "Microsoft.Extensions.*"]
+      testing:
+        patterns: ["xunit*", "Testcontainers*", "Microsoft.Testing.*"]
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # 3.x breaks the Microsoft.AspNetCore.OpenApi 10.x source generator; see Directory.Packages.props.
+      - dependency-name: "Microsoft.OpenApi"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]

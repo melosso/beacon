@@ -7,7 +7,8 @@ namespace Beacon.Api;
 public record WebhookErrorNotification(string Bucket, string ErrorMessage, int StatusCode, DateTime OccurredAt);
 public record ConsentUpdateNotification(string Bucket);
 
-public sealed class AdminNotificationService {
+public sealed class AdminNotificationService
+{
     // Used as a set: ConcurrentDictionary gives lock-free add, remove and iteration.
     private readonly ConcurrentDictionary<Channel<object>, byte> _subscribers = new();
 

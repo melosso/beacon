@@ -26,33 +26,27 @@ function promoLink(text, url) {
 }
 
 function initPromoBar() {
-  if (sessionStorage.getItem("beacon_promo_dismissed")) return;
   updatePromoBar();
 }
 
 function updatePromoBar() {
-  let bar = document.getElementById("adminPromoBar");
+  let bar = document.getElementById("promoBar");
   if (!appSettings.promoBarEnabled || !appSettings.promoBar.trim()) {
     if (bar) bar.classList.remove("is-visible");
     return;
   }
   if (!bar) {
     bar = document.createElement("div");
-    bar.id = "adminPromoBar";
-    bar.className = "admin-promo-bar";
-    const appShell = document.querySelector(".app-shell");
-    if (appShell) document.body.insertBefore(bar, appShell);
+    bar.id = "promoBar";
+    bar.className = "promo-bar";
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Announcement");
+    document.body.insertBefore(bar, document.querySelector(".app-shell"));
   }
-  paint(bar, html`<div class="admin-promo-bar-content">${promoMarkdown(appSettings.promoBar)}</div>${(appSettings.promoBarDismissable ?? true)
-    ? html`<button class="promo-bar-close" title="Close" aria-label="Close announcement" @click=${dismissPromoBar}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
-    : nothing}`);
-  requestAnimationFrame(() => bar.classList.add("is-visible"));
-}
-
-function dismissPromoBar() {
-  const bar = document.getElementById("adminPromoBar");
-  if (bar) bar.classList.remove("is-visible");
-  sessionStorage.setItem("beacon_promo_dismissed", "1");
+  paint(bar, html`<div class="promo-bar-inner"><div class="promo-bar-content">${promoMarkdown(appSettings.promoBar)}</div>${(appSettings.promoBarDismissable ?? true)
+    ? html`<button type="button" class="promo-bar-close" aria-label="Dismiss announcement" @click=${dismissPromoBar}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+    : nothing}</div>`);
+  requestAnimationFrame(showPromoBar);
 }
 
 async function onPromoBarToggle(checkbox) {
@@ -61,7 +55,7 @@ async function onPromoBarToggle(checkbox) {
     notify(
       "error",
       "No announcement content",
-      "Add announcement text via the settings gear before enabling.",
+      "Add announcement text in the announcement settings first.",
     );
     return;
   }
@@ -78,11 +72,11 @@ function openPromoBarModal() {
     appSettings.promoBarDismissable ?? true;
   document.getElementById("modal-promoBarShowOnLogin").checked =
     appSettings.promoBarShowOnLogin ?? false;
-  document.getElementById("promoBarModal").style.display = "flex";
+  openModal("promoBarModal");
 }
 
 function closePromoBarModal() {
-  document.getElementById("promoBarModal").style.display = "none";
+  closeModal("promoBarModal");
 }
 
 async function savePromoBarSettings() {
@@ -98,7 +92,6 @@ async function savePromoBarSettings() {
   const toggle = document.getElementById("setting-promoBarEnabled");
   if (toggle) toggle.checked = appSettings.promoBarEnabled;
   await saveCurrentSettings();
-  sessionStorage.removeItem("beacon_promo_dismissed");
   updatePromoBar();
   closePromoBarModal();
 }
@@ -109,7 +102,7 @@ async function onLoginFooterToggle(checkbox) {
     notify(
       "error",
       "No footer content",
-      "Add footer text via the settings icon before enabling.",
+      "Add footer text in the footer settings first.",
     );
     return;
   }
@@ -129,11 +122,11 @@ function openLoginFooterModal() {
   const el = document.getElementById("modal-loginFooter");
   el.value = appSettings.loginFooter;
   updateCharCount(el);
-  document.getElementById("loginFooterModal").style.display = "flex";
+  openModal("loginFooterModal");
 }
 
 function closeLoginFooterModal() {
-  document.getElementById("loginFooterModal").style.display = "none";
+  closeModal("loginFooterModal");
 }
 
 async function saveLoginFooterSettings() {
@@ -154,12 +147,12 @@ function openCacheSettingsModal() {
   document.getElementById("setting-cacheBucketData").checked =
     appSettings.cacheBucketData ?? true;
   document.getElementById("cacheStatsResult").textContent = "";
-  document.getElementById("cacheSettingsModal").style.display = "flex";
+  openModal("cacheSettingsModal");
   loadCacheStats();
 }
 
 function closeCacheSettingsModal() {
-  document.getElementById("cacheSettingsModal").style.display = "none";
+  closeModal("cacheSettingsModal");
 }
 
 async function saveCacheSettings() {
@@ -185,11 +178,10 @@ async function flushCache() {
       notify(
         "success",
         "Cache flushed",
-        "All cached entries have been cleared.",
       );
       loadCacheStats();
     } else {
-      notify("error", "Failed", "Could not flush cache.");
+      notify("error", "Flush failed", "The cache was not flushed. Retry.");
     }
   } finally {
     if (btn) btn.disabled = false;
@@ -236,25 +228,19 @@ function openEmailSettingsModal() {
   document.getElementById("emailQueueEnabled").checked =
     !!appSettings.emailQueueEnabled;
   showEmailProviderFields(appSettings.emailProvider || "none");
-  document.getElementById("emailSettingsModal").style.display = "flex";
+  openModal("emailSettingsModal");
 }
 
 function closeEmailSettingsModal() {
-  document.getElementById("emailSettingsModal").style.display = "none";
+  closeModal("emailSettingsModal");
 }
 
 function showEmailProviderFields(provider) {
   const isConfigured = provider === "resend" || provider === "smtp";
-  document.getElementById("email-fields-resend").style.display =
-    provider === "resend" ? "" : "none";
-  document.getElementById("email-fields-smtp").style.display =
-    provider === "smtp" ? "" : "none";
-  document.getElementById("email-fields-sender").style.display = isConfigured
-    ? ""
-    : "none";
-  document.getElementById("email-fields-queue").style.display = isConfigured
-    ? ""
-    : "none";
+  document.getElementById("email-fields-resend").hidden = !(provider === "resend");
+  document.getElementById("email-fields-smtp").hidden = !(provider === "smtp");
+  document.getElementById("email-fields-sender").hidden = !isConfigured;
+  document.getElementById("email-fields-queue").hidden = !isConfigured;
 }
 
 function validateEmailConfig(provider, fields) {
@@ -290,7 +276,7 @@ async function onEmailNotificationsToggle(checkbox) {
     notify(
       "error",
       "No provider configured",
-      "Select an email provider via the settings icon before enabling notifications.",
+      "Select a provider in the email settings first.",
     );
     return;
   }
@@ -334,11 +320,11 @@ async function saveEmailSettings() {
 function openDoubleOptInSettingsModal() {
   const perPerm = appSettings.perPermissionEmail ?? false;
   document.getElementById("setting-perPermissionEmail").value = String(perPerm);
-  document.getElementById("doubleOptInSettingsModal").style.display = "flex";
+  openModal("doubleOptInSettingsModal");
 }
 
 function closeDoubleOptInSettingsModal() {
-  document.getElementById("doubleOptInSettingsModal").style.display = "none";
+  closeModal("doubleOptInSettingsModal");
 }
 
 function toggleReveal(inputId, btn) {
@@ -365,22 +351,20 @@ function openObjectStorageModal() {
     appSettings.objectStoragePublicUrl || "";
   document.getElementById("objectStorageTestResult").textContent = "";
   showObjectStorageProviderFields(appSettings.objectStorageProvider || "none");
-  document.getElementById("objectStorageModal").style.display = "flex";
+  openModal("objectStorageModal");
 }
 
 function closeObjectStorageModal() {
-  document.getElementById("objectStorageModal").style.display = "none";
+  closeModal("objectStorageModal");
 }
 
 function showObjectStorageProviderFields(provider) {
   const endpointRow = document.getElementById("objectStorageEndpointRow");
   const regionRow = document.getElementById("objectStorageRegionRow");
   if (endpointRow)
-    endpointRow.style.display =
-      provider === "s3" || provider === "none" ? "none" : "";
+    endpointRow.hidden = provider === "s3" || provider === "none";
   if (regionRow)
-    regionRow.style.display =
-      provider === "r2" ? "none" : provider === "none" ? "none" : "";
+    regionRow.hidden = provider === "r2" || provider === "none";
 }
 
 async function testObjectStorageConnection() {
@@ -452,13 +436,11 @@ function openSubmissionFormsSettingsModal() {
     appSettings.submissionDefaultHoneypotEnabled ?? true;
   document.getElementById("setting-submissionDefaultConsentRequired").checked =
     appSettings.submissionDefaultConsentRequired ?? true;
-  document.getElementById("submissionFormsSettingsModal").style.display =
-    "flex";
+  openModal("submissionFormsSettingsModal");
 }
 
 function closeSubmissionFormsSettingsModal() {
-  document.getElementById("submissionFormsSettingsModal").style.display =
-    "none";
+  closeModal("submissionFormsSettingsModal");
 }
 
 async function saveSubmissionFormsSettings() {
@@ -492,15 +474,15 @@ function setupUserAuthNav(role) {
   const settingsNavAccount = document.getElementById("settingsNavAccount");
   const settingsNavDivider = document.getElementById("settingsNavDivider");
   const settingsNavUsers = document.getElementById("settingsNavUsers");
-  if (settingsNavAccount) settingsNavAccount.style.display = "";
-  if (isAdmin && settingsNavDivider) settingsNavDivider.style.display = "";
-  if (isAdmin && settingsNavUsers) settingsNavUsers.style.display = "";
+  if (settingsNavAccount) settingsNavAccount.hidden = false;
+  if (isAdmin && settingsNavDivider) settingsNavDivider.hidden = false;
+  if (isAdmin && settingsNavUsers) settingsNavUsers.hidden = false;
   const settingsNavApiKeys = document.getElementById("settingsNavApiKeys");
-  if (isAdmin && settingsNavApiKeys) settingsNavApiKeys.style.display = "";
+  if (isAdmin && settingsNavApiKeys) settingsNavApiKeys.hidden = false;
   const authNotice = document.getElementById("users-auth-disabled-notice");
-  if (authNotice) authNotice.style.display = mode ? "none" : "";
+  if (authNotice) authNotice.hidden = mode;
   const navWorkflow = document.getElementById("navWorkflow");
-  if (navWorkflow) navWorkflow.style.display = isAdmin ? "" : "none";
+  if (navWorkflow) navWorkflow.hidden = !isAdmin;
   if (!isAdmin) {
     for (const id of [
       "settingsNavGeneral",
@@ -513,7 +495,7 @@ function setupUserAuthNav(role) {
       "settingsNavPersonalisation",
     ]) {
       const el = document.getElementById(id);
-      if (el) el.style.display = "none";
+      if (el) el.hidden = true;
     }
   }
 }

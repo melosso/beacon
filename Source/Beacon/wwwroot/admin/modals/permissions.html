@@ -1,28 +1,23 @@
 <!-- Edit Permissions Modal -->
-<div
+<dialog
   class="modal-backdrop"
   id="editPermissionsModal"
+  aria-labelledby="editPermissionsModalTitle"
   data-self
   data-click="closeEditPermissionsModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Edit Permissions</h3>
-      <div style="display: flex; align-items: center; gap: 0.25rem">
+    <div class="modal-header">
+      <h3 id="editPermissionsModalTitle">Edit permissions</h3>
+      <div class="flex items-center gap-1">
         <button
-          class="btn-icon"
+          class="btn btn-icon text-danger"
           data-click="showDeleteRecordModal"
-          title="Delete Record"
-          style="color: hsl(var(--destructive)); padding: 0.25rem"
+          title="Delete record"
+          aria-label="Delete record"
         >
           <svg
+            aria-hidden="true"
             width="18"
             height="18"
             viewBox="0 0 24 24"
@@ -62,14 +57,9 @@
         </button>
       </div>
     </div>
-    <p
-      id="editPermissionsEmail"
-      style="font-size: 0.9rem"
-    >
-      -
-    </p>
+    <p id="editPermissionsEmail">-</p>
     <div class="form-group">
-      <label>Full Name</label>
+      <label for="editName">Full name</label>
       <input type="text" id="editName" placeholder="Jane Doe" maxlength="250" />
     </div>
     <div class="form-group">
@@ -82,7 +72,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Language (for new tokens)</label>
+      <label for="editLanguage">Language (for new tokens)</label>
       <select id="editLanguage">
         <option value="en" selected>English</option>
         <option value="de">Deutsch</option>
@@ -92,23 +82,25 @@
         <option value="es">Español</option>
       </select>
     </div>
-    <div class="form-group" id="editCustomFieldsGroup" style="display: none">
-      <label>Custom Fields</label>
+    <div class="form-group" id="editCustomFieldsGroup" hidden>
+      <label for="editFieldKey">Custom fields</label>
       <div id="editCustomFieldsList" class="custom-fields-list"></div>
-      <div class="form-group" style="margin-bottom: 0">
-        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem">
+      <div class="custom-fields-add-row">
+        <div class="input-row mt-3">
           <input
             type="text"
+            class="input mono"
+            aria-label="Key"
             id="editFieldKey"
             placeholder="Key"
-            style="flex: 1"
             data-enter="addCustomField edit"
           />
           <input
             type="text"
+            class="input"
+            aria-label="Value"
             id="editFieldValue"
             placeholder="Value"
-            style="flex: 1"
             data-enter="addCustomField edit"
           />
           <button
@@ -126,29 +118,23 @@
         Cancel
       </button>
       <button class="btn btn-primary" data-click="showPermissionsConfirmModal">
-        Save Changes
+        Save changes
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Permissions Change Confirmation Modal -->
-<div
-  class="modal-backdrop-secondary"
+<dialog
+  class="modal-backdrop"
   id="permissionsConfirmModal"
+  aria-labelledby="permissionsConfirmModalTitle"
   data-self
   data-click="closePermissionsConfirmModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-      "
-    >
-      <h3 style="margin: 0">Confirm Changes</h3>
+    <div class="modal-header">
+      <h3 id="permissionsConfirmModalTitle">Confirm changes</h3>
       <button
         class="btn btn-icon"
         data-click="closePermissionsConfirmModal"
@@ -170,13 +156,10 @@
         </svg>
       </button>
     </div>
-    <p style="margin-bottom: 1rem">
-      Updating permissions will affect how consent is tracked for this user. Are
-      you sure you want to proceed?
-    </p>
-    <p style="margin-bottom: 2rem">
-      These updates will <strong>invalidate</strong> existing tokens. Older
-      tokens will no longer reflect the users' permissions.
+    <p>Updated permissions change how consent is tracked for this subscriber.</p>
+    <p>
+      Existing tokens are <strong>invalidated</strong>. Older tokens no longer
+      reflect the subscriber's permissions.
     </p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closePermissionsConfirmModal">
@@ -186,29 +169,23 @@
         class="btn btn-confirm active"
         data-click="confirmSavePermissions"
       >
-        Confirm Changes
+        Save changes
       </button>
     </div>
   </div>
-</div>
+</dialog>
 
 <!-- Delete Record Confirmation Modal -->
-<div
-  class="modal-backdrop-secondary"
+<dialog
+  class="modal-backdrop"
   id="deleteRecordModal"
+  aria-labelledby="deleteRecordModalTitle"
   data-self
   data-click="closeDeleteRecordModal"
 >
   <div class="modal">
-    <div
-      style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      "
-    >
-      <h3 style="margin: 0">Confirm Deletion</h3>
+    <div class="modal-header">
+      <h3 id="deleteRecordModalTitle">Delete record</h3>
       <button
         class="btn btn-icon"
         data-click="closeDeleteRecordModal"
@@ -230,26 +207,18 @@
         </svg>
       </button>
     </div>
-    <p
-      id="deleteRecordEmail"
-      style="font-size: 0.9rem; margin-bottom: 1rem"
-    >
-      -
-    </p>
+    <p class="text-fg font-medium" id="deleteRecordEmail">-</p>
     <p>
-      This will permanently remove the selected consent record from this bucket.
-      Are you sure you want to do this?
-    </p>
-    <p>
-      After deletion, any links associated with this record will stop working.
+      Deleting the record removes it from this bucket permanently. Links for
+      this record stop working.
     </p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeDeleteRecordModal">
         Cancel
       </button>
       <button class="btn btn-confirm active" data-click="confirmDeleteRecord">
-        Remove Record
+        Delete record
       </button>
     </div>
   </div>
-</div>
+</dialog>
