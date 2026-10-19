@@ -50,7 +50,7 @@ post /api/admin/settings '{
     "promoBarDismissable": false,
     "promoBar": "This is a demo instance. Some functions are disabled. All data is reset every hour.",
     "loginFooterEnabled": true,
-    "loginFooter": "Sign in with API key **beacon-demo**. Read the [documentation](https://github.com/melosso/beacon) to learn more."
+    "loginFooter": "Sign in with API key **beacon-demo-token-012345678901234**. Read the [documentation](https://github.com/melosso/beacon) to learn more."
 }' PUT >/dev/null || exit 1
 
 # bucket|name|email|language|permissions|externalId
