@@ -1,0 +1,36 @@
+services:
+  beacon:
+    image: ghcr.io/melosso/beacon:latest
+    container_name: demo-beacon
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "5010:5000"  # Public API
+      - "5011:5001"  # Admin panel
+    volumes:
+      - beacon_data:/app/data
+    tmpfs:
+      - /app/log:uid=999,gid=999,mode=755
+      - /app/.core:uid=999,gid=999,mode=755
+      - /tmp:uid=999,gid=999,mode=1777
+    env_file: .env
+    environment:
+      - BEACON_ADMIN_API_KEY=beacon-demo
+      - BEACON_CONNECTION_STRING=Data Source=/app/data/Beacon.db
+      - BEACON_DISABLE_EMAIL_NOTIFICATIONS=true
+      - BEACON_USER_AUTHENTICATION=api
+      - BEACON_API_PORT=5000
+      - BEACON_ADMIN_PORT=5001
+      - BEACON_API_HOSTS=beacon-demo-api.melosso.com
+      - BEACON_ADMIN_HOSTS=beacon-demo.melosso.com
+      - BEACON_ALLOWED_ORIGINS=https://beacon-demo.melosso.com,https://beacon-demo-api.melosso.com
+      - BEACON_TRUST_FORWARDED_HEADERS=true
+      - HOME=/tmp
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+volumes:
+  beacon_data:
