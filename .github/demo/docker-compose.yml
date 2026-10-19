@@ -19,7 +19,7 @@ services:
       - /tmp:uid=999,gid=999,mode=1777
     env_file: .env
     environment:
-      - BEACON_ADMIN_API_KEY=beacon-demo
+      - BEACON_ADMIN_API_KEY=beacon-demo-token-9f8b2c1e4a7d3f6
       - BEACON_CONNECTION_STRING=Data Source=/app/data/Beacon.db
       - BEACON_DISABLE_EMAIL_NOTIFICATIONS=true
       - BEACON_USER_AUTHENTICATION=api
