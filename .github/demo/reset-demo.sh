@@ -4,7 +4,7 @@
 
 REPO_RAW_URL="https://raw.githubusercontent.com/melosso/beacon/main/.github/demo"
 ADMIN="http://localhost:5011"
-API_KEY="beacon-demo"
+API_KEY="beacon-demo-token-9f8b2c1e4a7d3f6"
 ORIGIN="https://melosso.com"
 
 fetch() {
