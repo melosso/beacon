@@ -4,7 +4,6 @@
 
 REPO_RAW_URL="https://raw.githubusercontent.com/melosso/beacon/main/.github/demo"
 ADMIN="http://localhost:5011"
-API_KEY="beacon-demo-token-012345678901234"
 ORIGIN="https://melosso.com"
 
 fetch() {
@@ -20,6 +19,8 @@ if [ -z "$BEACON_DEMO_SELF_UPDATED" ] && fetch "$SELF"; then
 fi
 
 fetch docker-compose.yml || [ -f docker-compose.yml ] || exit 1
+API_KEY="$(sed -n 's/.*BEACON_ADMIN_API_KEY=//p' docker-compose.yml)"
+[ -n "$API_KEY" ] || { echo "BEACON_ADMIN_API_KEY is missing in docker-compose.yml."; exit 1; }
 
 if [ ! -f .env ]; then
     echo "Generating .env..."
@@ -40,18 +41,20 @@ done
 curl -fs -o /dev/null "$ADMIN/health" || { echo "Beacon did not become healthy."; docker compose logs --tail 50; exit 1; }
 
 post() {
-    curl -fsS -X "${3:-POST}" "$ADMIN$1" -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" -d "$2"
+    local out
+    out=$(curl -sS --fail-with-body -X "${3:-POST}" "$ADMIN$1" -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" -d "$2") || { echo "$out" >&2; return 1; }
+    echo "$out"
 }
 
 echo "Configuring announcement bar and sign-in footer..."
-post /api/admin/settings '{
-    "promoBarEnabled": true,
-    "promoBarShowOnLogin": true,
-    "promoBarDismissable": false,
-    "promoBar": "This is a demo instance. Some functions are disabled. All data is reset every hour.",
-    "loginFooterEnabled": true,
-    "loginFooter": "Sign in with API key **beacon-demo-token-012345678901234**. Read the [documentation](https://github.com/melosso/beacon) to learn more."
-}' PUT >/dev/null || exit 1
+post /api/admin/settings "{
+    \"promoBarEnabled\": true,
+    \"promoBarShowOnLogin\": true,
+    \"promoBarDismissable\": false,
+    \"promoBar\": \"This is a demo instance. Some functions are disabled. All data is reset every hour.\",
+    \"loginFooterEnabled\": true,
+    \"loginFooter\": \"Sign in with API key **$API_KEY**. Read the [documentation](https://github.com/melosso/beacon) to learn more.\"
+}" PUT >/dev/null || exit 1
 
 # bucket|name|email|language|permissions|externalId
 TOKENS=(
