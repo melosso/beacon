@@ -47,7 +47,7 @@
     <PackageVersion Include="Testcontainers.MsSql" Version="$(TestcontainersVersion)" />
     <PackageVersion Include="Testcontainers.MySql" Version="$(TestcontainersVersion)" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="$(TestcontainersVersion)" />
-    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <!-- Transitive 2025.1.0 (via Testcontainers) carries GHSA-mggc-4xg6-vcxf and GHSA-q939-rpr3-3284 (high). -->
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
