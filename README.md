@@ -8,8 +8,6 @@
 
 This is **Beacon**, a lightweight service for handling email consent and opt-outs. Built on .NET 10, it works independently of your CRM, ERP, or marketing automation tool. Generate secure, temporary opt-out links, validate them instantly, and let other systems check consent status via the REST API.
 
-![Screenshot of Beacon](https://github.com/melosso/beacon/blob/main/.github/images/screenshot.webp?raw=true)
-
 > Try it out! Feel free to play around in our live demo instance, available on [beacon-demo.melosso.com](https://beacon-demo.melosso.com). Use `Beacon-Api-Key` as your access token.
 
 ## What is Beacon?
