@@ -1,3 +1,5 @@
+![Beacon](.github/images/banner.webp)
+
 # Beacon
 
 [![License](https://img.shields.io/badge/license-EUPL%201.2-blue)](LICENSE)
