@@ -150,10 +150,11 @@ public static class AuthEndpoints
         return Granted("admin", "admin", adminKey: true);
     }
 
-    private static IResult Refresh(
+    internal static async Task<IResult> Refresh(
         HttpContext httpContext,
         IWebHostEnvironment env,
-        IOptionsMonitor<JwtAuthOptions> jwtOptions)
+        IOptionsMonitor<JwtAuthOptions> jwtOptions,
+        TokenUsageRepository tokenUsage)
     {
         // Only a cookie session can be extended; an API-key principal has no session to refresh.
         if (httpContext.User.Identity?.AuthenticationType != JwtAuthExtensions.SchemeName)
@@ -168,13 +169,14 @@ public static class AuthEndpoints
         var authTime = DateTimeOffset.FromUnixTimeSeconds(authSeconds);
         if (JwtAuthHandler.RefreshedExpiry(authTime, DateTimeOffset.UtcNow, TimeSpan.FromHours(1)) is not { } expiresAt)
             return Results.Unauthorized();
+        // One live token per session: the replaced token is revoked.
+        await JwtAuthHandler.RevokeAsync(tokenUsage, signingKey, JwtAuthHandler.ReadToken(httpContext.Request));
         return OkWithCookie(httpContext, env, signingKey, sub, expiresAt, role, adminKey, authTime);
     }
 
     private static async Task<IResult> Logout(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions, TokenUsageRepository tokenUsage)
     {
-        httpContext.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var current);
-        await JwtAuthHandler.RevokeAsync(tokenUsage, jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey, current);
+        await JwtAuthHandler.RevokeAsync(tokenUsage, jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey, JwtAuthHandler.ReadToken(httpContext.Request));
 
         // Expire the auth cookie
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, "", new CookieOptions

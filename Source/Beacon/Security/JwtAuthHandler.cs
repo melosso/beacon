@@ -41,19 +41,21 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 
     public const string CookieName = "beacon_auth";
 
+    /// <summary>Session token from the Bearer header, else from the auth cookie.</summary>
+    internal static string? ReadToken(HttpRequest request)
+    {
+        var header = request.Headers.Authorization.ToString();
+        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            var bearer = header["Bearer ".Length..].Trim();
+            if (bearer.Length > 0) return bearer;
+        }
+        return request.Cookies.TryGetValue(CookieName, out var cookie) ? cookie : null;
+    }
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Prefer Bearer token from Authorization header; fall back to HttpOnly cookie
-        string? token = null;
-        if (Request.Headers.TryGetValue("Authorization", out var authHeader))
-        {
-            var headerValue = authHeader.ToString();
-            if (headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                token = headerValue["Bearer ".Length..].Trim();
-        }
-
-        if (string.IsNullOrEmpty(token))
-            Request.Cookies.TryGetValue(CookieName, out token);
+        var token = ReadToken(Request);
 
         if (string.IsNullOrEmpty(token))
             return AuthenticateResult.NoResult();
@@ -225,7 +227,9 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             akey = adminKey,
             iat = now,
             auth_time = authTime?.ToUnixTimeSeconds() ?? now,
-            exp = expiresAt.ToUnixTimeSeconds()
+            exp = expiresAt.ToUnixTimeSeconds(),
+            // Unique per token: revocation is keyed by token hash, and a same-second refresh reissues identical claims.
+            jti = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(16))
         }));
 
         var signatureInput = Encoding.ASCII.GetBytes($"{header}.{payload}");
