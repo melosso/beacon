@@ -1,8 +1,9 @@
 ![Beacon](.github/images/banner.webp)
 
 [![License](https://img.shields.io/badge/license-EUPL%201.2-blue)](LICENSE)
-[![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
-[![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
+[![Las t commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
+[![Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
+[![GitHub stars](https://img.shields.io/github/stars/melosso/beacon)](https://github.com/melosso/beacon/stargazers)
 
 Beacon is a lightweight service for email consent and opt-out management.
 
