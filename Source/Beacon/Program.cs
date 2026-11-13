@@ -496,9 +496,12 @@ try
     // Exception handler runs before CORS so error responses still get CORS headers
     app.UseExceptionHandler(error => error.Run(async context =>
     {
-        context.Response.StatusCode = 500;
+        // Malformed request bodies are client errors; Development rethrows them from parameter binding.
+        var badRequest = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error
+            as Microsoft.AspNetCore.Http.BadHttpRequestException;
+        context.Response.StatusCode = badRequest?.StatusCode ?? 500;
         context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new { error = "An internal server error occurred." });
+        await context.Response.WriteAsJsonAsync(new { error = badRequest is null ? "An internal server error occurred." : "Invalid request body." });
     }));
 
     // Must run before rate limiting and host routing: both key off the resolved client IP / host.

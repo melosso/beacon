@@ -2182,32 +2182,21 @@ public static class AdminEndpoints
         if (existing is null)
             return Results.NotFound(new { error = "Brand identity not found." });
 
-        if (existing.IsDefault && request.Name.Trim() != existing.Name)
-            return Results.BadRequest(new { error = "The Default identity cannot be renamed." });
-
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
             return Results.BadRequest(new { error = "Name is required and must be 100 characters or fewer." });
 
-        string settingsJson;
-        BrandIdentitySettings parsedSettings;
-        if (request.Settings is JsonElement je)
-        {
-            parsedSettings = JsonSerializer.Deserialize<BrandIdentitySettings>(je.GetRawText())
-                ?? new BrandIdentitySettings();
-            if (existing.IsDefault)
-                parsedSettings = parsedSettings with { PrimaryAccent = null, SurfaceColour = null };
-            settingsJson = JsonSerializer.Serialize(parsedSettings);
-        }
-        else
-        {
-            parsedSettings = new BrandIdentitySettings();
-            settingsJson = "{}";
-        }
+        if (existing.IsDefault && request.Name.Trim() != existing.Name)
+            return Results.BadRequest(new { error = "The Default identity cannot be renamed." });
 
-        var settingsError = ValidateIdentitySettings(parsedSettings);
+        var settings = request.Settings ?? new BrandIdentitySettings();
+        if (existing.IsDefault)
+            settings = settings with { PrimaryAccent = null, SurfaceColour = null };
+
+        var settingsError = ValidateIdentitySettings(settings);
         if (settingsError is not null)
             return Results.BadRequest(new { error = settingsError });
 
+        var settingsJson = request.Settings is null ? "{}" : JsonSerializer.Serialize(settings);
         var updated = await brandService.UpdateAsync(id, request.Name.Trim(), settingsJson, ct);
         return Results.Ok(new { id = updated.Id, name = updated.Name, updatedAt = updated.UpdatedAt });
     }
@@ -2454,8 +2443,8 @@ public sealed class BrandIdentityCreateRequest
 
 public sealed class BrandIdentityUpdateRequest
 {
-    public string Name { get; set; } = string.Empty;
-    public object? Settings { get; set; }
+    public string? Name { get; set; }
+    public BrandIdentitySettings? Settings { get; set; }
 }
 
 public sealed class BrandIdentityBucketsRequest
