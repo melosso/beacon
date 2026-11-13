@@ -22,47 +22,36 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false)
     {
-        var existing = await FindAsync(record);
-        if (existing is not null && !Accepts(existing, record, insertOnly))
-            return false;
-
-        ConsentStatus? oldStatus = existing?.Status;
-
-        if (existing is null)
+        for (var attempt = 0; ; attempt++)
         {
-            _context.ConsentRecords.Add(record);
+            var existing = await FindAsync(record);
+            if (existing is not null && !Accepts(existing, record, insertOnly))
+                return false;
+
+            ConsentStatus? oldStatus = existing?.Status;
+
+            if (existing is null)
+                _context.ConsentRecords.Add(record);
+            else
+                ApplyUpdate(existing, record);
+
+            if (oldStatus != record.Status)
+                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId));
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex) when (attempt < MaxWriteRetries && (ex is DbUpdateConcurrencyException || IsUniqueConstraintViolation(ex)))
+            {
+                // Lost a concurrent insert or status change: reload and re-check the transition.
+                _context.ChangeTracker.Clear();
+            }
         }
-        else
-        {
-            ApplyUpdate(existing, record);
-        }
-
-        if (oldStatus != record.Status)
-            _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId));
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
-        {
-            // Lost the concurrent-insert race: reload and apply as update.
-            _context.ChangeTracker.Clear();
-
-            var winner = await FindAsync(record);
-            if (winner is null) throw;
-            if (!Accepts(winner, record, insertOnly)) return false;
-
-            var prevStatus = winner.Status;
-            ApplyUpdate(winner, record);
-
-            if (prevStatus != record.Status)
-                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, prevStatus, actorId));
-
-            await _context.SaveChangesAsync();
-        }
-        return true;
     }
+
+    private const int MaxWriteRetries = 3;
 
     private Task<ConsentRecord?> FindAsync(ConsentRecord record) =>
         _context.ConsentRecords.FirstOrDefaultAsync(r
@@ -308,26 +297,16 @@ public sealed class ConsentRepository : IConsentRepository
             .Where(e => e.Bucket == bucket)
             .ExecuteDeleteAsync();
 
-        var records = await _context.ConsentRecords
+        return await _context.ConsentRecords
             .Where(r => r.Bucket == bucket)
-            .ToListAsync();
-
-        _context.ConsentRecords.RemoveRange(records);
-        await _context.SaveChangesAsync();
-
-        return records.Count;
+            .ExecuteDeleteAsync();
     }
 
     public async Task<int> DeletePermissionAsync(string bucket, string permission)
     {
-        var records = await _context.ConsentRecords
+        return await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.Permission == permission)
-            .ToListAsync();
-
-        _context.ConsentRecords.RemoveRange(records);
-        await _context.SaveChangesAsync();
-
-        return records.Count;
+            .ExecuteDeleteAsync();
     }
 
     public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
@@ -336,14 +315,9 @@ public sealed class ConsentRepository : IConsentRepository
             .Where(e => e.EmailHash == emailHash && e.Bucket == bucket)
             .ExecuteDeleteAsync();
 
-        var records = await _context.ConsentRecords
+        return await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
-            .ToListAsync();
-
-        _context.ConsentRecords.RemoveRange(records);
-        await _context.SaveChangesAsync();
-
-        return records.Count;
+            .ExecuteDeleteAsync();
     }
 
     public async Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash)
@@ -577,9 +551,9 @@ public sealed class ConsentRepository : IConsentRepository
         var purged = 0;
         foreach (var r in candidates)
         {
-            // Per-row status guard: a confirmation committed after the read keeps its OptedIn.
+            // Per-row guard: a confirmation or renewal committed after the read keeps its record.
             var rows = await _context.ConsentRecords
-                .Where(x => x.Id == r.Id && x.Status == ConsentStatus.PendingConfirmation)
+                .Where(x => x.Id == r.Id && x.Status == ConsentStatus.PendingConfirmation && x.ChangedAt < cutoff)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(x => x.Status, ConsentStatus.OptedOut)
                     .SetProperty(x => x.ChangedAt, now)

@@ -40,6 +40,10 @@ public class BeaconDbContext : DbContext
                 .HasMaxLength(100)
                 .IsRequired();
 
+            // Tracked updates fail on a status changed after the read: the transition check stays valid.
+            entity.Property(e => e.Status)
+                .IsConcurrencyToken();
+
             entity.Property(e => e.TokenHash)
                 .HasMaxLength(64);
 
