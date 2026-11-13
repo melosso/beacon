@@ -189,13 +189,10 @@ try
             PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 context.Request.Path.StartsWithSegments("/api/admin/auth", StringComparison.OrdinalIgnoreCase)
                     ? Partition(context, "auth", 10)
-                    : RateLimitPartition.GetNoLimiter("auth:skip")),
-            // Bulk exports decrypt whole buckets; cap them separately from normal admin traffic.
-            PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                context.Request.Path.StartsWithSegments("/api/admin", StringComparison.OrdinalIgnoreCase) &&
-                context.Request.Path.Value!.EndsWith("/export", StringComparison.OrdinalIgnoreCase)
-                    ? Partition(context, "export", 10)
-                    : RateLimitPartition.GetNoLimiter("export:skip")));
+                    : RateLimitPartition.GetNoLimiter("auth:skip")));
+
+        // Bulk reads decrypt whole buckets: endpoints opt in with RequireRateLimiting("export").
+        rateLimiter.AddPolicy("export", context => Partition(context, "export", 10));
 
         rateLimiter.OnRejected = async (context, ct) =>
         {
