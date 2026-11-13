@@ -157,16 +157,6 @@ public static class ConsentEndpoints
 
         var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
 
-        // Only check token usage if replay is not allowed
-        if (!result.Payload.AllowReplay)
-        {
-            var tokenHash = ComputeTokenHash(token);
-            if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
-            {
-                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
-            }
-        }
-
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
             return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
@@ -179,6 +169,13 @@ public static class ConsentEndpoints
         try
         {
             using var transaction = await consentService.BeginTransactionAsync();
+
+            // Claim inside the transaction: a concurrent use fails the unique key, a failed update releases the claim.
+            if (!result.Payload.AllowReplay
+                && !await tokenUsageRepository.TryMarkUsedAsync(ComputeTokenHash(token), result.Payload.ExpiresAtUtc))
+            {
+                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
+            }
 
             if (action == "unsubscribe_all")
             {
@@ -200,13 +197,6 @@ public static class ConsentEndpoints
                 await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                     result.Payload.Bucket, result.Payload.Email, null);
                 await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-
-                // Only mark token as used if replay is not allowed
-                if (!result.Payload.AllowReplay)
-                {
-                    var tokenHash = ComputeTokenHash(token);
-                    await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
-                }
                 return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions, brand: brand), "text/html");
             }
 
@@ -258,13 +248,6 @@ public static class ConsentEndpoints
             await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                 result.Payload.Bucket, result.Payload.Email, null);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-
-            // Only mark token as used if replay is not allowed
-            if (!result.Payload.AllowReplay)
-            {
-                var tokenHash = ComputeTokenHash(token);
-                await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
-            }
             return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn], brand), "text/html");
         }
         catch
@@ -314,13 +297,14 @@ public static class ConsentEndpoints
         }
     }
 
-    private static async Task<IResult> ConfirmSubscription(
+    internal static async Task<IResult> ConfirmSubscription(
         string token,
         CancellationToken ct,
         [FromServices] EmailQueueRepository emailQueue,
         [FromServices] ConsentService consentService,
         [FromServices] Encryptor encryptor,
-        [FromServices] BrandIdentityService brandService)
+        [FromServices] BrandIdentityService brandService,
+        [FromServices] BucketRepository bucketRepository)
     {
         var entry = await emailQueue.GetByConfirmationTokenAsync(token);
         if (entry is null)
@@ -329,11 +313,18 @@ public static class ConsentEndpoints
         var lang = entry.Language ?? "en";
         var brand = await ResolveBrandAsync(brandService, entry.Bucket, ct);
 
-        if (entry.Status == EmailQueueStatus.Confirmed)
-            return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
+        if (await bucketRepository.IsArchivedAsync(entry.Bucket))
+            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
 
-        if (entry.ExpiresAt < DateTime.UtcNow || entry.Status == EmailQueueStatus.Expired)
-            return Results.Content(GetStatusPage("expired", lang, brand: brand), "text/html");
+        using var transaction = await consentService.BeginTransactionAsync();
+
+        // Claim first: the status guard admits one confirmation per open, unexpired entry.
+        var now = DateTime.UtcNow;
+        if (!await emailQueue.MarkConfirmedAsync(entry.Id, now))
+        {
+            var page = entry.Status is EmailQueueStatus.Cancelled or EmailQueueStatus.Expired || entry.ExpiresAt <= now ? "expired" : "already_processed";
+            return Results.Content(GetStatusPage(page, lang, brand: brand), "text/html");
+        }
 
         var email = encryptor.Decrypt(entry.EncryptedEmail);
 
@@ -345,7 +336,7 @@ public static class ConsentEndpoints
                 source: ConsentSource.Api);
         }
 
-        await emailQueue.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
+        await consentService.CommitTransactionAsync();
 
         return Results.Content(GetStatusPage("confirmed", lang, brand: brand), "text/html");
     }

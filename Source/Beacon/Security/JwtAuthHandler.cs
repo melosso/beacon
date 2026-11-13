@@ -36,9 +36,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     {
         if (string.IsNullOrEmpty(token) || !TryValidateToken(signingKey, token, out _, out _, out var expiresAt) || expiresAt is null)
             return;
-        var hash = SessionHash(token);
-        if (!await tokenUsage.IsTokenUsedAsync(hash))
-            await tokenUsage.MarkTokenUsedAsync(hash, expiresAt.Value.UtcDateTime);
+        await tokenUsage.TryMarkUsedAsync(SessionHash(token), expiresAt.Value.UtcDateTime);
     }
 
     public const string CookieName = "beacon_auth";

@@ -16,7 +16,8 @@ public sealed class TokenUsageRepository {
         return await _context.UsedTokens.AnyAsync(t => t.TokenHash == tokenHash);
     }
 
-    public async Task MarkTokenUsedAsync(string tokenHash, DateTime expiresAt)
+    /// <summary>Records the token as used. Returns false if the token is already recorded.</summary>
+    public async Task<bool> TryMarkUsedAsync(string tokenHash, DateTime expiresAt)
     {
         var usedToken = new UsedToken
         {
@@ -26,7 +27,20 @@ public sealed class TokenUsageRepository {
         };
 
         _context.UsedTokens.Add(usedToken);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (ConsentRepository.IsUniqueConstraintViolation(ex))
+        {
+            return false;
+        }
+        finally
+        {
+            // Untracked: a repeat claim in the same scope reaches the unique key.
+            _context.Entry(usedToken).State = EntityState.Detached;
+        }
     }
 
     public async Task CleanupExpiredTokensAsync()

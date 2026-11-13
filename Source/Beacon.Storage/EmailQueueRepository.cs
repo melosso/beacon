@@ -31,7 +31,7 @@ public sealed class EmailQueueRepository {
     public async Task MarkSentAsync(Guid id, DateTime sentAt)
     {
         await _db.EmailQueueEntries
-            .Where(e => e.Id == id)
+            .Where(e => e.Id == id && e.Status == EmailQueueStatus.Pending)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(e => e.Status, EmailQueueStatus.Sent)
                 .SetProperty(e => e.SentAt, sentAt)
@@ -41,7 +41,7 @@ public sealed class EmailQueueRepository {
     public async Task MarkFailedAsync(Guid id, string error, DateTime? nextAttemptAt)
     {
         await _db.EmailQueueEntries
-            .Where(e => e.Id == id)
+            .Where(e => e.Id == id && e.Status == EmailQueueStatus.Pending)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(e => e.Status, nextAttemptAt.HasValue ? EmailQueueStatus.Pending : EmailQueueStatus.Failed)
                 .SetProperty(e => e.LastError, error)
@@ -55,29 +55,26 @@ public sealed class EmailQueueRepository {
         return await _db.EmailQueueEntries.FirstOrDefaultAsync(e => e.ConfirmationToken == tokenHash);
     }
 
-    public async Task MarkConfirmedAsync(Guid id, DateTime confirmedAt)
+    /// <summary>Sets an open, unexpired entry to Confirmed. Returns false for Confirmed, Cancelled, Expired or expired entries.</summary>
+    public async Task<bool> MarkConfirmedAsync(Guid id, DateTime confirmedAt)
     {
-        await _db.EmailQueueEntries
-            .Where(e => e.Id == id)
+        return await _db.EmailQueueEntries
+            .Where(e => e.Id == id
+                     && e.ExpiresAt > confirmedAt
+                     && (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent || e.Status == EmailQueueStatus.Failed))
             .ExecuteUpdateAsync(s => s
                 .SetProperty(e => e.Status, EmailQueueStatus.Confirmed)
-                .SetProperty(e => e.ConfirmedAt, confirmedAt));
+                .SetProperty(e => e.ConfirmedAt, confirmedAt)) == 1;
     }
 
-    public async Task<bool> HasPendingAsync(string bucket, string emailHash, string permission)
-        => await _db.EmailQueueEntries.AnyAsync(e =>
-            e.Bucket == bucket &&
-            e.EmailHash == emailHash &&
-            e.Permission == permission &&
-            (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent));
-
+    /// <summary>Cancels unconfirmed entries for the key, including sent ones: a newer email supersedes their links.</summary>
     public async Task CancelPendingAsync(string bucket, string emailHash, string permission)
     {
         await _db.EmailQueueEntries
             .Where(e => e.Bucket == bucket &&
                         e.EmailHash == emailHash &&
                         e.Permission == permission &&
-                        e.Status == EmailQueueStatus.Pending)
+                        (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent))
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EmailQueueStatus.Cancelled));
     }
 
@@ -85,7 +82,7 @@ public sealed class EmailQueueRepository {
     {
         var now = DateTime.UtcNow;
         await _db.EmailQueueEntries
-            .Where(e => e.ExpiresAt <= now && e.Status != EmailQueueStatus.Confirmed)
+            .Where(e => e.ExpiresAt <= now && (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent))
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EmailQueueStatus.Expired));
     }
 
