@@ -163,7 +163,12 @@ public static class AuthEndpoints
         var sub = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
         var adminKey = httpContext.User.HasClaim(JwtAuthHandler.AdminKeyClaim, "true");
-        return OkWithCookie(httpContext, env, signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role, adminKey);
+        if (!long.TryParse(httpContext.User.FindFirstValue(JwtAuthHandler.AuthTimeClaim), out var authSeconds))
+            return Results.Unauthorized();
+        var authTime = DateTimeOffset.FromUnixTimeSeconds(authSeconds);
+        if (JwtAuthHandler.RefreshedExpiry(authTime, DateTimeOffset.UtcNow, TimeSpan.FromHours(1)) is not { } expiresAt)
+            return Results.Unauthorized();
+        return OkWithCookie(httpContext, env, signingKey, sub, expiresAt, role, adminKey, authTime);
     }
 
     private static async Task<IResult> Logout(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions, TokenUsageRepository tokenUsage)
@@ -206,9 +211,10 @@ public static class AuthEndpoints
         string subject,
         DateTimeOffset expiresAt,
         string role,
-        bool adminKey = false)
+        bool adminKey = false,
+        DateTimeOffset? authTime = null)
     {
-        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey);
+        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey, authTime);
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
             HttpOnly = true,

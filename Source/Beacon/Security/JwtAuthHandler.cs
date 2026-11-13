@@ -102,6 +102,11 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 
             var isAdminKey = payload.TryGetProperty("akey", out var akeyElement) && akeyElement.ValueKind == JsonValueKind.True;
 
+            // Tokens issued before auth_time existed fall back to iat.
+            if (!payload.TryGetProperty("auth_time", out var authTimeElement) && !payload.TryGetProperty("iat", out authTimeElement))
+                return AuthenticateResult.Fail("Token missing issue time");
+            var authTime = authTimeElement.GetInt64();
+
             // Per-user tokens are checked against the database so deletion, disabling and role changes apply immediately.
             if (!isAdminKey && !string.IsNullOrEmpty(Options.UserAuthentication) && _userRepository != null)
             {
@@ -113,9 +118,14 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
                 role = user.Role;
             }
 
-            Claim[] claims = isAdminKey
-                ? [new Claim(ClaimTypes.Name, sub), new Claim(ClaimTypes.Role, role), new Claim(AdminKeyClaim, "true")]
-                : [new Claim(ClaimTypes.Name, sub), new Claim(ClaimTypes.Role, role)];
+            List<Claim> claims =
+            [
+                new(ClaimTypes.Name, sub),
+                new(ClaimTypes.Role, role),
+                new(AuthTimeClaim, authTime.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
+            ];
+            if (isAdminKey)
+                claims.Add(new Claim(AdminKeyClaim, "true"));
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
@@ -191,8 +201,22 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     /// <summary>Marks a session issued for the global AdminApiKey, which has no user record.</summary>
     public const string AdminKeyClaim = "beacon:akey";
 
-    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false)
+    /// <summary>Unix time of the sign-in that started the session; refresh keeps it unchanged.</summary>
+    public const string AuthTimeClaim = "beacon:auth_time";
+
+    /// <summary>Absolute session lifetime from sign-in; refresh never extends a session past it.</summary>
+    public static readonly TimeSpan MaxSessionLifetime = TimeSpan.FromHours(8);
+
+    /// <summary>Expiry for a refreshed session, or null when the session has reached <see cref="MaxSessionLifetime"/>.</summary>
+    public static DateTimeOffset? RefreshedExpiry(DateTimeOffset authTime, DateTimeOffset now, TimeSpan slide)
     {
+        var cap = authTime + MaxSessionLifetime;
+        return now >= cap ? null : (now + slide < cap ? now + slide : cap);
+    }
+
+    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false, DateTimeOffset? authTime = null)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var header = Base64Url.EncodeToString("""{"alg":"HS256","typ":"JWT"}"""u8);
 
         // Serialize, never interpolate: an unescaped quote in the subject would inject payload claims.
@@ -201,7 +225,8 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             sub = subject,
             role,
             akey = adminKey,
-            iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            iat = now,
+            auth_time = authTime?.ToUnixTimeSeconds() ?? now,
             exp = expiresAt.ToUnixTimeSeconds()
         }));
 

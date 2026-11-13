@@ -87,6 +87,28 @@ public class SecurityAuditTests : IDisposable
     }
 
     [Fact]
+    public async Task Jwt_AuthTime_SurvivesAsClaim()
+    {
+        var signIn = DateTimeOffset.UtcNow.AddHours(-3);
+        var token = JwtAuthHandler.CreateToken(SigningKey, "admin", DateTimeOffset.UtcNow.AddHours(1), "admin", adminKey: true, authTime: signIn);
+
+        var result = await AuthenticateAsync(token);
+        Assert.Equal(signIn.ToUnixTimeSeconds().ToString(), result.Principal!.FindFirst(JwtAuthHandler.AuthTimeClaim)!.Value);
+    }
+
+    [Fact]
+    public void RefreshedExpiry_CapsAtMaxSessionLifetime()
+    {
+        var signIn = DateTimeOffset.UtcNow;
+        var slide = TimeSpan.FromHours(1);
+        var cap = signIn + JwtAuthHandler.MaxSessionLifetime;
+
+        Assert.Equal(signIn.AddHours(2), JwtAuthHandler.RefreshedExpiry(signIn, signIn.AddHours(1), slide));
+        Assert.Equal(cap, JwtAuthHandler.RefreshedExpiry(signIn, cap.AddMinutes(-30), slide));
+        Assert.Null(JwtAuthHandler.RefreshedExpiry(signIn, cap, slide));
+    }
+
+    [Fact]
     public async Task Jwt_ExistingUser_GetsRoleFromDatabase()
     {
         var (hash, salt) = PasswordHasher.HashPassword("seeded-password-12!");
