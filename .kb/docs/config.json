@@ -1,0 +1,42 @@
+{
+  "title": "Beacon",
+  "titleTemplate": ":title · :siteName",
+  "description": "Lightweight email consent and opt-out management",
+  "lang": "en",
+  "theme": "default",
+  "brand": "Beacon",
+  "favicon": "/favicon.ico",
+  "lastUpdated": true,
+  "footer": "© {year} Melosso.com · Licensed under [EUPL 1.2](https://github.com/melosso/beacon/blob/main/LICENSE). Built with [Bark](https://github.com/hawkinslabdev/bark/).",
+  "editLink": {
+    "pattern": "https://github.com/melosso/beacon/edit/main/.kb/docs/:path",
+    "text": "Edit this page on GitHub"
+  },
+  "topNav": [
+    { "text": "Home", "link": "/" },
+    { "text": "Guide", "link": "/guide/" }
+  ],
+  "sidebar": {
+    "/guide/": [
+      {
+        "title": "Introduction",
+        "collapsed": false,
+        "items": [
+          { "title": "What is Beacon?", "path": "guide/" },
+          { "title": "Install", "path": "guide/install" }
+        ]
+      },
+      {
+        "title": "Usage",
+        "collapsed": false,
+        "items": [
+          { "title": "API", "path": "guide/api" },
+          { "title": "Configuration", "path": "guide/configuration" }
+        ]
+      }
+    ]
+  },
+  "socialLinks": [
+    { "icon": "github", "url": "https://github.com/melosso/beacon", "title": "GitHub" }
+  ]
+}
