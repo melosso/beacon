@@ -726,12 +726,15 @@ async function savePermissions() {
   document
     .querySelectorAll("#editPermissionsGrid .permission-row")
     .forEach((row) => {
-      const perm = row.dataset.perm;
-      const inBtn = row.querySelector(".opted-in");
-      permissions[perm] = inBtn.classList.contains("active")
-        ? "OptedIn"
-        : "OptedOut";
+      const chosen = row.querySelector(".opted-in.active, .opted-out.active");
+      if (chosen)
+        permissions[row.dataset.perm] = chosen.classList.contains("opted-in") ? "OptedIn" : "OptedOut";
     });
+
+  if (Object.keys(permissions).length === 0) {
+    notify("warning", "Nothing to save", "Choose In or Out for at least one permission.");
+    return;
+  }
 
   const customFields =
     Object.keys(editCustomFields).length > 0 ? editCustomFields : undefined;
