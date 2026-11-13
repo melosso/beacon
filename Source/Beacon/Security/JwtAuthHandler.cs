@@ -150,8 +150,9 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
     {
         Response.StatusCode = 401;
+        Response.Headers.WWWAuthenticate = "Bearer";
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Unauthorized.\"}");
+        await Response.WriteAsync("{\"error\":\"Authentication required. Send the API key as a Bearer token.\"}");
         await Response.CompleteAsync();
     }
 
@@ -159,7 +160,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     {
         Response.StatusCode = 403;
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Forbidden. Insufficient permissions.\"}");
+        await Response.WriteAsync("{\"error\":\"Access denied. The credential lacks the permission for this request.\"}");
         await Response.CompleteAsync();
     }
 
