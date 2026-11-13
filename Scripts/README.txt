@@ -9,7 +9,7 @@ PREREQUISITES
 
 ** REQUIRED: .NET 11.0 Runtime **
 Download from: https://dotnet.microsoft.com/download/dotnet/11.0
-Install "ASP.NET Core Runtime 10.0.x" for Windows x64
+Install "ASP.NET Core Runtime 11.0.x" for Windows x64
 
 QUICK START
 ===========
