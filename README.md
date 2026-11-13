@@ -4,49 +4,46 @@
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
 
-Beacon is a lightweight service for handling email consent and opt-outs. 
+Beacon is a lightweight service for email consent and opt-out management.
 
 - Deploy: [Install Beacon](#getting-started)
 - Demo: [Visit Instance](https://beacon-demo.melosso.com/)
 
-Built on .NET 11, it works independently of your CRM, ERP, or marketing automation tool. Generate secure, temporary opt-out links, validate them instantly, and let other systems check consent status via the REST API.
+Beacon runs on .NET 11 and operates independently of CRM, ERP, and marketing automation tools. Beacon generates signed, expiring opt-out links, validates them, and exposes consent status through a REST API.
 
-> Try it out! Feel free to play around in our live demo instance, available on [beacon-demo.melosso.com](https://beacon-demo.melosso.com). Use `Beacon-Api-Key` as your access token.
+> The demo instance is available at [beacon-demo.melosso.com](https://beacon-demo.melosso.com). The access token is `Beacon-Api-Key`.
 
 ## What is Beacon?
 
-Beacon **centralizes consent and communication preferences**, so your other systems don’t have to. Organize permissions into **Buckets** (e.g., newsletters, campaigns) and let recipients manage their preferences via secure, embeddable links.
+Beacon stores **consent and communication preferences** outside of sending systems. Permissions are grouped in **Buckets** (for example, newsletters or campaigns). Recipients manage preferences through signed, embeddable links.
 
 #### **How It Works**
-Beacon handles consent for your automation tools, simple and efficient:
+- Generates cryptographically signed opt-out URLs.
+- Validates permission changes without database lookups by default.
+- Requires no consent logic in sending systems.
 
-- Generates cryptographically signed opt-out URLs
-- Validates permission changes without database lookups (unless configured otherwise)
-- Keeps your sending systems lightweight, no complicated logic required
+#### **Features**
 
-#### **Built for Your Workflow**
-Beacon adapts to your setup:
-
-- Supports **SQLite, SQL Server, PostgreSQL** and **MySQL**
-- Admin panel for managing consent buckets and records
-- Optional double opt-in confirmations
+- Databases: **SQLite, SQL Server, PostgreSQL** and **MySQL**
+- Admin panel for consent buckets and records
+- Optional double opt-in confirmation
 - Form builder for signup pages
-- Granular permissions and security (encrypted data, hashed emails, rate limiting)
+- Granular permissions, encrypted data, hashed email addresses and rate limiting
 
 ## Getting Started
 
-We've prepared two methods to deploy Beacon. It's up to you to choose your preferred method:
+Beacon supports two deployment methods: Docker Compose and Windows Server.
 
 ### Docker Compose (Recommended)
 
-First generate your secrets. Compose reads this file, so create it before starting:
+Generate the secrets file. Docker Compose reads `.env` at startup:
 
 ```bash
 # Create the .env file
 if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
 ```
 
-Then setup your compose file:
+Create `docker-compose.yml`:
 
 ```yaml
 services:
@@ -81,7 +78,7 @@ volumes:
 docker compose up -d
 ```
 
-Access the Admin panel at **http://localhost:5001** and API at **http://localhost:5000**.
+The admin panel is available at **http://localhost:5001**. The API is available at **http://localhost:5000**.
 
 ### Windows (Server)
 
@@ -103,38 +100,37 @@ $adminKey = New-Key
 Write-Host "Your X-Api-Key is: $adminKey"
 ```
 
-3. **Install service:**
+3. **Install and start the service:**
 
 ```powershell
 .\Beacon.bat install
 .\Beacon.bat start
 ```
 
-4. Open browser → **http://localhost:5000** / **http://localhost:5001**
+4. Open **http://localhost:5000** (API) or **http://localhost:5001** (admin panel).
 
-Store your API key somewhere safe, it is your access to the admin panel. Beacon encrypts sensitive values in `appsettings.json` on first run. Values read from environment variables or `.env` are not written to `appsettings.json`.
+Store the API key in a secure location. The API key grants access to the admin panel.
 
 ---
 
-For production deployments with host-based routing, see the [Configuration](CONFIGURATION.md) section.
+[CONFIGURATION.md](CONFIGURATION.md) describes host-based routing for production deployments.
 
 ## How to Use
 
-Beacon will provide you a simple, non-customizable API that does one thing: securely store permissions for an e-mail address in a bucket. Your application can use this API to create a new permission state in the bucket–and return a token. This JWT-token contains all data, allowing the user to access its data without putting load on the database:
+The REST API stores permissions for an email address in a bucket. The API is not customizable. A token request creates the permission state and returns a signed JWT. The JWT contains the consent data. Opt-out link validation requires no database lookup by default:
 
 ```bash
 https://beacon.acme-corporation.com/u/v1.eyJiIjoicTEtY2FtcGFpZ24iLCJlIjoia...
 ```
 
-You can incorporate this in your newsletters, system notifications, or anything you'd like – allowing your user to configure their permissions in decentralized system and keeping them outside of your data source:
+Opt-out links are for use in newsletters, system notifications, and other messages. Recipients manage permissions in Beacon. Consent data is stored outside the sending system's data source.
 
 ## API-first
 
-As Beacon is an API-first platform, all consent management operations should be handled programmatically. While manual execution via the web UII is possible, integration typically involves automating these calls within your specific workflow. The first step requires creating a permission state for an email address in a bucket–which triggers the automatic creation of the target bucket if it is not already present.
+Integrations call the API from automated workflows. The web UI supports manual operations. A token request for a bucket that does not exist creates the bucket.
 
 #### Generate Token
-Creates consent records and returns a signed opt-out token (`[{"token":"<signed_jwt>"}]`).
-
+Creates consent records and returns signed opt-out tokens.
 
 ```bash
 curl -X POST http://localhost:5000/api/tokens/generate \
@@ -151,19 +147,19 @@ curl -X POST http://localhost:5000/api/tokens/generate \
   }]'
 ```
 
-Response is an array of `[{"token":"<signed_token>","doubleOptIn":false}]`. Access the first element for single-item requests.
+The response is an array: `[{"token":"<signed_token>","doubleOptIn":false}]`. A single-item request returns one element.
 
-If you're planning on updating the permission record after insertion, may want to use configure `skipPermissionUpdate` to prevent overwriting (user) updated permissions.
+If `skipPermissionUpdate` is `true`: existing permissions, including recipient updates, are not overwritten.
 
 #### Process Opt-Out
-User clicks the token link to update preferences.
+The token link opens the preference page.
 
 ```
 GET /u/{token}
 ```
 
 #### Check Consent
-Query consent status before sending email.
+Returns the consent status of a permission. Call before sending email.
 
 ```bash
 curl -X POST http://localhost:5000/api/consent/check \
@@ -173,6 +169,8 @@ curl -X POST http://localhost:5000/api/consent/check \
 ```
 
 #### Override Consent
+Sets the consent status of a permission.
+
 ```bash
 curl -X POST http://localhost:5000/api/consent/override \
   -H "X-Api-Key: your-api-key" \
@@ -181,6 +179,8 @@ curl -X POST http://localhost:5000/api/consent/override \
 ```
 
 #### Delete Bucket
+Deletes a bucket.
+
 ```bash
 curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
   -H "X-Api-Key: your-api-key"
@@ -212,12 +212,12 @@ curl -X POST http://localhost:5000/api/tokens/generate \
 
 ## Configuration
 
-Depending on your environment, these settings are changed in your `.env`, `docker-compose.yml` or `appsettings.json` file. Please see the [configuration section](CONFIGURATION.md) for all details.
+Settings are read from `.env`, `docker-compose.yml`, or `appsettings.json`. Check out the [Configuration](CONFIGURATION.md) page which contains all settings.
 
 ## License
 
-Free for open source projects and personal use under the **EUPL 1.2** license. For more information, please see the [license](LICENSE) file.
+Beacon is free for open source projects and personal use under the **EUPL 1.2** license. See [LICENSE](LICENSE).
 
 ## Contributing
 
-Contributions are always welcome! Please submit issues and pull requests, using the templates we provided.
+Submit issues and pull requests with the provided templates.
