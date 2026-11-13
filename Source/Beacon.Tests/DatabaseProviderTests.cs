@@ -170,6 +170,25 @@ public abstract class DatabaseProviderTests
     }
 
     [Fact]
+    public async Task GetBucketsAsync_CountsRecordsAndOptIns()
+    {
+        var bucket = $"rate-{Guid.NewGuid():N}"[..20];
+        await using var db = CreateDbContext();
+        var repo = new ConsentRepository(db);
+        await repo.UpsertAsync(MakeRecord(bucket, "h1", "email", ConsentStatus.OptedIn));
+        await repo.UpsertAsync(MakeRecord(bucket, "h1", "sms", ConsentStatus.OptedOut));
+        await repo.UpsertAsync(MakeRecord(bucket, "h2", "email", ConsentStatus.PendingConfirmation));
+        await repo.UpsertAsync(MakeRecord(bucket, "h3", "email", ConsentStatus.OptedIn));
+        db.ChangeTracker.Clear();
+
+        var info = (await repo.GetBucketsAsync()).Single(b => b.Name == bucket);
+
+        Assert.Equal(3, info.TotalEmails);
+        Assert.Equal(4, info.TotalRecords);
+        Assert.Equal(2, info.OptedInRecords);
+    }
+
+    [Fact]
     public async Task TryMarkUsedAsync_SecondClaim_ReturnsFalse()
     {
         var hash = Guid.NewGuid().ToString("N");
@@ -193,6 +212,25 @@ public abstract class DatabaseProviderTests
         Assert.True(await repo.TransitionAsync(WorkflowTaskStatus.PendingApproval, running, ct));
         Assert.False(await repo.TransitionAsync(WorkflowTaskStatus.PendingApproval, running, ct));
     }
+}
+
+// ─── SQLite (default provider) ─────────────────────────────────────────────────
+
+public sealed class SqliteDatabaseTests : DatabaseProviderTests, IDisposable
+{
+    private readonly Microsoft.Data.Sqlite.SqliteConnection _connection = new("DataSource=:memory:");
+
+    public SqliteDatabaseTests()
+    {
+        _connection.Open();
+        using var db = CreateDbContext();
+        db.Database.EnsureCreated();
+    }
+
+    protected override BeaconDbContext CreateDbContext() =>
+        new(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).Options);
+
+    public void Dispose() => _connection.Dispose();
 }
 
 // ─── SQL Server ────────────────────────────────────────────────────────────────

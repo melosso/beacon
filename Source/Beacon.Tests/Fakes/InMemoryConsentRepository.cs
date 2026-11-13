@@ -41,6 +41,8 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
             {
                 Name = g.Key,
                 TotalEmails = g.Select(r => r.EmailHash).Distinct().Count(),
+                TotalRecords = g.Count(),
+                OptedInRecords = g.Count(r => r.Status == ConsentStatus.OptedIn),
                 Permissions = g.Select(r => r.Permission).Distinct().ToList()
             })
             .ToList();

@@ -140,7 +140,13 @@ public sealed class ConsentRepository : IConsentRepository
         var summaries = await _context.ConsentRecords
             .AsNoTracking()
             .GroupBy(r => r.Bucket)
-            .Select(g => new { Name = g.Key, TotalEmails = g.Select(r => r.EmailHash).Distinct().Count() })
+            .Select(g => new
+            {
+                Name = g.Key,
+                TotalEmails = g.Select(r => r.EmailHash).Distinct().Count(),
+                TotalRecords = g.Count(),
+                OptedInRecords = g.Count(r => r.Status == ConsentStatus.OptedIn)
+            })
             .ToListAsync();
 
         var permRows = await _context.ConsentRecords
@@ -158,6 +164,8 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 Name = s.Name,
                 TotalEmails = s.TotalEmails,
+                TotalRecords = s.TotalRecords,
+                OptedInRecords = s.OptedInRecords,
                 Permissions = permsByBucket.TryGetValue(s.Name, out var perms) ? perms : []
             })
             .OrderBy(b => b.Name)

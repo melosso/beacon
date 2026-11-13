@@ -43,6 +43,9 @@ public sealed class BucketInfo
 {
     public required string Name { get; init; }
     public int TotalEmails { get; init; }
+    /// <summary>Consent records in the bucket: one per email and permission.</summary>
+    public int TotalRecords { get; init; }
+    public int OptedInRecords { get; init; }
     public IReadOnlyList<string> Permissions { get; init; } = [];
 }
 

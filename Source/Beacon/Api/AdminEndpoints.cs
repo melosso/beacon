@@ -588,13 +588,13 @@ public static class AdminEndpoints
             seen.Add(b.Name);
             var explicitPerms = allExplicitPerms.TryGetValue(b.Name, out var ep) ? ep : [];
             var mergedPerms = b.Permissions.Union(explicitPerms).OrderBy(p => p).ToList();
-            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, permissions = mergedPerms, isArchived = archivedBuckets.Contains(b.Name) });
+            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, totalRecords = b.TotalRecords, optedInRecords = b.OptedInRecords, permissions = mergedPerms, isArchived = archivedBuckets.Contains(b.Name) });
         }
 
         foreach (var name in explicitBucketNames.Where(n => !seen.Contains(n)))
         {
             var explicitPerms = allExplicitPerms.TryGetValue(name, out var ep) ? ep : (IReadOnlyList<string>)[];
-            result.Add(new { name, totalEmails = 0, permissions = explicitPerms, isArchived = archivedBuckets.Contains(name) });
+            result.Add(new { name, totalEmails = 0, totalRecords = 0, optedInRecords = 0, permissions = explicitPerms, isArchived = archivedBuckets.Contains(name) });
         }
 
         return Results.Ok(result.OrderBy(r => ((dynamic)r).name));
