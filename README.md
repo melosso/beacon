@@ -40,7 +40,7 @@ Generate the secrets file. Docker Compose reads `.env` at startup:
 
 ```bash
 # Create the .env file
-if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
+if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); ENC_KEY=$(openssl rand -base64 32); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$ENC_KEY" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && echo "Your API key is: $ADMIN_KEY"; fi
 ```
 
 Create `docker-compose.yml`:
@@ -97,7 +97,7 @@ if (Test-Path .env) { throw ".env already exists" }
 function New-Key { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) }
 $adminKey = New-Key
 "SIGNING_KEY=$(New-Key)", "ENCRYPTION_KEY=$(New-Key)", "PEPPER=$(New-Key)", "ADMIN_API_KEY=$adminKey" | Set-Content .env
-Write-Host "Your X-Api-Key is: $adminKey"
+Write-Host "Your API key is: $adminKey"
 ```
 
 3. **Install and start the service:**
@@ -129,12 +129,14 @@ Opt-out links are for use in newsletters, system notifications, and other messag
 
 Integrations call the API from automated workflows. The web UI supports manual operations. A token request for a bucket that does not exist creates the bucket.
 
+Requests authenticate with an API key as a Bearer token (`Authorization: Bearer <api-key>`). The `X-Api-Key` header is accepted as an alternative.
+
 #### Generate Token
 Creates consent records and returns signed opt-out tokens.
 
 ```bash
 curl -X POST http://localhost:5000/api/tokens/generate \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '[{
     "bucket": "q1-campaign",
@@ -163,7 +165,7 @@ Returns the consent status of a permission. Call before sending email.
 
 ```bash
 curl -X POST http://localhost:5000/api/consent/check \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "q1-campaign", "email": "user@example.com", "permission": "newsletter"}'
 ```
@@ -173,7 +175,7 @@ Sets the consent status of a permission.
 
 ```bash
 curl -X POST http://localhost:5000/api/consent/override \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "q1-campaign", "email": "user@example.com", "permission": "newsletter", "status": "OptedIn"}'
 ```
@@ -183,14 +185,14 @@ Deletes a bucket.
 
 ```bash
 curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
-  -H "X-Api-Key: your-api-key"
+  -H "Authorization: Bearer your-api-key"
 ```
 
 #### Generate Token with Optional Features
 ```bash
 # Supported languages: en (default), de, fr, nl, pl, es, it, pt, ja
 curl -X POST http://localhost:5000/api/tokens/generate \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '[{
     "bucket": "q1-campaign",

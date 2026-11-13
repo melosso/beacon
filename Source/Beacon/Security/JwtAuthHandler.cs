@@ -44,14 +44,22 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     /// <summary>Session token from the Bearer header, else from the auth cookie.</summary>
     internal static string? ReadToken(HttpRequest request)
     {
-        var header = request.Headers.Authorization.ToString();
-        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-        {
-            var bearer = header["Bearer ".Length..].Trim();
-            if (bearer.Length > 0) return bearer;
-        }
+        var bearer = BearerValue(request);
+        if (bearer is not null && IsSessionToken(bearer)) return bearer;
         return request.Cookies.TryGetValue(CookieName, out var cookie) ? cookie : null;
     }
+
+    /// <summary>Value of an <c>Authorization: Bearer</c> header, or null.</summary>
+    internal static string? BearerValue(HttpRequest request)
+    {
+        var header = request.Headers.Authorization.ToString();
+        if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) return null;
+        var value = header["Bearer ".Length..].Trim();
+        return value.Length > 0 ? value : null;
+    }
+
+    // Session tokens are JWTs (header.payload.signature); API keys are base64 and never contain a dot
+    internal static bool IsSessionToken(string bearer) => bearer.Count(c => c == '.') == 2;
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -249,6 +257,15 @@ public class JwtAuthOptions : AuthenticationSchemeOptions
 public static class JwtAuthExtensions
 {
     public const string SchemeName = "Jwt";
+
+    /// <summary>Session JWT (Bearer or cookie) to the JWT handler; an API key (Bearer or X-Api-Key) to the API key handler.</summary>
+    public static string SelectScheme(HttpContext context)
+    {
+        var bearer = JwtAuthHandler.BearerValue(context.Request);
+        if (bearer is not null)
+            return JwtAuthHandler.IsSessionToken(bearer) ? SchemeName : ApiKeyAuthExtensions.SchemeName;
+        return context.Request.Cookies.ContainsKey(JwtAuthHandler.CookieName) ? SchemeName : ApiKeyAuthExtensions.SchemeName;
+    }
 
     public static AuthenticationBuilder AddJwtAuth(
         this AuthenticationBuilder builder,

@@ -27,7 +27,7 @@ Beacon requires four keys: `SIGNING_KEY`, `ENCRYPTION_KEY`, `PEPPER` and `ADMIN_
 Generate `.env`. Docker Compose reads `.env` at startup:
 
 ```bash
-if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && chmod 600 .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
+if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && chmod 600 .env && echo "Your API key is: $ADMIN_KEY"; fi
 ```
 
 ```yaml [docker-compose.yml]
@@ -149,7 +149,7 @@ if (Test-Path .env) { throw ".env already exists" }
 function New-Key { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) }
 $adminKey = New-Key
 "SIGNING_KEY=$(New-Key)", "ENCRYPTION_KEY=$(New-Key)", "PEPPER=$(New-Key)", "ADMIN_API_KEY=$adminKey" | Set-Content .env
-Write-Host "Your X-Api-Key is: $adminKey"
+Write-Host "Your API key is: $adminKey"
 ```
 
 4. Install and start the service as Administrator:

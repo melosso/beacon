@@ -5,7 +5,7 @@ description: "Generate opt-out tokens, check consent and override consent throug
 
 # API
 
-Authenticated endpoints require the `X-Api-Key` header. The OpenAPI reference is available on the admin port (`ADMIN_PORT`).
+Authenticated endpoints require the API key as a Bearer token: `Authorization: Bearer <api-key>`. The `X-Api-Key` header is accepted as an alternative. The OpenAPI reference is available on the admin port (`ADMIN_PORT`).
 
 ## Generate tokens
 
@@ -13,7 +13,7 @@ Authenticated endpoints require the `X-Api-Key` header. The OpenAPI reference is
 
 ```bash
 curl -X POST http://localhost:5000/api/tokens/generate \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '[{
     "bucket": "q1-campaign",
@@ -49,7 +49,7 @@ https://beacon.example.com/u/v1.eyJiIjoicTEtY2FtcGFpZ24iLCJlIjoia...
 
 ```bash
 curl -X POST http://localhost:5000/api/consent/check \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "q1-campaign", "email": "user@example.com", "permission": "newsletter"}'
 ```
@@ -60,7 +60,7 @@ curl -X POST http://localhost:5000/api/consent/check \
 
 ```bash
 curl -X POST http://localhost:5000/api/consent/override \
-  -H "X-Api-Key: your-api-key" \
+  -H "Authorization: Bearer your-api-key" \
   -H "Content-Type: application/json" \
   -d '{"bucket": "q1-campaign", "email": "user@example.com", "permission": "newsletter", "status": "OptedIn"}'
 ```
@@ -71,5 +71,5 @@ curl -X POST http://localhost:5000/api/consent/override \
 
 ```bash
 curl -X DELETE http://localhost:5000/api/admin/buckets/q1-campaign \
-  -H "X-Api-Key: your-api-key"
+  -H "Authorization: Bearer your-api-key"
 ```

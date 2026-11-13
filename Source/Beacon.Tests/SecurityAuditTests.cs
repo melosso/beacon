@@ -185,6 +185,63 @@ public class SecurityAuditTests : IDisposable
         Assert.Equal("key:jane", result.Principal!.Identity!.Name);
     }
 
+    private async Task<AuthenticateResult> ApiKeyAuthAsync(Action<HttpRequest> setHeaders, string adminKey = "")
+    {
+        using var provider = new ServiceCollection()
+            .AddDbContext<BeaconDbContext>(o => o.UseSqlite(_connection))
+            .AddScoped<UserRepository>()
+            .AddScoped<ApiKeyRepository>()
+            .BuildServiceProvider();
+        var handler = new ApiKeyAuthHandler(new StaticOptionsMonitor<ApiKeyAuthOptions>(new ApiKeyAuthOptions { AdminApiKey = adminKey }), NullLoggerFactory.Instance, UrlEncoder.Default,
+            provider.GetRequiredService<IServiceScopeFactory>());
+        var context = new DefaultHttpContext();
+        setHeaders(context.Request);
+        await handler.InitializeAsync(new AuthenticationScheme(ApiKeyAuthExtensions.SchemeName, null, typeof(ApiKeyAuthHandler)), context);
+        return await handler.AuthenticateAsync();
+    }
+
+    [Fact]
+    public async Task ApiKey_AsBearer_Authenticates()
+    {
+        var (key, keyHash) = ApiKeyGenerator.Generate();
+        await new ApiKeyRepository(_db).CreateAsync("integration", keyHash, ["consent:read"], true, null, null);
+
+        var result = await ApiKeyAuthAsync(r => r.Headers.Authorization = $"Bearer {key}");
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("key:integration", result.Principal!.Identity!.Name);
+    }
+
+    [Fact]
+    public async Task AdminKey_AsBearer_Authenticates()
+    {
+        const string adminKey = "q+K3/zR8mPpY7wT2vL5nH1xC4bF6dJ9sA0eG8uI2oKw=";
+
+        Assert.True((await ApiKeyAuthAsync(r => r.Headers.Authorization = $"Bearer {adminKey}", adminKey)).Succeeded);
+        Assert.False((await ApiKeyAuthAsync(r => r.Headers.Authorization = "Bearer not-the-key", adminKey)).Succeeded);
+    }
+
+    [Fact]
+    public async Task SessionJwt_AsBearer_IsNotAnApiKey()
+    {
+        var token = JwtAuthHandler.CreateToken(SigningKey, "admin", DateTimeOffset.UtcNow.AddHours(1), "admin", adminKey: true);
+
+        Assert.True((await ApiKeyAuthAsync(r => r.Headers.Authorization = $"Bearer {token}")).None);
+    }
+
+    [Fact]
+    public void SchemeSelector_RoutesBySessionTokenShape()
+    {
+        var jwt = JwtAuthHandler.CreateToken(SigningKey, "admin", DateTimeOffset.UtcNow.AddHours(1), "admin");
+        var (key, _) = ApiKeyGenerator.Generate();
+        string Select(Action<HttpRequest> set) { var c = new DefaultHttpContext(); set(c.Request); return JwtAuthExtensions.SelectScheme(c); }
+
+        Assert.Equal(JwtAuthExtensions.SchemeName, Select(r => r.Headers.Authorization = $"Bearer {jwt}"));
+        Assert.Equal(ApiKeyAuthExtensions.SchemeName, Select(r => r.Headers.Authorization = $"Bearer {key}"));
+        Assert.Equal(JwtAuthExtensions.SchemeName, Select(r => r.Headers.Cookie = $"{JwtAuthHandler.CookieName}={jwt}"));
+        Assert.Equal(ApiKeyAuthExtensions.SchemeName, Select(r => r.Headers["X-Api-Key"] = key));
+    }
+
     [Fact]
     public void ExportWriter_FlattensGroupsAndQuotesYamlStrings()
     {

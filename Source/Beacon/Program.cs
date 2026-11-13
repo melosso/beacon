@@ -292,18 +292,7 @@ try
         })
         .AddPolicyScheme("CompositeScheme", "API Key or JWT", options =>
         {
-            options.ForwardDefaultSelector = context =>
-            {
-                // Bearer token → JWT handler
-                if (context.Request.Headers.Authorization.ToString()
-                    .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                    return JwtAuthExtensions.SchemeName;
-                // HttpOnly auth cookie → JWT handler
-                if (context.Request.Cookies.ContainsKey(JwtAuthHandler.CookieName))
-                    return JwtAuthExtensions.SchemeName;
-                // Otherwise → API key handler
-                return ApiKeyAuthExtensions.SchemeName;
-            };
+            options.ForwardDefaultSelector = JwtAuthExtensions.SelectScheme;
         });
 
     builder.Services.AddAntiforgery();
@@ -355,15 +344,21 @@ try
                 (logoSrc.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || logoSrc.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase)))
                 document.Info.Description = $"![{document.Info.Title}](<{logoSrc}>)\n\n{document.Info.Description}";
 
-            // Add API key security scheme
+            // One API key, two headers: Bearer is the default, X-Api-Key the alternative
             document.Components ??= new OpenApiComponents();
             document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+            document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                Description = "API key in the Authorization header: `Bearer <api-key>`."
+            };
             document.Components.SecuritySchemes["ApiKey"] = new OpenApiSecurityScheme
             {
                 Type = SecuritySchemeType.ApiKey,
                 In = ParameterLocation.Header,
                 Name = "X-Api-Key",
-                Description = "A mandatory API key for authentication."
+                Description = "The same API key in the X-Api-Key header."
             };
 
             // Set the host document for references to resolve correctly
@@ -381,14 +376,10 @@ try
 
             if (hasAuthorization)
             {
+                // Separate requirements: either scheme authorizes the operation
                 operation.Security ??= [];
-                operation.Security.Add(new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecuritySchemeReference("ApiKey"),
-                        new List<string>()
-                    }
-                });
+                operation.Security.Add(new OpenApiSecurityRequirement { { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() } });
+                operation.Security.Add(new OpenApiSecurityRequirement { { new OpenApiSecuritySchemeReference("ApiKey"), new List<string>() } });
             }
 
             return Task.CompletedTask;
