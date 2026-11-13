@@ -8,7 +8,7 @@ const settingsDefaults = {
   allowDbLookup: true,
   enableCaching: false,
   theme: "system",
-  font: "inter",
+  font: "plex",
   defaultLanguage: "en",
   uiLanguage: "en",
   loginFooterEnabled: false,
@@ -65,7 +65,7 @@ function loadSettings() {
     appSettings.objectStorage;
   // Font select
   const fontEl = document.getElementById("setting-font");
-  if (fontEl) fontEl.value = appSettings.font || "inter";
+  if (fontEl) fontEl.value = appSettings.font || "plex";
   // Default language select
   const langEl = document.getElementById("setting-defaultLanguage");
   if (langEl) langEl.value = appSettings.defaultLanguage || "en";
@@ -221,7 +221,7 @@ async function loadServerSettings() {
 }
 
 function applyAppearance() {
-  document.documentElement.style.setProperty("--app-font", APP_FONTS[appSettings.font] || APP_FONTS.inter);
+  document.documentElement.style.setProperty("--app-font", APP_FONTS[appSettings.font] || APP_FONTS.plex);
   const theme = appSettings.theme || "system";
   if (theme === "system") {
     document.documentElement.removeAttribute("data-theme");
