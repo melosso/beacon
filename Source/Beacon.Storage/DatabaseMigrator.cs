@@ -233,6 +233,7 @@ public static class DatabaseMigrator
                     Status TEXT NOT NULL DEFAULT 'Pending',
                     TriggeredBy TEXT NOT NULL DEFAULT 'cron',
                     ScheduledAt TEXT NOT NULL,
+                    PolicyDays INTEGER NULL,
                     StartedAt TEXT NULL,
                     CompletedAt TEXT NULL,
                     RecordsAffected INTEGER NOT NULL DEFAULT 0,
@@ -241,6 +242,10 @@ public static class DatabaseMigrator
                 )
                 """);
             db.Database.ExecuteSqlRaw("CREATE INDEX IX_WorkflowTasks_ScheduledAt ON WorkflowTasks (ScheduledAt)");
+        }
+        else
+        {
+            AddColumnIfMissing(db, "WorkflowTasks", "PolicyDays", "INTEGER NULL");
         }
     }
 

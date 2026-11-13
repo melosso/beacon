@@ -116,10 +116,10 @@ public sealed class DataPolicyWorker : BackgroundService
         var now = DateTime.UtcNow;
 
         if (config.RetentionPurgeEnabled)
-            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.RetentionPurge, now, config.RetentionPurgeRequireApproval, stoppingToken);
+            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.RetentionPurge, now, config.RetentionPurgeDays, config.RetentionPurgeRequireApproval, stoppingToken);
 
         if (config.PendingConfirmationPurgeEnabled && !stoppingToken.IsCancellationRequested)
-            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.PendingConfirmationPurge, now, config.PendingConfirmationPurgeRequireApproval, stoppingToken);
+            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.PendingConfirmationPurge, now, config.PendingConfirmationPurgeDays, config.PendingConfirmationPurgeRequireApproval, stoppingToken);
 
         if (!config.RetentionPurgeEnabled && !config.PendingConfirmationPurgeEnabled)
         {
@@ -133,10 +133,11 @@ public sealed class DataPolicyWorker : BackgroundService
         WorkflowTrigger triggeredBy,
         WorkflowTaskType taskType,
         DateTime scheduledAt,
+        int policyDays,
         bool requireApproval,
         CancellationToken stoppingToken)
     {
-        var pending = await policies.CountAsync(taskType, scheduledAt, stoppingToken);
+        var pending = await policies.CountAsync(taskType, scheduledAt, policyDays, stoppingToken);
         if (pending == 0)
         {
             _logger.LogDebug("Data policy: {TaskType} skipped. Nothing to process", taskType);
@@ -157,7 +158,8 @@ public sealed class DataPolicyWorker : BackgroundService
                 TaskType = taskType,
                 Status = WorkflowTaskStatus.PendingApproval,
                 TriggeredBy = triggeredBy,
-                ScheduledAt = scheduledAt
+                ScheduledAt = scheduledAt,
+                PolicyDays = policyDays
             }, stoppingToken);
             _logger.LogInformation(
                 "Data policy: {TaskType} queued for approval (triggeredBy={TriggeredBy}, pending={Pending})",
@@ -172,6 +174,7 @@ public sealed class DataPolicyWorker : BackgroundService
             Status = WorkflowTaskStatus.Running,
             TriggeredBy = triggeredBy,
             ScheduledAt = scheduledAt,
+            PolicyDays = policyDays,
             StartedAt = DateTime.UtcNow
         }, stoppingToken);
 

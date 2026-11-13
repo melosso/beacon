@@ -49,14 +49,21 @@ public sealed class DataPolicyService
         return new TaskOperationResult(TaskOperationOutcome.Success, rejected);
     }
 
-    /// <summary>Counts records the policy affects for a task scheduled at <paramref name="scheduledAt"/>.</summary>
-    public Task<int> CountAsync(WorkflowTaskType type, DateTime scheduledAt, CancellationToken ct = default)
+    private static int PolicyDays(SystemConfig config, WorkflowTaskType type) => type switch
     {
-        var config = _configSvc.Get();
+        WorkflowTaskType.RetentionPurge => config.RetentionPurgeDays,
+        WorkflowTaskType.PendingConfirmationPurge => config.PendingConfirmationPurgeDays,
+        _ => throw new InvalidOperationException($"Unknown task type: {type}")
+    };
+
+    /// <summary>Counts records the policy affects for a task scheduled at <paramref name="scheduledAt"/>.</summary>
+    public Task<int> CountAsync(WorkflowTaskType type, DateTime scheduledAt, int policyDays, CancellationToken ct = default)
+    {
+        var cutoff = scheduledAt.AddDays(-policyDays);
         return type switch
         {
-            WorkflowTaskType.RetentionPurge => _consentRepo.CountOptedOutToAnonymiseAsync(scheduledAt.AddDays(-config.RetentionPurgeDays), ct),
-            WorkflowTaskType.PendingConfirmationPurge => _consentRepo.CountPendingConfirmationToPurgeAsync(scheduledAt.AddDays(-config.PendingConfirmationPurgeDays), ct),
+            WorkflowTaskType.RetentionPurge => _consentRepo.CountOptedOutToAnonymiseAsync(cutoff, ct),
+            WorkflowTaskType.PendingConfirmationPurge => _consentRepo.CountPendingConfirmationToPurgeAsync(cutoff, ct),
             _ => throw new InvalidOperationException($"Unknown task type: {type}")
         };
     }
@@ -64,19 +71,20 @@ public sealed class DataPolicyService
     /// <summary>Executes a Running task and stores the Completed or Failed result.</summary>
     internal async Task<WorkflowTask> RunAsync(WorkflowTask running, CancellationToken ct)
     {
-        var config = _configSvc.Get();
         WorkflowTask done;
         try
         {
-            // Cutoff derives from ScheduledAt: an approved task affects the set counted at scheduling.
+            // Cutoff derives from the task: an approved task affects the set counted at scheduling.
+            var days = running.PolicyDays ?? PolicyDays(_configSvc.Get(), running.TaskType);
+            var cutoff = running.ScheduledAt.AddDays(-days);
             var (affected, notes) = running.TaskType switch
             {
                 WorkflowTaskType.RetentionPurge => (
-                    await _consentRepo.AnonymiseOptedOutAsync(running.ScheduledAt.AddDays(-config.RetentionPurgeDays), ct),
-                    $"Anonymised opted-out records older than {config.RetentionPurgeDays} days"),
+                    await _consentRepo.AnonymiseOptedOutAsync(cutoff, ct),
+                    $"Anonymised opted-out records older than {days} days"),
                 WorkflowTaskType.PendingConfirmationPurge => (
-                    await _consentRepo.PurgePendingConfirmationAsync(running.ScheduledAt.AddDays(-config.PendingConfirmationPurgeDays), ct),
-                    $"Opted out and anonymised pending confirmation records older than {config.PendingConfirmationPurgeDays} days"),
+                    await _consentRepo.PurgePendingConfirmationAsync(cutoff, ct),
+                    $"Opted out and anonymised pending confirmation records older than {days} days"),
                 _ => throw new InvalidOperationException($"Unknown task type: {running.TaskType}")
             };
             done = running with { Status = WorkflowTaskStatus.Completed, CompletedAt = DateTime.UtcNow, RecordsAffected = affected, Notes = notes };
