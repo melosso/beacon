@@ -73,3 +73,4 @@ If `API_HOSTS` and `ADMIN_HOSTS` are not set: Beacon routes by port.
 | `USER_AUTHENTICATION` | `user`, `api` or `both`. Empty: `ADMIN_API_KEY` is the sole credential | `both` |
 | `ENFORCE_HTTPS` | Redirect HTTP to HTTPS and send HSTS headers. Set if Beacon terminates TLS | `false` |
 | `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email | `false` |
+| `DEMO_MODE` | Block non-admin users from changing their own password or API key. Not editable in the admin panel | `false` |

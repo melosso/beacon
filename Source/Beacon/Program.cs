@@ -88,6 +88,7 @@ try
     var instanceOptions = new Beacon.Core.Services.InstanceOptions
     {
         DisableEmailNotifications = disableEmailNotifications,
+        DemoMode = config.GetValue<bool>("DemoMode", false),
         PublicUrl = resolvedPublicUrl
     };
     builder.Services.AddSingleton(instanceOptions);

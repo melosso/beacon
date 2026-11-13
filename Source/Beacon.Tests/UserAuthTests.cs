@@ -1,8 +1,12 @@
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using Beacon.Api;
 using Beacon.Core.Security;
+using Beacon.Core.Services;
 using Beacon.Security;
 using Beacon.Storage;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -629,5 +633,50 @@ public class UserRepositoryTests : IDisposable
     public async Task DeleteAsync_IsIdempotent_WhenUserNotFound()
     {
         await _repository.DeleteAsync(Guid.NewGuid()); // must not throw
+    }
+}
+
+public sealed class DemoModeTests : IDisposable
+{
+    private readonly SqliteConnection _connection = new("DataSource=:memory:");
+    private readonly BeaconDbContext _db;
+    private readonly UserRepository _repo;
+
+    public DemoModeTests()
+    {
+        _connection.Open();
+        _db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).Options);
+        _db.Database.EnsureCreated();
+        _repo = new UserRepository(_db);
+    }
+
+    public void Dispose()
+    {
+        _db.Dispose();
+        _connection.Dispose();
+    }
+
+    private static HttpContext As(string username, string role) => new DefaultHttpContext
+    {
+        User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, username), new Claim(ClaimTypes.Role, role)], "Jwt"))
+    };
+
+    private static int? Status(IResult result) => (result as IStatusCodeHttpResult)?.StatusCode;
+
+    [Theory]
+    [InlineData(true, "user", 403)]
+    [InlineData(true, "admin", 200)]
+    [InlineData(false, "user", 200)]
+    public async Task SelfCredentialChange_RespectsDemoMode(bool demoMode, string role, int expected)
+    {
+        var (hash, salt) = PasswordHasher.HashPassword("Demo-password-1");
+        var user = await _repo.CreateAsync("demo", hash, salt, role, ApiKeyGenerator.Generate().apiKeyHash);
+        var instance = new InstanceOptions { DemoMode = demoMode };
+
+        var password = await UserEndpoints.ChangePassword(user.Id, new UserEndpoints.ChangePasswordRequest("Demo-password-1", "Other-password-2"), As("demo", role), _repo, instance);
+        var apiKey = await UserEndpoints.RegenerateApiKey(user.Id, As("demo", role), _repo, instance);
+
+        Assert.Equal(expected, Status(password));
+        Assert.Equal(expected, Status(apiKey));
     }
 }

@@ -85,3 +85,4 @@ You can configure the following additional, completely optional settings:
 | `USER_AUTHENTICATION` | Allow user authentication, API tokens, or both (`user`, `api`, `both`). Leave blank to only allow `ADMIN_API_KEY` | both |
 | `ENFORCE_HTTPS` | Redirect HTTP to HTTPS and send HSTS headers. Set only if Beacon terminates TLS. Leave off behind a TLS proxy | false |
 | `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email for this instance. Not editable in the admin panel | false |
+| `DEMO_MODE` | Block non-admin users from changing their own password or API key. Not editable in the admin panel | false |
