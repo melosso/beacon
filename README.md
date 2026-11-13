@@ -84,7 +84,7 @@ The admin panel is available at **http://localhost:5001**. The API is available 
 
 Download the latest release from [Releases](https://github.com/melosso/beacon/releases).
 
-1. **Install .NET 11 (LTS) Runtime:**
+1. **Install .NET 11 Runtime:**
 
 ```powershell
 winget install --id Microsoft.DotNet.RunTime.11 -e
