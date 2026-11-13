@@ -24,4 +24,12 @@ public sealed record AssetObject
     [JsonPropertyName("type")]  public required string Type { get; init; }
     [JsonPropertyName("data")]  public string? Data { get; init; }
     [JsonPropertyName("url")]   public string? Url { get; init; }
+
+    /// <summary>Image source for the asset; null for an unknown type.</summary>
+    [JsonIgnore] public string? Src => Type switch
+    {
+        "base64" => Data,
+        "url" or "objectStorage" => Url,
+        _ => null
+    };
 }

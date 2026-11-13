@@ -340,6 +340,15 @@ try
             document.Info.Version = "v1";
             document.Info.Description = "A lightweight consent management platform. Handle email consent states independently from any ERP, CRM or platform.";
 
+            // Scalar API Reference has no logo option; it renders the description as markdown.
+            var defaultIdentity = context.ApplicationServices.GetRequiredService<BrandIdentityService>().GetAll().FirstOrDefault(i => i.IsDefault);
+            string? logoSrc = null;
+            try { logoSrc = defaultIdentity is null ? null : JsonSerializer.Deserialize<Beacon.Core.Models.BrandIdentitySettings>(defaultIdentity.Settings)?.Logo?.Src; }
+            catch (JsonException) { }
+            if (logoSrc is not null && !logoSrc.Contains('>') &&
+                (logoSrc.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || logoSrc.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase)))
+                document.Info.Description = $"![{document.Info.Title}](<{logoSrc}>)\n\n{document.Info.Description}";
+
             // Add API key security scheme
             document.Components ??= new OpenApiComponents();
             document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();

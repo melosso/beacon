@@ -768,13 +768,7 @@ public static class ConsentEndpoints
 
     private static string BuildPageLogoHtml(AssetObject? logo)
     {
-        if (logo is null) return "";
-        var src = logo.Type switch
-        {
-            "base64" => logo.Data,
-            "url" or "objectStorage" => logo.Url,
-            _ => null
-        };
+        var src = logo?.Src;
         if (string.IsNullOrEmpty(src)) return "";
         return $"<img src=\"{WebUtility.HtmlEncode(src)}\" class=\"brand-logo\" alt=\"Logo\" />";
     }
