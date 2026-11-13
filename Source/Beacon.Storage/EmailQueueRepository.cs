@@ -67,14 +67,14 @@ public sealed class EmailQueueRepository {
                 .SetProperty(e => e.ConfirmedAt, confirmedAt)) == 1;
     }
 
-    /// <summary>Cancels unconfirmed entries for the key, including sent ones: a newer email supersedes their links.</summary>
+    /// <summary>Cancels every entry for the key that MarkConfirmedAsync accepts: a newer email supersedes their links.</summary>
     public async Task CancelPendingAsync(string bucket, string emailHash, string permission)
     {
         await _db.EmailQueueEntries
             .Where(e => e.Bucket == bucket &&
                         e.EmailHash == emailHash &&
                         e.Permission == permission &&
-                        (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent))
+                        (e.Status == EmailQueueStatus.Pending || e.Status == EmailQueueStatus.Sent || e.Status == EmailQueueStatus.Failed))
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.Status, EmailQueueStatus.Cancelled));
     }
 
