@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- shortcut: Npgsql.EntityFrameworkCore.PostgreSQL 11.0.0-rc.3 pins EF rc.3 exactly; remove when Npgsql 11.0.0 GA ships. -->
+    <NoWarn>$(NoWarn);NU1608</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -40,6 +40,7 @@ desktop.ini
 !README.md
 !CONTRIBUTING.md
 !CONFIGURATION.md
+!.kb/**/*.md
 
 # configuration & environments
 appsettings.*.json
@@ -56,3 +57,4 @@ appsettings.*.json
 # directory rules
 .*/
 !.github/
+!.kb/

@@ -29,11 +29,12 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // No API key header present
-        if (!Request.Headers.TryGetValue(ApiKeyHeader, out var apiKeyHeader))
+        // X-Api-Key, else an Authorization: Bearer value that is not a session JWT
+        var providedKey = Request.Headers.TryGetValue(ApiKeyHeader, out var apiKeyHeader)
+            ? apiKeyHeader.ToString()
+            : JwtAuthHandler.BearerValue(Request) is { } bearer && !JwtAuthHandler.IsSessionToken(bearer) ? bearer : null;
+        if (string.IsNullOrEmpty(providedKey))
             return AuthenticateResult.NoResult();
-
-        var providedKey = apiKeyHeader.ToString();
 
         // Strip "Bearer " prefix if callers mistakenly include it
         if (providedKey.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
@@ -166,8 +167,9 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
     {
         Response.StatusCode = 401;
+        Response.Headers.WWWAuthenticate = "Bearer";
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Unauthorized.\"}");
+        await Response.WriteAsync("{\"error\":\"Authentication required. Send the API key as a Bearer token.\"}");
         await Response.CompleteAsync();
     }
 
@@ -175,7 +177,7 @@ public class ApiKeyAuthHandler : AuthenticationHandler<ApiKeyAuthOptions>
     {
         Response.StatusCode = 403;
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Forbidden. Insufficient permissions.\"}");
+        await Response.WriteAsync("{\"error\":\"Access denied. The credential lacks the permission for this request.\"}");
         await Response.CompleteAsync();
     }
 }

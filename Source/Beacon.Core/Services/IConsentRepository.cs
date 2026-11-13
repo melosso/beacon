@@ -5,7 +5,9 @@ namespace Beacon.Core.Services;
 public interface IConsentRepository
 {
     Task<ConsentRecord?> GetAsync(string bucket, string emailHash, string permission);
-    Task UpsertAsync(ConsentRecord record, string? actorId = null);
+    /// <summary>Inserts or updates the record subject to <see cref="ConsentTransition"/>. Returns false if no write occurs.</summary>
+    /// <param name="insertOnly">If true: an existing record is never updated.</param>
+    Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false);
     Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null);
 
     // Admin queries
@@ -31,6 +33,7 @@ public interface IConsentRepository
 
     // Data policy operations
     Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default);
+    /// <summary>Sets pending confirmation records older than <paramref name="cutoff"/> to OptedOut and removes their personal data.</summary>
     Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default);
@@ -40,6 +43,9 @@ public sealed class BucketInfo
 {
     public required string Name { get; init; }
     public int TotalEmails { get; init; }
+    /// <summary>Consent records in the bucket: one per email and permission.</summary>
+    public int TotalRecords { get; init; }
+    public int OptedInRecords { get; init; }
     public IReadOnlyList<string> Permissions { get; init; } = [];
 }
 
@@ -85,6 +91,8 @@ public sealed class EmailPermissions
     public string? Email { get; set; }
     public string? Name { get; set; }
     public required Dictionary<string, bool> Permissions { get; init; }
+    /// <summary>Permissions awaiting double opt-in confirmation; <see cref="Permissions"/> reports them as false.</summary>
+    public IReadOnlyList<string> PendingPermissions { get; init; } = [];
     public DateTime FirstSeen { get; init; }
     public DateTime LastChanged { get; init; }
     public Dictionary<string, string>? CustomFields { get; init; }
@@ -94,6 +102,8 @@ public sealed class BucketSubscription
 {
     public required string Bucket { get; init; }
     public required Dictionary<string, bool> Permissions { get; init; }
+    /// <summary>Permissions awaiting double opt-in confirmation; <see cref="Permissions"/> reports them as false.</summary>
+    public IReadOnlyList<string> PendingPermissions { get; init; } = [];
     public DateTime LastChanged { get; init; }
 }
 

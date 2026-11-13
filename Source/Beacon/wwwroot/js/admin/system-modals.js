@@ -114,8 +114,8 @@ function updateCharCount(textarea) {
   document.getElementById(`${textarea.id}-count`).textContent = `${textarea.value.length} / 500`;
 }
 
-function savePerPermissionEmail(value) {
-  saveSetting("perPermissionEmail", value === "true");
+async function savePerPermissionEmail(value) {
+  await saveSettingImmediate("perPermissionEmail", value === "true");
 }
 
 function openLoginFooterModal() {
@@ -267,7 +267,7 @@ async function onEmailNotificationsToggle(checkbox) {
     return;
   }
   if (!checkbox.checked) {
-    saveSetting("emailNotifications", false);
+    await saveSettingImmediate("emailNotifications", false);
     return;
   }
   const provider = appSettings.emailProvider || "none";
@@ -286,7 +286,7 @@ async function onEmailNotificationsToggle(checkbox) {
     notify("error", "Incomplete configuration", error);
     return;
   }
-  saveSetting("emailNotifications", true);
+  await saveSettingImmediate("emailNotifications", true);
 }
 
 async function saveEmailSettings() {
@@ -471,6 +471,7 @@ function updateSidebarUser() {
 function setupUserAuthNav(role) {
   const mode = typeof USER_AUTH_METHOD !== "undefined" ? USER_AUTH_METHOD : "";
   const isAdmin = !mode || role === "admin";
+  document.documentElement.toggleAttribute("data-admin", isAdmin);
   const settingsNavAccount = document.getElementById("settingsNavAccount");
   const settingsNavDivider = document.getElementById("settingsNavDivider");
   const settingsNavUsers = document.getElementById("settingsNavUsers");

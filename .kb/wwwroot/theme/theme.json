@@ -1,0 +1,15 @@
+{
+  "primaryColor": "#18181b",
+  "primaryColorDark": "#fafafa",
+  "bgColor": "#ffffff",
+  "sidebarBg": "#fafafa",
+  "textColor": "#18181b",
+  "textMuted": "#52525b",
+  "borderColor": "#e4e4e7",
+  "codeBg": "#f6f8fa",
+  "accentLight": "rgba(24, 24, 27, 0.06)",
+  "fontSans": "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  "fontMono": "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+  "brandText": "Beacon",
+  "darkMode": true
+}

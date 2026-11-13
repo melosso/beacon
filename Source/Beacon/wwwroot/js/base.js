@@ -1,5 +1,14 @@
 // Shared by the login page and the admin shell. Requires /js/lit.js (html, render, nothing).
 
+// The admin UI is English: numbers and dates follow it, day-first with a 24-hour clock, regardless of the browser locale
+const UI_LOCALE = "en-GB";
+
+// "1–10 of 2,080"; "0 of 0" when empty
+function pageRangeText(start, end, total) {
+  const n = (v) => v.toLocaleString(UI_LOCALE);
+  return total === 0 ? "0 of 0" : `${n(start)}–${n(end)} of ${n(total)}`;
+}
+
 const ACTION_EVENTS = {
   click: "click",
   dblclick: "dblclick",
@@ -310,6 +319,38 @@ function dismissPromoBar() {
   bar.classList.remove("is-visible");
 }
 
+// Same beacon_settings.theme value as the admin Appearance setting and js/theme.js.
+function readSettings() {
+  try { return JSON.parse(localStorage.getItem("beacon_settings") || "{}"); } catch { return {}; }
+}
+
+// data-theme is the applied choice, valid without storage. No attribute: the system preference decides.
+function effectiveTheme() {
+  const applied = document.documentElement.getAttribute("data-theme");
+  if (applied === "light" || applied === "dark") return applied;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function cycleTheme() {
+  const settings = readSettings();
+  settings.theme = effectiveTheme() === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", settings.theme);
+  try { localStorage.setItem("beacon_settings", JSON.stringify(settings)); } catch {}
+  syncThemeToggle();
+}
+
+function syncThemeToggle() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  const theme = effectiveTheme();
+  btn.dataset.mode = theme;
+  btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+  btn.title = btn.getAttribute("aria-label");
+}
+
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeToggle);
+
 bindActions();
 showPromoBar();
 initLoginPage();
+syncThemeToggle();

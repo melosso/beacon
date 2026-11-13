@@ -20,54 +20,47 @@ public sealed class ConsentRepository : IConsentRepository
             .FirstOrDefaultAsync(r => r.Bucket == bucket && r.EmailHash == emailHash && r.Permission == permission);
     }
 
-    public async Task UpsertAsync(ConsentRecord record, string? actorId = null)
+    public async Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false)
     {
-        var existing = await _context.ConsentRecords
-            .FirstOrDefaultAsync(r
-                => r.Bucket == record.Bucket
-                && r.EmailHash == record.EmailHash
-                && r.Permission == record.Permission);
-
-        ConsentStatus? oldStatus = existing?.Status;
-
-        if (existing is null)
+        for (var attempt = 0; ; attempt++)
         {
-            _context.ConsentRecords.Add(record);
-        }
-        else
-        {
-            ApplyUpdate(existing, record);
-        }
+            var existing = await FindAsync(record);
+            if (existing is not null && !Accepts(existing, record, insertOnly))
+                return false;
 
-        if (oldStatus != record.Status)
-            _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId));
+            ConsentStatus? oldStatus = existing?.Status;
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
-        {
-            // Lost the concurrent-insert race: reload and apply as update.
-            _context.ChangeTracker.Clear();
+            if (existing is null)
+                _context.ConsentRecords.Add(record);
+            else
+                ApplyUpdate(existing, record);
 
-            var winner = await _context.ConsentRecords
-                .FirstOrDefaultAsync(r
-                    => r.Bucket == record.Bucket
-                    && r.EmailHash == record.EmailHash
-                    && r.Permission == record.Permission);
+            if (oldStatus != record.Status)
+                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId));
 
-            if (winner is null) throw;
-
-            var prevStatus = winner.Status;
-            ApplyUpdate(winner, record);
-
-            if (prevStatus != record.Status)
-                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, prevStatus, actorId));
-
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex) when (attempt < MaxWriteRetries && (ex is DbUpdateConcurrencyException || IsUniqueConstraintViolation(ex)))
+            {
+                // Lost a concurrent insert or status change: reload and re-check the transition.
+                _context.ChangeTracker.Clear();
+            }
         }
     }
+
+    private const int MaxWriteRetries = 3;
+
+    private Task<ConsentRecord?> FindAsync(ConsentRecord record) =>
+        _context.ConsentRecords.FirstOrDefaultAsync(r
+            => r.Bucket == record.Bucket
+            && r.EmailHash == record.EmailHash
+            && r.Permission == record.Permission);
+
+    private static bool Accepts(ConsentRecord existing, ConsentRecord incoming, bool insertOnly) =>
+        !insertOnly && ConsentTransition.IsAllowed(existing.Status, incoming.Status);
 
     private static void ApplyUpdate(ConsentRecord target, ConsentRecord src)
     {
@@ -98,7 +91,7 @@ public sealed class ConsentRepository : IConsentRepository
             CustomFields = record.CustomFields
         };
 
-    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    internal static bool IsUniqueConstraintViolation(DbUpdateException ex)
     {
         var msg = ex.InnerException?.Message;
         if (msg is null) return false;
@@ -147,7 +140,13 @@ public sealed class ConsentRepository : IConsentRepository
         var summaries = await _context.ConsentRecords
             .AsNoTracking()
             .GroupBy(r => r.Bucket)
-            .Select(g => new { Name = g.Key, TotalEmails = g.Select(r => r.EmailHash).Distinct().Count() })
+            .Select(g => new
+            {
+                Name = g.Key,
+                TotalEmails = g.Select(r => r.EmailHash).Distinct().Count(),
+                TotalRecords = g.Count(),
+                OptedInRecords = g.Count(r => r.Status == ConsentStatus.OptedIn)
+            })
             .ToListAsync();
 
         var permRows = await _context.ConsentRecords
@@ -165,6 +164,8 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 Name = s.Name,
                 TotalEmails = s.TotalEmails,
+                TotalRecords = s.TotalRecords,
+                OptedInRecords = s.OptedInRecords,
                 Permissions = permsByBucket.TryGetValue(s.Name, out var perms) ? perms : []
             })
             .OrderBy(b => b.Name)
@@ -248,6 +249,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 EncryptedName = g.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                PendingPermissions = g.Where(r => r.Status == ConsentStatus.PendingConfirmation).Select(r => r.Permission).ToList(),
                 FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
@@ -283,6 +285,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 EncryptedName = g.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                PendingPermissions = g.Where(r => r.Status == ConsentStatus.PendingConfirmation).Select(r => r.Permission).ToList(),
                 FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
@@ -304,26 +307,16 @@ public sealed class ConsentRepository : IConsentRepository
             .Where(e => e.Bucket == bucket)
             .ExecuteDeleteAsync();
 
-        var records = await _context.ConsentRecords
+        return await _context.ConsentRecords
             .Where(r => r.Bucket == bucket)
-            .ToListAsync();
-
-        _context.ConsentRecords.RemoveRange(records);
-        await _context.SaveChangesAsync();
-
-        return records.Count;
+            .ExecuteDeleteAsync();
     }
 
     public async Task<int> DeletePermissionAsync(string bucket, string permission)
     {
-        var records = await _context.ConsentRecords
+        return await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.Permission == permission)
-            .ToListAsync();
-
-        _context.ConsentRecords.RemoveRange(records);
-        await _context.SaveChangesAsync();
-
-        return records.Count;
+            .ExecuteDeleteAsync();
     }
 
     public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
@@ -332,14 +325,9 @@ public sealed class ConsentRepository : IConsentRepository
             .Where(e => e.EmailHash == emailHash && e.Bucket == bucket)
             .ExecuteDeleteAsync();
 
-        var records = await _context.ConsentRecords
+        return await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
-            .ToListAsync();
-
-        _context.ConsentRecords.RemoveRange(records);
-        await _context.SaveChangesAsync();
-
-        return records.Count;
+            .ExecuteDeleteAsync();
     }
 
     public async Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash)
@@ -521,6 +509,7 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 Bucket = g.Key,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                PendingPermissions = g.Where(r => r.Status == ConsentStatus.PendingConfirmation).Select(r => r.Permission).ToList(),
                 LastChanged = g.Max(r => r.ChangedAt)
             })
             .OrderBy(b => b.Bucket)
@@ -563,9 +552,47 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default)
     {
-        return await _context.ConsentRecords
+        // A deleted row reads as OptedIn: the record stays as an OptedOut suppression entry.
+        var candidates = await _context.ConsentRecords.AsNoTracking()
             .Where(r => r.Status == ConsentStatus.PendingConfirmation && r.ChangedAt < cutoff)
-            .ExecuteDeleteAsync(ct);
+            .ToListAsync(ct);
+
+        await using var tx = _context.Database.CurrentTransaction is null ? await _context.Database.BeginTransactionAsync(ct) : null;
+        var now = DateTime.UtcNow;
+        var purged = 0;
+        foreach (var r in candidates)
+        {
+            // Per-row guard: a confirmation or renewal committed after the read keeps its record.
+            var rows = await _context.ConsentRecords
+                .Where(x => x.Id == r.Id && x.Status == ConsentStatus.PendingConfirmation && x.ChangedAt < cutoff)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(x => x.Status, ConsentStatus.OptedOut)
+                    .SetProperty(x => x.ChangedAt, now)
+                    .SetProperty(x => x.EncryptedEmail, (string?)null)
+                    .SetProperty(x => x.EncryptedName, (string?)null)
+                    .SetProperty(x => x.IpAddress, (string?)null)
+                    .SetProperty(x => x.CustomFields, (string?)null)
+                    .SetProperty(x => x.ConsentText, (string?)null), ct);
+            if (rows == 0) continue;
+
+            purged++;
+            _context.ConsentAuditEntries.Add(new ConsentAuditEntry
+            {
+                Id = Guid.NewGuid(),
+                Bucket = r.Bucket,
+                EmailHash = r.EmailHash,
+                Permission = r.Permission,
+                OldStatus = ConsentStatus.PendingConfirmation,
+                NewStatus = ConsentStatus.OptedOut,
+                Source = r.Source,
+                ActorId = "policy:pending-confirmation-purge",
+                ChangedAt = now
+            });
+        }
+
+        await _context.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return purged;
     }
 
     public async Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)

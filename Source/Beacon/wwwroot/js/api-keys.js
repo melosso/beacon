@@ -11,6 +11,7 @@ const KNOWN_PERMISSIONS = [
   { value: "_all", label: "Full access (_all)" },
   { value: "consent:read", label: "Consent — Read" },
   { value: "consent:write", label: "Consent — Write" },
+  { value: "consent:export", label: "Consent — Export" },
   { value: "tokens:write", label: "Tokens — Generate" },
   { value: "buckets:read", label: "Buckets — Read" },
   { value: "buckets:write", label: "Buckets — Write" },
@@ -107,8 +108,8 @@ function renderApiKeysTable(keys) {
           <td><strong>${k.name}</strong></td>
           <td>${renderPermissionBadges(k.permissions)}</td>
           <td><span class=${st.tone}>${st.label}</span></td>
-          <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString() : html`<span class="text-muted">—</span>`}</td>
-          <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString() : "-"}</td>
+          <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString(UI_LOCALE) : html`<span class="text-muted">—</span>`}</td>
+          <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
           <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">Never</span>`}</td>
           <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, [
             ["Edit permissions", () => openEditApiKeyPermissionsModal(k.id, k.name, k.permissions || [])],

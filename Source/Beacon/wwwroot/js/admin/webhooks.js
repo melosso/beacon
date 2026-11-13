@@ -81,11 +81,9 @@ async function showOptionsModal(pushState = true) {
 
   // Update archive button state
   const archiveBtn = document.getElementById("optionsArchiveBtn");
-  archiveBtn.title = currentBucketArchived
+  archiveBtn.textContent = currentBucketArchived
     ? "Unarchive bucket"
     : "Archive bucket";
-  archiveBtn.setAttribute("aria-label", archiveBtn.title);
-  archiveBtn.classList.toggle("is-active", currentBucketArchived);
 
   // Load bucket permissions
   loadBucketPerms();
@@ -448,7 +446,7 @@ function openErrorDetail(error) {
   activeErrorDetail = error;
   document.getElementById("errorDetailTime").textContent = new Date(
     error.occurredAt,
-  ).toLocaleString();
+  ).toLocaleString(UI_LOCALE);
   paint(document.getElementById("errorDetailBadge"), errorStatus(error));
   const parts = [];
   if (error.requestMethod && error.requestUrl) parts.push(`${error.requestMethod} ${error.requestUrl}`);
@@ -491,7 +489,7 @@ function copyErrorMessage() {
     meta.push(`Request: ${e.requestMethod} ${e.requestUrl}`);
   if (e.statusCode) meta.push(`Status: ${e.statusCode}`);
   if (e.attemptCount > 0) meta.push(`Attempts: ${e.attemptCount}`);
-  meta.push(`Time: ${new Date(e.occurredAt).toLocaleString()}`);
+  meta.push(`Time: ${new Date(e.occurredAt).toLocaleString(UI_LOCALE)}`);
   if (meta.length) text = meta.join("\n") + "\n\n" + text;
   if (e.stackTrace) text += "\n\nStack Trace:\n" + e.stackTrace;
   clipboardWrite(text).then(() => {
@@ -580,10 +578,11 @@ function openEditPermissions(record) {
   document.getElementById("editName").value = editingRecord.name || "";
 
   paint(document.getElementById("editPermissionsGrid"), html`${currentBucketPermissions.map((p) => {
-    const state = editingRecord.permissions[p];
+    // Pending and unrecorded permissions start with no choice: saving leaves them unchanged
+    const state = editingRecord.pendingPermissions?.includes(p) ? undefined : editingRecord.permissions[p];
     return html`
       <div class="permission-row" data-perm=${p}>
-        <span class="permission-name">${formatPermission(p)}</span>
+        <span class="permission-name">${formatPermission(p)}${editingRecord.pendingPermissions?.includes(p) ? html` ${consentChip(false, true)}` : nothing}</span>
         <div class="permission-toggle">
           <button type="button" class="opted-in ${state === true ? "active" : ""}" @click=${(e) => setPermState(e.currentTarget, true)}>In</button>
           <button type="button" class="opted-out ${state === false ? "active" : ""}" @click=${(e) => setPermState(e.currentTarget, false)}>Out</button>
@@ -728,12 +727,15 @@ async function savePermissions() {
   document
     .querySelectorAll("#editPermissionsGrid .permission-row")
     .forEach((row) => {
-      const perm = row.dataset.perm;
-      const inBtn = row.querySelector(".opted-in");
-      permissions[perm] = inBtn.classList.contains("active")
-        ? "OptedIn"
-        : "OptedOut";
+      const chosen = row.querySelector(".opted-in.active, .opted-out.active");
+      if (chosen)
+        permissions[row.dataset.perm] = chosen.classList.contains("opted-in") ? "OptedIn" : "OptedOut";
     });
+
+  if (Object.keys(permissions).length === 0) {
+    notify("warning", "Nothing to save", "Choose In or Out for at least one permission.");
+    return;
+  }
 
   const customFields =
     Object.keys(editCustomFields).length > 0 ? editCustomFields : undefined;
@@ -814,6 +816,14 @@ function connectSSE() {
     eventSource.addEventListener(type, (e) => handleSSEEvent(type, e.data));
   }
 }
+
+// Events sent while the tab was hidden or the stream was down are not replayed: catch up on return
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !eventSource) return;
+  if (eventSource.readyState === EventSource.CLOSED) connectSSE();
+  if (currentBucket) _consentUpdatePending.add(currentBucket);
+  _flushConsentUpdates();
+});
 
 // Debounced consent-update handling to prevent DOM thrashing
 let _consentUpdateTimer = null;

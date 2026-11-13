@@ -150,10 +150,11 @@ public static class AuthEndpoints
         return Granted("admin", "admin", adminKey: true);
     }
 
-    private static IResult Refresh(
+    internal static async Task<IResult> Refresh(
         HttpContext httpContext,
         IWebHostEnvironment env,
-        IOptionsMonitor<JwtAuthOptions> jwtOptions)
+        IOptionsMonitor<JwtAuthOptions> jwtOptions,
+        TokenUsageRepository tokenUsage)
     {
         // Only a cookie session can be extended; an API-key principal has no session to refresh.
         if (httpContext.User.Identity?.AuthenticationType != JwtAuthExtensions.SchemeName)
@@ -163,13 +164,20 @@ public static class AuthEndpoints
         var sub = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
         var adminKey = httpContext.User.HasClaim(JwtAuthHandler.AdminKeyClaim, "true");
-        return OkWithCookie(httpContext, env, signingKey, sub, DateTimeOffset.UtcNow.AddHours(1), role, adminKey);
+        if (!long.TryParse(httpContext.User.FindFirstValue(JwtAuthHandler.AuthTimeClaim), out var authSeconds))
+            return Results.Unauthorized();
+        var authTime = DateTimeOffset.FromUnixTimeSeconds(authSeconds);
+        if (JwtAuthHandler.RefreshedExpiry(authTime, DateTimeOffset.UtcNow, TimeSpan.FromHours(1)) is not { } expiresAt)
+            return Results.Unauthorized();
+        // One live token per session: a concurrent refresh that lost the revocation claim gets no replacement.
+        if (!await JwtAuthHandler.RevokeAsync(tokenUsage, signingKey, JwtAuthHandler.ReadToken(httpContext.Request)))
+            return Results.Conflict();
+        return OkWithCookie(httpContext, env, signingKey, sub, expiresAt, role, adminKey, authTime);
     }
 
     private static async Task<IResult> Logout(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions, TokenUsageRepository tokenUsage)
     {
-        httpContext.Request.Cookies.TryGetValue(JwtAuthHandler.CookieName, out var current);
-        await JwtAuthHandler.RevokeAsync(tokenUsage, jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey, current);
+        await JwtAuthHandler.RevokeAsync(tokenUsage, jwtOptions.Get(JwtAuthExtensions.SchemeName).SigningKey, JwtAuthHandler.ReadToken(httpContext.Request));
 
         // Expire the auth cookie
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, "", new CookieOptions
@@ -206,9 +214,10 @@ public static class AuthEndpoints
         string subject,
         DateTimeOffset expiresAt,
         string role,
-        bool adminKey = false)
+        bool adminKey = false,
+        DateTimeOffset? authTime = null)
     {
-        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey);
+        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey, authTime);
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
             HttpOnly = true,

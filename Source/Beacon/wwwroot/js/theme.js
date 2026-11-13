@@ -1,5 +1,6 @@
 // Runs in <head> before first paint to avoid a theme/font flash.
 const APP_FONTS = {
+  plex: '"IBM Plex Sans", system-ui, -apple-system, sans-serif',
   inter: '"Inter", system-ui, -apple-system, sans-serif',
   manrope: '"Manrope", system-ui, -apple-system, sans-serif',
   system: "system-ui, -apple-system, sans-serif",
@@ -10,7 +11,7 @@ try {
     document.documentElement.setAttribute("data-theme", saved.theme);
   document.documentElement.style.setProperty(
     "--app-font",
-    APP_FONTS[saved.font] || APP_FONTS.inter,
+    APP_FONTS[saved.font] || APP_FONTS.plex,
   );
 } catch {
   /* Private mode or corrupt storage: defaults apply. */

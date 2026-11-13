@@ -23,18 +23,33 @@ public static class ConsentEndpoints
         routes.MapGet("/u/{token}", ShowPreferencePage)
             .WithName("ShowPreferencePage")
             .WithTags(PermissionControlTag)
-            .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.");
+            .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.")
+            .Produces<string>(StatusCodes.Status200OK, "text/html")
+            .Produces<string>(StatusCodes.Status404NotFound, "text/html")
+            .Produces<string>(StatusCodes.Status409Conflict, "text/html")
+            .Produces<string>(StatusCodes.Status410Gone, "text/html");
 
         routes.MapPost("/u/{token}", ProcessPreferenceUpdate)
             .WithName("ProcessPreferenceUpdate")
             .WithTags(PermissionControlTag)
-            .WithDescription("Process user preference updates from the form submission.");
+            .WithDescription("Process user preference updates from the form submission. Fields: `action` (`unsubscribe_all` opts out of every permission), `pref_{permission}` (present when the permission stays opted in) and the antiforgery token from the preference page.")
+            .Accepts<PreferenceUpdateForm>("application/x-www-form-urlencoded")
+            .Produces<string>(StatusCodes.Status200OK, "text/html")
+            .Produces<string>(StatusCodes.Status400BadRequest, "text/plain")
+            .Produces<string>(StatusCodes.Status500InternalServerError, "text/plain")
+            .Produces<string>(StatusCodes.Status404NotFound, "text/html")
+            .Produces<string>(StatusCodes.Status409Conflict, "text/html")
+            .Produces<string>(StatusCodes.Status410Gone, "text/html");
 
         routes.MapPost("/api/consent/check", CheckConsent)
             .WithName("CheckConsent")
             .WithTags(PermissionTag)
             .RequireAuthorization("ConsentRead")
-            .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
+            .WithDescription("Check if an email is opted-in or opted-out for a specific permission.")
+            .Produces<CheckConsentResponse>(StatusCodes.Status200OK)
+            .Produces<ApiError>(StatusCodes.Status400BadRequest)
+            .Produces<ApiError>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiError>(StatusCodes.Status403Forbidden);
 
         routes.MapGet("/confirm/{token}", ConfirmSubscription)
             .WithName("ConfirmSubscription")
@@ -60,19 +75,19 @@ public static class ConsentEndpoints
         if (result.IsExpired)
         {
             var expiredBrand = result.Payload is not null ? await ResolveBrandAsync(brandService, result.Payload.Bucket, ct) : null;
-            return Results.Content(GetStatusPage("expired", lang, brand: expiredBrand), "text/html");
+            return StatusPage("expired", lang, brand: expiredBrand);
         }
 
         if (!result.IsValid || result.Payload is null)
         {
-            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+            return StatusPage("invalid", "en");
         }
 
         var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
 
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
+            return StatusPage("archived", lang, brand: brand);
         }
 
         // Only check token usage if replay is not allowed
@@ -81,7 +96,7 @@ public static class ConsentEndpoints
             var tokenHash = ComputeTokenHash(token);
             if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
             {
-                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
+                return StatusPage("already_processed", lang, brand: brand);
             }
         }
 
@@ -147,29 +162,19 @@ public static class ConsentEndpoints
 
         if (result.IsExpired)
         {
-            return Results.Content(GetStatusPage("expired", lang), "text/html");
+            return StatusPage("expired", lang);
         }
 
         if (!result.IsValid || result.Payload is null)
         {
-            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+            return StatusPage("invalid", "en");
         }
 
         var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
 
-        // Only check token usage if replay is not allowed
-        if (!result.Payload.AllowReplay)
-        {
-            var tokenHash = ComputeTokenHash(token);
-            if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
-            {
-                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
-            }
-        }
-
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
+            return StatusPage("archived", lang, brand: brand);
         }
 
         var form = await context.Request.ReadFormAsync();
@@ -179,6 +184,13 @@ public static class ConsentEndpoints
         try
         {
             using var transaction = await consentService.BeginTransactionAsync();
+
+            // Claim inside the transaction: a concurrent use fails the unique key, a failed update releases the claim.
+            if (!result.Payload.AllowReplay
+                && !await tokenUsageRepository.TryMarkUsedAsync(ComputeTokenHash(token), result.Payload.ExpiresAtUtc))
+            {
+                return StatusPage("already_processed", lang, brand: brand);
+            }
 
             if (action == "unsubscribe_all")
             {
@@ -200,14 +212,7 @@ public static class ConsentEndpoints
                 await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                     result.Payload.Bucket, result.Payload.Email, null);
                 await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-
-                // Only mark token as used if replay is not allowed
-                if (!result.Payload.AllowReplay)
-                {
-                    var tokenHash = ComputeTokenHash(token);
-                    await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
-                }
-                return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions, brand: brand), "text/html");
+                return StatusPage("unsubscribed", lang, optedOut: validPermissions, brand: brand);
             }
 
             // Process individual toggle states
@@ -258,18 +263,11 @@ public static class ConsentEndpoints
             await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                 result.Payload.Bucket, result.Payload.Email, null);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-
-            // Only mark token as used if replay is not allowed
-            if (!result.Payload.AllowReplay)
-            {
-                var tokenHash = ComputeTokenHash(token);
-                await tokenUsageRepository.MarkTokenUsedAsync(tokenHash, result.Payload.ExpiresAtUtc);
-            }
-            return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn], brand), "text/html");
+            return StatusPage("updated", lang, [.. optedOut], [.. keptIn], brand);
         }
         catch
         {
-            return Results.StatusCode(500);
+            return Results.Text("Update failed. Try again later.", "text/plain; charset=utf-8", statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
@@ -314,26 +312,35 @@ public static class ConsentEndpoints
         }
     }
 
-    private static async Task<IResult> ConfirmSubscription(
+    internal static async Task<IResult> ConfirmSubscription(
         string token,
         CancellationToken ct,
         [FromServices] EmailQueueRepository emailQueue,
         [FromServices] ConsentService consentService,
         [FromServices] Encryptor encryptor,
-        [FromServices] BrandIdentityService brandService)
+        [FromServices] BrandIdentityService brandService,
+        [FromServices] BucketRepository bucketRepository,
+        [FromServices] AdminNotificationService notifications)
     {
         var entry = await emailQueue.GetByConfirmationTokenAsync(token);
         if (entry is null)
-            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+            return StatusPage("invalid", "en");
 
         var lang = entry.Language ?? "en";
         var brand = await ResolveBrandAsync(brandService, entry.Bucket, ct);
 
-        if (entry.Status == EmailQueueStatus.Confirmed)
-            return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
+        if (await bucketRepository.IsArchivedAsync(entry.Bucket))
+            return StatusPage("archived", lang, brand: brand);
 
-        if (entry.ExpiresAt < DateTime.UtcNow || entry.Status == EmailQueueStatus.Expired)
-            return Results.Content(GetStatusPage("expired", lang, brand: brand), "text/html");
+        using var transaction = await consentService.BeginTransactionAsync();
+
+        // Claim first: the status guard admits one confirmation per open, unexpired entry.
+        var now = DateTime.UtcNow;
+        if (!await emailQueue.MarkConfirmedAsync(entry.Id, now))
+        {
+            var page = entry.Status is EmailQueueStatus.Cancelled or EmailQueueStatus.Expired || entry.ExpiresAt <= now ? "expired" : "already_processed";
+            return StatusPage(page, lang, brand: brand);
+        }
 
         var email = encryptor.Decrypt(entry.EncryptedEmail);
 
@@ -345,9 +352,10 @@ public static class ConsentEndpoints
                 source: ConsentSource.Api);
         }
 
-        await emailQueue.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
+        await consentService.CommitTransactionAsync();
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(entry.Bucket));
 
-        return Results.Content(GetStatusPage("confirmed", lang, brand: brand), "text/html");
+        return StatusPage("confirmed", lang, brand: brand);
     }
 
     private static async Task<IResult> CheckConsent(
@@ -356,19 +364,19 @@ public static class ConsentEndpoints
     {
         if (string.IsNullOrWhiteSpace(request.Bucket))
         {
-            return Results.BadRequest(new { error = "Bucket is required" });
+            return Results.BadRequest(new ApiError("Bucket is required"));
         }
 
         var emailValidation = InputValidator.ValidateEmail(request.Email);
         if (!emailValidation.IsValid)
         {
-            return Results.BadRequest(new { error = emailValidation.Error });
+            return Results.BadRequest(new ApiError(emailValidation.Error));
         }
 
         var permissionValidation = InputValidator.ValidatePermission(request.Permission);
         if (!permissionValidation.IsValid)
         {
-            return Results.BadRequest(new { error = permissionValidation.Error });
+            return Results.BadRequest(new ApiError(permissionValidation.Error));
         }
 
         var status = await consentService.CheckAsync(request.Bucket, request.Email, request.Permission);
@@ -396,6 +404,18 @@ public static class ConsentEndpoints
     }
 
     /// <summary>Spacing, type and status tokens shared with the admin stylesheet (wwwroot/css/site.css).</summary>
+    /// <summary>Drawn status icon on a 24px grid with a 2px stroke, sized by the parent font-size.</summary>
+    internal static string StatusIcon(string kind) =>
+        "<svg width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">"
+        + kind switch
+        {
+            "success" => "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/>",
+            "error" => "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6M9 9l6 6\"/>",
+            "warning" => "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4M12 17h.01\"/>",
+            _ => "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4M12 8h.01\"/>"
+        }
+        + "</svg>";
+
     internal const string SharedStyleTokens = """
         :root {
           --space-1: 0.25rem; --space-1-5: 0.375rem; --space-2: 0.5rem; --space-2-5: 0.625rem;
@@ -474,6 +494,8 @@ public static class ConsentEndpoints
           margin-bottom: var(--space-4);
           user-select: none;
         }
+
+        .icon svg { display: block; margin: 0 auto; }
 
         .icon.success { color: var(--success); }
         .icon.warning { color: var(--warning); }
@@ -768,13 +790,7 @@ public static class ConsentEndpoints
 
     private static string BuildPageLogoHtml(AssetObject? logo)
     {
-        if (logo is null) return "";
-        var src = logo.Type switch
-        {
-            "base64" => logo.Data,
-            "url" or "objectStorage" => logo.Url,
-            _ => null
-        };
+        var src = logo?.Src;
         if (string.IsNullOrEmpty(src)) return "";
         return $"<img src=\"{WebUtility.HtmlEncode(src)}\" class=\"brand-logo\" alt=\"Logo\" />";
     }
@@ -787,24 +803,36 @@ public static class ConsentEndpoints
         catch { return null; }
     }
 
-    private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
+    // Link outcomes as HTTP status: an unknown link is not found, a spent or archived one is gone or conflicts
+    internal static int StatusCodeFor(string status) => status switch
+    {
+        "invalid" => StatusCodes.Status404NotFound,
+        "expired" or "archived" => StatusCodes.Status410Gone,
+        "already_processed" => StatusCodes.Status409Conflict,
+        _ => StatusCodes.Status200OK
+    };
+
+    internal static IResult StatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null) =>
+        Results.Content(GetStatusPage(status, language, optedOut, keptIn, brand), "text/html; charset=utf-8", statusCode: StatusCodeFor(status));
+
+    internal static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
     {
         var lang = Beacon.Localization.FormLocalization.Normalize(language);
         var t = GetStatusStrings(lang);
 
-        var (icon, iconClass, title, message) = status switch
+        var (iconClass, title, message) = status switch
         {
-            "expired" => ("⚠", "warning", t.ExpiredTitle, t.ExpiredMsg),
-            "invalid" => ("✗", "error", t.InvalidTitle, t.InvalidMsg),
-            "already_processed" => ("ℹ", "info", t.ProcessedTitle, t.ProcessedMsg),
-            "archived" => ("ℹ", "info", t.ArchivedTitle, t.ArchivedMsg),
-            "unsubscribed" => ("✓", "success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
-            "updated" => ("✓", "success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
+            "expired" => ("warning", t.ExpiredTitle, t.ExpiredMsg),
+            "invalid" => ("error", t.InvalidTitle, t.InvalidMsg),
+            "already_processed" => ("info", t.ProcessedTitle, t.ProcessedMsg),
+            "archived" => ("info", t.ArchivedTitle, t.ArchivedMsg),
+            "unsubscribed" => ("success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
+            "updated" => ("success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
             // ConfirmMsg is operator-supplied free text, not markup — encode it.
-            "confirmed" => ("✓", "success",
+            "confirmed" => ("success",
                 brand?.ConfirmTitle is { Length: > 0 } ct ? ct : t.ConfirmedTitle,
                 brand?.ConfirmMsg is { Length: > 0 } cm ? WebUtility.HtmlEncode(cm) : t.ConfirmedMsg),
-            _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
+            _ => ("success", t.SuccessTitle, t.SuccessMsg)
         };
 
         var brandCss = BuildBrandCssOverrides(brand);
@@ -827,7 +855,7 @@ public static class ConsentEndpoints
                 <section class="card">
                   <div class="status-brand">{{logoHtml}}</div>
                   <div class="status-body">
-                    <div class="icon {{iconClass}}">{{icon}}</div>
+                    <div class="icon {{iconClass}}">{{StatusIcon(iconClass)}}</div>
                     <h1>{{WebUtility.HtmlEncode(title)}}</h1>
                     <p>{{message}}</p>
                   </div>
@@ -901,6 +929,13 @@ public static class ConsentEndpoints
     }
 }
 
+/// <summary>Preference form fields. <c>pref_{permission}</c> fields vary per token and are not listed.</summary>
+public sealed class PreferenceUpdateForm
+{
+    /// <summary><c>unsubscribe_all</c> opts out of every permission; empty applies the <c>pref_</c> fields.</summary>
+    public string? Action { get; set; }
+}
+
 public sealed class CheckConsentRequest
 {
     public string Bucket { get; set; } = string.Empty;
@@ -910,5 +945,6 @@ public sealed class CheckConsentRequest
 
 public sealed class CheckConsentResponse
 {
+    /// <summary><c>opted_in</c> or <c>opted_out</c>. A pending double opt-in reports <c>opted_out</c>.</summary>
     public string Status { get; set; } = string.Empty;
 }

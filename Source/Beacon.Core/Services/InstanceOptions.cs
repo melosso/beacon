@@ -12,6 +12,9 @@ public sealed class InstanceOptions
     /// </summary>
     public bool DisableEmailNotifications { get; init; } = false;
 
+    /// <summary>Blocks non-admin users from changing their own password or API key. Set via Beacon:DemoMode.</summary>
+    public bool DemoMode { get; init; }
+
     /// <summary>
     /// The public-facing base URL of this instance (e.g. "https://consent.example.com").
     /// Used when building absolute confirmation URLs in emails. When set, this takes

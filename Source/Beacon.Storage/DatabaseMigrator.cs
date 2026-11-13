@@ -30,15 +30,13 @@ public static class DatabaseMigrator
 
     private static HashSet<string> GetColumns(BeaconDbContext db, string table)
     {
-        return db.Database.SqlQueryRaw<string>(
-                string.Concat("SELECT name AS Value FROM pragma_table_info('", table, "')"))
+        return db.Database.SqlQuery<string>($"SELECT name AS Value FROM pragma_table_info({table})")
             .AsEnumerable().ToHashSet();
     }
 
     private static bool TableExists(BeaconDbContext db, string table)
     {
-        return db.Database.SqlQueryRaw<int>(
-                string.Concat("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='", table, "'"))
+        return db.Database.SqlQuery<int>($"SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name={table}")
             .AsEnumerable().FirstOrDefault() > 0;
     }
 
@@ -46,7 +44,9 @@ public static class DatabaseMigrator
     {
         var columns = GetColumns(db, table);
         if (!columns.Contains(column))
+#pragma warning disable EF1003 // DDL identifiers cannot be bound parameters; all arguments are private literals.
             db.Database.ExecuteSqlRaw(string.Concat("ALTER TABLE ", table, " ADD COLUMN ", column, " ", type));
+#pragma warning restore EF1003
     }
 
     private static void MigrateConsentRecords(BeaconDbContext db)
@@ -233,6 +233,7 @@ public static class DatabaseMigrator
                     Status TEXT NOT NULL DEFAULT 'Pending',
                     TriggeredBy TEXT NOT NULL DEFAULT 'cron',
                     ScheduledAt TEXT NOT NULL,
+                    PolicyDays INTEGER NULL,
                     StartedAt TEXT NULL,
                     CompletedAt TEXT NULL,
                     RecordsAffected INTEGER NOT NULL DEFAULT 0,
@@ -241,6 +242,10 @@ public static class DatabaseMigrator
                 )
                 """);
             db.Database.ExecuteSqlRaw("CREATE INDEX IX_WorkflowTasks_ScheduledAt ON WorkflowTasks (ScheduledAt)");
+        }
+        else
+        {
+            AddColumnIfMissing(db, "WorkflowTasks", "PolicyDays", "INTEGER NULL");
         }
     }
 

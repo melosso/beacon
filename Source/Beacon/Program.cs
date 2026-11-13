@@ -88,6 +88,7 @@ try
     var instanceOptions = new Beacon.Core.Services.InstanceOptions
     {
         DisableEmailNotifications = disableEmailNotifications,
+        DemoMode = config.GetValue<bool>("DemoMode", false),
         PublicUrl = resolvedPublicUrl
     };
     builder.Services.AddSingleton(instanceOptions);
@@ -190,6 +191,9 @@ try
                     ? Partition(context, "auth", 10)
                     : RateLimitPartition.GetNoLimiter("auth:skip")));
 
+        // Bulk reads decrypt whole buckets: endpoints opt in with RequireRateLimiting("export").
+        rateLimiter.AddPolicy("export", context => Partition(context, "export", 10));
+
         rateLimiter.OnRejected = async (context, ct) =>
         {
             if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
@@ -288,18 +292,7 @@ try
         })
         .AddPolicyScheme("CompositeScheme", "API Key or JWT", options =>
         {
-            options.ForwardDefaultSelector = context =>
-            {
-                // Bearer token → JWT handler
-                if (context.Request.Headers.Authorization.ToString()
-                    .StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                    return JwtAuthExtensions.SchemeName;
-                // HttpOnly auth cookie → JWT handler
-                if (context.Request.Cookies.ContainsKey(JwtAuthHandler.CookieName))
-                    return JwtAuthExtensions.SchemeName;
-                // Otherwise → API key handler
-                return ApiKeyAuthExtensions.SchemeName;
-            };
+            options.ForwardDefaultSelector = JwtAuthExtensions.SelectScheme;
         });
 
     builder.Services.AddAntiforgery();
@@ -328,6 +321,8 @@ try
                 ctx.User.HasClaim("beacon:permission", "_all") ||
                 ctx.User.HasClaim("beacon:permission", capturedScope)));
         }
+
+        options.AddPolicy("ConsentExport", p => p.RequireAssertion(ctx => ApiKeyEndpoints.CanExportConsent(ctx.User)));
     });
     builder.Services.AddEndpointsApiExplorer();
 
@@ -340,15 +335,30 @@ try
             document.Info.Version = "v1";
             document.Info.Description = "A lightweight consent management platform. Handle email consent states independently from any ERP, CRM or platform.";
 
-            // Add API key security scheme
+            // Scalar API Reference has no logo option; it renders the description as markdown.
+            var defaultIdentity = context.ApplicationServices.GetRequiredService<BrandIdentityService>().GetAll().FirstOrDefault(i => i.IsDefault);
+            string? logoSrc = null;
+            try { logoSrc = defaultIdentity is null ? null : JsonSerializer.Deserialize<Beacon.Core.Models.BrandIdentitySettings>(defaultIdentity.Settings)?.Logo?.Src; }
+            catch (JsonException) { }
+            if (logoSrc is not null && !logoSrc.Contains('>') &&
+                (logoSrc.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || logoSrc.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase)))
+                document.Info.Description = $"![{document.Info.Title}](<{logoSrc}>)\n\n{document.Info.Description}";
+
+            // One API key, two headers: Bearer is the default, X-Api-Key the alternative
             document.Components ??= new OpenApiComponents();
             document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+            document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                Description = "API key in the Authorization header: `Bearer <api-key>`."
+            };
             document.Components.SecuritySchemes["ApiKey"] = new OpenApiSecurityScheme
             {
                 Type = SecuritySchemeType.ApiKey,
                 In = ParameterLocation.Header,
                 Name = "X-Api-Key",
-                Description = "A mandatory API key for authentication."
+                Description = "The same API key in the X-Api-Key header."
             };
 
             // Set the host document for references to resolve correctly
@@ -366,17 +376,13 @@ try
 
             if (hasAuthorization)
             {
+                // Separate requirements: either scheme authorizes the operation
                 operation.Security ??= [];
-                operation.Security.Add(new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecuritySchemeReference("ApiKey"),
-                        new List<string>()
-                    }
-                });
+                operation.Security.Add(new OpenApiSecurityRequirement { { new OpenApiSecuritySchemeReference("Bearer"), new List<string>() } });
+                operation.Security.Add(new OpenApiSecurityRequirement { { new OpenApiSecuritySchemeReference("ApiKey"), new List<string>() } });
             }
 
-            return Task.CompletedTask;
+            return DescribeResponsesAsync(operation, context, cancellationToken);
         });
     });
 
@@ -411,7 +417,8 @@ try
                 foreach (var host in adminHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     origins.Add($"https://{host}");
-                    origins.Add($"http://{host}"); // For internal/dev scenarios
+                    // Credentialed plain-http origins are Development-only; list others in AllowedOrigins.
+                    if (builder.Environment.IsDevelopment()) origins.Add($"http://{host}");
                 }
             }
 
@@ -422,7 +429,7 @@ try
                 foreach (var host in apiHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     origins.Add($"https://{host}");
-                    origins.Add($"http://{host}");
+                    if (builder.Environment.IsDevelopment()) origins.Add($"http://{host}");
                 }
             }
 
@@ -496,9 +503,16 @@ try
     // Exception handler runs before CORS so error responses still get CORS headers
     app.UseExceptionHandler(error => error.Run(async context =>
     {
-        context.Response.StatusCode = 500;
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new { error = "An internal server error occurred." });
+        // Malformed request bodies are client errors; Development rethrows them from parameter binding.
+        var badRequest = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error
+            as Microsoft.AspNetCore.Http.BadHttpRequestException;
+        if (badRequest is null)
+        {
+            await ApiError.WriteServerErrorAsync(context);
+            return;
+        }
+        context.Response.StatusCode = badRequest.StatusCode;
+        await context.Response.WriteAsJsonAsync(new ApiError("Invalid request body. Send valid JSON or form data."));
     }));
 
     // Must run before rate limiting and host routing: both key off the resolved client IP / host.
@@ -826,6 +840,47 @@ static Dictionary<string, string?> ResolveSettingAliases(IConfiguration configur
 }
 
 // Static Helpers
+static async Task DescribeResponsesAsync(OpenApiOperation operation, Microsoft.AspNetCore.OpenApi.OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
+{
+    operation.Responses ??= [];
+    if (!operation.Responses.ContainsKey("500"))
+    {
+        var schema = await context.GetOrCreateSchemaAsync(typeof(ApiError), null, cancellationToken);
+        operation.Responses["500"] = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType> { ["application/json"] = new OpenApiMediaType { Schema = schema } }
+        };
+    }
+
+    foreach (var (code, response) in operation.Responses)
+    {
+        if (response is not OpenApiResponse concrete) continue;
+        if (code == "303")
+        {
+            concrete.Headers ??= new Dictionary<string, IOpenApiHeader>();
+            concrete.Headers["Location"] = new OpenApiHeader
+            {
+                Description = "Address of the success or error page.",
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri" }
+            };
+        }
+        concrete.Description = code switch
+        {
+            "200" => "The request succeeded. The response body contains the result.",
+            "303" => "The submission is processed. The Location header contains the success or error page address.",
+            "400" => "The request is malformed or fails validation. The error names the invalid field.",
+            "401" => "The credential is missing, invalid or expired. Send the API key as a Bearer token.",
+            "403" => "The credential lacks the permission for this request, or the origin is not allowed.",
+            "404" => "No form, link or record matches the request.",
+            "409" => "The request conflicts with the current state: an archived bucket, a used link or a duplicate record.",
+            "410" => "The link has expired or its bucket is archived.",
+            "429" => "Too many requests. The Retry-After header contains the wait time in seconds.",
+            "500" => "The server failed to process the request.",
+            _ => concrete.Description
+        };
+    }
+}
+
 // Host and database only; the connection string can contain credentials.
 static string DescribeDatabaseTarget(string connectionString)
 {

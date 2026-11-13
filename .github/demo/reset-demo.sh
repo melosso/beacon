@@ -5,6 +5,8 @@
 REPO_RAW_URL="https://raw.githubusercontent.com/melosso/beacon/main/.github/demo"
 ADMIN="http://localhost:5011"
 ORIGIN="https://melosso.com"
+DEMO_USER="demo"
+DEMO_PASSWORD="beacon-demo-access"
 
 fetch() {
     curl -fsSL "$REPO_RAW_URL/$1" -o "$1.tmp" && mv "$1.tmp" "$1" || { rm -f "$1.tmp"; echo "Failed to download $1"; return 1; }
@@ -19,15 +21,16 @@ if [ -z "$BEACON_DEMO_SELF_UPDATED" ] && fetch "$SELF"; then
 fi
 
 fetch docker-compose.yml || [ -f docker-compose.yml ] || exit 1
-API_KEY="$(sed -n 's/.*BEACON_ADMIN_API_KEY=//p' docker-compose.yml)"
-[ -n "$API_KEY" ] || { echo "BEACON_ADMIN_API_KEY is missing in docker-compose.yml."; exit 1; }
-
 if [ ! -f .env ]; then
     echo "Generating .env..."
     printf "BEACON_SIGNING_KEY=%s\nBEACON_ENCRYPTION_KEY=%s\nBEACON_PEPPER=%s\n" \
         "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" > .env
     chmod 600 .env
 fi
+
+# Admin key is per host; the public compose file holds no credentials.
+grep -q '^BEACON_ADMIN_API_KEY=' .env || printf "BEACON_ADMIN_API_KEY=%s\n" "$(openssl rand -base64 48 | tr -d '\n')" >> .env
+API_KEY="$(sed -n 's/^BEACON_ADMIN_API_KEY=//p' .env)"
 
 echo "[$(date)] Recreating Beacon demo..."
 docker compose down -v --remove-orphans
@@ -46,6 +49,9 @@ post() {
     echo "$out"
 }
 
+echo "Creating demo user..."
+post /api/admin/users "{\"username\": \"$DEMO_USER\", \"password\": \"$DEMO_PASSWORD\", \"role\": \"user\"}" >/dev/null || exit 1
+
 echo "Configuring announcement bar and sign-in footer..."
 post /api/admin/settings "{
     \"promoBarEnabled\": true,
@@ -53,7 +59,7 @@ post /api/admin/settings "{
     \"promoBarDismissable\": false,
     \"promoBar\": \"This is a demo instance. Some functions are disabled. All data is reset every hour.\",
     \"loginFooterEnabled\": true,
-    \"loginFooter\": \"Sign in with API key **$API_KEY**. Read the [documentation](https://github.com/melosso/beacon) to learn more.\"
+    \"loginFooter\": \"Sign in with **$DEMO_USER** / **$DEMO_PASSWORD**. Read the [documentation](https://github.com/melosso/beacon) to learn more.\"
 }" PUT >/dev/null || exit 1
 
 # bucket|name|email|language|permissions|externalId

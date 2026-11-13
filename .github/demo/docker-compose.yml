@@ -19,10 +19,10 @@ services:
       - /tmp:uid=999,gid=999,mode=1777
     env_file: .env
     environment:
-      - BEACON_ADMIN_API_KEY=beacon-demo-token-012345678901234
       - BEACON_CONNECTION_STRING=Data Source=/app/data/Beacon.db
       - BEACON_DISABLE_EMAIL_NOTIFICATIONS=true
-      - BEACON_USER_AUTHENTICATION=api
+      - BEACON_USER_AUTHENTICATION=user
+      - BEACON_DEMO_MODE=true
       - BEACON_API_PORT=5000
       - BEACON_ADMIN_PORT=5001
       - BEACON_API_HOSTS=beacon-demo-api.melosso.com

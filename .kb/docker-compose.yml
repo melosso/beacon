@@ -1,0 +1,12 @@
+services:
+  beacon_docs:
+    image: ghcr.io/hawkinslabdev/bark:latest
+    container_name: beacon_docs
+    volumes:
+      - ./docs:/app/docs:z
+      # Overlay brand assets per item; mounting the whole wwwroot shadows Bark's framework assets (js, icons)
+      - ./wwwroot/favicon.ico:/app/wwwroot/favicon.ico:z
+      - ./wwwroot/favicon.svg:/app/wwwroot/favicon.svg:z
+      - ./wwwroot/theme:/app/wwwroot/theme:z
+    ports:
+      - "5992:8080"

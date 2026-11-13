@@ -45,7 +45,6 @@ public sealed class DataPolicyWorker : BackgroundService
                     var wokenBySignal = await WaitForTriggerOrDelayAsync(delay, stoppingToken);
                     if (wokenBySignal)
                     {
-                        var isManual = _trigger.ConsumeIsManual();
                         try { await ProcessBatchAsync(WorkflowTrigger.Manual, isManual: true, stoppingToken); }
                         catch (Exception ex) { _logger.LogError(ex, "Data policy worker encountered an unhandled error (manual trigger)"); }
                     }
@@ -112,31 +111,15 @@ public sealed class DataPolicyWorker : BackgroundService
             return;
         }
 
-        var consent = sp.GetRequiredService<IConsentRepository>();
+        var policies = sp.GetRequiredService<DataPolicyService>();
         var tasks = sp.GetRequiredService<WorkflowTaskRepository>();
         var now = DateTime.UtcNow;
 
         if (config.RetentionPurgeEnabled)
-        {
-            await RunPolicyAsync(
-                tasks, consent, triggeredBy, WorkflowTaskType.RetentionPurge, now,
-                (repo, ct) => repo.CountOptedOutToAnonymiseAsync(now.AddDays(-config.RetentionPurgeDays), ct),
-                (repo, ct) => repo.AnonymiseOptedOutAsync(now.AddDays(-config.RetentionPurgeDays), ct),
-                $"Anonymised opted-out records older than {config.RetentionPurgeDays} days",
-                requireApproval: config.RetentionPurgeRequireApproval,
-                stoppingToken);
-        }
+            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.RetentionPurge, now, config.RetentionPurgeDays, config.RetentionPurgeRequireApproval, stoppingToken);
 
         if (config.PendingConfirmationPurgeEnabled && !stoppingToken.IsCancellationRequested)
-        {
-            await RunPolicyAsync(
-                tasks, consent, triggeredBy, WorkflowTaskType.PendingConfirmationPurge, now,
-                (repo, ct) => repo.CountPendingConfirmationToPurgeAsync(now.AddDays(-config.PendingConfirmationPurgeDays), ct),
-                (repo, ct) => repo.PurgePendingConfirmationAsync(now.AddDays(-config.PendingConfirmationPurgeDays), ct),
-                $"Purged pending confirmation records older than {config.PendingConfirmationPurgeDays} days",
-                requireApproval: config.PendingConfirmationPurgeRequireApproval,
-                stoppingToken);
-        }
+            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.PendingConfirmationPurge, now, config.PendingConfirmationPurgeDays, config.PendingConfirmationPurgeRequireApproval, stoppingToken);
 
         if (!config.RetentionPurgeEnabled && !config.PendingConfirmationPurgeEnabled)
         {
@@ -145,18 +128,16 @@ public sealed class DataPolicyWorker : BackgroundService
     }
 
     private async Task RunPolicyAsync(
+        DataPolicyService policies,
         WorkflowTaskRepository taskRepo,
-        IConsentRepository consentRepo,
         WorkflowTrigger triggeredBy,
         WorkflowTaskType taskType,
         DateTime scheduledAt,
-        Func<IConsentRepository, CancellationToken, Task<int>> countCheck,
-        Func<IConsentRepository, CancellationToken, Task<int>> operation,
-        string notes,
+        int policyDays,
         bool requireApproval,
         CancellationToken stoppingToken)
     {
-        var pending = await countCheck(consentRepo, stoppingToken);
+        var pending = await policies.CountAsync(taskType, scheduledAt, policyDays, stoppingToken);
         if (pending == 0)
         {
             _logger.LogDebug("Data policy: {TaskType} skipped. Nothing to process", taskType);
@@ -165,14 +146,20 @@ public sealed class DataPolicyWorker : BackgroundService
 
         if (requireApproval)
         {
-            // Queue for manual approval
+            if (await taskRepo.HasPendingApprovalAsync(taskType, stoppingToken))
+            {
+                _logger.LogDebug("Data policy: {TaskType} skipped. A task awaits approval", taskType);
+                return;
+            }
+
             await taskRepo.CreateAsync(new WorkflowTask
             {
                 Id = Guid.NewGuid(),
                 TaskType = taskType,
                 Status = WorkflowTaskStatus.PendingApproval,
                 TriggeredBy = triggeredBy,
-                ScheduledAt = scheduledAt
+                ScheduledAt = scheduledAt,
+                PolicyDays = policyDays
             }, stoppingToken);
             _logger.LogInformation(
                 "Data policy: {TaskType} queued for approval (triggeredBy={TriggeredBy}, pending={Pending})",
@@ -180,41 +167,23 @@ public sealed class DataPolicyWorker : BackgroundService
             return;
         }
 
-        var task = await taskRepo.CreateAsync(new WorkflowTask
+        var running = await taskRepo.CreateAsync(new WorkflowTask
         {
             Id = Guid.NewGuid(),
             TaskType = taskType,
             Status = WorkflowTaskStatus.Running,
             TriggeredBy = triggeredBy,
             ScheduledAt = scheduledAt,
+            PolicyDays = policyDays,
             StartedAt = DateTime.UtcNow
         }, stoppingToken);
 
-        try
-        {
-            var affected = await operation(consentRepo, stoppingToken);
-            task = task with
-            {
-                Status = WorkflowTaskStatus.Completed,
-                CompletedAt = DateTime.UtcNow,
-                RecordsAffected = affected,
-                Notes = notes
-            };
+        var done = await policies.RunAsync(running, stoppingToken);
+        if (done.Status == WorkflowTaskStatus.Completed)
             _logger.LogInformation(
                 "Data policy: {TaskType} completed (triggeredBy={TriggeredBy}, affected={Affected})",
-                taskType, triggeredBy, affected);
-        }
-        catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
-        {
-            task = task with
-            {
-                Status = WorkflowTaskStatus.Failed,
-                CompletedAt = DateTime.UtcNow,
-                ErrorMessage = ex.Message
-            };
-            _logger.LogError(ex, "Data policy: {TaskType} failed", taskType);
-        }
-
-        await taskRepo.UpdateAsync(task, stoppingToken);
+                taskType, triggeredBy, done.RecordsAffected);
+        else
+            _logger.LogError("Data policy: {TaskType} failed: {Error}", taskType, done.ErrorMessage);
     }
 }

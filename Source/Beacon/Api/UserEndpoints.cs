@@ -132,10 +132,12 @@ public static class UserEndpoints
         return Results.Ok(new { success = true });
     }
 
-    private static async Task<IResult> RegenerateApiKey(Guid id, HttpContext ctx, UserRepository repo)
+    internal static async Task<IResult> RegenerateApiKey(Guid id, HttpContext ctx, UserRepository repo, InstanceOptions instance)
     {
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var currentRole = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "user";
+        if (instance.DemoMode && currentRole != "admin")
+            return DemoModeForbidden();
 
         var user = await repo.FindByIdAsync(id);
         if (user == null)
@@ -154,10 +156,12 @@ public static class UserEndpoints
         return Results.Ok(new { apiKey }); // shown once
     }
 
-    private static async Task<IResult> ChangePassword(Guid id, ChangePasswordRequest request, HttpContext ctx, UserRepository repo)
+    internal static async Task<IResult> ChangePassword(Guid id, ChangePasswordRequest request, HttpContext ctx, UserRepository repo, InstanceOptions instance)
     {
         var currentUsername = ctx.User.FindFirstValue(ClaimTypes.Name);
         var currentRole = ctx.User.FindFirstValue(ClaimTypes.Role) ?? "user";
+        if (instance.DemoMode && currentRole != "admin")
+            return DemoModeForbidden();
 
         var user = await repo.FindByIdAsync(id);
         if (user == null)
@@ -272,5 +276,9 @@ public static class UserEndpoints
     private record CreateUserRequest(string? Username, string? Password, string? Role);
     private record ChangeRoleRequest(string? Role);
     private record ChangeUsernameRequest(string? Username);
-    private record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+    internal record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+
+    // Shared demo credentials: one visitor changing them locks out the rest.
+    private static IResult DemoModeForbidden() =>
+        Results.Json(new { error = "Credential changes are disabled on this demo instance." }, statusCode: 403);
 }

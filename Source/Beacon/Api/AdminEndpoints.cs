@@ -44,19 +44,35 @@ public static class AdminEndpoints
             .WithName("OverrideConsent")
             .WithTags(PermissionTag)
             .RequireAuthorization("ConsentWrite")
-            .WithDescription("Override consent status for an email. Use to sync consent state from external systems.");
+            .WithDescription("Override consent status for an email. Use to sync consent state from external systems.")
+            .Produces<ApiMessage>(StatusCodes.Status200OK)
+            .Produces<ApiError>(StatusCodes.Status400BadRequest)
+            .Produces<ApiError>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiError>(StatusCodes.Status403Forbidden)
+            .Produces<ApiError>(StatusCodes.Status409Conflict);
 
         routes.MapPost("/api/tokens/generate", GenerateToken)
             .WithName("GenerateToken")
             .WithTags(PermissionTag)
             .RequireAuthorization("TokensWrite")
+            .Produces<List<GenerateTokenResponse>>(StatusCodes.Status200OK)
+            .Produces<ApiError>(StatusCodes.Status400BadRequest)
+            .Produces<ApiError>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiError>(StatusCodes.Status403Forbidden)
+            .Produces<ApiError>(StatusCodes.Status409Conflict)
             .WithDescription("Generate preference management tokens. Accepts an array of requests. Returns an array of URL-safe tokens for the /u/{token} endpoint.");
 
         routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
             .WithName("GetAllBucketRecords")
             .WithTags(PermissionTag)
-            .RequireAuthorization("ConsentRead")
-            .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.");
+            .RequireAuthorization("ConsentExport")
+            .RequireRateLimiting("export")
+            .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.")
+            .Produces<BucketRecordsResponse>(StatusCodes.Status200OK)
+            .Produces<ApiError>(StatusCodes.Status400BadRequest)
+            .Produces<ApiError>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiError>(StatusCodes.Status403Forbidden)
+            .Produces<ApiError>(StatusCodes.Status429TooManyRequests);
 
         // Management APIs (excluded from public OpenAPI docs)
         routes.MapGet("/api/admin/buckets", GetBuckets)
@@ -84,7 +100,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}", DeleteBucket)
-            .RequireAuthorization("BucketsWrite")
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/records/{emailHash}", DeleteRecord)
@@ -108,7 +124,8 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/identities/export", ExportIdentities)
-            .RequireAuthorization("ConsentRead")
+            .RequireAuthorization("ConsentExport")
+            .RequireRateLimiting("export")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
@@ -177,10 +194,12 @@ public static class AdminEndpoints
 
         routes.MapPost("/api/admin/buckets/{bucket}/tokens/export", ExportBucketTokens)
             .RequireAuthorization("Admin")
+            .RequireRateLimiting("export")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/records/export", ExportBucketRecords)
-            .RequireAuthorization("ConsentRead")
+            .RequireAuthorization("ConsentExport")
+            .RequireRateLimiting("export")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/data-policies/tasks", GetWorkflowTasks)
@@ -242,33 +261,33 @@ public static class AdminEndpoints
         var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
         if (!bucketValidation.IsValid)
         {
-            return Results.BadRequest(new { error = bucketValidation.Error });
+            return Results.BadRequest(new ApiError(bucketValidation.Error));
         }
 
         if (await bucketRepository.IsArchivedAsync(request.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Conflict(new { error = "Bucket is archived" });
+            return Results.Conflict(new ApiError("Bucket is archived"));
         }
 
         var emailValidation = InputValidator.ValidateEmail(request.Email);
         if (!emailValidation.IsValid)
         {
-            return Results.BadRequest(new { error = emailValidation.Error });
+            return Results.BadRequest(new ApiError(emailValidation.Error));
         }
 
         var permissionValidation = InputValidator.ValidatePermission(request.Permission);
         if (!permissionValidation.IsValid)
         {
-            return Results.BadRequest(new { error = permissionValidation.Error });
+            return Results.BadRequest(new ApiError(permissionValidation.Error));
         }
 
         if (!Enum.TryParse<ConsentStatus>(request.Status, true, out var status) || status == ConsentStatus.PendingConfirmation)
         {
-            return Results.BadRequest(new { error = "Invalid status. Use 'OptedIn' or 'OptedOut'" });
+            return Results.BadRequest(new ApiError("Invalid status. Use 'OptedIn' or 'OptedOut'"));
         }
 
         if (request.Name != null && request.Name.Length > 250)
-            return Results.BadRequest(new { error = "Name must be 250 characters or fewer" });
+            return Results.BadRequest(new ApiError("Name must be 250 characters or fewer"));
 
         var emailHash = emailHasher.Hash(request.Email);
         logger.LogInformation(
@@ -292,23 +311,23 @@ public static class AdminEndpoints
             await TriggerWebhookSafe(webhookService, consentRepository, logger, request.Bucket, request.Email, emailHash, customFieldsJson);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(request.Bucket));
 
-            return Results.Ok(new { message = "Consent updated" });
+            return Results.Ok(new ApiMessage("Consent updated"));
         }
         catch (DbUpdateException ex)
         {
             if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
             {
                 logger.LogWarning("Unique constraint violation during consent override for bucket={Bucket}, emailHash={EmailHash}, permission={Permission}: {ErrorMessage}", request.Bucket, emailHasher.Hash(request.Email), request.Permission, ex.InnerException?.Message);
-                return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
+                return Results.Conflict(new ApiError("A record with the same email and permission already exists in this bucket."));
             }
 
             logger.LogError(ex, "Database update error during consent override for bucket={Bucket}, emailHash={EmailHash}, permission={Permission}", request.Bucket, emailHash, request.Permission);
-            return Results.StatusCode(500); // Generic 500 for other database errors
+            return ApiError.ServerError();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An unexpected error occurred during consent override for bucket={Bucket}, emailHash={EmailHash}, permission={Permission}", request.Bucket, emailHash, request.Permission);
-            return Results.StatusCode(500); // Generic 500 for other unexpected errors
+            return ApiError.ServerError();
         }
     }
 
@@ -392,16 +411,16 @@ public static class AdminEndpoints
         {
             if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
             {
-                return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
+                return Results.Conflict(new ApiError("A record with the same email and permission already exists in this bucket."));
             }
 
             logger.LogError(ex, "Database update error during batch consent override for bucket={Bucket}", normalizedBucket);
-            return Results.StatusCode(500);
+            return ApiError.ServerError();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unexpected error during batch consent override for bucket={Bucket}", normalizedBucket);
-            return Results.StatusCode(500);
+            return ApiError.ServerError();
         }
     }
 
@@ -424,31 +443,31 @@ public static class AdminEndpoints
         ILogger<Program> logger)
     {
         if (requests is null || requests.Count == 0)
-            return Results.BadRequest(new { error = "At least one object is required." });
+            return Results.BadRequest(new ApiError("At least one object is required."));
 
         // Validate all requests upfront before processing any
         foreach (var request in requests)
         {
             var bucketValidation = InputValidator.ValidateBucket(request.Bucket);
             if (!bucketValidation.IsValid)
-                return Results.BadRequest(new { error = bucketValidation.Error });
+                return Results.BadRequest(new ApiError(bucketValidation.Error));
 
             if (await bucketRepository.IsArchivedAsync(request.Bucket.Trim().ToLowerInvariant()))
-                return Results.Conflict(new { error = "Bucket is archived" });
+                return Results.Conflict(new ApiError("Bucket is archived"));
 
             var emailValidation = InputValidator.ValidateEmail(request.Email);
             if (!emailValidation.IsValid)
-                return Results.BadRequest(new { error = emailValidation.Error });
+                return Results.BadRequest(new ApiError(emailValidation.Error));
 
             if (request.Permissions is null || request.Permissions.Count == 0)
-                return Results.BadRequest(new { error = "At least one permission is required" });
+                return Results.BadRequest(new ApiError("At least one permission is required"));
 
             var permissionsValidation = InputValidator.ValidatePermissions(request.Permissions.Keys.ToArray());
             if (!permissionsValidation.IsValid)
-                return Results.BadRequest(new { error = permissionsValidation.Error });
+                return Results.BadRequest(new ApiError(permissionsValidation.Error));
 
             if (!string.IsNullOrEmpty(request.Language) && !Beacon.Localization.FormLocalization.SupportedLanguages.Contains(request.Language.ToLowerInvariant()))
-                return Results.BadRequest(new { error = $"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", Beacon.Localization.FormLocalization.SupportedLanguages)}" });
+                return Results.BadRequest(new ApiError($"Unsupported language code '{request.Language}'. Supported languages are: {string.Join(", ", Beacon.Localization.FormLocalization.SupportedLanguages)}"));
         }
 
         var config = configService.Get();
@@ -555,16 +574,16 @@ public static class AdminEndpoints
             if (ex.InnerException?.Message?.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) == true)
             {
                 logger.LogWarning("Unique constraint violation during token generation: {ErrorMessage}", ex.InnerException?.Message);
-                return Results.Conflict(new { error = "A record with the same email and permission already exists in this bucket." });
+                return Results.Conflict(new ApiError("A record with the same email and permission already exists in this bucket."));
             }
 
             logger.LogError(ex, "Database update error during token generation");
-            return Results.StatusCode(500);
+            return ApiError.ServerError();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An unexpected error occurred during token generation");
-            return Results.StatusCode(500);
+            return ApiError.ServerError();
         }
     }
 
@@ -584,13 +603,13 @@ public static class AdminEndpoints
             seen.Add(b.Name);
             var explicitPerms = allExplicitPerms.TryGetValue(b.Name, out var ep) ? ep : [];
             var mergedPerms = b.Permissions.Union(explicitPerms).OrderBy(p => p).ToList();
-            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, permissions = mergedPerms, isArchived = archivedBuckets.Contains(b.Name) });
+            result.Add(new { name = b.Name, totalEmails = b.TotalEmails, totalRecords = b.TotalRecords, optedInRecords = b.OptedInRecords, permissions = mergedPerms, isArchived = archivedBuckets.Contains(b.Name) });
         }
 
         foreach (var name in explicitBucketNames.Where(n => !seen.Contains(n)))
         {
             var explicitPerms = allExplicitPerms.TryGetValue(name, out var ep) ? ep : (IReadOnlyList<string>)[];
-            result.Add(new { name, totalEmails = 0, permissions = explicitPerms, isArchived = archivedBuckets.Contains(name) });
+            result.Add(new { name, totalEmails = 0, totalRecords = 0, optedInRecords = 0, permissions = explicitPerms, isArchived = archivedBuckets.Contains(name) });
         }
 
         return Results.Ok(result.OrderBy(r => ((dynamic)r).name));
@@ -768,7 +787,7 @@ public static class AdminEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting bucket {Bucket}", normalizedBucket);
-            return Results.StatusCode(500);
+            return ApiError.ServerError();
         }
     }
 
@@ -777,6 +796,7 @@ public static class AdminEndpoints
         string emailHash,
         [FromServices] IConsentRepository repository,
         [FromServices] EmailQueueRepository emailQueueRepository,
+        [FromServices] AdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -798,8 +818,9 @@ public static class AdminEndpoints
             emailHash[..Math.Min(12, emailHash.Length)],
             DateTime.UtcNow);
 
-        await emailQueueRepository.DeleteByEmailHashAsync(emailHash);
+        await emailQueueRepository.DeleteForRecordAsync(normalizedBucket, emailHash);
         var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
 
         return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });
     }
@@ -849,7 +870,7 @@ public static class AdminEndpoints
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting permission {Permission} from bucket {Bucket}", normalizedPermission, normalizedBucket);
-            return Results.StatusCode(500);
+            return ApiError.ServerError();
         }
     }
 
@@ -973,7 +994,7 @@ public static class AdminEndpoints
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
         {
-            return Results.BadRequest(new { error = bucketValidation.Error });
+            return Results.BadRequest(new ApiError(bucketValidation.Error));
         }
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
@@ -995,7 +1016,7 @@ public static class AdminEndpoints
             }
         }
 
-        return Results.Ok(new { bucket = normalizedBucket, records, total = records.Count });
+        return Results.Ok(new BucketRecordsResponse(normalizedBucket, records, records.Count));
     }
 
     // Webhook endpoints
@@ -2182,32 +2203,21 @@ public static class AdminEndpoints
         if (existing is null)
             return Results.NotFound(new { error = "Brand identity not found." });
 
-        if (existing.IsDefault && request.Name.Trim() != existing.Name)
-            return Results.BadRequest(new { error = "The Default identity cannot be renamed." });
-
         if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
             return Results.BadRequest(new { error = "Name is required and must be 100 characters or fewer." });
 
-        string settingsJson;
-        BrandIdentitySettings parsedSettings;
-        if (request.Settings is JsonElement je)
-        {
-            parsedSettings = JsonSerializer.Deserialize<BrandIdentitySettings>(je.GetRawText())
-                ?? new BrandIdentitySettings();
-            if (existing.IsDefault)
-                parsedSettings = parsedSettings with { PrimaryAccent = null, SurfaceColour = null };
-            settingsJson = JsonSerializer.Serialize(parsedSettings);
-        }
-        else
-        {
-            parsedSettings = new BrandIdentitySettings();
-            settingsJson = "{}";
-        }
+        if (existing.IsDefault && request.Name.Trim() != existing.Name)
+            return Results.BadRequest(new { error = "The Default identity cannot be renamed." });
 
-        var settingsError = ValidateIdentitySettings(parsedSettings);
+        var settings = request.Settings ?? new BrandIdentitySettings();
+        if (existing.IsDefault)
+            settings = settings with { PrimaryAccent = null, SurfaceColour = null };
+
+        var settingsError = ValidateIdentitySettings(settings);
         if (settingsError is not null)
             return Results.BadRequest(new { error = settingsError });
 
+        var settingsJson = request.Settings is null ? "{}" : JsonSerializer.Serialize(settings);
         var updated = await brandService.UpdateAsync(id, request.Name.Trim(), settingsJson, ct);
         return Results.Ok(new { id = updated.Id, name = updated.Name, updatedAt = updated.UpdatedAt });
     }
@@ -2346,6 +2356,31 @@ public static class AdminEndpoints
     }
 }
 
+/// <summary>Error body: what failed and what to do. <c>traceId</c> is set on server errors and matches the server log.</summary>
+public sealed record ApiError(string Error, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? TraceId = null)
+{
+    /// <summary>500 response with an <see cref="ApiError"/> body that includes the request trace id.</summary>
+    public static IResult ServerError() => new ServerErrorResult();
+
+    internal static Task WriteServerErrorAsync(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        return context.Response.WriteAsJsonAsync(new ApiError("The server failed to process the request. Retry later or report the trace id.",
+            System.Diagnostics.Activity.Current?.Id ?? context.TraceIdentifier));
+    }
+
+    private sealed class ServerErrorResult : IResult
+    {
+        public Task ExecuteAsync(HttpContext httpContext) => WriteServerErrorAsync(httpContext);
+    }
+}
+
+/// <summary>Success body without data.</summary>
+public sealed record ApiMessage(string Message);
+
+/// <summary>All consent records of one bucket, with decrypted emails.</summary>
+public sealed record BucketRecordsResponse(string Bucket, IReadOnlyList<EmailPermissions> Records, int Total);
+
 public sealed class OverrideConsentRequest
 {
     public string Bucket { get; set; } = string.Empty;
@@ -2454,8 +2489,8 @@ public sealed class BrandIdentityCreateRequest
 
 public sealed class BrandIdentityUpdateRequest
 {
-    public string Name { get; set; } = string.Empty;
-    public object? Settings { get; set; }
+    public string? Name { get; set; }
+    public BrandIdentitySettings? Settings { get; set; }
 }
 
 public sealed class BrandIdentityBucketsRequest

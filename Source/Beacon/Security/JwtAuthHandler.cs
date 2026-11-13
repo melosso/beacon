@@ -31,31 +31,39 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     public static string SessionHash(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 
-    /// <summary>Revokes a valid session token until its expiry; logout calls this.</summary>
-    public static async Task RevokeAsync(TokenUsageRepository tokenUsage, byte[] signingKey, string? token)
+    /// <summary>Revokes a valid session token until its expiry. Returns false if the token is invalid or already revoked.</summary>
+    public static async Task<bool> RevokeAsync(TokenUsageRepository tokenUsage, byte[] signingKey, string? token)
     {
         if (string.IsNullOrEmpty(token) || !TryValidateToken(signingKey, token, out _, out _, out var expiresAt) || expiresAt is null)
-            return;
-        var hash = SessionHash(token);
-        if (!await tokenUsage.IsTokenUsedAsync(hash))
-            await tokenUsage.MarkTokenUsedAsync(hash, expiresAt.Value.UtcDateTime);
+            return false;
+        return await tokenUsage.TryMarkUsedAsync(SessionHash(token), expiresAt.Value.UtcDateTime);
     }
 
     public const string CookieName = "beacon_auth";
 
+    /// <summary>Session token from the Bearer header, else from the auth cookie.</summary>
+    internal static string? ReadToken(HttpRequest request)
+    {
+        var bearer = BearerValue(request);
+        if (bearer is not null && IsSessionToken(bearer)) return bearer;
+        return request.Cookies.TryGetValue(CookieName, out var cookie) ? cookie : null;
+    }
+
+    /// <summary>Value of an <c>Authorization: Bearer</c> header, or null.</summary>
+    internal static string? BearerValue(HttpRequest request)
+    {
+        var header = request.Headers.Authorization.ToString();
+        if (!header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) return null;
+        var value = header["Bearer ".Length..].Trim();
+        return value.Length > 0 ? value : null;
+    }
+
+    // Session tokens are JWTs (header.payload.signature); API keys are base64 and never contain a dot
+    internal static bool IsSessionToken(string bearer) => bearer.Count(c => c == '.') == 2;
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Prefer Bearer token from Authorization header; fall back to HttpOnly cookie
-        string? token = null;
-        if (Request.Headers.TryGetValue("Authorization", out var authHeader))
-        {
-            var headerValue = authHeader.ToString();
-            if (headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                token = headerValue["Bearer ".Length..].Trim();
-        }
-
-        if (string.IsNullOrEmpty(token))
-            Request.Cookies.TryGetValue(CookieName, out token);
+        var token = ReadToken(Request);
 
         if (string.IsNullOrEmpty(token))
             return AuthenticateResult.NoResult();
@@ -102,6 +110,11 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 
             var isAdminKey = payload.TryGetProperty("akey", out var akeyElement) && akeyElement.ValueKind == JsonValueKind.True;
 
+            // Tokens issued before auth_time existed fall back to iat.
+            if (!payload.TryGetProperty("auth_time", out var authTimeElement) && !payload.TryGetProperty("iat", out authTimeElement))
+                return AuthenticateResult.Fail("Token missing issue time");
+            var authTime = authTimeElement.GetInt64();
+
             // Per-user tokens are checked against the database so deletion, disabling and role changes apply immediately.
             if (!isAdminKey && !string.IsNullOrEmpty(Options.UserAuthentication) && _userRepository != null)
             {
@@ -113,9 +126,14 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
                 role = user.Role;
             }
 
-            Claim[] claims = isAdminKey
-                ? [new Claim(ClaimTypes.Name, sub), new Claim(ClaimTypes.Role, role), new Claim(AdminKeyClaim, "true")]
-                : [new Claim(ClaimTypes.Name, sub), new Claim(ClaimTypes.Role, role)];
+            List<Claim> claims =
+            [
+                new(ClaimTypes.Name, sub),
+                new(ClaimTypes.Role, role),
+                new(AuthTimeClaim, authTime.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64)
+            ];
+            if (isAdminKey)
+                claims.Add(new Claim(AdminKeyClaim, "true"));
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
@@ -132,8 +150,9 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
     {
         Response.StatusCode = 401;
+        Response.Headers.WWWAuthenticate = "Bearer";
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Unauthorized.\"}");
+        await Response.WriteAsync("{\"error\":\"Authentication required. Send the API key as a Bearer token.\"}");
         await Response.CompleteAsync();
     }
 
@@ -141,7 +160,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     {
         Response.StatusCode = 403;
         Response.ContentType = "application/json";
-        await Response.WriteAsync("{\"error\":\"Forbidden. Insufficient permissions.\"}");
+        await Response.WriteAsync("{\"error\":\"Access denied. The credential lacks the permission for this request.\"}");
         await Response.CompleteAsync();
     }
 
@@ -191,8 +210,22 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     /// <summary>Marks a session issued for the global AdminApiKey, which has no user record.</summary>
     public const string AdminKeyClaim = "beacon:akey";
 
-    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false)
+    /// <summary>Unix time of the sign-in that started the session; refresh keeps it unchanged.</summary>
+    public const string AuthTimeClaim = "beacon:auth_time";
+
+    /// <summary>Absolute session lifetime from sign-in; refresh never extends a session past it.</summary>
+    public static readonly TimeSpan MaxSessionLifetime = TimeSpan.FromHours(8);
+
+    /// <summary>Expiry for a refreshed session, or null when the session has reached <see cref="MaxSessionLifetime"/>.</summary>
+    public static DateTimeOffset? RefreshedExpiry(DateTimeOffset authTime, DateTimeOffset now, TimeSpan slide)
     {
+        var cap = authTime + MaxSessionLifetime;
+        return now >= cap ? null : (now + slide < cap ? now + slide : cap);
+    }
+
+    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false, DateTimeOffset? authTime = null)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var header = Base64Url.EncodeToString("""{"alg":"HS256","typ":"JWT"}"""u8);
 
         // Serialize, never interpolate: an unescaped quote in the subject would inject payload claims.
@@ -201,8 +234,11 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             sub = subject,
             role,
             akey = adminKey,
-            iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            exp = expiresAt.ToUnixTimeSeconds()
+            iat = now,
+            auth_time = authTime?.ToUnixTimeSeconds() ?? now,
+            exp = expiresAt.ToUnixTimeSeconds(),
+            // Unique per token: revocation is keyed by token hash, and a same-second refresh reissues identical claims.
+            jti = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(16))
         }));
 
         var signatureInput = Encoding.ASCII.GetBytes($"{header}.{payload}");
@@ -222,6 +258,15 @@ public class JwtAuthOptions : AuthenticationSchemeOptions
 public static class JwtAuthExtensions
 {
     public const string SchemeName = "Jwt";
+
+    /// <summary>Session JWT (Bearer or cookie) to the JWT handler; an API key (Bearer or X-Api-Key) to the API key handler.</summary>
+    public static string SelectScheme(HttpContext context)
+    {
+        var bearer = JwtAuthHandler.BearerValue(context.Request);
+        if (bearer is not null)
+            return JwtAuthHandler.IsSessionToken(bearer) ? SchemeName : ApiKeyAuthExtensions.SchemeName;
+        return context.Request.Cookies.ContainsKey(JwtAuthHandler.CookieName) ? SchemeName : ApiKeyAuthExtensions.SchemeName;
+    }
 
     public static AuthenticationBuilder AddJwtAuth(
         this AuthenticationBuilder builder,

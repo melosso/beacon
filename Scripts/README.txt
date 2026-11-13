@@ -2,14 +2,14 @@
       BEACON CONSENT SERVICE
 ========================================
 
-Lightweight consent and opt-out service for .NET 10.
+Lightweight consent and opt-out service for .NET 11.
 
 PREREQUISITES
 =============
 
-** REQUIRED: .NET 10.0 Runtime **
-Download from: https://dotnet.microsoft.com/download/dotnet/10.0
-Install "ASP.NET Core Runtime 10.0.x" for Windows x64
+** REQUIRED: .NET 11.0 Runtime **
+Download from: https://dotnet.microsoft.com/download/dotnet/11.0
+Install "ASP.NET Core Runtime 11.0.x" for Windows x64
 
 QUICK START
 ===========
@@ -81,7 +81,7 @@ SECURITY NOTES
 LICENSE
 =======
 
-AGPL-3.0-or-later
+EUPL 1.2
 See license/LICENSE.txt
 
 SUPPORT

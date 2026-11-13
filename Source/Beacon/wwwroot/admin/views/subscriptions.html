@@ -3,7 +3,7 @@
   <section class="header-container">
     <div>
       <h1 class="select-none" id="subTitle">Subscribers</h1>
-      <span class="status-badge select-none" id="subBadge">Overview</span>
+      <span class="status-badge select-none" id="subBadge" hidden></span>
       <span class="text-sm text-muted mt-0-5"
         id="subDetailName" hidden
       ></span>
@@ -14,14 +14,8 @@
         id="subBackBtn"
         data-click="loadIdentities" hidden
       >
-        &larr; Back
+        Back
       </button>
-      <span class="tooltip-wrapper" id="subRefreshWrapper">
-        <button class="btn btn-outline" data-click="loadIdentities">
-          Refresh
-        </button>
-        <span class="tooltip tooltip-right">Reload identities</span>
-      </span>
     </div>
   </section>
 
@@ -31,6 +25,7 @@
     <button
       class="btn btn-outline btn-sm"
       data-click="openSubExportModal"
+      data-admin-only
     >
       Export
     </button>
@@ -58,7 +53,6 @@
             <th>Email</th>
             <th>Name</th>
             <th>Buckets</th>
-            <th>Created</th>
             <th>Updated</th>
             <th class="col-actions"></th>
           </tr>

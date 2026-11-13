@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Net;
 using System.Text.Json;
 using Beacon.Core.Models;
@@ -56,7 +57,17 @@ public static class SubmissionEndpoints
             .DisableAntiforgery()
             .WithTags(SubmissionTag)
             .WithName("Subscribe")
-            .WithDescription("Endpoint for handling subscription form submissions. Accepts email and optional website and consent fields.");
+            .WithDescription("Subscribe an email through a submission form. JSON clients receive JSON; form posts receive an HTML page or a 303 redirect to `redirect_success` or `redirect_error`.")
+            .Accepts<SubmissionSubscribeRequest>("application/json", "application/x-www-form-urlencoded")
+            .Produces<SubmissionSuccess>(StatusCodes.Status200OK)
+            .Produces<string>(StatusCodes.Status200OK, "text/html")
+            .Produces(StatusCodes.Status303SeeOther)
+            .Produces<SubmissionError>(StatusCodes.Status400BadRequest)
+            .Produces<string>(StatusCodes.Status400BadRequest, "text/html")
+            .Produces<SubmissionError>(StatusCodes.Status403Forbidden)
+            .Produces<ApiError>(StatusCodes.Status404NotFound)
+            .Produces<ApiError>(StatusCodes.Status409Conflict)
+            .Produces<SubmissionError>(StatusCodes.Status429TooManyRequests);
     }
 
     // Admin endpoints
@@ -797,15 +808,15 @@ public static class SubmissionEndpoints
         [FromServices] EmailHasher emailHasher)
     {
         if (!configService.Get().EnableSubmissionForms)
-            return Results.NotFound(new { error = "Form not found or disabled" });
+            return Results.NotFound(new ApiError("Form not found or disabled"));
 
         // 1. Check form exists and is enabled
         var form = await service.GetFormAsync(id);
         if (form == null || !form.IsEnabled)
-            return Results.NotFound(new { error = "Form not found or disabled" });
+            return Results.NotFound(new ApiError("Form not found or disabled"));
 
         if (await bucketRepository.IsArchivedAsync(form.Bucket.Trim().ToLowerInvariant()))
-            return Results.Conflict(new { error = "Bucket is archived" });
+            return Results.Conflict(new ApiError("Bucket is archived"));
 
         // Parse request body (JSON or form-encoded)
         string? email = null;
@@ -876,9 +887,9 @@ public static class SubmissionEndpoints
         {
             Serilog.Log.Warning("Blocked subscription attempt for form {FormId} from disallowed origin: {Origin}", form.Id, origin);
             if (isFormPost && IsValidRedirectUrl(redirectError))
-                return Results.Redirect(AppendQuery(redirectError!, "error", "origin_not_allowed"));
+                return SeeOther(AppendQuery(redirectError!, "error", "origin_not_allowed"));
             if (isFormPost)
-                return FormPostHtmlResult(form, "Origin not allowed.", true);
+                return FormPostHtmlResult(form, "Origin not allowed.", StatusCodes.Status403Forbidden, null);
             return Results.Json(BuildJsonError("Origin not allowed", form, "origin_not_allowed"), statusCode: 403);
         }
 
@@ -889,11 +900,13 @@ public static class SubmissionEndpoints
         var clientIp = SubmissionRateLimiter.GetClientIp(context);
         if (rateLimiter.IsRateLimited(form.Id, clientIp, form.RateLimitPerMinute))
         {
+            // The limit is per minute
+            context.Response.Headers.RetryAfter = "60";
             if (isFormPost && IsValidRedirectUrl(redirectError))
-                return Results.Redirect(AppendQuery(redirectError!, "error", "rate_limited"));
+                return SeeOther(AppendQuery(redirectError!, "error", "rate_limited"));
             if (isFormPost)
-                return FormPostHtmlResult(form, "Too many requests. Please try again later.", true);
-            return Results.Json(BuildJsonError("Too many requests. Please try again later.", form, "rate_limited"), statusCode: 429);
+                return FormPostHtmlResult(form, "Too many requests. Try again in a minute.", StatusCodes.Status429TooManyRequests, BackUrl(form, context));
+            return Results.Json(BuildJsonError("Too many requests. Try again in a minute.", form, "rate_limited"), statusCode: StatusCodes.Status429TooManyRequests);
         }
 
         // Honeypot check
@@ -901,11 +914,11 @@ public static class SubmissionEndpoints
         {
             // Bot detected, return success silently
             if (isFormPost && IsValidRedirectUrl(redirectSuccess))
-                return Results.Redirect(redirectSuccess!);
+                return SeeOther(redirectSuccess!);
             var hpConfig = DeserializeFormConfig(form.FormConfig);
             var hpT = GetSubmissionStrings(form.Language);
             if (isFormPost)
-                return FormPostHtmlResult(form, hpConfig?.SuccessMessage ?? hpT.Success, false);
+                return FormPostHtmlResult(form, hpConfig?.SuccessMessage ?? hpT.Success, StatusCodes.Status200OK, BackUrl(form, context));
             return Results.Ok(BuildJsonSuccess(hpConfig?.SuccessMessage ?? hpT.Success, form));
         }
 
@@ -918,9 +931,9 @@ public static class SubmissionEndpoints
             if (!consentGiven)
             {
                 if (isFormPost && IsValidRedirectUrl(redirectError))
-                    return Results.Redirect(AppendQuery(redirectError!, "error", "consent_required"));
+                    return SeeOther(AppendQuery(redirectError!, "error", "consent_required"));
                 if (isFormPost)
-                    return FormPostHtmlResult(form, "Consent is required to subscribe.", true);
+                    return FormPostHtmlResult(form, "Consent is required to subscribe.", StatusCodes.Status400BadRequest, BackUrl(form, context));
                 return Results.BadRequest(BuildJsonError("Consent is required to subscribe", form, "consent_required"));
             }
         }
@@ -930,9 +943,9 @@ public static class SubmissionEndpoints
         if (!emailValidation.IsValid)
         {
             if (isFormPost && IsValidRedirectUrl(redirectError))
-                return Results.Redirect(AppendQuery(redirectError!, "error", "invalid_email"));
+                return SeeOther(AppendQuery(redirectError!, "error", "invalid_email"));
             if (isFormPost)
-                return FormPostHtmlResult(form, emailValidation.Error!, true);
+                return FormPostHtmlResult(form, emailValidation.Error!, StatusCodes.Status400BadRequest, BackUrl(form, context));
             return Results.BadRequest(BuildJsonError(emailValidation.Error!, form, "invalid_email"));
         }
 
@@ -957,17 +970,38 @@ public static class SubmissionEndpoints
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(form.Bucket));
 
         if (isFormPost && IsValidRedirectUrl(redirectSuccess))
-            return Results.Redirect(redirectSuccess!);
+            return SeeOther(redirectSuccess!);
 
         var config = DeserializeFormConfig(form.FormConfig);
         var successMessage = config?.SuccessMessage ?? subT.Success;
         if (isFormPost)
-            return FormPostHtmlResult(form, successMessage, false);
+            return FormPostHtmlResult(form, successMessage, StatusCodes.Status200OK, BackUrl(form, context));
         return Results.Ok(BuildJsonSuccess(successMessage, form));
     }
 
-    private static IResult FormPostHtmlResult(SubmissionForm form, string message, bool isError)
+    // POST then redirect: 303 See Other makes the browser follow with GET
+    internal static IResult SeeOther(string url) => new SeeOtherResult(url);
+
+    private sealed class SeeOtherResult(string url) : IResult
     {
+        public Task ExecuteAsync(HttpContext httpContext)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status303SeeOther;
+            httpContext.Response.Headers.Location = url;
+            return Task.CompletedTask;
+        }
+    }
+
+    // The submitting page, when its origin is allowed for the form
+    private static string? BackUrl(SubmissionForm form, HttpContext context)
+    {
+        var referer = context.Request.Headers.Referer.ToString();
+        return IsRedirectAllowedForForm(form, referer) ? referer : null;
+    }
+
+    private static IResult FormPostHtmlResult(SubmissionForm form, string message, int statusCode, string? backUrl)
+    {
+        var isError = statusCode >= 400;
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var primary = InputValidator.SanitizeCssColor(config.PrimaryColor, "#2563eb");
         var radius = InputValidator.SanitizeCssBorderRadius(config.BorderRadius, "8px");
@@ -994,7 +1028,8 @@ public static class SubmissionEndpoints
                   display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--space-8);
                 }
                 .card { max-width: 480px; width: 100%; text-align: center; }
-                .icon { font-size: 2.5rem; margin-bottom: var(--space-4); }
+                .icon { font-size: 2.5rem; margin-bottom: var(--space-4); color: {{msgColor}}; }
+                .icon svg { display: block; margin: 0 auto; }
                 .message { font-size: var(--text-lg); line-height: 1.5; color: {{msgColor}}; margin-bottom: var(--space-6); }
                 a {
                   display: inline-block; padding: var(--space-2-5) var(--space-6);
@@ -1006,15 +1041,15 @@ public static class SubmissionEndpoints
             </head>
             <body>
               <div class="card">
-                <div class="icon">{{(isError ? "&#9888;" : "&#10003;")}}</div>
+                <div class="icon">{{ConsentEndpoints.StatusIcon(isError ? "warning" : "success")}}</div>
                 <p class="message">{{encodedMsg}}</p>
-                <a href="javascript:history.back()">&#8592; Go back</a>
+                {{(backUrl is null ? "" : $"<a href=\"{WebUtility.HtmlEncode(backUrl)}\">Go back</a>")}}
               </div>
             </body>
             </html>
             """;
 
-        return Results.Content(Minify(html), "text/html");
+        return Results.Content(Minify(html), "text/html; charset=utf-8", statusCode: statusCode);
     }
 
     private static string Minify(string content) =>
@@ -1052,19 +1087,11 @@ public static class SubmissionEndpoints
         }
     }
 
-    private static object BuildJsonSuccess(string message, SubmissionForm form)
-    {
-        if (!form.DisableRedirects && form.RedirectJsEmbed && IsValidRedirectUrl(form.RedirectSuccess))
-            return new { message, redirect = form.RedirectSuccess };
-        return new { message };
-    }
+    private static SubmissionSuccess BuildJsonSuccess(string message, SubmissionForm form) =>
+        new(message, !form.DisableRedirects && form.RedirectJsEmbed && IsValidRedirectUrl(form.RedirectSuccess) ? form.RedirectSuccess : null);
 
-    private static object BuildJsonError(string error, SubmissionForm form, string errorCode)
-    {
-        if (!form.DisableRedirects && form.RedirectJsEmbed && IsValidRedirectUrl(form.RedirectError))
-            return new { error, redirect = AppendQuery(form.RedirectError!, "error", errorCode) };
-        return new { error };
-    }
+    private static SubmissionError BuildJsonError(string error, SubmissionForm form, string errorCode) =>
+        new(error, !form.DisableRedirects && form.RedirectJsEmbed && IsValidRedirectUrl(form.RedirectError) ? AppendQuery(form.RedirectError!, "error", errorCode) : null);
 
     private static string AppendQuery(string url, string key, string value)
     {
@@ -1209,10 +1236,29 @@ public sealed class UpdateSubmissionFormRequest
     public Dictionary<string, string>? CustomFields { get; set; }
 }
 
+/// <summary>Subscription request. Form posts use the same field names.</summary>
 public sealed class SubmissionSubscribeRequest
 {
     public string Email { get; set; } = string.Empty;
     public string? Name { get; set; }
-    public string? Website { get; set; } // Honeypot field
+    /// <summary>Honeypot: leave empty. A filled value is accepted and discarded.</summary>
+    public string? Website { get; set; }
+    /// <summary>"true" or "on" when the form requires consent.</summary>
     public string? Consent { get; set; }
+    /// <summary>Form posts only: redirect after success, if its origin is allowed for the form.</summary>
+    [JsonPropertyName("redirect_success")]
+    public string? RedirectSuccess { get; set; }
+    /// <summary>Form posts only: redirect after an error, with an <c>error</c> query parameter.</summary>
+    [JsonPropertyName("redirect_error")]
+    public string? RedirectError { get; set; }
 }
+
+/// <summary>Subscription accepted. <c>redirect</c> is set when the form redirects embedded submissions.</summary>
+public sealed record SubmissionSuccess(
+    string Message,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Redirect = null);
+
+/// <summary>Subscription refused. <c>redirect</c> is set when the form redirects embedded submissions.</summary>
+public sealed record SubmissionError(
+    string Error,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Redirect = null);

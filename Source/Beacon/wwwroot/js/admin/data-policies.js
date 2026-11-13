@@ -1,6 +1,6 @@
 // DATA POLICIES SECTION
-function toggleDataPoliciesEnabled(enabled) {
-  saveSetting("dataPoliciesEnabled", enabled);
+async function toggleDataPoliciesEnabled(enabled) {
+  await saveSettingImmediate("dataPoliciesEnabled", enabled);
   const controls = document.getElementById("data-policies-controls");
   if (controls) {
     controls.classList.toggle("is-disabled", !enabled);
@@ -239,7 +239,7 @@ function renderAuditRow(e) {
       </td>
       <td><span class="bucket-name cursor-pointer" @click=${() => showAuditForBucket(e.bucket)}>${e.bucket}</span></td>
       <td>${e.permission}</td>
-      <td class="nowrap">${auditStatusChip(e.oldStatus)} → ${auditStatusChip(e.newStatus)}</td>
+      <td class="nowrap">${auditStatusChip(e.oldStatus)} <svg class="audit-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="to"><path d="M5 12h14M12 5l7 7-7 7"/></svg> ${auditStatusChip(e.newStatus)}</td>
       <td>${sourceLabel}</td>
       <td>${e.actorId || html`<span class="muted">—</span>`}</td>
       <td><div class="row-actions">
@@ -347,12 +347,23 @@ const _workflowTypeLabels = {
   PendingConfirmationPurge: "Pending confirmation cleanup",
 };
 
+function noWorkflowPolicies() {
+  return !appSettings.retentionPurgeEnabled && !appSettings.pendingConfirmationPurgeEnabled;
+}
+
+// A manual run executes the enabled policies only: with none enabled there is nothing to run
+function syncWorkflowRunButton() {
+  const btn = document.getElementById("workflowRunBtn");
+  const tip = document.getElementById("workflowRunTip");
+  const none = noWorkflowPolicies();
+  if (btn) btn.disabled = none;
+  if (tip) tip.textContent = none ? "Enable a policy to run" : "Run data policies immediately";
+}
+
 async function loadWorkflowPage() {
   const notice = document.getElementById("workflow-policy-notice");
-  const noPolicies =
-    !appSettings.retentionPurgeEnabled &&
-    !appSettings.pendingConfirmationPurgeEnabled;
-  if (notice) notice.hidden = !noPolicies;
+  if (notice) notice.hidden = !noWorkflowPolicies();
+  syncWorkflowRunButton();
   _locallyActionedIds.clear();
   _workflowArchivedVisible = false;
   _workflowPage = 1;
@@ -393,7 +404,7 @@ function workflowStatus(t) {
 
 function visibleWorkflowTasks() {
   return _workflowArchivedVisible
-    ? _workflowAllTasks.filter((t) => t.status !== "Running" && t.status !== "Pending")
+    ? _workflowAllTasks.filter((t) => t.status !== "Running")
     : _workflowAllTasks.filter((t) => t.status === "PendingApproval" || _locallyActionedIds.has(t.id));
 }
 
@@ -408,6 +419,10 @@ function renderWorkflowTable() {
   const tbody = document.getElementById("workflowTbody");
   if (!tbody) return;
 
+  // With no policy on and no history, the notice is the whole page
+  const table = document.getElementById("workflowTable");
+  if (table) table.hidden = noWorkflowPolicies() && _workflowAllTasks.length === 0;
+
   const msg = _workflowArchivedVisible ? "No runs." : "No items awaiting approval.";
   paint(tbody, total === 0
     ? html`<tr><td class="table-empty" colspan="6">${msg}</td></tr>`
@@ -415,7 +430,7 @@ function renderWorkflowTable() {
         <tr>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
-          <td>${t.scheduledAt ? new Date(t.scheduledAt).toLocaleString(undefined, SHORT_DATE) : "—"}</td>
+          <td>${t.scheduledAt ? new Date(t.scheduledAt).toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
           <td>${t.status === "Completed" || t.status === "Failed" ? t.recordsAffected : "—"}</td>
           <td>${workflowStatus(t)}</td>
           <td>${t.status === "PendingApproval" ? html`<div class="inline-actions nowrap">
@@ -426,11 +441,11 @@ function renderWorkflowTable() {
 
   // Pagination
   const bar = document.getElementById("workflowPaginationBar");
-  if (bar) bar.hidden = false;
+  if (bar) bar.hidden = total === 0;
   const startN = total === 0 ? 0 : start + 1;
   const endN = Math.min(start + _workflowPageSize, total);
   const info = document.getElementById("workflowPaginationInfo");
-  if (info) info.textContent = `Showing ${startN} to ${endN} of ${total}`;
+  if (info) info.textContent = pageRangeText(startN, endN, total);
   const prevBtn = document.getElementById("workflowPrevBtn");
   const nextBtn = document.getElementById("workflowNextBtn");
   if (prevBtn) prevBtn.disabled = _workflowPage <= 1;
@@ -474,7 +489,7 @@ function renderSettingsRunHistory(tasks) {
         return html`<tr>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
-          <td>${started ? started.toLocaleString(undefined, SHORT_DATE) : "—"}</td>
+          <td>${started ? started.toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
           <td>${duration}</td>
           <td>${t.recordsAffected}</td>
           <td>${workflowStatus(t)}</td>
@@ -524,6 +539,7 @@ async function triggerDataPoliciesRun() {
     b.classList.remove("is-loading");
     b.disabled = false;
   });
+  syncWorkflowRunButton();
 }
 
 // RETENTION PURGE MODAL
@@ -535,7 +551,7 @@ function openRetentionPurgeModal() {
 function closeRetentionPurgeModal() {
   closeModal("retentionPurgeModal");
 }
-function saveRetentionPurgeDays() {
+async function saveRetentionPurgeDays() {
   const days = parseInt(
     document.getElementById("setting-retentionPurgeDays").value,
     10,
@@ -544,8 +560,8 @@ function saveRetentionPurgeDays() {
     notify("warning", "Invalid value", "Enter a number greater than 0.");
     return;
   }
-  saveSetting("retentionPurgeDays", days);
   closeRetentionPurgeModal();
+  await saveSettingImmediate("retentionPurgeDays", days);
 }
 
 // PENDING CONFIRMATION MODAL
@@ -557,7 +573,7 @@ function openPendingConfirmationModal() {
 function closePendingConfirmationModal() {
   closeModal("pendingConfirmationModal");
 }
-function savePendingConfirmationPurgeDays() {
+async function savePendingConfirmationPurgeDays() {
   const days = parseInt(
     document.getElementById("setting-pendingConfirmationPurgeDays").value,
     10,
@@ -566,6 +582,6 @@ function savePendingConfirmationPurgeDays() {
     notify("warning", "Invalid value", "Enter a number greater than 0.");
     return;
   }
-  saveSetting("pendingConfirmationPurgeDays", days);
   closePendingConfirmationModal();
+  await saveSettingImmediate("pendingConfirmationPurgeDays", days);
 }

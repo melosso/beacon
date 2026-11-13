@@ -99,7 +99,7 @@ function renderBucketsSidebar() {
           href="#"
           class="nav-item ${b.isArchived ? "nav-item--archived" : ""}"
           data-bucket=${b.name}
-          title=${b.isArchived ? `${b.name} (archived)` : b.name}
+          title=${`${formatPermission(b.name)} (${b.name})${b.isArchived ? ", archived" : ""}`}
           @click=${(e) => {
             e.preventDefault();
             showBucket(b.name);

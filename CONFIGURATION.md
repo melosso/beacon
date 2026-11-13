@@ -31,7 +31,7 @@ Generate a `.env` with the required keys (gitignored):
 
 ```bash
 cd Source/Beacon
-if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && chmod 600 .env && echo "Your X-Api-Key is: $ADMIN_KEY"; fi
+if [ -f .env ]; then echo ".env already exists. Aborting."; else ADMIN_KEY=$(openssl rand -base64 48 | tr -d '\n'); printf "SIGNING_KEY=%s\nENCRYPTION_KEY=%s\nPEPPER=%s\nADMIN_API_KEY=%s\n" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$(openssl rand -base64 32)" "$ADMIN_KEY" > .env && chmod 600 .env && echo "Your API key is: $ADMIN_KEY"; fi
 ```
 
 Beacon never writes a value read from an environment variable or `.env` back to `appsettings.json`.
@@ -58,7 +58,7 @@ When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based ro
 |----------|---------|---------|
 | `API_HOSTS` | Hosts for public API access | beacon-api.example.com |
 | `ADMIN_HOSTS` | Hosts for admin panel access | beacon-admin.example.com |
-| `ALLOWED_ORIGINS` | Additional CORS origins | https://app.example.com |
+| `ALLOWED_ORIGINS` | Additional CORS origins. `ADMIN_HOSTS` and `API_HOSTS` add `https://` origins; plain-http origins outside Development must be listed here | https://app.example.com |
 | `TRUST_FORWARDED_HEADERS` | Trust X-Forwarded-* headers from proxy | true |
 | `KNOWN_PROXIES` | Proxy IPs or CIDRs trusted for X-Forwarded-* headers. Defaults to private and loopback ranges | 10.0.0.0/8 |
 | `PUBLIC_URL` | Override the base URL used in confirmation email links | https://beacon-api.example.com |
@@ -85,3 +85,4 @@ You can configure the following additional, completely optional settings:
 | `USER_AUTHENTICATION` | Allow user authentication, API tokens, or both (`user`, `api`, `both`). Leave blank to only allow `ADMIN_API_KEY` | both |
 | `ENFORCE_HTTPS` | Redirect HTTP to HTTPS and send HSTS headers. Set only if Beacon terminates TLS. Leave off behind a TLS proxy | false |
 | `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email for this instance. Not editable in the admin panel | false |
+| `DEMO_MODE` | Block non-admin users from changing their own password or API key. Not editable in the admin panel | false |

@@ -162,6 +162,20 @@ public class StatusLocalizationTests
         Assert.NotEqual(t.ExpiredMsg, t.ArchivedMsg);
     }
 
+    [Theory]
+    [InlineData("expired")] [InlineData("invalid")] [InlineData("already_processed")] [InlineData("archived")]
+    [InlineData("unsubscribed")] [InlineData("updated")] [InlineData("confirmed")]
+    public void StatusPage_UsesDrawnIcon(string status)
+    {
+        var html = Beacon.Api.ConsentEndpoints.GetStatusPage(status, optedOut: ["news"], keptIn: []);
+
+        Assert.Contains("<svg", html);
+        Assert.DoesNotContain("✓", html);
+        Assert.DoesNotContain("✗", html);
+        Assert.DoesNotContain("⚠", html);
+        Assert.DoesNotContain("ℹ", html);
+    }
+
     [Fact]
     public void UnknownLanguageFallsBackToEnglish()
     {

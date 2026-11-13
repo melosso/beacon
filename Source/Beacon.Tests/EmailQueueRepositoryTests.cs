@@ -285,52 +285,6 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.True(updated.ConfirmedAt >= before);
     }
 
-    // HasPendingAsync───
-
-    [Fact]
-    public async Task HasPendingAsync_ReturnsTrue_ForPendingEntry()
-    {
-        await _repository.EnqueueAsync(MakeEntry("tk", bucket: "b", emailHash: "h", permission: "p"));
-
-        Assert.True(await _repository.HasPendingAsync("b", "h", "p"));
-    }
-
-    [Fact]
-    public async Task HasPendingAsync_ReturnsTrue_ForSentEntry()
-    {
-        var entry = MakeEntry("tk", bucket: "b", emailHash: "h", permission: "p");
-        await _repository.EnqueueAsync(entry);
-        await _repository.MarkSentAsync(entry.Id, DateTime.UtcNow);
-
-        Assert.True(await _repository.HasPendingAsync("b", "h", "p"));
-    }
-
-    [Fact]
-    public async Task HasPendingAsync_ReturnsFalse_WhenNoneExist()
-    {
-        Assert.False(await _repository.HasPendingAsync("b", "h", "p"));
-    }
-
-    [Fact]
-    public async Task HasPendingAsync_ReturnsFalse_ForConfirmedEntry()
-    {
-        var entry = MakeEntry("tk", bucket: "b", emailHash: "h", permission: "p");
-        await _repository.EnqueueAsync(entry);
-        await _repository.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
-
-        Assert.False(await _repository.HasPendingAsync("b", "h", "p"));
-    }
-
-    [Fact]
-    public async Task HasPendingAsync_ReturnsFalse_ForFailedEntry()
-    {
-        var entry = MakeEntry("tk", bucket: "b", emailHash: "h", permission: "p");
-        await _repository.EnqueueAsync(entry);
-        await _repository.MarkFailedAsync(entry.Id, "err", null);
-
-        Assert.False(await _repository.HasPendingAsync("b", "h", "p"));
-    }
-
     // PruneExpiredAsync─
 
     [Fact]
@@ -363,8 +317,8 @@ public class EmailQueueRepositoryTests : IDisposable
     public async Task PruneExpiredAsync_DoesNotOverwriteConfirmedEntries()
     {
         var entry = MakeEntry("tk1", expiresAt: DateTime.UtcNow.AddSeconds(-1));
+        entry.Status = EmailQueueStatus.Confirmed;
         await _repository.EnqueueAsync(entry);
-        await _repository.MarkConfirmedAsync(entry.Id, DateTime.UtcNow);
 
         await _repository.PruneExpiredAsync();
         _db.ChangeTracker.Clear();
@@ -399,5 +353,17 @@ public class EmailQueueRepositoryTests : IDisposable
 
         Assert.Equal(EmailQueueStatus.Cancelled, cancelled.Status);
         Assert.Equal(EmailQueueStatus.Pending, stillPending.Status);
+    }
+
+    [Fact]
+    public async Task DeleteForRecord_KeepsOtherBuckets()
+    {
+        await _repository.EnqueueAsync(MakeEntry("tk1", bucket: "a", emailHash: "h"));
+        await _repository.EnqueueAsync(MakeEntry("tk2", bucket: "b", emailHash: "h"));
+
+        await _repository.DeleteForRecordAsync("a", "h", TestContext.Current.CancellationToken);
+        _db.ChangeTracker.Clear();
+
+        Assert.Equal(["b"], await _db.EmailQueueEntries.Select(e => e.Bucket).ToListAsync(TestContext.Current.CancellationToken));
     }
 }
