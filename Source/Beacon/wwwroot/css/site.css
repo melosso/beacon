@@ -974,7 +974,6 @@ h1 {
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   padding: var(--space-3-5);
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   white-space: pre-wrap;
   word-break: break-word;
@@ -984,6 +983,7 @@ h1 {
   user-select: text;
 }
 .error-detail-message--stack {
+  font-family: var(--font-mono);
   max-height: 200px;
   font-size: var(--text-2xs);
   color: hsl(var(--muted-foreground));
@@ -1934,7 +1934,6 @@ textarea.input,
 
 .autocomplete-code {
   margin-left: var(--space-1);
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: hsl(var(--muted-foreground));
 }
@@ -2062,7 +2061,6 @@ textarea.input,
 }
 
 .custom-field-key {
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -4013,6 +4011,7 @@ input.appearance-select {
 .status-meta code {
   background: none;
   padding: 0;
+  font-family: inherit;
 }
 .status-card > .status-hint {
   font-size: var(--text-sm);

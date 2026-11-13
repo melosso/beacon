@@ -330,7 +330,7 @@ function renderOverview() {
         <td class="cursor-pointer" @click=${() => showBucket(b.name)}>
           <strong>${formatPermission(b.name) || "N/A"}</strong>${b.isArchived
             ? html` <span class="status-badge status-badge--sm">Archived</span>`
-            : nothing}<span class="cell-sub mono">${b.name}</span>
+            : nothing}<span class="cell-sub">${b.name}</span>
         </td>
         <td>
           ${b.totalEmails != null
