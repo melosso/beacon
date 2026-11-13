@@ -28,6 +28,11 @@ internal static partial class ExportWriter
 
     public static IResult Write(HttpContext context, string fileName, string format, string rootName, string itemName, IReadOnlyList<Row> rows)
     {
+        // Warning level: bulk PII exports stay in the log at the production minimum level.
+        context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Beacon.Audit").LogWarning(
+            "Export {Path} by {User} ({Role}) from {Ip}: {Rows} rows as {Format}",
+            context.Request.Path.Value, context.User.Identity?.Name, context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
+            context.Connection.RemoteIpAddress?.ToString(), rows.Count, format);
         context.Response.Headers.ContentDisposition = $"attachment; filename=\"{fileName}.{format}\"";
         return format switch
         {
