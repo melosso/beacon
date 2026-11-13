@@ -113,7 +113,7 @@ Store the API key in a secure location. The API key grants access to the admin p
 
 ---
 
-Please continue to the [Configuration guide](CONFIGURATION.md) for more information, as it describes host-based routing for production deployments.
+Please continue to the [Configuration guide](CONFIGURATION.md) for more information, as it describes host-based routing and other optimizations for production deployments.
 
 ## How to Use
 
