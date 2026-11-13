@@ -1,7 +1,5 @@
 ![Beacon](.github/images/banner.webp)
 
-# Beacon
-
 [![License](https://img.shields.io/badge/license-EUPL%201.2-blue)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
