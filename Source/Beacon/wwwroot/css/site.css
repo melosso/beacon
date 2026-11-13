@@ -267,6 +267,7 @@ td {
 }
 
 .auth-page {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -274,6 +275,20 @@ td {
   justify-content: center;
   padding: var(--space-6) var(--space-4);
   overflow-y: auto;
+}
+
+.auth-theme-toggle {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+}
+.theme-icon {
+  display: none;
+}
+.auth-theme-toggle[data-mode="system"] .theme-icon--system,
+.auth-theme-toggle[data-mode="light"] .theme-icon--light,
+.auth-theme-toggle[data-mode="dark"] .theme-icon--dark {
+  display: block;
 }
 
 .auth-brand {

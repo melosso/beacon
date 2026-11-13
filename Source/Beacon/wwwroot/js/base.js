@@ -310,6 +310,32 @@ function dismissPromoBar() {
   bar.classList.remove("is-visible");
 }
 
+const THEMES = ["system", "light", "dark"];
+
+// Same beacon_settings.theme value as the admin Appearance setting and js/theme.js.
+function readSettings() {
+  try { return JSON.parse(localStorage.getItem("beacon_settings") || "{}"); } catch { return {}; }
+}
+
+function cycleTheme() {
+  const settings = readSettings();
+  settings.theme = THEMES[(THEMES.indexOf(settings.theme || "system") + 1) % THEMES.length];
+  if (settings.theme === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", settings.theme);
+  try { localStorage.setItem("beacon_settings", JSON.stringify(settings)); } catch {}
+  syncThemeToggle(settings.theme);
+}
+
+function syncThemeToggle(theme = readSettings().theme || "system") {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  const label = theme[0].toUpperCase() + theme.slice(1);
+  btn.dataset.mode = theme;
+  btn.title = `Theme: ${label}`;
+  btn.setAttribute("aria-label", `Toggle theme (current: ${label})`);
+}
+
 bindActions();
 showPromoBar();
 initLoginPage();
+syncThemeToggle();
