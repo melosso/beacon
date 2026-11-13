@@ -339,6 +339,7 @@ function renderDetailSubscriptions() {
         name: subDetailName,
         emailHash: subDetailHash,
         permissions: s.permissions,
+        pendingPermissions: s.pendingPermissions,
         customFields: {},
       };
       const viewInBucket = () => showBucketFiltered(s.bucket, subDetailEmail);
@@ -356,20 +357,9 @@ function renderDetailSubscriptions() {
           <div class="perm-switch-list">
             ${Object.entries(s.permissions).map(
               ([p, optedIn]) =>
-                html` <span
-                  class="tooltip-wrapper perm-switch select-none"
+                html` <span class="perm-switch select-none"
                   ><span class="permission-name">${formatPermission(p)}</span
-                  ><label class="switch disabled"
-                    ><input
-                      type="checkbox"
-                      .checked=${optedIn}
-                      disabled
-                      aria-label=${formatPermission(p)} /><span
-                      class="slider"
-                    ></span></label
-                  ><span class="tooltip tooltip-above"
-                    >${optedIn ? "Opted-in" : "Opted-out"}</span
-                  ></span
+                  >${consentChip(optedIn, s.pendingPermissions?.includes(p))}</span
                 >`,
             )}
           </div>

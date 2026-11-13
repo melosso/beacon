@@ -658,11 +658,8 @@ async function loadBucket(bucket = currentBucket) {
               : html`<span class="muted">—</span>`}
           </td>
           ${currentBucketPermissions.map((p) => {
-            const optedIn = !!r.permissions?.[p];
             return html`<td>
-              <span class="status-chip ${optedIn ? "opted-in" : "opted-out"}"
-                >${optedIn ? "Opted in" : "Opted out"}</span
-              >
+              ${consentChip(r.permissions?.[p], r.pendingPermissions?.includes(p))}
             </td>`;
           })}
           <td>${formatDate(r.lastChanged)}</td>

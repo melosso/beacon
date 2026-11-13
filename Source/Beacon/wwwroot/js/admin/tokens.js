@@ -245,6 +245,16 @@ function formatPermission(p) {
     );
 }
 
+// Status chip for one permission: pending is a double opt-in awaiting confirmation; no record counts as opted in
+function consentChip(optedIn, pending) {
+  if (pending) return html`<span class="status-chip pending">Pending</span>`;
+  if (optedIn === undefined)
+    return html`<span class="status-chip unset" title="No record. Counts as opted in.">Not set</span>`;
+  return optedIn
+    ? html`<span class="status-chip opted-in">Opted in</span>`
+    : html`<span class="status-chip opted-out">Opted out</span>`;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
   // Server stores UTC but may serialize without Z suffix to ensure UTC parsing

@@ -862,6 +862,10 @@ h1 {
   background: hsl(var(--destructive) / 0.1);
   color: hsl(var(--destructive));
 }
+.status-chip.unset {
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
 .status-chip.pending {
   background: hsl(var(--muted));
   color: hsl(var(--muted-foreground));

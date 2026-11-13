@@ -249,6 +249,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 EncryptedName = g.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                PendingPermissions = g.Where(r => r.Status == ConsentStatus.PendingConfirmation).Select(r => r.Permission).ToList(),
                 FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
@@ -284,6 +285,7 @@ public sealed class ConsentRepository : IConsentRepository
                 EncryptedEmail = g.FirstOrDefault(r => r.EncryptedEmail != null)?.EncryptedEmail,
                 EncryptedName = g.FirstOrDefault(r => r.EncryptedName != null)?.EncryptedName,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                PendingPermissions = g.Where(r => r.Status == ConsentStatus.PendingConfirmation).Select(r => r.Permission).ToList(),
                 FirstSeen = g.Min(r => r.ChangedAt),
                 LastChanged = g.Max(r => r.ChangedAt),
                 CustomFields = DeserializeCustomFields(g.FirstOrDefault(r => r.CustomFields != null)?.CustomFields)
@@ -507,6 +509,7 @@ public sealed class ConsentRepository : IConsentRepository
             {
                 Bucket = g.Key,
                 Permissions = g.ToDictionary(r => r.Permission, r => r.Status == ConsentStatus.OptedIn),
+                PendingPermissions = g.Where(r => r.Status == ConsentStatus.PendingConfirmation).Select(r => r.Permission).ToList(),
                 LastChanged = g.Max(r => r.ChangedAt)
             })
             .OrderBy(b => b.Bucket)

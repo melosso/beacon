@@ -189,6 +189,29 @@ public abstract class DatabaseProviderTests
     }
 
     [Fact]
+    public async Task RecordQueries_ReportPendingPermissions()
+    {
+        var bucket = $"pend-{Guid.NewGuid():N}"[..20];
+        var hash = Guid.NewGuid().ToString("N");
+        await using var db = CreateDbContext();
+        var repo = new ConsentRepository(db);
+        await repo.UpsertAsync(MakeRecord(bucket, hash, "email", ConsentStatus.PendingConfirmation));
+        await repo.UpsertAsync(MakeRecord(bucket, hash, "sms", ConsentStatus.OptedIn));
+        db.ChangeTracker.Clear();
+
+        var paged = (await repo.GetBucketRecordsAsync(bucket, 1, 10)).Records.Single();
+        var all = (await repo.GetAllBucketRecordsAsync(bucket)).Single();
+        var identity = (await repo.GetIdentityDetailsAsync(hash))!.Subscriptions.Single();
+
+        foreach (var (pending, permissions) in new[] { (paged.PendingPermissions, paged.Permissions), (all.PendingPermissions, all.Permissions), (identity.PendingPermissions, identity.Permissions) })
+        {
+            Assert.Equal(["email"], pending);
+            Assert.False(permissions["email"]);
+            Assert.True(permissions["sms"]);
+        }
+    }
+
+    [Fact]
     public async Task TryMarkUsedAsync_SecondClaim_ReturnsFalse()
     {
         var hash = Guid.NewGuid().ToString("N");

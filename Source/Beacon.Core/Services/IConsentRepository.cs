@@ -91,6 +91,8 @@ public sealed class EmailPermissions
     public string? Email { get; set; }
     public string? Name { get; set; }
     public required Dictionary<string, bool> Permissions { get; init; }
+    /// <summary>Permissions awaiting double opt-in confirmation; <see cref="Permissions"/> reports them as false.</summary>
+    public IReadOnlyList<string> PendingPermissions { get; init; } = [];
     public DateTime FirstSeen { get; init; }
     public DateTime LastChanged { get; init; }
     public Dictionary<string, string>? CustomFields { get; init; }
@@ -100,6 +102,8 @@ public sealed class BucketSubscription
 {
     public required string Bucket { get; init; }
     public required Dictionary<string, bool> Permissions { get; init; }
+    /// <summary>Permissions awaiting double opt-in confirmation; <see cref="Permissions"/> reports them as false.</summary>
+    public IReadOnlyList<string> PendingPermissions { get; init; } = [];
     public DateTime LastChanged { get; init; }
 }
 
