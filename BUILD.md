@@ -47,7 +47,7 @@ dotnet publish ./Source/Beacon/Beacon.csproj \
   -p:PublishSingleFile=true \
   -p:DebugType=None \
   -p:DebugSymbols=false \
-  --framework net10.0 \
+  --framework net11.0 \
   -o ./Deployment
 ```
 
