@@ -4,7 +4,12 @@
 [![Last commit](https://img.shields.io/github/last-commit/melosso/beacon)](https://github.com/melosso/beacon/commits/main)
 [![Latest Release](https://img.shields.io/github/v/release/melosso/beacon)](https://github.com/melosso/beacon/releases/latest)
 
-This is **Beacon**, a lightweight service for handling email consent and opt-outs. Built on .NET 10, it works independently of your CRM, ERP, or marketing automation tool. Generate secure, temporary opt-out links, validate them instantly, and let other systems check consent status via the REST API.
+Beacon is a lightweight service for handling email consent and opt-outs. 
+
+- Deploy: [Install Beacon](#getting-started)
+- Demo: [Visit Instance](https://beacon-demo.melosso.com/)
+
+Built on .NET 11, it works independently of your CRM, ERP, or marketing automation tool. Generate secure, temporary opt-out links, validate them instantly, and let other systems check consent status via the REST API.
 
 > Try it out! Feel free to play around in our live demo instance, available on [beacon-demo.melosso.com](https://beacon-demo.melosso.com). Use `Beacon-Api-Key` as your access token.
 
@@ -82,10 +87,10 @@ Access the Admin panel at **http://localhost:5001** and API at **http://localhos
 
 Download the latest release from [Releases](https://github.com/melosso/beacon/releases).
 
-1. **Install .NET 10 (LTS) Runtime:**
+1. **Install .NET 11 (LTS) Runtime:**
 
 ```powershell
-winget install --id Microsoft.DotNet.Runtime.10 -e
+winget install --id Microsoft.DotNet.RunTime.11 -e
 ```
 
 2. **Create `.env` with the required keys** (run in the Beacon folder):

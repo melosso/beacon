@@ -43,7 +43,7 @@ jobs:
 
       - name: Publish
         run: |
-          # Archives: framework-dependent single file. Packages: self-contained, distro repos do not ship the .NET 10 runtime.
+          # Archives: framework-dependent single file. Packages: self-contained, distro repos do not ship the .NET 11 runtime.
           for rid in win-x64 win-arm64 linux-x64 linux-arm64 osx-x64 osx-arm64; do
             dotnet publish $PROJECT_PATH -c Release -r $rid --self-contained false \
               -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish_$rid
