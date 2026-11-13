@@ -13,3 +13,10 @@ public enum ConsentSource
     Api = 1,
     Admin = 2
 }
+
+public static class ConsentTransition
+{
+    /// <summary>Whether a stored status of <paramref name="from"/> accepts <paramref name="to"/>. Pending confirmation never replaces an opt-in.</summary>
+    public static bool IsAllowed(ConsentStatus? from, ConsentStatus to) =>
+        !(to == ConsentStatus.PendingConfirmation && from == ConsentStatus.OptedIn);
+}

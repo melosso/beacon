@@ -132,10 +132,6 @@ public sealed class ConsentService {
         var emailHash = _emailHasher.Hash(normalizedEmail);
         var normalizedPermission = NormalizePermission(permission);
 
-        var existing = await _repository.GetAsync(normalizedBucket, emailHash, normalizedPermission);
-        if (existing is not null)
-            return false;
-
         var encryptedEmail = _encryptor.Encrypt(normalizedEmail);
         var encryptedName = !string.IsNullOrWhiteSpace(name) ? _encryptor.Encrypt(name.Trim()) : null;
         var record = new ConsentRecord
@@ -153,7 +149,8 @@ public sealed class ConsentService {
             ConsentText = consentText
         };
 
-        await _repository.UpsertAsync(record, actorId);
+        if (!await _repository.UpsertAsync(record, actorId, insertOnly: true))
+            return false;
         await _cache.RemoveAsync(CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission));
         return true;
     }

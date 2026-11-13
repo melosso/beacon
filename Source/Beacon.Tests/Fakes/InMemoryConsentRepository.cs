@@ -14,11 +14,13 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
         return Task.FromResult(record);
     }
 
-    public Task UpsertAsync(ConsentRecord record, string? actorId = null)
+    public Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false)
     {
         var key = $"{record.Bucket}:{record.EmailHash}:{record.Permission}";
+        if (_records.TryGetValue(key, out var existing) && (insertOnly || !ConsentTransition.IsAllowed(existing.Status, record.Status)))
+            return Task.FromResult(false);
         _records[key] = record;
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     public Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(

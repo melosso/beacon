@@ -5,7 +5,9 @@ namespace Beacon.Core.Services;
 public interface IConsentRepository
 {
     Task<ConsentRecord?> GetAsync(string bucket, string emailHash, string permission);
-    Task UpsertAsync(ConsentRecord record, string? actorId = null);
+    /// <summary>Inserts or updates the record subject to <see cref="ConsentTransition"/>. Returns false if no write occurs.</summary>
+    /// <param name="insertOnly">If true: an existing record is never updated.</param>
+    Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false);
     Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null);
 
     // Admin queries
@@ -31,6 +33,7 @@ public interface IConsentRepository
 
     // Data policy operations
     Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default);
+    /// <summary>Sets pending confirmation records older than <paramref name="cutoff"/> to OptedOut and removes their personal data.</summary>
     Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default);

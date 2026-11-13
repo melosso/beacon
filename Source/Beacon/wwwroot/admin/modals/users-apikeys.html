@@ -770,8 +770,7 @@
       </button>
     </div>
     <p>
-      PII is removed from opted-out records once they exceed the threshold. The
-      email hash and status are kept as a permanent suppression list entry.
+      Opted-out records past the time limit are wiped of personal info, leaving only an encrypted email hash on the suppression list.
     </p>
     <div class="form-group">
       <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
@@ -826,9 +825,7 @@
       </button>
     </div>
     <p>
-      Unconfirmed double opt-in records are deleted once they exceed the
-      threshold. No consent was established, so no suppression list entry is
-      required.
+      Expired opt-ins are opted out and wiped of personal info, leaving only an encrypted email hash to prevent future messages.
     </p>
     <div class="form-group">
       <label for="setting-pendingConfirmationPurgeDays"
