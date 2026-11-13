@@ -7,23 +7,22 @@
 
 Beacon is a lightweight service for email consent and opt-out management.
 
+- Documentation: [Github Pages](https://melosso.github.io/beacon)
 - Deploy: [Install Beacon](#getting-started)
 - Demo: [Visit Instance](https://beacon-demo.melosso.com/)
 
-Beacon runs on .NET 11 and operates independently of CRM, ERP, and marketing automation tools. Beacon generates signed, expiring opt-out links, validates them, and exposes consent status through a REST API.
-
-> The demo instance is available at [beacon-demo.melosso.com](https://beacon-demo.melosso.com). The access token is `Beacon-Api-Key`.
+Store your consent and communication preferences independently of any CRM, ERP, and marketing automation tools. Beacon generates signed, expiring opt-out links, validates them, and exposes consent status through a REST API.
 
 ## What is Beacon?
 
-Beacon stores **consent and communication preferences** outside of sending systems. Permissions are grouped in **Buckets** (for example, newsletters or campaigns). Recipients manage preferences through signed, embeddable links.
+Beacon serves as a **single source of truth** for consent and communication preferences, decoupling user choices from your sending tools. Permissions are grouped in **Buckets** (for example, newsletters or campaigns). Recipients manage preferences through signed, embeddable links.
 
-#### **How It Works**
+#### **How it works**
 - Generates cryptographically signed opt-out URLs.
 - Validates permission changes without database lookups by default.
 - Requires no consent logic in sending systems.
 
-#### **Features**
+#### **Key features**
 
 - Databases: **SQLite, SQL Server, PostgreSQL** and **MySQL**
 - Admin panel for consent buckets and records
