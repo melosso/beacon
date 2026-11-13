@@ -84,7 +84,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}", DeleteBucket)
-            .RequireAuthorization("BucketsWrite")
+            .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
         routes.MapDelete("/api/admin/buckets/{bucket}/records/{emailHash}", DeleteRecord)
