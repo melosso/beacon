@@ -387,6 +387,18 @@ public static class ConsentEndpoints
     }
 
     /// <summary>Spacing, type and status tokens shared with the admin stylesheet (wwwroot/css/site.css).</summary>
+    /// <summary>Drawn status icon on a 24px grid with a 2px stroke, sized by the parent font-size.</summary>
+    internal static string StatusIcon(string kind) =>
+        "<svg width=\"1em\" height=\"1em\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">"
+        + kind switch
+        {
+            "success" => "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/>",
+            "error" => "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6M9 9l6 6\"/>",
+            "warning" => "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4M12 17h.01\"/>",
+            _ => "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 16v-4M12 8h.01\"/>"
+        }
+        + "</svg>";
+
     internal const string SharedStyleTokens = """
         :root {
           --space-1: 0.25rem; --space-1-5: 0.375rem; --space-2: 0.5rem; --space-2-5: 0.625rem;
@@ -465,6 +477,8 @@ public static class ConsentEndpoints
           margin-bottom: var(--space-4);
           user-select: none;
         }
+
+        .icon svg { display: block; margin: 0 auto; }
 
         .icon.success { color: var(--success); }
         .icon.warning { color: var(--warning); }
@@ -772,24 +786,24 @@ public static class ConsentEndpoints
         catch { return null; }
     }
 
-    private static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
+    internal static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
     {
         var lang = Beacon.Localization.FormLocalization.Normalize(language);
         var t = GetStatusStrings(lang);
 
-        var (icon, iconClass, title, message) = status switch
+        var (iconClass, title, message) = status switch
         {
-            "expired" => ("⚠", "warning", t.ExpiredTitle, t.ExpiredMsg),
-            "invalid" => ("✗", "error", t.InvalidTitle, t.InvalidMsg),
-            "already_processed" => ("ℹ", "info", t.ProcessedTitle, t.ProcessedMsg),
-            "archived" => ("ℹ", "info", t.ArchivedTitle, t.ArchivedMsg),
-            "unsubscribed" => ("✓", "success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
-            "updated" => ("✓", "success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
+            "expired" => ("warning", t.ExpiredTitle, t.ExpiredMsg),
+            "invalid" => ("error", t.InvalidTitle, t.InvalidMsg),
+            "already_processed" => ("info", t.ProcessedTitle, t.ProcessedMsg),
+            "archived" => ("info", t.ArchivedTitle, t.ArchivedMsg),
+            "unsubscribed" => ("success", t.UnsubTitle, $"{t.UnsubMsgPrefix} {FormatList(optedOut)}"),
+            "updated" => ("success", t.UpdatedTitle, BuildUpdateMessage(t, optedOut, keptIn)),
             // ConfirmMsg is operator-supplied free text, not markup — encode it.
-            "confirmed" => ("✓", "success",
+            "confirmed" => ("success",
                 brand?.ConfirmTitle is { Length: > 0 } ct ? ct : t.ConfirmedTitle,
                 brand?.ConfirmMsg is { Length: > 0 } cm ? WebUtility.HtmlEncode(cm) : t.ConfirmedMsg),
-            _ => ("✓", "success", t.SuccessTitle, t.SuccessMsg)
+            _ => ("success", t.SuccessTitle, t.SuccessMsg)
         };
 
         var brandCss = BuildBrandCssOverrides(brand);
@@ -812,7 +826,7 @@ public static class ConsentEndpoints
                 <section class="card">
                   <div class="status-brand">{{logoHtml}}</div>
                   <div class="status-body">
-                    <div class="icon {{iconClass}}">{{icon}}</div>
+                    <div class="icon {{iconClass}}">{{StatusIcon(iconClass)}}</div>
                     <h1>{{WebUtility.HtmlEncode(title)}}</h1>
                     <p>{{message}}</p>
                   </div>

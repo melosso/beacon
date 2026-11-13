@@ -994,7 +994,8 @@ public static class SubmissionEndpoints
                   display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--space-8);
                 }
                 .card { max-width: 480px; width: 100%; text-align: center; }
-                .icon { font-size: 2.5rem; margin-bottom: var(--space-4); }
+                .icon { font-size: 2.5rem; margin-bottom: var(--space-4); color: {{msgColor}}; }
+                .icon svg { display: block; margin: 0 auto; }
                 .message { font-size: var(--text-lg); line-height: 1.5; color: {{msgColor}}; margin-bottom: var(--space-6); }
                 a {
                   display: inline-block; padding: var(--space-2-5) var(--space-6);
@@ -1006,7 +1007,7 @@ public static class SubmissionEndpoints
             </head>
             <body>
               <div class="card">
-                <div class="icon">{{(isError ? "&#9888;" : "&#10003;")}}</div>
+                <div class="icon">{{ConsentEndpoints.StatusIcon(isError ? "warning" : "success")}}</div>
                 <p class="message">{{encodedMsg}}</p>
                 <a href="javascript:history.back()">&#8592; Go back</a>
               </div>
