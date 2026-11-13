@@ -7,6 +7,10 @@ Scalar.createApiReference("#app", {
   hideModels: true,
   telemetry: false,
   withDefaultFonts: false,
+  customCss: `:root, .light-mode, .dark-mode {
+    --scalar-font: "IBM Plex Sans", system-ui, sans-serif;
+    --scalar-font-code: "IBM Plex Mono", ui-monospace, monospace;
+  }`,
   showDeveloperTools: 'never',
 });
 console.log(
