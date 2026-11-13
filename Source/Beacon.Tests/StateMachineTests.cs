@@ -474,6 +474,14 @@ public sealed class StateMachineTests : IDisposable
     }
 
     [Fact]
+    public async Task Confirm_UnknownToken_Returns404()
+    {
+        var result = await ConfirmAsync("no-such-token");
+
+        Assert.Equal(404, Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode);
+    }
+
+    [Fact]
     public async Task Confirm_Cancelled_DoesNotOptIn()
     {
         await Consent().OverrideAsync(Bucket, Email, Permission, ConsentStatus.PendingConfirmation);

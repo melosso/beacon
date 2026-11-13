@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 
@@ -302,6 +303,7 @@ public static partial class InputValidator
 
 public sealed class ValidationResult
 {
+    [MemberNotNullWhen(false, nameof(Error))]
     public bool IsValid { get; private init; }
     public string? Error { get; private init; }
 

@@ -230,6 +230,66 @@ public class SecurityAuditTests : IDisposable
     }
 
     [Fact]
+    public async Task ApiKeyChallenge_SendsWwwAuthenticate()
+    {
+        using var provider = new ServiceCollection().BuildServiceProvider();
+        var handler = new ApiKeyAuthHandler(new StaticOptionsMonitor<ApiKeyAuthOptions>(new ApiKeyAuthOptions()), NullLoggerFactory.Instance, UrlEncoder.Default,
+            provider.GetRequiredService<IServiceScopeFactory>());
+        var context = new DefaultHttpContext();
+        context.Response.Body = new MemoryStream();
+        await handler.InitializeAsync(new AuthenticationScheme(ApiKeyAuthExtensions.SchemeName, null, typeof(ApiKeyAuthHandler)), context);
+
+        await handler.ChallengeAsync(null);
+
+        Assert.Equal(401, context.Response.StatusCode);
+        Assert.Equal("Bearer", context.Response.Headers.WWWAuthenticate.ToString());
+    }
+
+    [Theory]
+    [InlineData("invalid", 404)]
+    [InlineData("expired", 410)]
+    [InlineData("archived", 410)]
+    [InlineData("already_processed", 409)]
+    [InlineData("confirmed", 200)]
+    [InlineData("unsubscribed", 200)]
+    public void LinkStatusPages_UseMatchingStatusCodes(string status, int expected) =>
+        Assert.Equal(expected, ConsentEndpoints.StatusCodeFor(status));
+
+    [Fact]
+    public async Task SeeOther_Returns303WithLocation()
+    {
+        var context = new DefaultHttpContext();
+        await SubmissionEndpoints.SeeOther("https://example.com/thanks").ExecuteAsync(context);
+
+        Assert.Equal(303, context.Response.StatusCode);
+        Assert.Equal("https://example.com/thanks", context.Response.Headers.Location.ToString());
+    }
+
+    [Fact]
+    public async Task ServerError_Returns500WithTraceId()
+    {
+        var context = new DefaultHttpContext { TraceIdentifier = "trace-1" };
+        context.Response.Body = new MemoryStream();
+        await ApiError.ServerError().ExecuteAsync(context);
+
+        context.Response.Body.Position = 0;
+        using var body = await System.Text.Json.JsonDocument.ParseAsync(context.Response.Body);
+        Assert.Equal(500, context.Response.StatusCode);
+        Assert.StartsWith("application/json", context.Response.ContentType);
+        Assert.False(string.IsNullOrEmpty(body.RootElement.GetProperty("traceId").GetString()));
+        Assert.False(string.IsNullOrEmpty(body.RootElement.GetProperty("error").GetString()));
+    }
+
+    [Fact]
+    public void SubmissionBodies_OmitRedirectWhenUnset()
+    {
+        var web = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+
+        Assert.Equal("{\"error\":\"x\"}", System.Text.Json.JsonSerializer.Serialize(new SubmissionError("x"), web));
+        Assert.Equal("{\"message\":\"ok\",\"redirect\":\"https://a.example\"}", System.Text.Json.JsonSerializer.Serialize(new SubmissionSuccess("ok", "https://a.example"), web));
+    }
+
+    [Fact]
     public void SchemeSelector_RoutesBySessionTokenShape()
     {
         var jwt = JwtAuthHandler.CreateToken(SigningKey, "admin", DateTimeOffset.UtcNow.AddHours(1), "admin");

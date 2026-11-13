@@ -23,18 +23,33 @@ public static class ConsentEndpoints
         routes.MapGet("/u/{token}", ShowPreferencePage)
             .WithName("ShowPreferencePage")
             .WithTags(PermissionControlTag)
-            .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.");
+            .WithDescription("Display the email preference management page for a user. Token is generated via /api/tokens/generate.")
+            .Produces<string>(StatusCodes.Status200OK, "text/html")
+            .Produces<string>(StatusCodes.Status404NotFound, "text/html")
+            .Produces<string>(StatusCodes.Status409Conflict, "text/html")
+            .Produces<string>(StatusCodes.Status410Gone, "text/html");
 
         routes.MapPost("/u/{token}", ProcessPreferenceUpdate)
             .WithName("ProcessPreferenceUpdate")
             .WithTags(PermissionControlTag)
-            .WithDescription("Process user preference updates from the form submission.");
+            .WithDescription("Process user preference updates from the form submission. Fields: `action` (`unsubscribe_all` opts out of every permission), `pref_{permission}` (present when the permission stays opted in) and the antiforgery token from the preference page.")
+            .Accepts<PreferenceUpdateForm>("application/x-www-form-urlencoded")
+            .Produces<string>(StatusCodes.Status200OK, "text/html")
+            .Produces<string>(StatusCodes.Status400BadRequest, "text/plain")
+            .Produces<string>(StatusCodes.Status500InternalServerError, "text/plain")
+            .Produces<string>(StatusCodes.Status404NotFound, "text/html")
+            .Produces<string>(StatusCodes.Status409Conflict, "text/html")
+            .Produces<string>(StatusCodes.Status410Gone, "text/html");
 
         routes.MapPost("/api/consent/check", CheckConsent)
             .WithName("CheckConsent")
             .WithTags(PermissionTag)
             .RequireAuthorization("ConsentRead")
-            .WithDescription("Check if an email is opted-in or opted-out for a specific permission.");
+            .WithDescription("Check if an email is opted-in or opted-out for a specific permission.")
+            .Produces<CheckConsentResponse>(StatusCodes.Status200OK)
+            .Produces<ApiError>(StatusCodes.Status400BadRequest)
+            .Produces<ApiError>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiError>(StatusCodes.Status403Forbidden);
 
         routes.MapGet("/confirm/{token}", ConfirmSubscription)
             .WithName("ConfirmSubscription")
@@ -60,19 +75,19 @@ public static class ConsentEndpoints
         if (result.IsExpired)
         {
             var expiredBrand = result.Payload is not null ? await ResolveBrandAsync(brandService, result.Payload.Bucket, ct) : null;
-            return Results.Content(GetStatusPage("expired", lang, brand: expiredBrand), "text/html");
+            return StatusPage("expired", lang, brand: expiredBrand);
         }
 
         if (!result.IsValid || result.Payload is null)
         {
-            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+            return StatusPage("invalid", "en");
         }
 
         var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
 
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
+            return StatusPage("archived", lang, brand: brand);
         }
 
         // Only check token usage if replay is not allowed
@@ -81,7 +96,7 @@ public static class ConsentEndpoints
             var tokenHash = ComputeTokenHash(token);
             if (await tokenUsageRepository.IsTokenUsedAsync(tokenHash))
             {
-                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
+                return StatusPage("already_processed", lang, brand: brand);
             }
         }
 
@@ -147,19 +162,19 @@ public static class ConsentEndpoints
 
         if (result.IsExpired)
         {
-            return Results.Content(GetStatusPage("expired", lang), "text/html");
+            return StatusPage("expired", lang);
         }
 
         if (!result.IsValid || result.Payload is null)
         {
-            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+            return StatusPage("invalid", "en");
         }
 
         var brand = await ResolveBrandAsync(brandService, result.Payload.Bucket, ct);
 
         if (await bucketRepository.IsArchivedAsync(result.Payload.Bucket.Trim().ToLowerInvariant()))
         {
-            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
+            return StatusPage("archived", lang, brand: brand);
         }
 
         var form = await context.Request.ReadFormAsync();
@@ -174,7 +189,7 @@ public static class ConsentEndpoints
             if (!result.Payload.AllowReplay
                 && !await tokenUsageRepository.TryMarkUsedAsync(ComputeTokenHash(token), result.Payload.ExpiresAtUtc))
             {
-                return Results.Content(GetStatusPage("already_processed", lang, brand: brand), "text/html");
+                return StatusPage("already_processed", lang, brand: brand);
             }
 
             if (action == "unsubscribe_all")
@@ -197,7 +212,7 @@ public static class ConsentEndpoints
                 await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                     result.Payload.Bucket, result.Payload.Email, null);
                 await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-                return Results.Content(GetStatusPage("unsubscribed", lang, optedOut: validPermissions, brand: brand), "text/html");
+                return StatusPage("unsubscribed", lang, optedOut: validPermissions, brand: brand);
             }
 
             // Process individual toggle states
@@ -248,11 +263,11 @@ public static class ConsentEndpoints
             await TriggerWebhookSafe(webhookService, consentRepository, emailHasher,
                 result.Payload.Bucket, result.Payload.Email, null);
             await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(result.Payload.Bucket));
-            return Results.Content(GetStatusPage("updated", lang, [.. optedOut], [.. keptIn], brand), "text/html");
+            return StatusPage("updated", lang, [.. optedOut], [.. keptIn], brand);
         }
         catch
         {
-            return Results.StatusCode(500);
+            return Results.Text("Update failed. Try again later.", "text/plain; charset=utf-8", statusCode: StatusCodes.Status500InternalServerError);
         }
     }
 
@@ -309,13 +324,13 @@ public static class ConsentEndpoints
     {
         var entry = await emailQueue.GetByConfirmationTokenAsync(token);
         if (entry is null)
-            return Results.Content(GetStatusPage("invalid", "en"), "text/html");
+            return StatusPage("invalid", "en");
 
         var lang = entry.Language ?? "en";
         var brand = await ResolveBrandAsync(brandService, entry.Bucket, ct);
 
         if (await bucketRepository.IsArchivedAsync(entry.Bucket))
-            return Results.Content(GetStatusPage("archived", lang, brand: brand), "text/html");
+            return StatusPage("archived", lang, brand: brand);
 
         using var transaction = await consentService.BeginTransactionAsync();
 
@@ -324,7 +339,7 @@ public static class ConsentEndpoints
         if (!await emailQueue.MarkConfirmedAsync(entry.Id, now))
         {
             var page = entry.Status is EmailQueueStatus.Cancelled or EmailQueueStatus.Expired || entry.ExpiresAt <= now ? "expired" : "already_processed";
-            return Results.Content(GetStatusPage(page, lang, brand: brand), "text/html");
+            return StatusPage(page, lang, brand: brand);
         }
 
         var email = encryptor.Decrypt(entry.EncryptedEmail);
@@ -340,7 +355,7 @@ public static class ConsentEndpoints
         await consentService.CommitTransactionAsync();
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(entry.Bucket));
 
-        return Results.Content(GetStatusPage("confirmed", lang, brand: brand), "text/html");
+        return StatusPage("confirmed", lang, brand: brand);
     }
 
     private static async Task<IResult> CheckConsent(
@@ -349,19 +364,19 @@ public static class ConsentEndpoints
     {
         if (string.IsNullOrWhiteSpace(request.Bucket))
         {
-            return Results.BadRequest(new { error = "Bucket is required" });
+            return Results.BadRequest(new ApiError("Bucket is required"));
         }
 
         var emailValidation = InputValidator.ValidateEmail(request.Email);
         if (!emailValidation.IsValid)
         {
-            return Results.BadRequest(new { error = emailValidation.Error });
+            return Results.BadRequest(new ApiError(emailValidation.Error));
         }
 
         var permissionValidation = InputValidator.ValidatePermission(request.Permission);
         if (!permissionValidation.IsValid)
         {
-            return Results.BadRequest(new { error = permissionValidation.Error });
+            return Results.BadRequest(new ApiError(permissionValidation.Error));
         }
 
         var status = await consentService.CheckAsync(request.Bucket, request.Email, request.Permission);
@@ -788,6 +803,18 @@ public static class ConsentEndpoints
         catch { return null; }
     }
 
+    // Link outcomes as HTTP status: an unknown link is not found, a spent or archived one is gone or conflicts
+    internal static int StatusCodeFor(string status) => status switch
+    {
+        "invalid" => StatusCodes.Status404NotFound,
+        "expired" or "archived" => StatusCodes.Status410Gone,
+        "already_processed" => StatusCodes.Status409Conflict,
+        _ => StatusCodes.Status200OK
+    };
+
+    internal static IResult StatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null) =>
+        Results.Content(GetStatusPage(status, language, optedOut, keptIn, brand), "text/html; charset=utf-8", statusCode: StatusCodeFor(status));
+
     internal static string GetStatusPage(string status, string language = "en", string[]? optedOut = null, string[]? keptIn = null, BrandIdentitySettings? brand = null)
     {
         var lang = Beacon.Localization.FormLocalization.Normalize(language);
@@ -902,6 +929,13 @@ public static class ConsentEndpoints
     }
 }
 
+/// <summary>Preference form fields. <c>pref_{permission}</c> fields vary per token and are not listed.</summary>
+public sealed class PreferenceUpdateForm
+{
+    /// <summary><c>unsubscribe_all</c> opts out of every permission; empty applies the <c>pref_</c> fields.</summary>
+    public string? Action { get; set; }
+}
+
 public sealed class CheckConsentRequest
 {
     public string Bucket { get; set; } = string.Empty;
@@ -911,5 +945,6 @@ public sealed class CheckConsentRequest
 
 public sealed class CheckConsentResponse
 {
+    /// <summary><c>opted_in</c> or <c>opted_out</c>. A pending double opt-in reports <c>opted_out</c>.</summary>
     public string Status { get; set; } = string.Empty;
 }
