@@ -272,9 +272,9 @@ td {
 .theme-icon {
   display: none;
 }
-.auth-theme-toggle[data-mode="system"] .theme-icon--system,
-.auth-theme-toggle[data-mode="light"] .theme-icon--light,
-.auth-theme-toggle[data-mode="dark"] .theme-icon--dark {
+/* Icon shows the target theme, matching the aria-label action. */
+.auth-theme-toggle[data-mode="light"] .theme-icon--dark,
+.auth-theme-toggle[data-mode="dark"] .theme-icon--light {
   display: block;
 }
 

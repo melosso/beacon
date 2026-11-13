@@ -310,30 +310,36 @@ function dismissPromoBar() {
   bar.classList.remove("is-visible");
 }
 
-const THEMES = ["system", "light", "dark"];
-
 // Same beacon_settings.theme value as the admin Appearance setting and js/theme.js.
 function readSettings() {
   try { return JSON.parse(localStorage.getItem("beacon_settings") || "{}"); } catch { return {}; }
 }
 
-function cycleTheme() {
-  const settings = readSettings();
-  settings.theme = THEMES[(THEMES.indexOf(settings.theme || "system") + 1) % THEMES.length];
-  if (settings.theme === "system") document.documentElement.removeAttribute("data-theme");
-  else document.documentElement.setAttribute("data-theme", settings.theme);
-  try { localStorage.setItem("beacon_settings", JSON.stringify(settings)); } catch {}
-  syncThemeToggle(settings.theme);
+// No saved light/dark choice: the system preference decides.
+function effectiveTheme() {
+  const saved = readSettings().theme;
+  if (saved === "light" || saved === "dark") return saved;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function syncThemeToggle(theme = readSettings().theme || "system") {
+function cycleTheme() {
+  const settings = readSettings();
+  settings.theme = effectiveTheme() === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", settings.theme);
+  try { localStorage.setItem("beacon_settings", JSON.stringify(settings)); } catch {}
+  syncThemeToggle();
+}
+
+function syncThemeToggle() {
   const btn = document.getElementById("themeToggle");
   if (!btn) return;
-  const label = theme[0].toUpperCase() + theme.slice(1);
+  const theme = effectiveTheme();
   btn.dataset.mode = theme;
-  btn.title = `Theme: ${label}`;
-  btn.setAttribute("aria-label", `Toggle theme (current: ${label})`);
+  btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+  btn.title = btn.getAttribute("aria-label");
 }
+
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeToggle);
 
 bindActions();
 showPromoBar();
