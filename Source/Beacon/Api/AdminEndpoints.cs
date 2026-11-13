@@ -781,6 +781,7 @@ public static class AdminEndpoints
         string emailHash,
         [FromServices] IConsentRepository repository,
         [FromServices] EmailQueueRepository emailQueueRepository,
+        [FromServices] AdminNotificationService notifications,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -802,8 +803,9 @@ public static class AdminEndpoints
             emailHash[..Math.Min(12, emailHash.Length)],
             DateTime.UtcNow);
 
-        await emailQueueRepository.DeleteByEmailHashAsync(emailHash);
+        await emailQueueRepository.DeleteForRecordAsync(normalizedBucket, emailHash);
         var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
 
         return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });
     }

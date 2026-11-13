@@ -304,7 +304,8 @@ public static class ConsentEndpoints
         [FromServices] ConsentService consentService,
         [FromServices] Encryptor encryptor,
         [FromServices] BrandIdentityService brandService,
-        [FromServices] BucketRepository bucketRepository)
+        [FromServices] BucketRepository bucketRepository,
+        [FromServices] AdminNotificationService notifications)
     {
         var entry = await emailQueue.GetByConfirmationTokenAsync(token);
         if (entry is null)
@@ -337,6 +338,7 @@ public static class ConsentEndpoints
         }
 
         await consentService.CommitTransactionAsync();
+        await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(entry.Bucket));
 
         return Results.Content(GetStatusPage("confirmed", lang, brand: brand), "text/html");
     }

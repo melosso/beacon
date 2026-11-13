@@ -450,21 +450,27 @@ public sealed class StateMachineTests : IDisposable
         return (await db.EmailQueueEntries.AsNoTracking().SingleAsync(e => e.Id == id, Ct)).Status;
     }
 
+    private readonly AdminNotificationService _notifications = new();
+
     private Task<IResult> ConfirmAsync(string plain) =>
         ConsentEndpoints.ConfirmSubscription(plain, Ct, new EmailQueueRepository(_db), Consent(),
             _encryptor, new BrandIdentityService(new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>()),
-            new BucketRepository(_db, new NullBeaconCacheService(), new StubSystemConfigurationService()));
+            new BucketRepository(_db, new NullBeaconCacheService(), new StubSystemConfigurationService()), _notifications);
 
     [Fact]
     public async Task Confirm_Sent_OptsIn()
     {
         await Consent().OverrideAsync(Bucket, Email, Permission, ConsentStatus.PendingConfirmation);
         var entry = await SeedEntryAsync("tk", EmailQueueStatus.Sent);
+        await using var events = _notifications.SubscribeAllAsync(Ct).GetAsyncEnumerator(Ct);
+        var next = events.MoveNextAsync();
 
         await ConfirmAsync("tk");
 
         Assert.Equal(ConsentStatus.OptedIn, await StoredStatusAsync());
         Assert.Equal(EmailQueueStatus.Confirmed, await EntryStatusAsync(entry.Id));
+        Assert.True(await next.AsTask().WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        Assert.Equal(Bucket, Assert.IsType<ConsentUpdateNotification>(events.Current).Bucket);
     }
 
     [Fact]

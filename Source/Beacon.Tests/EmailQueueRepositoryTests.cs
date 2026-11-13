@@ -354,4 +354,16 @@ public class EmailQueueRepositoryTests : IDisposable
         Assert.Equal(EmailQueueStatus.Cancelled, cancelled.Status);
         Assert.Equal(EmailQueueStatus.Pending, stillPending.Status);
     }
+
+    [Fact]
+    public async Task DeleteForRecord_KeepsOtherBuckets()
+    {
+        await _repository.EnqueueAsync(MakeEntry("tk1", bucket: "a", emailHash: "h"));
+        await _repository.EnqueueAsync(MakeEntry("tk2", bucket: "b", emailHash: "h"));
+
+        await _repository.DeleteForRecordAsync("a", "h", TestContext.Current.CancellationToken);
+        _db.ChangeTracker.Clear();
+
+        Assert.Equal(["b"], await _db.EmailQueueEntries.Select(e => e.Bucket).ToListAsync(TestContext.Current.CancellationToken));
+    }
 }
