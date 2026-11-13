@@ -185,8 +185,8 @@ public static class FormLocalization
     private static readonly Dictionary<string, StatusStrings> StatusTable = new()
     {
         ["en"] = new(
-            "Link expired", "This link has expired. Please use the link in a more recent email.",
-            "Invalid link", "This link is invalid. Please use the link from your email.",
+            "Link expired", "This link has expired. Use the link in a more recent email.",
+            "Invalid link", "This link is invalid. Use the link from your email.",
             "Already processed", "Your preferences have already been updated using this link.",
             "Unsubscribed", "You have been unsubscribed from:",
             "Preferences updated", "Unsubscribed from:", "You're still subscribed to:",
@@ -195,8 +195,8 @@ public static class FormLocalization
             "No longer available", "This subscription list has been closed, so preferences can no longer be changed. No further emails will be sent."),
 
         ["de"] = new(
-            "Link abgelaufen", "Dieser Link ist abgelaufen. Bitte verwenden Sie den Link in einer aktuelleren E-Mail.",
-            "Ungültiger Link", "Dieser Link ist ungültig. Bitte verwenden Sie den Link aus Ihrer E-Mail.",
+            "Link abgelaufen", "Dieser Link ist abgelaufen. Verwenden Sie den Link in einer aktuelleren E-Mail.",
+            "Ungültiger Link", "Dieser Link ist ungültig. Verwenden Sie den Link aus Ihrer E-Mail.",
             "Bereits bearbeitet", "Ihre Einstellungen wurden bereits über diesen Link aktualisiert.",
             "Abgemeldet", "Sie wurden abgemeldet von:",
             "Einstellungen aktualisiert", "Abgemeldet von:", "Noch angemeldet für:",
@@ -205,8 +205,8 @@ public static class FormLocalization
             "Nicht mehr verfügbar", "Diese Verteilerliste wurde geschlossen, Einstellungen können nicht mehr geändert werden. Es werden keine weiteren E-Mails versendet."),
 
         ["fr"] = new(
-            "Lien expiré", "Ce lien a expiré. Veuillez utiliser le lien contenu dans un e-mail plus récent.",
-            "Lien invalide", "Ce lien est invalide. Veuillez utiliser le lien contenu dans votre e-mail.",
+            "Lien expiré", "Ce lien a expiré. Utilisez le lien contenu dans un e-mail plus récent.",
+            "Lien invalide", "Ce lien est invalide. Utilisez le lien contenu dans votre e-mail.",
             "Déjà traité", "Vos préférences ont déjà été mises à jour via ce lien.",
             "Désabonné", "Vous avez été désabonné de :",
             "Préférences mises à jour", "Désabonné de :", "Toujours abonné à :",
@@ -225,8 +225,8 @@ public static class FormLocalization
             "Niet meer beschikbaar", "Deze verzendlijst is gesloten, voorkeuren kunnen niet meer worden gewijzigd. Er worden geen e-mails meer verstuurd."),
 
         ["pl"] = new(
-            "Link wygasł", "Ten link wygasł. Proszę użyć linku z nowszej wiadomości e-mail.",
-            "Nieprawidłowy link", "Ten link jest nieprawidłowy. Proszę użyć linku z wiadomości e-mail.",
+            "Link wygasł", "Ten link wygasł. Użyj linku z nowszej wiadomości e-mail.",
+            "Nieprawidłowy link", "Ten link jest nieprawidłowy. Użyj linku z wiadomości e-mail.",
             "Już przetworzono", "Twoje preferencje zostały już zaktualizowane przy użyciu tego linku.",
             "Wypisano", "Wypisano z:",
             "Zaktualizowano preferencje", "Wypisano z:", "Nadal subskrybowany do:",
@@ -235,8 +235,8 @@ public static class FormLocalization
             "Już niedostępne", "Ta lista wysyłkowa została zamknięta, nie można już zmieniać preferencji. Nie będą wysyłane kolejne wiadomości."),
 
         ["es"] = new(
-            "Enlace caducado", "Este enlace ha caducado. Por favor, utilice el enlace de un correo más reciente.",
-            "Enlace inválido", "Este enlace no es válido. Por favor, utilice el enlace de su correo.",
+            "Enlace caducado", "Este enlace ha caducado. Utilice el enlace de un correo más reciente.",
+            "Enlace inválido", "Este enlace no es válido. Utilice el enlace de su correo.",
             "Ya procesado", "Sus preferencias ya han sido actualizadas usando este enlace.",
             "Dado de baja", "Se ha dado de baja de:",
             "Preferencias actualizadas", "Dado de baja de:", "Suscrito todavía a:",
@@ -255,8 +255,8 @@ public static class FormLocalization
             "Non più disponibile", "Questa lista di distribuzione è stata chiusa, le preferenze non possono più essere modificate. Non verranno inviate altre email."),
 
         ["pt"] = new(
-            "Link expirado", "Este link expirou. Por favor, use o link de um e-mail mais recente.",
-            "Link inválido", "Este link é inválido. Por favor, use o link do seu e-mail.",
+            "Link expirado", "Este link expirou. Use o link de um e-mail mais recente.",
+            "Link inválido", "Este link é inválido. Use o link do seu e-mail.",
             "Já processado", "Suas preferências já foram atualizadas usando este link.",
             "Desinscrito", "Você foi desinscrito de:",
             "Preferências atualizadas", "Desinscrito de:", "Ainda inscrito em:",
