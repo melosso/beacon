@@ -423,7 +423,7 @@ function updateSubPagination() {
     subTotalRecords === 0 ? 0 : (subCurrentPage - 1) * subPageSize + 1;
   const end = Math.min(subCurrentPage * subPageSize, subTotalRecords);
   document.getElementById("subPaginationInfo").textContent =
-    `Showing ${start.toLocaleString()} to ${end.toLocaleString()} of ${subTotalRecords.toLocaleString()} entries`;
+    pageRangeText(start, end, subTotalRecords);
   document.getElementById("subPrevBtn").disabled = subCurrentPage === 1;
   document.getElementById("subNextBtn").disabled = subCurrentPage >= totalPages;
 }
@@ -596,7 +596,8 @@ async function loadIdentities(pushState = true) {
 
   document.getElementById("subTitle").textContent = "Subscribers";
   const badge = document.getElementById("subBadge");
-  badge.textContent = "Overview";
+  badge.hidden = true;
+  badge.textContent = "";
   badge.classList.remove("tooltip-wrapper");
   badge.removeAttribute("data-hash");
   badge.classList.remove("cursor-pointer");
@@ -604,7 +605,6 @@ async function loadIdentities(pushState = true) {
   badge.ondblclick = null;
   subDetailHash = "";
   document.getElementById("subBackBtn").hidden = true;
-  document.getElementById("subRefreshWrapper").hidden = false;
   document.querySelector(
     "#view-subscriptions .pagination-container",
   ).hidden = false;
@@ -613,16 +613,8 @@ async function loadIdentities(pushState = true) {
 
   if (pushState) syncSubUrl();
 
-  const emailSortClass =
-    subSortBy === "email" ? (subSortDir === "asc" ? "asc" : "desc") : "";
-  const bucketsSortClass =
-    subSortBy === "buckets" ? (subSortDir === "asc" ? "asc" : "desc") : "";
-  const createdSortClass =
-    subSortBy === "firstseen" ? (subSortDir === "asc" ? "asc" : "desc") : "";
-  const updatedSortClass =
-    subSortBy === "lastchanged" ? (subSortDir === "asc" ? "asc" : "desc") : "";
-  const sortIcon = '<span class="sort-icon">▲</span>';
-  const hasSearch = subSearchQuery ? "has-search" : "";
+  // Created has no column of its own: a saved or linked sort on it falls back to Updated
+  if (subSortBy === "firstseen") subSortBy = "lastchanged";
 
   paint(
     thead,
@@ -659,9 +651,6 @@ async function loadIdentities(pushState = true) {
       ${sortHeader("Buckets", subSortBy === "buckets", subSortDir, () =>
         toggleSubSort("buckets"),
       )}
-      ${sortHeader("Created", subSortBy === "firstseen", subSortDir, () =>
-        toggleSubSort("firstseen"),
-      )}
       ${sortHeader("Updated", subSortBy === "lastchanged", subSortDir, () =>
         toggleSubSort("lastchanged"),
       )}
@@ -686,7 +675,7 @@ async function loadIdentities(pushState = true) {
     paint(
       body,
       html`<tr>
-        <td class="table-empty" colspan="7"
+        <td class="table-empty" colspan="6"
         >
           ${msg}
         </td>
@@ -740,13 +729,14 @@ async function loadIdentities(pushState = true) {
               : html`<span class="muted">—</span>`}
           </td>
           <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? "s" : ""}</td>
-          <td>${formatDate(id.firstSeen)}</td>
           <td
             class="col-link"
             title="View audit"
             @click=${stop(() => showAuditForIdentity(id.emailHash))}
           >
-            ${formatDate(id.lastChanged)}
+            ${formatDate(id.lastChanged)}${formatDate(id.firstSeen) !== formatDate(id.lastChanged)
+              ? html`<span class="cell-sub">Created ${formatDate(id.firstSeen)}</span>`
+              : nothing}
           </td>
           <td>
             <div class="row-actions">
@@ -800,6 +790,7 @@ async function showIdentityDetails(emailHash, pushState = true) {
   // Update chrome synchronously before the fetch so there is no flash of stale content
   document.getElementById("subTitle").textContent = "Identity details";
   const badge = document.getElementById("subBadge");
+  badge.hidden = false;
   badge.dataset.hash = emailHash;
   delete badge.dataset.email;
   badge.classList.add("tooltip-wrapper");
@@ -813,7 +804,6 @@ async function showIdentityDetails(emailHash, pushState = true) {
       ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,
   );
   document.getElementById("subBackBtn").hidden = false;
-  document.getElementById("subRefreshWrapper").hidden = true;
   document.querySelector(
     "#view-subscriptions .pagination-container",
   ).hidden = true;

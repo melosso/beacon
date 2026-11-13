@@ -81,11 +81,9 @@ async function showOptionsModal(pushState = true) {
 
   // Update archive button state
   const archiveBtn = document.getElementById("optionsArchiveBtn");
-  archiveBtn.title = currentBucketArchived
+  archiveBtn.textContent = currentBucketArchived
     ? "Unarchive bucket"
     : "Archive bucket";
-  archiveBtn.setAttribute("aria-label", archiveBtn.title);
-  archiveBtn.classList.toggle("is-active", currentBucketArchived);
 
   // Load bucket permissions
   loadBucketPerms();
@@ -448,7 +446,7 @@ function openErrorDetail(error) {
   activeErrorDetail = error;
   document.getElementById("errorDetailTime").textContent = new Date(
     error.occurredAt,
-  ).toLocaleString();
+  ).toLocaleString(UI_LOCALE);
   paint(document.getElementById("errorDetailBadge"), errorStatus(error));
   const parts = [];
   if (error.requestMethod && error.requestUrl) parts.push(`${error.requestMethod} ${error.requestUrl}`);
@@ -491,7 +489,7 @@ function copyErrorMessage() {
     meta.push(`Request: ${e.requestMethod} ${e.requestUrl}`);
   if (e.statusCode) meta.push(`Status: ${e.statusCode}`);
   if (e.attemptCount > 0) meta.push(`Attempts: ${e.attemptCount}`);
-  meta.push(`Time: ${new Date(e.occurredAt).toLocaleString()}`);
+  meta.push(`Time: ${new Date(e.occurredAt).toLocaleString(UI_LOCALE)}`);
   if (meta.length) text = meta.join("\n") + "\n\n" + text;
   if (e.stackTrace) text += "\n\nStack Trace:\n" + e.stackTrace;
   clipboardWrite(text).then(() => {
@@ -814,6 +812,14 @@ function connectSSE() {
     eventSource.addEventListener(type, (e) => handleSSEEvent(type, e.data));
   }
 }
+
+// Events sent while the tab was hidden or the stream was down are not replayed: catch up on return
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !eventSource) return;
+  if (eventSource.readyState === EventSource.CLOSED) connectSSE();
+  if (currentBucket) _consentUpdatePending.add(currentBucket);
+  _flushConsentUpdates();
+});
 
 // Debounced consent-update handling to prevent DOM thrashing
 let _consentUpdateTimer = null;

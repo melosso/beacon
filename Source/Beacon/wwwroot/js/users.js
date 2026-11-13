@@ -23,7 +23,7 @@ function renderUsersPagination() {
   const start = total === 0 ? 0 : (_usersPage - 1) * _usersPageSize + 1;
   const end = Math.min(_usersPage * _usersPageSize, total);
   document.getElementById("usersPaginationInfo").textContent =
-    `Showing ${start} to ${end} of ${total}`;
+    pageRangeText(start, end, total);
   document.getElementById("usersPrevBtn").disabled = _usersPage <= 1;
   document.getElementById("usersNextBtn").disabled = _usersPage >= totalPages;
   document.getElementById("usersPaginationBar").hidden = !(total > _usersPageSize);
@@ -45,7 +45,7 @@ function formatRelativeTime(isoString) {
   const date = new Date(isoString);
   const diff = Date.now() - date.getTime();
   const abs = Math.abs(diff);
-  const full = date.toLocaleString(undefined, {
+  const full = date.toLocaleString(UI_LOCALE, {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -54,7 +54,7 @@ function formatRelativeTime(isoString) {
   else if (abs < 3_600_000) rel = `${Math.floor(abs / 60_000)}m ago`;
   else if (abs < 86_400_000) rel = `${Math.floor(abs / 3_600_000)}h ago`;
   else if (abs < 7 * 86_400_000) rel = `${Math.floor(abs / 86_400_000)}d ago`;
-  else rel = date.toLocaleDateString();
+  else rel = date.toLocaleDateString(UI_LOCALE);
   return html`<span class="tooltip-wrapper cursor-default">${rel}<span class="tooltip tooltip-above">${full}</span></span>`;
 }
 
@@ -93,7 +93,7 @@ function renderUsersTable(users) {
           <td><strong>${u.username}</strong></td>
           <td><span class="status-badge ${u.role === "admin" ? "" : "status-badge-muted"}">${u.role}</span></td>
           <td>${u.isEnabled ? html`<span class="text-success">Enabled</span>` : html`<span class="text-muted">Disabled</span>`}</td>
-          <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "-"}</td>
+          <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
           <td>${u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : html`<span class="text-muted">Never</span>`}</td>
           <td class="col-actions">${rowMenu(`userDropdown-${u.id}`, [
             ["Rename", () => openRenameUserModal(u.id, u.username)],

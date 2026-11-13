@@ -261,21 +261,6 @@ function showSettingsSection(section, pushState = true) {
   document
     .getElementById(`settings-section-${section}`)
     ?.classList.add("active");
-  const labels = {
-    general: "General settings",
-    modules: "General settings",
-    "data-policies": "General settings",
-    appearance: "Preferences",
-    system: "System settings",
-    integration: "Customisation",
-    users: "General settings",
-    "api-keys": "General settings",
-    account: "Preferences",
-    personalisation: "Customisation",
-    connectors: "Customisation",
-  };
-  const badge = document.getElementById("settingsSectionBadge");
-  if (badge) badge.textContent = labels[section] || section;
   if (pushState) updateUrl({ view: "settings", section });
   if (section === "users") loadUsers();
   if (section === "api-keys") loadApiKeys();
@@ -447,8 +432,13 @@ function selectCronPreset(inputId, expr) {
   const input = document.getElementById(inputId);
   input.value = expr;
   hideCronSuggestions();
-  validateCronInput(input);
-  saveSetting(CRON_FIELDS[inputId].key, expr);
+  saveCronField(input);
+}
+
+// Typing stages and validates; a finished, valid expression saves
+async function saveCronField(input) {
+  if (validateCronInput(input))
+    await saveSettingImmediate(CRON_FIELDS[input.id].key, input.value.trim());
 }
 
 function hideCronSuggestions() {

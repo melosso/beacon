@@ -1,5 +1,14 @@
 // Shared by the login page and the admin shell. Requires /js/lit.js (html, render, nothing).
 
+// The admin UI is English: numbers and dates follow it, day-first with a 24-hour clock, regardless of the browser locale
+const UI_LOCALE = "en-GB";
+
+// "1–10 of 2,080"; "0 of 0" when empty
+function pageRangeText(start, end, total) {
+  const n = (v) => v.toLocaleString(UI_LOCALE);
+  return total === 0 ? "0 of 0" : `${n(start)}–${n(end)} of ${n(total)}`;
+}
+
 const ACTION_EVENTS = {
   click: "click",
   dblclick: "dblclick",

@@ -231,10 +231,18 @@ async function clipboardWrite(text) {
   document.body.removeChild(ta);
 }
 
+// Acronyms and quarter labels stay upper case: sms_notifications -> SMS Notifications, q2 -> Q2
+const NAME_ACRONYMS = new Set(["api", "crm", "doi", "erp", "eu", "gdpr", "id", "sms", "uk", "url", "us", "utm"]);
+
 function formatPermission(p) {
   if (!p) return "";
-  // Convert snake_case or kebab-case to Title Case
-  return p.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return p
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w+/g, (w) =>
+      NAME_ACRONYMS.has(w.toLowerCase()) || /^q[1-4]$/i.test(w)
+        ? w.toUpperCase()
+        : w[0].toUpperCase() + w.slice(1),
+    );
 }
 
 function formatDate(dateStr) {
@@ -248,7 +256,7 @@ function formatDate(dateStr) {
     dateStr += "Z";
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "N/A";
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(UI_LOCALE, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -344,6 +352,7 @@ function initiateRemoval() {
     return;
   }
   bucketToRemove = currentBucket;
+  closeOptionsModal();
   showRemoveModal();
 }
 

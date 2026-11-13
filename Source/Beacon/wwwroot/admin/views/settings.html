@@ -3,10 +3,6 @@
       <section class="header-container">
         <div>
           <h1 class="select-none">Settings</h1>
-          <span class="status-badge select-none" id="settingsSectionBadge">General</span>
-        </div>
-        <div class="bucket-actions">
-          <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
         </div>
       </section>
       <div class="settings-layout">
@@ -33,7 +29,7 @@
 
             <a href="#" class="settings-subnav-item active" id="settingsNavGeneral" data-section="general" data-click="showSettingsSection general">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>
+                <line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>
               </svg>
               General
             </a>
@@ -79,14 +75,14 @@
 
             <a href="#" class="settings-subnav-item" id="settingsNavConnectors" data-section="connectors" data-click="showSettingsSection connectors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/> 
+                <path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>
               </svg>
               Connectors
             </a>
 
             <a href="#" class="settings-subnav-item" id="settingsNavPersonalisation" data-section="personalisation" data-click="showSettingsSection personalisation">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
               Personalisation
             </a>
@@ -110,7 +106,6 @@
           <div id="settings-section-general" class="settings-section active">
             <div class="settings-content-hd">
               <h3 class="select-none">General</h3>
-              <p>Core application and API behaviour.</p>
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
@@ -119,7 +114,7 @@
                   <span class="settings-item-title select-none">Default language</span>
                   <p class="settings-item-desc">Default language pre-selected when generating tokens or creating forms in the admin panel.</p>
                 </div>
-                <select id="setting-uiLanguage" class="appearance-select" data-change="saveSetting uiLanguage $value">
+                <select id="setting-uiLanguage" class="appearance-select" data-change="saveSettingImmediate uiLanguage $value">
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
                   <option value="fr">Français</option>
@@ -130,17 +125,14 @@
               </div>
               <label class="settings-item-card" for="setting-allowDbLookup">
                 <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Allow database lookup for token</span>
-                  <p class="settings-item-desc">When enabled, the (user) consent page loads permissions from the database instead of the token.</p>
+                  <span class="settings-item-title select-none">Show saved choices</span>
+                  <p class="settings-item-desc">Preference pages show each subscriber's saved choices, not the defaults stored in their link.</p>
                 </div>
                 <div class="settings-item-control">
                   <input type="checkbox" id="setting-allowDbLookup" data-change="saveSettingImmediate allowDbLookup $checked">
                   <span class="toggle-track"></span>
                 </div>
               </label>
-              <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
-              </div>
             </div>
           </div>
 
@@ -197,16 +189,13 @@
                 <label class="settings-item-card-label" for="setting-enableUtmTracking">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">Enable UTM tracking</span>
-                    <p class="settings-item-desc">When enabled, UTM parameters (utm_source, utm_medium, utm_campaign, etc.) from the preference page URL are stored alongside consent records. Only enable if disclosed in your privacy policy.</p>
+                    <p class="settings-item-desc">Saves campaign tags from preference links with each consent change. Mention this in your privacy policy first.</p>
                   </div>
                   <div class="settings-item-control">
                     <input type="checkbox" id="setting-enableUtmTracking" data-change="saveSettingImmediate enableUtmTracking $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
-              </div>
-              <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
             </div>
           </div>
@@ -236,12 +225,13 @@
                 <div class="settings-item-block">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">Schedule</span>
-                    <p class="settings-item-desc">How often data policies run. Uses standard 5-field cron syntax.</p>
+                    <p class="settings-item-desc">How often cleanup runs. Pick a preset or enter a cron expression.</p>
                   </div>
                   <div class="autocomplete-wrapper cron-field">
                     <input type="text" id="setting-dataPolicyCron" value="0 0 * * *"
                       class="appearance-select mono w-full" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
                       data-input="onCronInput $el"
+                      data-change="saveCronField $el"
                       data-focus="showCronSuggestions true setting-dataPolicyCron"
                      >
                     <div class="autocomplete-dropdown" id="dataPolicyCronAutocomplete"></div>
@@ -301,7 +291,6 @@
 
               <div class="settings-save-row">
                 <button class="btn btn-outline" id="dataPoliciesRunBtn" data-click="triggerDataPoliciesRun"><span class="btn-label">Run now</span><span class="spinner"></span></button>
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
 
               <div class="mt-6">
@@ -441,9 +430,6 @@
               </div>
 
             </div>
-            <div class="settings-save-row">
-              <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
-            </div>
           </div>
 
           <!-- Integration section -->
@@ -494,9 +480,6 @@
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                   </svg>
                 </button>
-              </div>
-              <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
               </div>
             </div>
           </div>
@@ -663,7 +646,7 @@
                   <span class="settings-item-title select-none">Fallback language</span>
                   <p class="settings-item-desc">Fallback language for the consent page when no language is specified in the token (request).</p>
                 </div>
-                <select id="setting-defaultLanguage" class="appearance-select" data-change="saveSetting defaultLanguage $value">
+                <select id="setting-defaultLanguage" class="appearance-select" data-change="saveSettingImmediate defaultLanguage $value">
                   <option value="en">English</option>
                   <option value="de">German</option>
                   <option value="fr">French</option>
@@ -674,13 +657,14 @@
               </div>
               <div class="settings-item-block items-center">
                 <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Cron schedule</span>
-                  <p class="settings-item-desc">How often the email queue is processed. Uses standard 5-field cron syntax.</p>
+                  <span class="settings-item-title select-none">Schedule</span>
+                  <p class="settings-item-desc">How often waiting confirmation emails go out. Pick a preset or enter a cron expression.</p>
                 </div>
                 <div class="autocomplete-wrapper cron-field">
                   <input type="text" id="setting-emailQueueCron" value="*/5 * * * *"
                     class="appearance-select mono w-full" autocomplete="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-bwignore="true" data-form-type="other"
                     data-input="onCronInput $el"
+                      data-change="saveCronField $el"
                     data-focus="showCronSuggestions true"
                    >
                   <div class="autocomplete-dropdown" id="cronAutocomplete"></div>
@@ -706,9 +690,6 @@
                   </svg>
                 </button>
               </div>
-              <div class="settings-save-row">
-                <button class="btn btn-outline" data-click="saveCurrentSettings">Save changes</button>
-              </div>
             </div>
           </div>
 
@@ -722,7 +703,7 @@
               <div class="settings-item-card settings-item-card--static">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Webhooks</span>
-                  <p class="settings-item-desc">Send consent changes to any HTTP endpoint. Configured in the options of each bucket.</p>
+                  <p class="settings-item-desc">Send every consent change to your own system. Set the address under each bucket's Options.</p>
                 </div>
                 <span class="status-badge select-none">Per bucket</span>
               </div>

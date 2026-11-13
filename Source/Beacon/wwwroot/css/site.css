@@ -583,6 +583,11 @@ td {
   gap: var(--space-2);
   color: hsl(var(--muted-foreground));
 }
+/* Bucket names wrap: truncation hides the part that tells two campaigns apart */
+.nav-item[data-bucket] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .nav-item--archived .nav-item-text {
   flex: 1;
   min-width: 0;
@@ -843,6 +848,10 @@ h1 {
   white-space: nowrap;
   vertical-align: middle;
   background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+.audit-arrow {
+  vertical-align: middle;
   color: hsl(var(--muted-foreground));
 }
 .status-chip.opted-in {
@@ -1299,6 +1308,10 @@ tbody tr:hover td.table-empty {
   display: block;
   font-size: var(--text-xs);
   color: hsl(var(--muted-foreground));
+}
+
+.name-text {
+  white-space: nowrap;
 }
 
 .email-hash {
@@ -1816,6 +1829,13 @@ textarea.input,
 }
 .notice a {
   text-decoration: underline;
+}
+.notice--action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 .notice--danger {
   border-color: hsl(var(--destructive) / 0.3);

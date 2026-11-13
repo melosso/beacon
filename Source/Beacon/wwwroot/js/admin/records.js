@@ -265,6 +265,11 @@ async function loadOverview(refresh = false) {
   renderOverview();
 }
 
+// Share of a bucket's consent records (one per email and permission) that are opted in
+function optInRate(b) {
+  return b.totalRecords ? b.optedInRecords / b.totalRecords : -1;
+}
+
 function renderOverview() {
   paint(
     document.getElementById("overviewHead"),
@@ -285,6 +290,7 @@ function renderOverview() {
         })}
       </th>
       ${sortHeader("Records", overviewSortBy === "records", overviewSortDir, () => toggleOverviewSort("records"))}
+      ${sortHeader("Opted in", overviewSortBy === "optin", overviewSortDir, () => toggleOverviewSort("optin"))}
       <th>Permissions</th>
       <th class="col-actions"></th>`,
   );
@@ -294,9 +300,10 @@ function renderOverview() {
   const shown = buckets.filter(overviewMatches);
   if (overviewSortBy === "name") shown.sort((a, b) => dir * a.name.localeCompare(b.name));
   else if (overviewSortBy === "records") shown.sort((a, b) => dir * ((a.totalEmails ?? 0) - (b.totalEmails ?? 0)));
+  else if (overviewSortBy === "optin") shown.sort((a, b) => dir * (optInRate(a) - optInRate(b)));
 
   if (buckets.length > 0 && shown.length === 0) {
-    paint(body, html`<tr><td class="table-empty" colspan="4">No buckets match "${overviewQuery}".</td></tr>`);
+    paint(body, html`<tr><td class="table-empty" colspan="5">No buckets match "${overviewQuery}".</td></tr>`);
     return;
   }
 
@@ -304,7 +311,7 @@ function renderOverview() {
     paint(
       body,
       html`<tr>
-        <td class="table-empty" colspan="4"
+        <td class="table-empty" colspan="5"
         >
           No buckets. A bucket is created with its first token.
         </td>
@@ -321,14 +328,21 @@ function renderOverview() {
         brandId?.settings?.primaryAccent || "hsl(var(--muted-foreground))";
       return html` <tr>
         <td class="cursor-pointer" @click=${() => showBucket(b.name)}>
-          <strong>${b.name || "N/A"}</strong>${b.isArchived
+          <strong>${formatPermission(b.name) || "N/A"}</strong>${b.isArchived
             ? html` <span class="status-badge status-badge--sm">Archived</span>`
-            : nothing}
+            : nothing}<span class="cell-sub mono">${b.name}</span>
         </td>
         <td>
           ${b.totalEmails != null
-            ? Number(b.totalEmails).toLocaleString()
+            ? Number(b.totalEmails).toLocaleString(UI_LOCALE)
             : "N/A"}
+        </td>
+        <td
+          title=${b.totalRecords
+            ? `${b.optedInRecords} of ${b.totalRecords} consent records`
+            : ""}
+        >
+          ${b.totalRecords ? `${Math.round(optInRate(b) * 100)}%` : "—"}
         </td>
         <td>
           ${b.permissions?.length
@@ -500,14 +514,11 @@ async function loadBucket(bucket = currentBucket) {
   document.getElementById("bucketTitle")?.classList.toggle("is-archived", currentBucketArchived);
 
   const removeBtn = document.getElementById("removeBucketBtn");
-  const removeTip = document.getElementById("removeBucketTooltip");
   if (removeBtn) {
     removeBtn.disabled = !currentBucketArchived;
-
-    if (removeTip)
-      removeTip.textContent = currentBucketArchived
-        ? "Deletes the bucket and its records"
-        : "Archive the bucket to enable removal";
+    removeBtn.title = currentBucketArchived
+      ? "Deletes the bucket and its records"
+      : "Archive the bucket to enable removal";
   }
 
   const brandBadge = document.getElementById("bucketBrandBadge");
@@ -600,9 +611,6 @@ async function loadBucket(bucket = currentBucket) {
       </tr>`,
     );
   } else {
-    const switchClass = currentBucketArchived
-      ? "switch disabled archived"
-      : "switch disabled";
     paint(
       body,
       html`${data.records.map((r, idx) => {
@@ -652,18 +660,8 @@ async function loadBucket(bucket = currentBucket) {
           ${currentBucketPermissions.map((p) => {
             const optedIn = !!r.permissions?.[p];
             return html`<td>
-              <span class="tooltip-wrapper"
-                ><label class=${switchClass}
-                  ><input
-                    type="checkbox"
-                    .checked=${optedIn}
-                    disabled
-                    aria-label=${formatPermission(p)} /><span
-                    class="slider"
-                  ></span></label
-                ><span class="tooltip"
-                  >${optedIn ? "Opted-in" : "Opted-out"}</span
-                ></span
+              <span class="status-chip ${optedIn ? "opted-in" : "opted-out"}"
+                >${optedIn ? "Opted in" : "Opted out"}</span
               >
             </td>`;
           })}
@@ -752,7 +750,7 @@ function updatePagination() {
   const end = Math.min(currentPage * pageSize, totalRecords);
 
   document.getElementById("paginationInfo").textContent =
-    `Showing ${start.toLocaleString()} to ${end.toLocaleString()} of ${totalRecords.toLocaleString()} entries`;
+    pageRangeText(start, end, totalRecords);
   document.getElementById("prevBtn").disabled = currentPage === 1;
   document.getElementById("nextBtn").disabled = currentPage >= totalPages;
 }
@@ -892,7 +890,7 @@ function showBucketSuggestions() {
         >
           <div class="bucket-name">${b.name}</div>
           <div class="bucket-info">
-            ${Number(b.totalEmails || 0).toLocaleString()} records ·
+            ${Number(b.totalEmails || 0).toLocaleString(UI_LOCALE)} records ·
             ${(b.permissions || []).length} permissions
           </div>
         </div>`,
