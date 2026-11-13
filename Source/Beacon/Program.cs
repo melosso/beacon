@@ -855,10 +855,19 @@ static async Task DescribeResponsesAsync(OpenApiOperation operation, Microsoft.A
     foreach (var (code, response) in operation.Responses)
     {
         if (response is not OpenApiResponse concrete) continue;
+        if (code == "303")
+        {
+            concrete.Headers ??= new Dictionary<string, IOpenApiHeader>();
+            concrete.Headers["Location"] = new OpenApiHeader
+            {
+                Description = "Address of the success or error page.",
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri" }
+            };
+        }
         concrete.Description = code switch
         {
             "200" => "The request succeeded. The response body contains the result.",
-            "303" => "The request succeeded. The Location header contains the redirect address.",
+            "303" => "The submission is processed. The Location header contains the success or error page address.",
             "400" => "The request is malformed or fails validation. The error names the invalid field.",
             "401" => "The credential is missing, invalid or expired. Send the API key as a Bearer token.",
             "403" => "The credential lacks the permission for this request, or the origin is not allowed.",
