@@ -393,7 +393,7 @@ function workflowStatus(t) {
 
 function visibleWorkflowTasks() {
   return _workflowArchivedVisible
-    ? _workflowAllTasks.filter((t) => t.status !== "Running" && t.status !== "Pending")
+    ? _workflowAllTasks.filter((t) => t.status !== "Running")
     : _workflowAllTasks.filter((t) => t.status === "PendingApproval" || _locallyActionedIds.has(t.id));
 }
 

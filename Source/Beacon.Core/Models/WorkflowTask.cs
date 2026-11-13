@@ -2,7 +2,6 @@ namespace Beacon.Core.Models;
 
 public enum WorkflowTaskStatus
 {
-    Pending,
     PendingApproval,
     Running,
     Completed,
@@ -26,7 +25,7 @@ public sealed record WorkflowTask
 {
     public Guid Id { get; init; }
     public WorkflowTaskType TaskType { get; init; }
-    public WorkflowTaskStatus Status { get; init; } = WorkflowTaskStatus.Pending;
+    public WorkflowTaskStatus Status { get; init; }
     public WorkflowTrigger TriggeredBy { get; init; } = WorkflowTrigger.Cron;
     public DateTime ScheduledAt { get; init; }
     public DateTime? StartedAt { get; init; }
