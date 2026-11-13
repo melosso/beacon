@@ -169,8 +169,9 @@ public static class AuthEndpoints
         var authTime = DateTimeOffset.FromUnixTimeSeconds(authSeconds);
         if (JwtAuthHandler.RefreshedExpiry(authTime, DateTimeOffset.UtcNow, TimeSpan.FromHours(1)) is not { } expiresAt)
             return Results.Unauthorized();
-        // One live token per session: the replaced token is revoked.
-        await JwtAuthHandler.RevokeAsync(tokenUsage, signingKey, JwtAuthHandler.ReadToken(httpContext.Request));
+        // One live token per session: a concurrent refresh that lost the revocation claim gets no replacement.
+        if (!await JwtAuthHandler.RevokeAsync(tokenUsage, signingKey, JwtAuthHandler.ReadToken(httpContext.Request)))
+            return Results.Conflict();
         return OkWithCookie(httpContext, env, signingKey, sub, expiresAt, role, adminKey, authTime);
     }
 

@@ -31,12 +31,12 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
     public static string SessionHash(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 
-    /// <summary>Revokes a valid session token until its expiry; logout calls this.</summary>
-    public static async Task RevokeAsync(TokenUsageRepository tokenUsage, byte[] signingKey, string? token)
+    /// <summary>Revokes a valid session token until its expiry. Returns false if the token is invalid or already revoked.</summary>
+    public static async Task<bool> RevokeAsync(TokenUsageRepository tokenUsage, byte[] signingKey, string? token)
     {
         if (string.IsNullOrEmpty(token) || !TryValidateToken(signingKey, token, out _, out _, out var expiresAt) || expiresAt is null)
-            return;
-        await tokenUsage.TryMarkUsedAsync(SessionHash(token), expiresAt.Value.UtcDateTime);
+            return false;
+        return await tokenUsage.TryMarkUsedAsync(SessionHash(token), expiresAt.Value.UtcDateTime);
     }
 
     public const string CookieName = "beacon_auth";
