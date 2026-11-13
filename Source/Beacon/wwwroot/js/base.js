@@ -315,10 +315,10 @@ function readSettings() {
   try { return JSON.parse(localStorage.getItem("beacon_settings") || "{}"); } catch { return {}; }
 }
 
-// No saved light/dark choice: the system preference decides.
+// data-theme is the applied choice, valid without storage. No attribute: the system preference decides.
 function effectiveTheme() {
-  const saved = readSettings().theme;
-  if (saved === "light" || saved === "dark") return saved;
+  const applied = document.documentElement.getAttribute("data-theme");
+  if (applied === "light" || applied === "dark") return applied;
   return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
