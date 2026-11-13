@@ -1,0 +1,81 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.kb/docs/**'
+      - '.kb/wwwroot/**'
+      - '.github/workflows/documentation-pages.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+      with:
+        path: beacon
+
+    # Pin to the latest concrete v0.0.x tag; update the pattern for minor bumps.
+    - name: Resolve latest Bark v0.0.x
+      id: bark
+      run: |
+        tag=$(git ls-remote --tags --refs --sort=-v:refname \
+          https://github.com/hawkinslabdev/bark.git 'v0.0.*' | head -1 | sed 's#.*/##')
+        [ -n "$tag" ] || { echo "::error::No v0.0.* tag on hawkinslabdev/bark"; exit 1; }
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+    - name: Checkout Bark
+      uses: actions/checkout@v7
+      with:
+        repository: hawkinslabdev/bark
+        ref: ${{ steps.bark.outputs.tag }}
+        path: bark
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '11.0.x'
+
+    - name: Build Bark
+      run: |
+        dotnet publish ${{ github.workspace }}/bark/Bark/src/Bark/Bark.csproj \
+          -c Release -o ${{ github.workspace }}/publish --nologo -v quiet
+
+    - name: Copy docs and wwwroot
+      run: |
+        rm -rf ${{ github.workspace }}/publish/docs
+        cp -r ${{ github.workspace }}/beacon/.kb/docs ${{ github.workspace }}/publish/docs
+        # Overlay brand assets; replacing wwwroot drops Bark framework assets from the export.
+        cp -r ${{ github.workspace }}/beacon/.kb/wwwroot/. ${{ github.workspace }}/publish/wwwroot/
+
+    - name: Generate static site
+      working-directory: ${{ github.workspace }}/publish
+      run: |
+        ./Bark --export ${{ github.workspace }}/site \
+          --base-url https://melosso.github.io \
+          --base-path /beacon > /dev/null
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v5
+      with:
+        path: '${{ github.workspace }}/site'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v5
