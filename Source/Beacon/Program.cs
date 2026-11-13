@@ -420,7 +420,8 @@ try
                 foreach (var host in adminHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     origins.Add($"https://{host}");
-                    origins.Add($"http://{host}"); // For internal/dev scenarios
+                    // Credentialed plain-http origins are Development-only; list others in AllowedOrigins.
+                    if (builder.Environment.IsDevelopment()) origins.Add($"http://{host}");
                 }
             }
 
@@ -431,7 +432,7 @@ try
                 foreach (var host in apiHosts.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     origins.Add($"https://{host}");
-                    origins.Add($"http://{host}");
+                    if (builder.Environment.IsDevelopment()) origins.Add($"http://{host}");
                 }
             }
 

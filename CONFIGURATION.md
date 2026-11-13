@@ -58,7 +58,7 @@ When deploying behind a reverse proxy (nginx, Traefik, Caddy), use host-based ro
 |----------|---------|---------|
 | `API_HOSTS` | Hosts for public API access | beacon-api.example.com |
 | `ADMIN_HOSTS` | Hosts for admin panel access | beacon-admin.example.com |
-| `ALLOWED_ORIGINS` | Additional CORS origins | https://app.example.com |
+| `ALLOWED_ORIGINS` | Additional CORS origins. `ADMIN_HOSTS` and `API_HOSTS` add `https://` origins; plain-http origins outside Development must be listed here | https://app.example.com |
 | `TRUST_FORWARDED_HEADERS` | Trust X-Forwarded-* headers from proxy | true |
 | `KNOWN_PROXIES` | Proxy IPs or CIDRs trusted for X-Forwarded-* headers. Defaults to private and loopback ranges | 10.0.0.0/8 |
 | `PUBLIC_URL` | Override the base URL used in confirmation email links | https://beacon-api.example.com |
