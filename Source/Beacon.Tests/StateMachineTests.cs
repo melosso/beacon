@@ -139,6 +139,42 @@ public sealed class StateMachineTests : IDisposable
         Assert.Equal(ConsentStatus.PendingConfirmation, await StoredStatusAsync());
     }
 
+    [Fact]
+    public async Task PendingPurge_RenewedAfterRead_KeepsRecord()
+    {
+        await Consent().OverrideAsync(Bucket, Email, Permission, ConsentStatus.PendingConfirmation);
+        var renew = new RenewBeforeUpdate();
+        await using var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).AddInterceptors(renew).Options);
+
+        var purged = await new ConsentRepository(db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), Ct);
+
+        Assert.True(renew.Fired);
+        Assert.Equal(0, purged);
+        _db.ChangeTracker.Clear();
+        var record = await _db.ConsentRecords.AsNoTracking().SingleAsync(Ct);
+        Assert.Equal(ConsentStatus.PendingConfirmation, record.Status);
+        Assert.NotNull(record.EncryptedEmail);
+    }
+
+    private sealed class RenewBeforeUpdate : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        public bool Fired { get; private set; }
+
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> NonQueryExecutingAsync(
+            System.Data.Common.DbCommand command,
+            Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (!Fired && command.CommandText.StartsWith("UPDATE", StringComparison.Ordinal))
+            {
+                Fired = true;
+                eventData.Context!.Set<ConsentRecord>().ExecuteUpdate(s => s.SetProperty(r => r.ChangedAt, DateTime.UtcNow.AddMinutes(1)));
+            }
+            return ValueTask.FromResult(result);
+        }
+    }
+
     private static ConsentRecord Record(ConsentStatus status) => new()
     {
         Id = Guid.NewGuid(), Bucket = Bucket, EmailHash = "h", Permission = Permission, Status = status, ChangedAt = DateTime.UtcNow
@@ -150,7 +186,7 @@ public sealed class StateMachineTests : IDisposable
     [InlineData(ConsentStatus.OptedIn, ConsentStatus.PendingConfirmation, false, false, ConsentStatus.OptedIn)]
     public async Task Upsert_LostInsertRace_AppliesGuard(ConsentStatus winner, ConsentStatus incoming, bool insertOnly, bool expectWrite, ConsentStatus expected)
     {
-        var race = new InsertBeforeSave(() =>
+        var race = new RaceBeforeSave(() =>
         {
             using var other = new BeaconDbContext(_options);
             other.ConsentRecords.Add(Record(winner));
@@ -165,7 +201,25 @@ public sealed class StateMachineTests : IDisposable
         Assert.Equal(expected, await StoredStatusAsync());
     }
 
-    private sealed class InsertBeforeSave(Action insert) : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    [Fact]
+    public async Task Upsert_StaleStatus_RechecksTransition()
+    {
+        await new ConsentRepository(_db).UpsertAsync(Record(ConsentStatus.OptedOut));
+        var race = new RaceBeforeSave(() =>
+        {
+            using var other = new BeaconDbContext(_options);
+            other.ConsentRecords.ExecuteUpdate(s => s.SetProperty(r => r.Status, ConsentStatus.OptedIn));
+        });
+        await using var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).AddInterceptors(race).Options);
+
+        var wrote = await new ConsentRepository(db).UpsertAsync(Record(ConsentStatus.PendingConfirmation));
+
+        Assert.True(race.Fired);
+        Assert.False(wrote);
+        Assert.Equal(ConsentStatus.OptedIn, await StoredStatusAsync());
+    }
+
+    private sealed class RaceBeforeSave(Action race) : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
     {
         public bool Fired { get; private set; }
 
@@ -174,7 +228,7 @@ public sealed class StateMachineTests : IDisposable
             Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
             CancellationToken cancellationToken = default)
         {
-            if (!Fired) { Fired = true; insert(); }
+            if (!Fired) { Fired = true; race(); }
             return ValueTask.FromResult(result);
         }
     }
@@ -246,25 +300,78 @@ public sealed class StateMachineTests : IDisposable
         Assert.Equal(1, runs);
     }
 
-    private async Task<DataPolicyWorker> WorkerAsync(bool requireApproval)
+    private static SystemConfig RetentionConfig(bool requireApproval, int days = -1) => new()
+    {
+        DataPoliciesEnabled = true,
+        RetentionPurgeEnabled = true,
+        RetentionPurgeDays = days,
+        RetentionPurgeRequireApproval = requireApproval
+    };
+
+    private async Task<DataPolicyWorker> WorkerAsync(bool requireApproval, ISystemConfigurationService? configSvc = null)
     {
         await Consent().OverrideAsync(Bucket, Email, Permission, ConsentStatus.OptedOut);
         _db.ChangeTracker.Clear();
-        var config = new SystemConfig
-        {
-            DataPoliciesEnabled = true,
-            RetentionPurgeEnabled = true,
-            RetentionPurgeDays = -1,
-            RetentionPurgeRequireApproval = requireApproval
-        };
         var services = new ServiceCollection()
             .AddScoped(_ => new BeaconDbContext(_options))
             .AddScoped<IConsentRepository, ConsentRepository>()
             .AddScoped<WorkflowTaskRepository>()
             .AddScoped<DataPolicyService>()
-            .AddSingleton<ISystemConfigurationService>(new StubSystemConfigurationService(config))
+            .AddSingleton(configSvc ?? new StubSystemConfigurationService(RetentionConfig(requireApproval)))
             .BuildServiceProvider();
         return new DataPolicyWorker(services.GetRequiredService<IServiceScopeFactory>(), NullLogger<DataPolicyWorker>.Instance, new DataPolicyTrigger());
+    }
+
+    [Fact]
+    public async Task Worker_SettingsSavedMidBatch_UsesBatchSnapshot()
+    {
+        var reads = 0;
+        var saved = RetentionConfig(requireApproval: true, days: 3650);
+        var configSvc = Proxy<ISystemConfigurationService>.Create(new StubSystemConfigurationService(RetentionConfig(requireApproval: false)),
+            (m, _) => m.Name == nameof(ISystemConfigurationService.Get) && Interlocked.Increment(ref reads) > 1 ? (true, saved) : (false, null));
+        var worker = await WorkerAsync(requireApproval: false, configSvc);
+
+        await worker.ProcessBatchAsync(WorkflowTrigger.Cron, isManual: false, Ct);
+
+        await using var db = new BeaconDbContext(_options);
+        var task = await db.WorkflowTasks.AsNoTracking().SingleAsync(Ct);
+        Assert.Equal(WorkflowTaskStatus.Completed, task.Status);
+        Assert.Equal(-1, task.PolicyDays);
+        Assert.Equal(1, task.RecordsAffected);
+    }
+
+    [Fact]
+    public async Task Approve_UsesPolicyDaysStoredAtScheduling()
+    {
+        var worker = await WorkerAsync(requireApproval: true);
+        await worker.ProcessBatchAsync(WorkflowTrigger.Cron, isManual: false, Ct);
+        var task = await _db.WorkflowTasks.AsNoTracking().SingleAsync(Ct);
+        DateTime? cutoff = null;
+        var repo = Proxy<IConsentRepository>.Create(new ConsentRepository(_db),
+            (m, args) => { if (m.Name == nameof(IConsentRepository.AnonymiseOptedOutAsync)) cutoff = (DateTime)args![0]!; return (false, null); });
+        var svc = new DataPolicyService(new WorkflowTaskRepository(_db), repo, new StubSystemConfigurationService(RetentionConfig(requireApproval: true, days: 3650)));
+
+        await svc.ApproveTaskAsync(task.Id, Ct);
+
+        Assert.Equal(-1, task.PolicyDays);
+        Assert.Equal(task.ScheduledAt.AddDays(1), cutoff);
+    }
+
+    [Fact]
+    public void BulkReadEndpoints_RequireExportRateLimit()
+    {
+        var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
+        app.MapAdminEndpoints();
+
+        var bulk = ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources
+            .SelectMany(d => d.Endpoints)
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Where(e => e.RoutePattern.RawText is { } route
+                && (route.EndsWith("/export", StringComparison.Ordinal) || route == "/api/bucket/{bucket}/records"))
+            .ToList();
+
+        Assert.Contains(bulk, e => e.RoutePattern.RawText == "/api/bucket/{bucket}/records");
+        Assert.All(bulk, e => Assert.Equal("export", e.Metadata.GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>()?.PolicyName));
     }
 
     [Fact]
@@ -407,10 +514,12 @@ public sealed class StateMachineTests : IDisposable
         Assert.Equal(ConsentStatus.PendingConfirmation, await StoredStatusAsync());
     }
 
-    [Fact]
-    public async Task CancelPending_CancelsSent()
+    [Theory]
+    [InlineData(EmailQueueStatus.Sent)]
+    [InlineData(EmailQueueStatus.Failed)]
+    public async Task CancelPending_CancelsConfirmable(EmailQueueStatus status)
     {
-        var entry = await SeedEntryAsync("tk", EmailQueueStatus.Sent);
+        var entry = await SeedEntryAsync("tk", status);
 
         await new EmailQueueRepository(_db).CancelPendingAsync(Bucket, _hasher.Hash(Email), Permission);
 
@@ -481,6 +590,9 @@ public sealed class StateMachineTests : IDisposable
         var issued = ctx.Response.Headers.SetCookie.ToString().Split(';')[0][(JwtAuthHandler.CookieName.Length + 1)..];
         Assert.NotEqual(token, issued);
         Assert.False(await usage.IsTokenUsedAsync(JwtAuthHandler.SessionHash(issued)));
+
+        var replay = await AuthEndpoints.Refresh(ctx, new StubEnv(), new StubOptions(new JwtAuthOptions { SigningKey = key }), usage);
+        Assert.Equal(StatusCodes.Status409Conflict, Assert.IsAssignableFrom<IStatusCodeHttpResult>(replay).StatusCode);
     }
 
     [Fact]
@@ -543,12 +655,14 @@ public sealed class SqliteMigratorTests
         using var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(connection).Options);
         db.Database.EnsureCreated();
         db.Database.ExecuteSqlRaw("ALTER TABLE ConsentRecords DROP COLUMN EncryptedName");
+        db.Database.ExecuteSqlRaw("ALTER TABLE WorkflowTasks DROP COLUMN PolicyDays");
         db.Database.ExecuteSqlRaw("DROP TABLE ArchivedBuckets");
 
         DatabaseMigrator.Initialize(db);
         DatabaseMigrator.Initialize(db);
 
         Assert.Contains("EncryptedName", db.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('ConsentRecords')").ToList());
+        Assert.Contains("PolicyDays", db.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('WorkflowTasks')").ToList());
         Assert.Equal(1, db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type='table' AND name='ArchivedBuckets'").AsEnumerable().Single());
     }
 }
