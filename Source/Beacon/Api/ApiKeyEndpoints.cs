@@ -9,10 +9,16 @@ public static class ApiKeyEndpoints
 {
     private static readonly string[] KnownPermissions =
     [
-        "_all", "consent:read", "consent:write", "tokens:write",
+        "_all", "consent:read", "consent:write", "consent:export", "tokens:write",
         "buckets:read", "buckets:write", "submissions:read", "submissions:write",
         "audit:read", "webhooks:read", "webhooks:write"
     ];
+
+    /// <summary>Bulk decrypted PII access: admins and keys granted <c>consent:export</c> or <c>_all</c>; never the user role.</summary>
+    public static bool CanExportConsent(System.Security.Claims.ClaimsPrincipal user) =>
+        user.IsInRole("admin") ||
+        user.HasClaim("beacon:permission", "_all") ||
+        user.HasClaim("beacon:permission", "consent:export");
 
     public static void MapApiKeyEndpoints(this IEndpointRouteBuilder routes)
     {

@@ -55,7 +55,7 @@ public static class AdminEndpoints
         routes.MapGet("/api/bucket/{bucket}/records", GetAllBucketRecords)
             .WithName("GetAllBucketRecords")
             .WithTags(PermissionTag)
-            .RequireAuthorization("ConsentRead")
+            .RequireAuthorization("ConsentExport")
             .WithDescription("Retrieve all consent records for a bucket. Returns decrypted emails and permission states.");
 
         // Management APIs (excluded from public OpenAPI docs)
@@ -108,7 +108,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/identities/export", ExportIdentities)
-            .RequireAuthorization("ConsentRead")
+            .RequireAuthorization("ConsentExport")
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/override", BatchOverrideConsent)
@@ -180,7 +180,7 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/records/export", ExportBucketRecords)
-            .RequireAuthorization("ConsentRead")
+            .RequireAuthorization("ConsentExport")
             .ExcludeFromDescription();
 
         routes.MapGet("/api/admin/data-policies/tasks", GetWorkflowTasks)

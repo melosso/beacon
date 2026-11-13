@@ -334,6 +334,8 @@ try
                 ctx.User.HasClaim("beacon:permission", "_all") ||
                 ctx.User.HasClaim("beacon:permission", capturedScope)));
         }
+
+        options.AddPolicy("ConsentExport", p => p.RequireAssertion(ctx => ApiKeyEndpoints.CanExportConsent(ctx.User)));
     });
     builder.Services.AddEndpointsApiExplorer();
 

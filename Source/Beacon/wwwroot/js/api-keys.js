@@ -11,6 +11,7 @@ const KNOWN_PERMISSIONS = [
   { value: "_all", label: "Full access (_all)" },
   { value: "consent:read", label: "Consent — Read" },
   { value: "consent:write", label: "Consent — Write" },
+  { value: "consent:export", label: "Consent — Export" },
   { value: "tokens:write", label: "Tokens — Generate" },
   { value: "buckets:read", label: "Buckets — Read" },
   { value: "buckets:write", label: "Buckets — Write" },

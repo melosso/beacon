@@ -96,6 +96,20 @@ public class SecurityAuditTests : IDisposable
         Assert.Equal(signIn.ToUnixTimeSeconds().ToString(), result.Principal!.FindFirst(JwtAuthHandler.AuthTimeClaim)!.Value);
     }
 
+    [Theory]
+    [InlineData("admin", null, true)]
+    [InlineData("user", null, false)]
+    [InlineData("apikey", "consent:read", false)]
+    [InlineData("apikey", "consent:export", true)]
+    [InlineData("apikey", "_all", true)]
+    public void ConsentExport_ExcludesUserRole(string role, string? permission, bool expected)
+    {
+        List<System.Security.Claims.Claim> claims = [new(System.Security.Claims.ClaimTypes.Role, role)];
+        if (permission != null) claims.Add(new("beacon:permission", permission));
+
+        Assert.Equal(expected, ApiKeyEndpoints.CanExportConsent(new(new System.Security.Claims.ClaimsIdentity(claims, "test"))));
+    }
+
     [Fact]
     public void RefreshedExpiry_CapsAtMaxSessionLifetime()
     {
