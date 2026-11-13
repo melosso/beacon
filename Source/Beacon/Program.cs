@@ -382,7 +382,7 @@ try
                 operation.Security.Add(new OpenApiSecurityRequirement { { new OpenApiSecuritySchemeReference("ApiKey"), new List<string>() } });
             }
 
-            return Task.CompletedTask;
+            return DescribeResponsesAsync(operation, context, cancellationToken);
         });
     });
 
@@ -506,9 +506,13 @@ try
         // Malformed request bodies are client errors; Development rethrows them from parameter binding.
         var badRequest = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error
             as Microsoft.AspNetCore.Http.BadHttpRequestException;
-        context.Response.StatusCode = badRequest?.StatusCode ?? 500;
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new { error = badRequest is null ? "An internal server error occurred." : "Invalid request body." });
+        if (badRequest is null)
+        {
+            await ApiError.WriteServerErrorAsync(context);
+            return;
+        }
+        context.Response.StatusCode = badRequest.StatusCode;
+        await context.Response.WriteAsJsonAsync(new ApiError("Invalid request body. Send valid JSON or form data."));
     }));
 
     // Must run before rate limiting and host routing: both key off the resolved client IP / host.
@@ -836,6 +840,38 @@ static Dictionary<string, string?> ResolveSettingAliases(IConfiguration configur
 }
 
 // Static Helpers
+static async Task DescribeResponsesAsync(OpenApiOperation operation, Microsoft.AspNetCore.OpenApi.OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
+{
+    operation.Responses ??= [];
+    if (!operation.Responses.ContainsKey("500"))
+    {
+        var schema = await context.GetOrCreateSchemaAsync(typeof(ApiError), null, cancellationToken);
+        operation.Responses["500"] = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType> { ["application/json"] = new OpenApiMediaType { Schema = schema } }
+        };
+    }
+
+    foreach (var (code, response) in operation.Responses)
+    {
+        if (response is not OpenApiResponse concrete) continue;
+        concrete.Description = code switch
+        {
+            "200" => "The request succeeded. The response body contains the result.",
+            "303" => "The request succeeded. The Location header contains the redirect address.",
+            "400" => "The request is malformed or fails validation. The error names the invalid field.",
+            "401" => "The credential is missing, invalid or expired. Send the API key as a Bearer token.",
+            "403" => "The credential lacks the permission for this request, or the origin is not allowed.",
+            "404" => "No form, link or record matches the request.",
+            "409" => "The request conflicts with the current state: an archived bucket, a used link or a duplicate record.",
+            "410" => "The link has expired or its bucket is archived.",
+            "429" => "Too many requests. The Retry-After header contains the wait time in seconds.",
+            "500" => "The server failed to process the request.",
+            _ => concrete.Description
+        };
+    }
+}
+
 // Host and database only; the connection string can contain credentials.
 static string DescribeDatabaseTarget(string connectionString)
 {
