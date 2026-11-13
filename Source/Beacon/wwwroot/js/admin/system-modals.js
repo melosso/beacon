@@ -471,6 +471,7 @@ function updateSidebarUser() {
 function setupUserAuthNav(role) {
   const mode = typeof USER_AUTH_METHOD !== "undefined" ? USER_AUTH_METHOD : "";
   const isAdmin = !mode || role === "admin";
+  document.documentElement.toggleAttribute("data-admin", isAdmin);
   const settingsNavAccount = document.getElementById("settingsNavAccount");
   const settingsNavDivider = document.getElementById("settingsNavDivider");
   const settingsNavUsers = document.getElementById("settingsNavUsers");

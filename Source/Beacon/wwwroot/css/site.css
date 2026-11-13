@@ -121,6 +121,10 @@
   display: none !important;
 }
 
+:root:not([data-admin]) [data-admin-only] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
