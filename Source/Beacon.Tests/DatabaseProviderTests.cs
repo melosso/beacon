@@ -134,6 +134,65 @@ public abstract class DatabaseProviderTests
         Assert.Empty(details.Stats);
         Assert.Empty(details.Permissions);
     }
+
+    [Fact]
+    public async Task UpsertAsync_PendingOverOptIn_IsRefused()
+    {
+        var bucket = $"guard-{Guid.NewGuid():N}"[..20];
+        await using var db = CreateDbContext();
+        var repo = new ConsentRepository(db);
+        await repo.UpsertAsync(MakeRecord(bucket, "h", "email", ConsentStatus.OptedIn));
+        db.ChangeTracker.Clear();
+
+        Assert.False(await repo.UpsertAsync(MakeRecord(bucket, "h", "email", ConsentStatus.PendingConfirmation)));
+        Assert.False(await repo.UpsertAsync(MakeRecord(bucket, "h", "email", ConsentStatus.OptedOut), insertOnly: true));
+        db.ChangeTracker.Clear();
+        Assert.Equal(ConsentStatus.OptedIn, (await repo.GetAsync(bucket, "h", "email"))!.Status);
+    }
+
+    [Fact]
+    public async Task PurgePendingConfirmationAsync_OptsOutAndAnonymises()
+    {
+        var bucket = $"purge-{Guid.NewGuid():N}"[..20];
+        await using var db = CreateDbContext();
+        var repo = new ConsentRepository(db);
+        await repo.UpsertAsync(MakeRecord(bucket, "h", "email", ConsentStatus.PendingConfirmation, "enc", "name"));
+        db.ChangeTracker.Clear();
+
+        Assert.True(await repo.PurgePendingConfirmationAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken) >= 1);
+        db.ChangeTracker.Clear();
+
+        var record = await repo.GetAsync(bucket, "h", "email");
+        Assert.Equal(ConsentStatus.OptedOut, record!.Status);
+        Assert.Null(record.EncryptedEmail);
+        Assert.Null(record.EncryptedName);
+        Assert.True(await db.ConsentAuditEntries.AnyAsync(a => a.Bucket == bucket && a.NewStatus == ConsentStatus.OptedOut, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task TryMarkUsedAsync_SecondClaim_ReturnsFalse()
+    {
+        var hash = Guid.NewGuid().ToString("N");
+        await using var dbA = CreateDbContext();
+        await using var dbB = CreateDbContext();
+
+        Assert.True(await new TokenUsageRepository(dbA).TryMarkUsedAsync(hash, DateTime.UtcNow.AddDays(1)));
+        Assert.False(await new TokenUsageRepository(dbB).TryMarkUsedAsync(hash, DateTime.UtcNow.AddDays(1)));
+    }
+
+    [Fact]
+    public async Task WorkflowTransitionAsync_GuardsFromStatus()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var task = new WorkflowTask { Id = Guid.NewGuid(), TaskType = WorkflowTaskType.RetentionPurge, Status = WorkflowTaskStatus.PendingApproval, ScheduledAt = DateTime.UtcNow };
+        await using var db = CreateDbContext();
+        var repo = new WorkflowTaskRepository(db);
+        await repo.CreateAsync(task, ct);
+
+        var running = task with { Status = WorkflowTaskStatus.Running };
+        Assert.True(await repo.TransitionAsync(WorkflowTaskStatus.PendingApproval, running, ct));
+        Assert.False(await repo.TransitionAsync(WorkflowTaskStatus.PendingApproval, running, ct));
+    }
 }
 
 // ─── SQL Server ────────────────────────────────────────────────────────────────
