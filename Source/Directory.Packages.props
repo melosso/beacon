@@ -7,12 +7,12 @@
   <PropertyGroup>
     <EfCoreVersion>11.0.0</EfCoreVersion>
     <SerilogSinksVersion>10.0.0</SerilogSinksVersion>
-    <TestcontainersVersion>4.16.0</TestcontainersVersion>
+    <TestcontainersVersion>4.17.0</TestcontainersVersion>
   </PropertyGroup>
 
   <ItemGroup Label="App">
     <!-- Pinned, not floating: a floating version made every build non-reproducible. -->
-    <PackageVersion Include="AWSSDK.S3" Version="4.1.0" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.1.1" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="11.0.0" />
     <PackageVersion Include="Serilog" Version="4.4.0" />
     <PackageVersion Include="Serilog.AspNetCore" Version="$(SerilogSinksVersion)" />
@@ -32,7 +32,7 @@
 
   <ItemGroup Label="Security pins">
     <!-- Transitive 2.0.0 carries GHSA-v5pm-xwqc-g5wc (high). -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="3.11.0" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="3.11.1" />
     <!-- Transitive 2.1.11 carries GHSA-2m69-gcr7-jv3q (high). -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
@@ -46,7 +46,7 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="$(TestcontainersVersion)" />
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <!-- Transitive 2025.1.0 (via Testcontainers) carries GHSA-mggc-4xg6-vcxf and GHSA-q939-rpr3-3284 (high). -->
-    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
+    <PackageVersion Include="SSH.NET" Version="2026.0.1" />
   </ItemGroup>
 
 </Project>
