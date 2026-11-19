@@ -3001,7 +3001,7 @@ input.appearance-select {
 }
 #apiKeysBody tr,
 #usersBody tr {
-  animation: rowEntry 0.15s ease-out both;
+  animation: rowEntry 0.15s ease-out backwards;
 }
 
 @keyframes cbPulse {
