@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <EfCoreVersion>11.0.0</EfCoreVersion>
-    <SerilogSinksVersion>10.0.0</SerilogSinksVersion>
+    <SerilogSinksVersion>11.0.0</SerilogSinksVersion>
     <TestcontainersVersion>4.16.0</TestcontainersVersion>
   </PropertyGroup>
 
