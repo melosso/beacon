@@ -350,6 +350,61 @@ function syncThemeToggle() {
 
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeToggle);
 
+function isoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function enhanceDateFields() {
+  for (const input of document.querySelectorAll("input[data-date]")) {
+    const field = document.createElement("div");
+    field.className = "date-field";
+    input.replaceWith(field);
+    Object.assign(input, { type: "text", inputMode: "numeric", placeholder: "YYYY-MM-DD", autocomplete: "off" });
+    input.pattern = "\\d{4}-\\d{2}-\\d{2}";
+    const pickerId = `${input.id}-picker`;
+    const close = () => document.getElementById(pickerId).hidePopover();
+    const set = (value) => {
+      input.value = value;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      close();
+      input.focus();
+    };
+    const onToggle = (e) => {
+      if (e.newState !== "open") return;
+      const rect = field.getBoundingClientRect();
+      const pop = e.currentTarget;
+      const below = rect.bottom + 4 + pop.offsetHeight <= innerHeight - 8;
+      pop.style.top = `${below ? rect.bottom + 4 : Math.max(8, rect.top - pop.offsetHeight - 4)}px`;
+      pop.style.left = `${Math.min(rect.left, innerWidth - pop.offsetWidth - 8)}px`;
+      const cal = pop.querySelector("calendar-date");
+      cal.value = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : "";
+      cal.focusedDate = cal.value || isoDate(new Date());
+      setHeading(cal, new Date(`${cal.focusedDate}T00:00`));
+    };
+    const setHeading = (cal, date) => {
+      cal.querySelector('[slot="heading"]').textContent = date.toLocaleDateString(UI_LOCALE, { month: "long", year: "numeric" });
+    };
+    render(html`
+      ${input}
+      <button type="button" class="date-field-btn" popovertarget=${pickerId} aria-label="Choose date">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </button>
+      <div class="date-popover" id=${pickerId} popover @toggle=${onToggle}>
+        <calendar-date locale=${UI_LOCALE} first-day-of-week="1" @change=${(e) => set(e.target.value)} @focusday=${(e) => setHeading(e.currentTarget, new Date(e.detail))}>
+          <span slot="heading"></span>
+          <span slot="previous" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></span>
+          <span slot="next" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+          <calendar-month></calendar-month>
+        </calendar-date>
+        <div class="date-popover-actions">
+          <button type="button" class="btn btn-outline btn-sm" @click=${() => set(isoDate(new Date()))}>Today</button>
+          <button type="button" class="btn btn-outline btn-sm" @click=${() => set("")}>Clear</button>
+        </div>
+      </div>`, field);
+  }
+}
+
+enhanceDateFields();
 bindActions();
 showPromoBar();
 initLoginPage();

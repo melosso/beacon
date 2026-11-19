@@ -154,8 +154,9 @@ function getCheckedPermissions(containerId) {
 
 function openAddApiKeyModal() {
   document.getElementById("newApiKeyName").value = "";
-  document.getElementById("newApiKeyActiveFrom").value = "";
-  document.getElementById("newApiKeyActiveUntil").value = "";
+  const today = new Date();
+  document.getElementById("newApiKeyActiveFrom").value = isoDate(today);
+  document.getElementById("newApiKeyActiveUntil").value = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90));
   document.getElementById("newApiKeyRevealSection").hidden = true;
   buildPermissionCheckboxes("newApiKeyPermissions", []);
   const btn = document.getElementById("addApiKeyBtn");
@@ -208,7 +209,7 @@ async function createApiKey() {
   btn.disabled = true;
 
   const body = { name, permissions };
-  if (activeFrom) body.activeFrom = activeFrom;
+  if (activeFrom) body.activeFrom = activeFrom === isoDate(new Date()) ? new Date().toISOString() : activeFrom;
   if (activeUntil) body.activeUntil = activeUntil;
 
   const result = await apiRequest("/api/admin/api-keys", {
