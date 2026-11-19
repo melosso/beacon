@@ -408,6 +408,13 @@ async function saveObjectStorageSettings() {
     notify("error", "Bucket required", "Enter a bucket name before saving.");
     return;
   }
+  const publicUrl = document
+    .getElementById("objectStoragePublicUrl")
+    .value.trim();
+  if (appSettings.objectStorage && !publicUrl) {
+    notify("error", "Public URL required", "Enter a public URL before saving.");
+    return;
+  }
   appSettings.objectStorageProvider = provider;
   appSettings.objectStorageBucket = bucket;
   appSettings.objectStorageRegion = document
@@ -422,9 +429,7 @@ async function saveObjectStorageSettings() {
   appSettings.objectStorageSecretKey = document.getElementById(
     "objectStorageSecretKey",
   ).value;
-  appSettings.objectStoragePublicUrl = document
-    .getElementById("objectStoragePublicUrl")
-    .value.trim();
+  appSettings.objectStoragePublicUrl = publicUrl;
   await saveCurrentSettings();
   closeObjectStorageModal();
 }

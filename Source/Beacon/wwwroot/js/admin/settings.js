@@ -291,6 +291,15 @@ async function onObjectStorageToggle(checkbox) {
     );
     return;
   }
+  if (checkbox.checked && !appSettings.objectStoragePublicUrl) {
+    checkbox.checked = false;
+    notify(
+      "error",
+      "No public URL configured",
+      "Enter a public URL in the object storage settings first.",
+    );
+    return;
+  }
   await saveSettingImmediate("objectStorage", checkbox.checked);
 }
 

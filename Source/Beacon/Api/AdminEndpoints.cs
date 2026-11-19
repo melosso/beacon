@@ -1589,8 +1589,10 @@ public static class AdminEndpoints
             return Results.BadRequest(new { error = "Login footer must be 500 characters or less." });
         if (config.PromoBar != null && config.PromoBar.Length > 500)
             return Results.BadRequest(new { error = "Announcement bar must be 500 characters or less." });
-
         var existing = configService.Get();
+
+        if (ValidateObjectStorage(config, existing) is { } storageError)
+            return Results.BadRequest(new { error = storageError });
 
         HandleSecret(config, existing, encryptor,
             c => c.EmailResendApiKey, (c, v) => c.EmailResendApiKey = v);
@@ -1610,6 +1612,21 @@ public static class AdminEndpoints
         saved.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageSecretKey));
 
         return Results.Ok(saved);
+    }
+
+    internal static string? ValidateObjectStorage(SystemConfig c, SystemConfig? existing = null)
+    {
+        if (!c.ObjectStorage) return null;
+        if (existing is not null
+            && c.ObjectStorage == existing.ObjectStorage
+            && c.ObjectStorageProvider == existing.ObjectStorageProvider
+            && c.ObjectStoragePublicUrl == existing.ObjectStoragePublicUrl)
+            return null;
+        if (c.ObjectStorageProvider is not ("s3" or "r2" or "minio"))
+            return "Object storage requires a provider. Select S3, R2 or MinIO.";
+        if (!Uri.TryCreate(c.ObjectStoragePublicUrl, UriKind.Absolute, out var url) || url.Scheme is not ("https" or "http"))
+            return "Object storage requires a public URL. Enter the http(s) base URL of the bucket or CDN.";
+        return null;
     }
 
     private static void HandleSecret(
@@ -2327,6 +2344,9 @@ public static class AdminEndpoints
         var sysConfig = configService.Get();
         if (sysConfig.ObjectStorage && file is not null)
         {
+            if (ValidateObjectStorage(sysConfig) is { } storageError)
+                return Results.BadRequest(new { error = $"Upload failed. {storageError}" });
+
             if (file.Length > maxBytes)
                 return Results.BadRequest(new { error = "File exceeds 2 MB limit." });
 

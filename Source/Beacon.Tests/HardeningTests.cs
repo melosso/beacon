@@ -141,6 +141,37 @@ public class S3ClientFactoryTests
         Assert.False(((Amazon.S3.AmazonS3Config)s3.Config).ForcePathStyle);
         Assert.True(((Amazon.S3.AmazonS3Config)r2.Config).ForcePathStyle);
     }
+
+    [Theory]
+    [InlineData(false, "none", "", true)]
+    [InlineData(true, "s3", "https://cdn.example.com", true)]
+    [InlineData(true, "s3", "", false)]
+    [InlineData(true, "s3", "cdn.example.com", false)]
+    [InlineData(true, "r2", "javascript:alert(1)", false)]
+    [InlineData(true, "none", "https://cdn.example.com", false)]
+    public void ObjectStorageRequiresProviderAndPublicUrl(bool enabled, string provider, string publicUrl, bool valid)
+    {
+        var config = new Beacon.Core.Services.SystemConfig
+        {
+            ObjectStorage = enabled,
+            ObjectStorageProvider = provider,
+            ObjectStoragePublicUrl = publicUrl
+        };
+
+        Assert.Equal(valid, Beacon.Api.AdminEndpoints.ValidateObjectStorage(config) is null);
+    }
+
+    [Fact]
+    public void ObjectStorageLegacySettingsPassOnlyWhenUnchanged()
+    {
+        var legacy = new Beacon.Core.Services.SystemConfig { ObjectStorage = true, ObjectStorageProvider = "s3" };
+        var unchanged = new Beacon.Core.Services.SystemConfig { ObjectStorage = true, ObjectStorageProvider = "s3", LoginFooter = "x" };
+        var changed = new Beacon.Core.Services.SystemConfig { ObjectStorage = true, ObjectStorageProvider = "r2" };
+
+        Assert.Null(Beacon.Api.AdminEndpoints.ValidateObjectStorage(unchanged, legacy));
+        Assert.NotNull(Beacon.Api.AdminEndpoints.ValidateObjectStorage(changed, legacy));
+        Assert.NotNull(Beacon.Api.AdminEndpoints.ValidateObjectStorage(legacy));
+    }
 }
 
 public class StatusLocalizationTests
