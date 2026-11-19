@@ -1,17 +1,18 @@
 // DATA POLICIES SECTION
 async function toggleDataPoliciesEnabled(enabled) {
   await saveSettingImmediate("dataPoliciesEnabled", enabled);
-  const controls = document.getElementById("data-policies-controls");
-  if (controls) {
-    controls.classList.toggle("is-disabled", !enabled);
-  }
+  syncDataPoliciesControls(enabled);
+}
+
+function syncDataPoliciesControls(enabled) {
+  document.getElementById("data-policies-controls")?.classList.toggle("is-disabled", !enabled);
 }
 
 async function loadDataPoliciesSection() {
   const el = document.getElementById("setting-dataPoliciesEnabled");
   if (el) {
     el.checked = !!appSettings.dataPoliciesEnabled;
-    toggleDataPoliciesEnabled(!!appSettings.dataPoliciesEnabled);
+    syncDataPoliciesControls(!!appSettings.dataPoliciesEnabled);
   }
   const cronEl = document.getElementById("setting-dataPolicyCron");
   if (cronEl) cronEl.value = appSettings.dataPolicyCron || "0 0 * * *";
