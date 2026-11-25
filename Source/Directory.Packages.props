@@ -7,7 +7,7 @@
   <PropertyGroup>
     <EfCoreVersion>11.0.0</EfCoreVersion>
     <SerilogSinksVersion>11.0.0</SerilogSinksVersion>
-    <TestcontainersVersion>4.16.0</TestcontainersVersion>
+    <TestcontainersVersion>4.17.0</TestcontainersVersion>
   </PropertyGroup>
 
   <ItemGroup Label="App">
