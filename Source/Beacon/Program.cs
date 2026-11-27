@@ -189,13 +189,14 @@ try
 
     // Keyed on RemoteIpAddress, which UseForwardedHeaders resolves from trusted proxies only.
     // Reading X-Forwarded-For here would let any client pick its own bucket.
+    var requestsPerMinute = config.GetValue("RateLimitPerMinute", 1500) is > 0 and var limit ? limit : 1500;
     builder.Services.AddRateLimiter(rateLimiter =>
     {
         rateLimiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
         rateLimiter.GlobalLimiter = PartitionedRateLimiter.CreateChained(
             PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                Partition(context, "global", 1500)),
+                Partition(context, "global", requestsPerMinute)),
             PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 context.Request.Path.StartsWithSegments("/api/admin/auth", StringComparison.OrdinalIgnoreCase)
                     ? Partition(context, "auth", 10)

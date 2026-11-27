@@ -57,6 +57,7 @@ Host-based routing separates public API and admin traffic by subdomain. Use host
 | `ALLOWED_ORIGINS` | Additional CORS origins. `API_HOSTS` and `ADMIN_HOSTS` add `https://` origins. Outside Development, plain-http origins require an entry | `https://app.example.com` |
 | `TRUST_FORWARDED_HEADERS` | Trust `X-Forwarded-*` headers | `true` |
 | `KNOWN_PROXIES` | Trusted proxy IPs or CIDRs. Defaults to private and loopback ranges | `10.0.0.0/8` |
+| `RATE_LIMIT_PER_MINUTE` | Requests per client IP per minute. Sign-in and export endpoints keep a limit of 10. Default: `1500` | `6000` |
 | `PUBLIC_URL` | Base URL of confirmation email links. Defaults to `https://` plus the first `API_HOSTS` entry | `https://beacon-api.example.com` |
 
 ## Port-based routing
