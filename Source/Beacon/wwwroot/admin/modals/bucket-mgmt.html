@@ -821,13 +821,18 @@
               global setting.
             </p>
           </div>
-          <span class="settings-item-control">
+          <span class="settings-item-control tooltip-wrapper">
             <input
               type="checkbox"
               id="bucketDoubleOptIn"
               data-change="saveBucketDoubleOptIn $checked"
             />
             <span class="toggle-track"></span>
+            <span
+              class="tooltip tooltip-above tooltip-right"
+              id="bucketDoubleOptInReason"
+              hidden
+            ></span>
           </span>
         </label>
         <div class="form-group mt-3 mb-0">

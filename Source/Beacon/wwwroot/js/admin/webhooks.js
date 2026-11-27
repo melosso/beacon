@@ -195,24 +195,32 @@ async function loadBucketOptions() {
   if (!currentBucket) return;
   const toggle = document.getElementById("bucketDoubleOptIn");
   const label = document.getElementById("bucketDoubleOptInLabel");
-  const desc = document.getElementById("bucketDoubleOptInDesc");
   const emailDisabled =
     typeof DISABLE_EMAIL_NOTIFICATIONS !== "undefined" &&
     DISABLE_EMAIL_NOTIFICATIONS;
-  const globalEnabled = !emailDisabled && appSettings.enableDoubleOptIn;
+  const reason = emailDisabled
+    ? "Email is turned off on this server (DISABLE_EMAIL_NOTIFICATIONS), so confirmation emails cannot be sent."
+    : !appSettings.emailNotifications
+      ? "Email notifications are off. Turn them on under Settings, Integration to send confirmation emails."
+      : (appSettings.emailProvider ?? "none") === "none"
+        ? "No email provider is set. Choose one under Settings, Integration to send confirmation emails."
+        : !appSettings.enableDoubleOptIn
+          ? "Double opt-in is off for all buckets. Turn it on under Settings, Modules to set it per bucket."
+          : null;
+  const globalEnabled = !reason;
+  const reasonEl = document.getElementById("bucketDoubleOptInReason");
+  if (reasonEl) {
+    reasonEl.textContent = reason ?? "";
+    reasonEl.hidden = !reason;
+  }
 
   // Default state: inherit global (true), grayed out when global feature is off or email is disabled
   if (toggle) toggle.checked = true;
   if (toggle) toggle.disabled = !globalEnabled;
   label
     ?.closest(".toggle-row")
-    ?.classList.toggle("is-disabled", !globalEnabled);
-  if (desc)
-    desc.textContent = globalEnabled
-      ? "Subscribers confirm by email. Off: this bucket opts out of the global setting."
-      : emailDisabled
-        ? "Email notifications are disabled by your administrator."
-        : "Enable the global double opt-in setting first to configure this option.";
+    ?.querySelectorAll(":scope > div, .toggle-track")
+    .forEach((el) => el.classList.toggle("is-disabled", !globalEnabled));
 
   if (!globalEnabled) return;
 
