@@ -47,9 +47,6 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.TokenHash)
                 .HasMaxLength(64);
 
-            entity.Property(e => e.IpAddress)
-                .HasMaxLength(45);
-
             entity.Property(e => e.ConsentText);
 
             entity.HasIndex(e => new { e.Bucket, e.EmailHash, e.Permission })
@@ -222,7 +219,6 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.EmailHash).HasMaxLength(64).IsRequired();
             entity.Property(e => e.Permission).HasMaxLength(100).IsRequired();
             entity.Property(e => e.ActorId).HasMaxLength(100);
-            entity.Property(e => e.IpAddress).HasMaxLength(45);
             entity.HasIndex(e => e.EmailHash);
             entity.HasIndex(e => e.ChangedAt);
             entity.HasIndex(e => new { e.Bucket, e.ChangedAt });

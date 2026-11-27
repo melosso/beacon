@@ -208,10 +208,8 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
 
     public Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default) => Task.CompletedTask;
     public Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-    public Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
     public Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
     public Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-    public Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
     public Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
 
     private sealed class NoOpDisposable : IDisposable

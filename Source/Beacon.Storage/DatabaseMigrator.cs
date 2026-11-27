@@ -52,7 +52,6 @@ public static class DatabaseMigrator
     private static void MigrateConsentRecords(BeaconDbContext db)
     {
         AddColumnIfMissing(db, "ConsentRecords", "CustomFields", "TEXT NULL");
-        AddColumnIfMissing(db, "ConsentRecords", "IpAddress", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "ConsentText", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "EncryptedName", "TEXT NULL");
     }
@@ -263,8 +262,7 @@ public static class DatabaseMigrator
                     NewStatus INTEGER NOT NULL,
                     Source INTEGER NOT NULL,
                     ActorId TEXT NULL,
-                    ChangedAt TEXT NOT NULL,
-                    IpAddress TEXT NULL
+                    ChangedAt TEXT NOT NULL
                 )
                 """);
             db.Database.ExecuteSqlRaw(
