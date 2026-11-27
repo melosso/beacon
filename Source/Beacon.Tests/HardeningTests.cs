@@ -142,6 +142,50 @@ public class S3ClientFactoryTests
         Assert.True(((Amazon.S3.AmazonS3Config)r2.Config).ForcePathStyle);
     }
 
+    [Fact]
+    public void SettingsResponseMasksSecretsWithoutChangingTheLiveConfig()
+    {
+        var encryptor = new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+        var stored = encryptor.Encrypt("secret-plain-value");
+        var configService = new Beacon.Tests.Fakes.StubSystemConfigurationService(new Beacon.Core.Services.SystemConfig
+        {
+            EmailSmtpPassword = stored,
+            ObjectStorageSecretKey = stored
+        });
+
+        var response = (Microsoft.AspNetCore.Http.HttpResults.Ok<Beacon.Core.Services.SystemConfig>)
+            Beacon.Api.AdminEndpoints.GetSystemConfiguration(configService, encryptor);
+
+        Assert.Equal("secr********alue", response.Value!.ObjectStorageSecretKey);
+        Assert.Equal(stored, configService.Get().EmailSmtpPassword);
+        Assert.Equal(stored, configService.Get().ObjectStorageSecretKey);
+    }
+
+    [Fact]
+    public void SignsWithDecryptedStorageCredentials()
+    {
+        var encryptor = new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+        var config = new Beacon.Core.Services.SystemConfig
+        {
+            ObjectStorage = true,
+            ObjectStorageProvider = "minio",
+            ObjectStorageEndpoint = "https://minio.example.com",
+            ObjectStorageBucket = "beacon",
+            ObjectStorageAccessKey = encryptor.Encrypt("access-plain"),
+            ObjectStorageSecretKey = encryptor.Encrypt("secret-plain")
+        };
+        var service = new Beacon.Storage.S3ObjectStorageService(new Beacon.Tests.Fakes.StubSystemConfigurationService(config), encryptor);
+
+        var client = typeof(Beacon.Storage.S3ObjectStorageService)
+            .GetField("_client", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(service)!;
+        var credentials = (Amazon.Runtime.AWSCredentials)typeof(Amazon.Runtime.AmazonServiceClient)
+            .GetProperty("ExplicitAWSCredentials", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)!.GetValue(client)!;
+        var plain = credentials.GetCredentials();
+
+        Assert.Equal("access-plain", plain.AccessKey);
+        Assert.Equal("secret-plain", plain.SecretKey);
+    }
+
     [Theory]
     [InlineData(false, "none", "", true)]
     [InlineData(true, "s3", "https://cdn.example.com", true)]

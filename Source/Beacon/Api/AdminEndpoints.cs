@@ -1810,23 +1810,25 @@ public static class AdminEndpoints
             ?.Split('+')[0]
         ?? "unknown";
 
-    private static IResult GetSystemConfiguration(
+    internal static IResult GetSystemConfiguration(
         [FromServices] ISystemConfigurationService configService,
         [FromServices] Encryptor encryptor)
     {
-        var config = configService.Get();
+        var config = JsonSerializer.Deserialize<SystemConfig>(JsonSerializer.Serialize(source))!;
         config.EmailResendApiKey = MaskSecret(encryptor.Decrypt(config.EmailResendApiKey));
         config.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(config.EmailSmtpPassword));
         config.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageAccessKey));
         config.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageSecretKey));
         config.Version = _assemblyVersion;
-        return Results.Ok(config);
+        return config;
     }
 
     private static async Task<IResult> SaveSystemConfiguration(
         [FromBody] SystemConfig config,
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] Encryptor encryptor)
+        [FromServices] Encryptor encryptor) => Results.Ok(Masked(configService.Get(), encryptor));
+
+    private static SystemConfig Masked(SystemConfig source, Encryptor encryptor)
     {
         if (config.LoginFooter != null && config.LoginFooter.Length > 500)
             return Results.BadRequest(new { error = "Login footer must be 500 characters or less." });
@@ -1848,13 +1850,7 @@ public static class AdminEndpoints
 
         await configService.SaveAsync(config);
 
-        var saved = configService.Get();
-        saved.EmailResendApiKey = MaskSecret(encryptor.Decrypt(saved.EmailResendApiKey));
-        saved.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(saved.EmailSmtpPassword));
-        saved.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageAccessKey));
-        saved.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageSecretKey));
-
-        return Results.Ok(saved);
+        return Results.Ok(Masked(configService.Get(), encryptor));
     }
 
     internal static string? ValidateObjectStorage(SystemConfig c, SystemConfig? existing = null)

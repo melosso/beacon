@@ -2,6 +2,7 @@ using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Beacon.Core.Security;
 using Beacon.Core.Services;
 
 namespace Beacon.Storage;
@@ -12,7 +13,7 @@ internal sealed class S3ObjectStorageService : IObjectStorageService
     private readonly string _bucket;
     private readonly string _publicUrl;
 
-    public S3ObjectStorageService(ISystemConfigurationService configService)
+    public S3ObjectStorageService(ISystemConfigurationService configService, Encryptor encryptor)
     {
         var cfg = configService.Get();
         _bucket = cfg.ObjectStorageBucket;
@@ -22,8 +23,8 @@ internal sealed class S3ObjectStorageService : IObjectStorageService
             cfg.ObjectStorageProvider,
             cfg.ObjectStorageEndpoint,
             cfg.ObjectStorageRegion,
-            cfg.ObjectStorageAccessKey,
-            cfg.ObjectStorageSecretKey);
+            encryptor.Decrypt(cfg.ObjectStorageAccessKey),
+            encryptor.Decrypt(cfg.ObjectStorageSecretKey));
     }
 
     /// <summary>
