@@ -39,7 +39,18 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         return await tokenUsage.TryMarkUsedAsync(SessionHash(token), expiresAt.Value.UtcDateTime);
     }
 
-    public const string CookieName = "beacon_auth";
+    /// <summary>Auth cookie name for this instance. Set once at startup by <see cref="UseInstanceCookieName"/>.</summary>
+    public static string CookieName { get; private set; } = "beacon_auth";
+
+    /// <summary>Cookie name derived from the signing key: instances on one host keep separate sessions. Secure cookies use the <c>__Host-</c> prefix.</summary>
+    public static string InstanceCookieName(byte[] signingKey, bool secure)
+    {
+        var id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData([.. "beacon-auth-cookie"u8, .. signingKey]))[..12].ToLowerInvariant();
+        return (secure ? "__Host-" : "") + "beacon_auth_" + id;
+    }
+
+    public static void UseInstanceCookieName(byte[] signingKey, bool secure) =>
+        CookieName = InstanceCookieName(signingKey, secure);
 
     /// <summary>Session token from the Bearer header, else from the auth cookie.</summary>
     internal static string? ReadToken(HttpRequest request)

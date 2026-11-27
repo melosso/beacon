@@ -136,6 +136,7 @@ try
             builder.Environment.ContentRootPath, encryptionService, decryptedConfig);
 
     var normalizedSigningKey = NormalizeKey(signingKey, 32);
+    JwtAuthHandler.UseInstanceCookieName(Convert.FromBase64String(normalizedSigningKey), !builder.Environment.IsDevelopment());
     var normalizedEncryptionKey = NormalizeKey(encryptionKey, 32);
 
     builder.Services.Configure<Microsoft.Extensions.Hosting.HostOptions>(o =>

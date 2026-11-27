@@ -363,6 +363,18 @@ public class SecurityAuditTests : IDisposable
         return await handler.AuthenticateAsync();
     }
 
+    [Fact]
+    public void AuthCookieName_IsPerInstance()
+    {
+        var a = JwtAuthHandler.InstanceCookieName(new byte[32], secure: true);
+        var b = JwtAuthHandler.InstanceCookieName(Enumerable.Repeat((byte)1, 32).ToArray(), secure: true);
+
+        Assert.NotEqual(a, b);
+        Assert.Equal(a, JwtAuthHandler.InstanceCookieName(new byte[32], secure: true));
+        Assert.StartsWith("__Host-beacon_auth_", a);
+        Assert.StartsWith("beacon_auth_", JwtAuthHandler.InstanceCookieName(new byte[32], secure: false));
+    }
+
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
     {
         public T CurrentValue => value;
