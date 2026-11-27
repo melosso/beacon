@@ -266,7 +266,7 @@ function _applyAuthFormMode(isPassword) {
     : "API key";
   secret.autocomplete = isPassword ? "current-password" : "off";
   document.getElementById("authOverlayDesc").textContent = isPassword
-    ? "Enter your username and password to sign in."
+    ? "Enter your credentials to sign in."
     : "Enter your API key to sign in.";
   document.getElementById("authToggleBtn").textContent = isPassword
     ? "Use API key"
