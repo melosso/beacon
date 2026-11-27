@@ -1593,20 +1593,25 @@ dialog.modal-backdrop.sheet {
   align-items: stretch;
 }
 dialog.modal-backdrop.sheet > .modal {
-  width: min(560px, 100%);
   height: 100%;
   max-height: none;
   border: 0;
   border-radius: 0;
-  padding-top: 0;
+  padding-block: 0;
   animation: sheetIn var(--duration) var(--ease-out);
 }
-.sheet .modal-header {
+.sheet .modal-header,
+.sheet .modal-actions {
   position: sticky;
-  top: 0;
   z-index: 1;
   padding-block: var(--space-4);
   background: hsl(var(--background));
+}
+.sheet .modal-header {
+  top: 0;
+}
+.sheet .modal-actions {
+  bottom: 0;
 }
 @keyframes sheetIn {
   from {
@@ -2231,8 +2236,9 @@ textarea.input,
   user-select: none;
 }
 
-.options-modal {
+dialog.modal-backdrop.sheet > .options-modal {
   width: min(680px, 100%);
+  padding-bottom: var(--space-6);
 }
 
 .options-section {
@@ -2353,14 +2359,6 @@ details.advanced > summary:hover {
   border-radius: 50%;
   border: 1px solid hsl(var(--border));
   background: var(--swatch);
-}
-
-.options-close {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid hsl(var(--border));
 }
 
 .row-actions {

@@ -214,6 +214,7 @@ function restoreViewFromUrl() {
   } else if (view === "new-bucket") {
     showView("new-bucket", false);
   } else if (view === "new-token") {
+    showView("overview", false);
     showView("new-token", false);
   } else if (view === "submissions") {
     showView("submissions", false);
@@ -270,4 +271,5 @@ function restoreViewFromUrl() {
   } else {
     showView("overview", false);
   }
+  if (modal === "new-token") showView("new-token", false);
 }

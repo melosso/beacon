@@ -360,8 +360,8 @@ function openEditApiKeyPermissionsModal(id, name, permissions) {
   openModal("editApiKeyPermissionsModal");
 }
 
-function closeEditApiKeyPermissionsModal() {
-  closeModal("editApiKeyPermissionsModal");
+function closeEditApiKeyPermissionsModal(force) {
+  if (!closeModal("editApiKeyPermissionsModal", force)) return;
   _editApiKeyId = null;
 }
 
@@ -384,7 +384,7 @@ async function saveApiKeyPermissions() {
   btn.classList.remove("is-loading");
   btn.disabled = false;
   if (result.ok) {
-    closeEditApiKeyPermissionsModal();
+    closeEditApiKeyPermissionsModal(true);
     loadApiKeys();
     notify("success", "Permissions saved");
   }

@@ -24,6 +24,27 @@ function newTokenForBucket(bucket = currentBucket) {
   selectBucket(bucket);
 }
 
+function openNewTokenSheet(pushState = true) {
+  if (!isModalOpen("newTokenSheet"))
+    document.getElementById("tokenLanguage").value =
+      appSettings.uiLanguage || "en";
+  openModal("newTokenSheet");
+  if (pushState) {
+    const url = new URL(window.location);
+    url.searchParams.set("modal", "new-token");
+    history.pushState(null, "", url);
+  }
+}
+
+function closeNewTokenSheet() {
+  if (!closeModal("newTokenSheet")) return false;
+  clearTokenForm();
+  const url = new URL(window.location);
+  url.searchParams.delete("modal");
+  history.replaceState(null, "", url);
+  return true;
+}
+
 function clearTokenForm() {
   document.getElementById("tokenBucket").value = "";
   document.getElementById("tokenEmail").value = "";
@@ -159,6 +180,7 @@ async function generateToken() {
 
       // Freeze the form fields until the user starts a new token
       document.getElementById("tokenFormFields").classList.add("frozen");
+      markClean("newTokenSheet");
 
       loadBuckets();
     }
@@ -358,7 +380,7 @@ async function confirmUnarchive() {
 }
 
 function toggleArchiveFromOptions() {
-  closeOptionsModal();
+  if (!closeOptionsModal()) return;
   if (currentBucketArchived) {
     showUnarchiveModal(currentBucket);
   } else {
@@ -377,7 +399,7 @@ function initiateRemoval() {
     return;
   }
   bucketToRemove = currentBucket;
-  closeOptionsModal();
+  if (!closeOptionsModal()) return;
   showRemoveModal();
 }
 

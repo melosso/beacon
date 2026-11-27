@@ -1,6 +1,6 @@
 <!-- Error Detail Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="errorDetailModal"
   aria-labelledby="errorDetailModalTitle"
   data-self
@@ -60,7 +60,7 @@
 
 <!-- Double Opt-In Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="doubleOptInSettingsModal"
   aria-labelledby="doubleOptInSettingsModalTitle"
   data-self
@@ -128,7 +128,7 @@
 
 <!-- Erasure Notice Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="erasureNoticeModal"
   aria-labelledby="erasureNoticeModalTitle"
   data-self
@@ -197,13 +197,13 @@
 
 <!-- Submission Forms Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="submissionFormsSettingsModal"
   aria-labelledby="submissionFormsSettingsModalTitle"
   data-self
   data-click="closeSubmissionFormsSettingsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="submissionFormsSettingsModalTitle">Submission form defaults</h3>
       <button
@@ -306,13 +306,13 @@
 
 <!-- Object Storage Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="objectStorageModal"
   aria-labelledby="objectStorageModalTitle"
   data-self
   data-click="closeObjectStorageModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="objectStorageModalTitle">Object storage</h3>
       <button
@@ -467,13 +467,13 @@
 
 <!-- Promo Bar Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="promoBarModal"
   aria-labelledby="promoBarModalTitle"
   data-self
   data-click="closePromoBarModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="promoBarModalTitle">Admin announcement bar</h3>
       <button
@@ -560,13 +560,13 @@
 
 <!-- Login Footer Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="loginFooterModal"
   aria-labelledby="loginFooterModalTitle"
   data-self
   data-click="closeLoginFooterModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="loginFooterModalTitle">Login page footer</h3>
       <button
@@ -619,13 +619,13 @@
 
 <!-- Cache Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="cacheSettingsModal"
   aria-labelledby="cacheSettingsModalTitle"
   data-self
   data-click="closeCacheSettingsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="cacheSettingsModalTitle">Cache settings</h3>
       <button

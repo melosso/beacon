@@ -85,8 +85,8 @@ function openPromoBarModal() {
   openModal("promoBarModal");
 }
 
-function closePromoBarModal() {
-  closeModal("promoBarModal");
+function closePromoBarModal(force) {
+  closeModal("promoBarModal", force);
 }
 
 async function savePromoBarSettings() {
@@ -103,7 +103,7 @@ async function savePromoBarSettings() {
   if (toggle) toggle.checked = appSettings.promoBarEnabled;
   await saveCurrentSettings();
   updatePromoBar();
-  closePromoBarModal();
+  closePromoBarModal(true);
 }
 
 async function onLoginFooterToggle(checkbox) {
@@ -136,8 +136,8 @@ function openLoginFooterModal() {
   openModal("loginFooterModal");
 }
 
-function closeLoginFooterModal() {
-  closeModal("loginFooterModal");
+function closeLoginFooterModal(force) {
+  closeModal("loginFooterModal", force);
 }
 
 async function saveLoginFooterSettings() {
@@ -147,7 +147,7 @@ async function saveLoginFooterSettings() {
   const toggle = document.getElementById("setting-loginFooterEnabled");
   if (toggle) toggle.checked = appSettings.loginFooterEnabled;
   await saveCurrentSettings();
-  closeLoginFooterModal();
+  closeLoginFooterModal(true);
 }
 
 function openCacheSettingsModal() {
@@ -162,8 +162,8 @@ function openCacheSettingsModal() {
   loadCacheStats();
 }
 
-function closeCacheSettingsModal() {
-  closeModal("cacheSettingsModal");
+function closeCacheSettingsModal(force) {
+  closeModal("cacheSettingsModal", force);
 }
 
 async function saveCacheSettings() {
@@ -177,7 +177,7 @@ async function saveCacheSettings() {
     "setting-cacheBucketData",
   ).checked;
   await saveCurrentSettings();
-  closeCacheSettingsModal();
+  closeCacheSettingsModal(true);
 }
 
 async function flushCache() {
@@ -241,8 +241,8 @@ function openEmailSettingsModal() {
   openModal("emailSettingsModal");
 }
 
-function closeEmailSettingsModal() {
-  closeModal("emailSettingsModal");
+function closeEmailSettingsModal(force) {
+  closeModal("emailSettingsModal", force);
 }
 
 function showEmailProviderFields(provider) {
@@ -326,7 +326,7 @@ async function saveEmailSettings() {
 
   Object.assign(appSettings, draft);
   await saveCurrentSettings();
-  closeEmailSettingsModal();
+  closeEmailSettingsModal(true);
 }
 
 function openDoubleOptInSettingsModal() {
@@ -376,8 +376,8 @@ function openObjectStorageModal() {
   openModal("objectStorageModal");
 }
 
-function closeObjectStorageModal() {
-  closeModal("objectStorageModal");
+function closeObjectStorageModal(force) {
+  closeModal("objectStorageModal", force);
 }
 
 function showObjectStorageProviderFields(provider) {
@@ -452,7 +452,7 @@ async function saveObjectStorageSettings() {
   ).value;
   appSettings.objectStoragePublicUrl = publicUrl;
   await saveCurrentSettings();
-  closeObjectStorageModal();
+  closeObjectStorageModal(true);
 }
 
 function openSubmissionFormsSettingsModal() {
@@ -465,8 +465,8 @@ function openSubmissionFormsSettingsModal() {
   openModal("submissionFormsSettingsModal");
 }
 
-function closeSubmissionFormsSettingsModal() {
-  closeModal("submissionFormsSettingsModal");
+function closeSubmissionFormsSettingsModal(force) {
+  closeModal("submissionFormsSettingsModal", force);
 }
 
 async function saveSubmissionFormsSettings() {
@@ -483,7 +483,7 @@ async function saveSubmissionFormsSettings() {
     "setting-submissionDefaultConsentRequired",
   ).checked;
   await saveCurrentSettings();
-  closeSubmissionFormsSettingsModal();
+  closeSubmissionFormsSettingsModal(true);
 }
 
 function updateSidebarUser() {

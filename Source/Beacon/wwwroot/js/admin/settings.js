@@ -594,7 +594,7 @@ function saveAppearance(key, value) {
 }
 
 function openSettingsSection(section) {
-  if (isModalOpen("optionsModal")) closeOptionsModal();
+  if (isModalOpen("optionsModal") && !closeOptionsModal()) return;
   showView("settings");
   showSettingsSection(section);
 }

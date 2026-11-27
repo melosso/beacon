@@ -378,8 +378,8 @@ function openEditBrandIdentityModal(id) {
   updateIdentityPreview(id);
 }
 
-function closeEditBrandIdentityModal() {
-  closeModal("editBrandIdentityModal");
+function closeEditBrandIdentityModal(force) {
+  if (!closeModal("editBrandIdentityModal", force)) return;
   _editingIdentityId = null;
 }
 
@@ -390,7 +390,7 @@ async function saveEditBrandIdentity() {
   btn.disabled = true;
   try {
     const ok = await saveBrandIdentity(_editingIdentityId);
-    if (ok) closeEditBrandIdentityModal();
+    if (ok) closeEditBrandIdentityModal(true);
   } finally {
     btn.classList.remove("is-loading");
     btn.disabled = false;
@@ -400,7 +400,7 @@ async function saveEditBrandIdentity() {
 function deleteEditingBrandIdentity() {
   if (_editingIdentityId === null) return;
   const id = _editingIdentityId;
-  closeEditBrandIdentityModal();
+  closeEditBrandIdentityModal(true);
   deleteBrandIdentity(id);
 }
 

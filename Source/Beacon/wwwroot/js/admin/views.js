@@ -48,6 +48,10 @@ function closeMobileNav() {
 
 function showView(view, pushState = true, skipLoad = false) {
   closeMobileNav();
+  if (view === "new-token") {
+    openNewTokenSheet(pushState);
+    return;
+  }
   if (view === "users") {
     showView("settings", pushState, true);
     showSettingsSection("users", pushState);
@@ -97,9 +101,6 @@ function showView(view, pushState = true, skipLoad = false) {
   if (view === "submissions") loadSubmissionForms();
   if (view === "submission-create") initSubmissionWizard();
   if (view === "new-bucket") renderNewBucketPerms();
-  if (view === "new-token")
-    document.getElementById("tokenLanguage").value =
-      appSettings.uiLanguage || "en";
   if (view === "settings") loadSettings();
   if (view === "workflow") loadWorkflowPage();
   if (view === "audit") loadAudit();
@@ -110,7 +111,7 @@ function showView(view, pushState = true, skipLoad = false) {
 
 function showBucket(bucket, pushState = true) {
   closeMobileNav();
-  if (isModalOpen("optionsModal")) closeOptionsModal();
+  if (isModalOpen("optionsModal") && !closeOptionsModal()) return;
   if (bucket !== currentBucket) {
     bucketSelectedHashes.clear();
     const bar = document.getElementById("bucketBulkBar");

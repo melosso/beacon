@@ -630,13 +630,13 @@
 
 <!-- Edit API Key permissions modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="editApiKeyPermissionsModal"
   aria-labelledby="editApiKeyPermissionsModalTitle"
   data-self
   data-click="closeEditApiKeyPermissionsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="editApiKeyPermissionsModalTitle">Edit permissions</h3>
       <button

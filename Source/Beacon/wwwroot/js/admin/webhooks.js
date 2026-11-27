@@ -176,7 +176,7 @@ async function showOptionsModal(pushState = true) {
 }
 
 function closeOptionsModal() {
-  if (!closeModal("optionsModal")) return;
+  if (!closeModal("optionsModal")) return false;
   webhookHeaders = {};
   bucketPermsData = [];
   document.getElementById("newBucketPermInput").value = "";
@@ -185,6 +185,7 @@ function closeOptionsModal() {
   const url = new URL(window.location);
   url.searchParams.delete("modal");
   history.replaceState(null, "", url);
+  return true;
 }
 
 async function loadBucketOptions() {
@@ -670,8 +671,8 @@ function openEditFromSubscription(bucket, permissions, record) {
   document.getElementById("editPermissionsBucket").textContent = bucket;
 }
 
-function closeEditPermissionsModal() {
-  closeModal("editPermissionsModal");
+function closeEditPermissionsModal(force) {
+  if (!closeModal("editPermissionsModal", force)) return;
   document.getElementById("editName").value = "";
   editingRecord = null;
   editingBucket = "";
@@ -765,7 +766,7 @@ async function confirmDeleteRecord() {
   if (result.ok) {
     notify("success", "Record deleted");
     closeDeleteRecordModal();
-    closeEditPermissionsModal();
+    closeEditPermissionsModal(true);
     if (currentView === "subscriptions" && subDetailHash) {
       showIdentityDetails(subDetailHash, false);
     } else if (currentBucket) {
@@ -824,7 +825,7 @@ async function savePermissions() {
 
   if (result.ok) {
     notify("success", "Permissions saved");
-    closeEditPermissionsModal();
+    closeEditPermissionsModal(true);
     if (currentBucket) loadBucket(currentBucket);
   }
 }
@@ -962,9 +963,20 @@ function handleSSEEvent(type, data) {
 
 // START
 window.addEventListener("popstate", () => {
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has("modal")) {
-    closeModal("optionsModal");
+  const modal = new URLSearchParams(window.location.search).get("modal");
+  for (const [key, [id, close]] of Object.entries(URL_SHEETS)) {
+    if (key === modal || !isModalOpen(id)) continue;
+    const url = new URL(window.location);
+    if (!close()) {
+      url.searchParams.set("modal", key);
+      history.pushState(null, "", url);
+      return;
+    }
   }
   restoreViewFromUrl();
 });
+const URL_SHEETS = {
+  options: ["optionsModal", () => closeOptionsModal()],
+  "new-token": ["newTokenSheet", () => closeNewTokenSheet()],
+};
+

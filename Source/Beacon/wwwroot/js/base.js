@@ -84,7 +84,12 @@ document.addEventListener("input", (e) => {
     e.target.closest("dialog")?.setAttribute("data-dirty", "");
 });
 window.addEventListener("beforeunload", (e) => {
-  if (document.querySelector("dialog[open][data-dirty]")) e.preventDefault();
+  if (
+    document.querySelector(
+      "dialog[open][data-dirty], dialog[open] [data-uncopied]:not([hidden])",
+    )
+  )
+    e.preventDefault();
 });
 
 function markClean(id) {
@@ -93,17 +98,19 @@ function markClean(id) {
 
 function openModal(id) {
   const dialog = document.getElementById(id);
+  if (dialog.open) return;
   dialog.removeAttribute("data-dirty");
-  if (!dialog.open) dialog.showModal();
+  dialog.showModal();
 }
 
-function closeModal(id) {
+function closeModal(id, force = false) {
   const dialog = document.getElementById(id);
-  if (
-    dialog?.hasAttribute("data-dirty") &&
-    !confirm("Discard unsaved changes?")
-  )
-    return false;
+  const uncopied = dialog?.querySelector("[data-uncopied]:not([hidden])");
+  const warning = uncopied
+    ? "Close without copying? The secret is shown once."
+    : dialog?.hasAttribute("data-dirty") && "Discard unsaved changes?";
+  if (!force && warning && !confirm(warning)) return false;
+  uncopied?.removeAttribute("data-uncopied");
   dialog?.removeAttribute("data-dirty");
   dialog?.close();
   return true;
