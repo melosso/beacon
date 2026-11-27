@@ -1218,6 +1218,7 @@ public static class AdminEndpoints
 
         try
         {
+            await context.Response.Body.FlushAsync(cancellationToken);
             await foreach (var notification in notifications.SubscribeAllAsync(cancellationToken))
             {
                 string eventType;
