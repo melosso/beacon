@@ -171,6 +171,34 @@ public class ConsentAuditRepositoryTests : IDisposable
         Assert.NotNull((await _db.ConsentAuditEntries.SingleAsync(TestContext.Current.CancellationToken)).CustomFields);
     }
 
+    [Fact]
+    public async Task DeleteRecordAsync_FailedErasureAudit_KeepsRecord()
+    {
+        await _repository.UpsertAsync(MakeRecord("bucket-a", "hash1", "newsletter", ConsentStatus.OptedIn));
+        _db.ChangeTracker.Clear();
+
+        var failing = new FailingSaveInterceptor();
+        await using (var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).AddInterceptors(failing).Options))
+        {
+            failing.Armed = true;
+            await Assert.ThrowsAsync<DbUpdateException>(() => new ConsentRepository(db).DeleteRecordAsync("bucket-a", "hash1", "ops"));
+        }
+
+        Assert.Equal(1, await _db.ConsentRecords.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _db.ConsentAuditEntries.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    private sealed class FailingSaveInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+            Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) =>
+            Armed ? throw new DbUpdateException("Simulated audit write failure.") : base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
     private static ConsentRecord MakeRecord(string bucket, string emailHash, string permission, ConsentStatus status) =>
         new()
         {

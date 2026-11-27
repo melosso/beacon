@@ -326,6 +326,7 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null)
     {
+        await using var tx = _context.Database.CurrentTransaction is null ? await _context.Database.BeginTransactionAsync() : null;
         var erased = await _context.ConsentRecords.AsNoTracking()
             .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
             .Select(r => new { r.Permission, r.Status })
@@ -357,6 +358,7 @@ public sealed class ConsentRepository : IConsentRepository
             ChangedAt = now
         }));
         await _context.SaveChangesAsync();
+        if (tx is not null) await tx.CommitAsync();
 
         return deleted;
     }
