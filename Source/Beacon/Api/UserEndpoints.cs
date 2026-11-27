@@ -240,7 +240,7 @@ public static class UserEndpoints
         return true;
     }
 
-    private static bool ValidatePassword(string? password, out string error)
+    internal static bool ValidatePassword(string? password, out string error)
     {
         error = "";
         if (string.IsNullOrEmpty(password))

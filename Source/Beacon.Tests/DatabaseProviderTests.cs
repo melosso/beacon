@@ -41,6 +41,25 @@ public abstract class DatabaseProviderTests
     }
 
     [Fact]
+    public async Task Cli_AccountsRoundTrip()
+    {
+        await using var db = CreateDbContext();
+        DatabaseMigrator.Initialize(db);
+        var name = $"cli-{Guid.NewGuid():N}"[..20];
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "create", name, "correct-horse-battery", "user"], output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "disable", name], output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "list"], output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "delete", name], output, error, TestContext.Current.CancellationToken));
+
+        Assert.Contains($"{name}", output.ToString());
+        Assert.Equal("", error.ToString());
+        Assert.False(await db.Users.AnyAsync(u => u.Username == name, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task OidcClaim_TwoInstancesRacing_ExactlyOneWins()
     {
         await using (var db = CreateDbContext())

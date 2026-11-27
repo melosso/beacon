@@ -38,10 +38,14 @@ try
     var version = typeof(Program).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
         ?.InformationalVersion?.Split('+')[0] ?? "0.0.0";
-    Log.Information("");
-    Log.Information("Beacon {Version} - Consent and opt-out management built on .NET", version);
-    Log.Information("");
-    Log.Debug("Host {Host} ({OS}, .NET {DotNet})", Environment.MachineName, Environment.OSVersion.Platform, Environment.Version);
+    var isCli = Beacon.Cli.BeaconCli.IsCommand(args);
+    if (!isCli)
+    {
+        Log.Information("");
+        Log.Information("Beacon {Version} - Consent and opt-out management built on .NET", version);
+        Log.Information("");
+        Log.Debug("Host {Host} ({OS}, .NET {DotNet})", Environment.MachineName, Environment.OSVersion.Platform, Environment.Version);
+    }
 
     // Real environment variables win over .env; .env wins over appsettings.json.
     foreach (var dir in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }.Distinct())
@@ -62,6 +66,8 @@ try
     // Read configuration values (use decrypted values where available)
     var databaseProvider = config["DatabaseProvider"] ?? "sqlite";
     var connectionString = decryptedConfig.GetValueOrDefault("ConnectionString", config["ConnectionString"] ?? "Data Source=Beacon.db");
+    if (isCli)
+        return await Beacon.Cli.BeaconCli.RunAsync(args, databaseProvider, connectionString);
     var signingKey = decryptedConfig.GetValueOrDefault("SigningKey") ?? throw new InvalidOperationException("SIGNING_KEY is not set.");
     var encryptionKey = decryptedConfig.GetValueOrDefault("EncryptionKey") ?? throw new InvalidOperationException("ENCRYPTION_KEY is not set.");
     var pepper = decryptedConfig.GetValueOrDefault("Pepper") ?? throw new InvalidOperationException("PEPPER is not set.");
