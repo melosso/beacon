@@ -1368,6 +1368,10 @@ tbody tr:hover td.table-empty {
   color: hsl(var(--muted-foreground));
   background: none;
 }
+.break-all {
+  word-break: break-all;
+}
+
 .cell-sub {
   display: block;
   font-size: var(--text-xs);

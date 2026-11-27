@@ -85,7 +85,7 @@ document.addEventListener(
 );
 
 document.addEventListener("input", (e) => {
-  if (e.target.closest?.("[data-guard]"))
+  if (e.target.closest?.("[data-guard]") && !e.target.hasAttribute("data-instant"))
     e.target.closest("dialog")?.setAttribute("data-dirty", "");
 });
 window.addEventListener("beforeunload", (e) => {

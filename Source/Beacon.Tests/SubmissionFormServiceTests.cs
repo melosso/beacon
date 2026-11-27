@@ -883,6 +883,8 @@ public class SubmissionFormServiceTests
         }
 
         public Task<string?> RotateWebhookSecretAsync(string bucket) => Task.FromResult<string?>(null);
+        public Task<bool> SetWebhookEnabledAsync(string bucket, bool enabled) => Task.FromResult(false);
+        public Task<IReadOnlyList<WebhookConfig>> GetWebhookConfigsAsync() => Task.FromResult<IReadOnlyList<WebhookConfig>>([]);
 
         public Task DeleteWebhookConfigAsync(string bucket) => Task.CompletedTask;
 

@@ -156,6 +156,14 @@ public static class AdminEndpoints
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
+        routes.MapGet("/api/admin/webhooks", GetWebhooks)
+            .RequireAuthorization("WebhooksRead")
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/buckets/{bucket}/webhook/enabled", SetWebhookEnabled)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
         routes.MapPost("/api/admin/buckets/{bucket}/webhook/secret", RotateWebhookSecret)
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
@@ -1174,6 +1182,48 @@ public static class AdminEndpoints
             success = true,
             signingSecret = secret
         });
+    }
+
+    internal static async Task<IResult> GetWebhooks(
+        HttpContext context,
+        [FromServices] IWebhookService webhookService)
+    {
+        var reveal = context.User.IsInRole("admin");
+        var configs = await webhookService.GetWebhookConfigsAsync();
+        return Results.Ok(configs.Select(c => new
+        {
+            bucket = c.Bucket,
+            url = reveal ? c.EncryptedUrl : MaskUrl(c.EncryptedUrl),
+            method = c.EncryptedMethod,
+            isEnabled = c.IsEnabled,
+            lastTriggeredAt = c.LastTriggeredAt,
+            triggerCount = c.TriggerCount
+        }));
+    }
+
+    internal sealed record WebhookEnabledRequest(bool Enabled);
+
+    internal static async Task<IResult> SetWebhookEnabled(
+        string bucket,
+        [FromBody] WebhookEnabledRequest request,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] BucketRepository bucketRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        if (await bucketRepository.IsArchivedAsync(normalizedBucket))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
+        }
+
+        return await webhookService.SetWebhookEnabledAsync(normalizedBucket, request.Enabled)
+            ? Results.Ok(new { isEnabled = request.Enabled })
+            : Results.NotFound(new { error = "Webhook is not configured" });
     }
 
     private static async Task<IResult> RotateWebhookSecret(

@@ -298,10 +298,53 @@ function showSettingsSection(section, pushState = true) {
   if (section === "account") loadAccount();
   if (section === "data-policies") loadDataPoliciesSection();
   if (section === "personalisation") loadBrandIdentities();
+  if (section === "connectors") loadWebhooksOverview();
 }
 
 function saveSetting(key, value) {
   appSettings[key] = value;
+}
+
+async function loadWebhooksOverview() {
+  const el = document.getElementById("webhooksOverview");
+  const result = await apiRequest("/api/admin/webhooks");
+  if (!result.ok) return;
+  const hooks = result.data || [];
+  if (!hooks.length) {
+    paint(
+      el,
+      html`<p class="settings-empty-state">No webhooks. Add an endpoint URL in a bucket's Options.</p>`,
+    );
+    return;
+  }
+  paint(
+    el,
+    html`<div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr><th>Bucket</th><th>Endpoint</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${hooks.map(
+            (h) => html`<tr class="cursor-pointer" @click=${() => openBucketWebhook(h.bucket)}>
+              <td><strong>${h.bucket}</strong><span class="cell-sub">${
+                h.lastTriggeredAt
+                  ? `${formatNumber(h.triggerCount)} sent · last ${formatRelativeTime(h.lastTriggeredAt)}`
+                  : "Never sent"
+              }</span></td>
+              <td class="text-sm break-all">${h.method} ${h.url}</td>
+              <td><span class="status-chip ${h.isEnabled ? "opted-in" : "pending"}">${h.isEnabled ? "Enabled" : "Disabled"}</span></td>
+            </tr>`,
+          )}
+        </tbody>
+      </table>
+    </div>`,
+  );
+}
+
+function openBucketWebhook(bucket) {
+  showBucket(bucket);
+  showOptionsModal();
 }
 
 async function saveSettingImmediate(key, value) {
@@ -377,6 +420,10 @@ async function saveCurrentSettings() {
       enableUtmTracking: appSettings.enableUtmTracking,
       perPermissionEmail: appSettings.perPermissionEmail,
       emailQueueCron: appSettings.emailQueueCron,
+      emailQueueRetentionDays: appSettings.emailQueueRetentionDays,
+      webhooksEnabled: appSettings.webhooksEnabled,
+      erasureNoticeEnabled: appSettings.erasureNoticeEnabled,
+      erasureNoticeIncludeEmail: appSettings.erasureNoticeIncludeEmail,
       dataPoliciesEnabled: appSettings.dataPoliciesEnabled,
       dataPolicyCron: appSettings.dataPolicyCron,
       retentionPurgeEnabled: appSettings.retentionPurgeEnabled,
@@ -420,10 +467,6 @@ const DATA_POLICY_CRON_PRESETS = [
   },
   {
     expr: "0 9 * * *",
-      emailQueueRetentionDays: appSettings.emailQueueRetentionDays,
-      webhooksEnabled: appSettings.webhooksEnabled,
-      erasureNoticeEnabled: appSettings.erasureNoticeEnabled,
-      erasureNoticeIncludeEmail: appSettings.erasureNoticeIncludeEmail,
     label: "Once a day (09:00 UTC)",
   },
   {

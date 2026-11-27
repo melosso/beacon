@@ -63,11 +63,11 @@ function formatBodyTemplate(template) {
   }
 }
 
-function setWebhookBadge(configured) {
+function setWebhookBadge(configured, enabled = true) {
   const badge = document.getElementById("webhookStatusBadge");
   if (configured) {
-    badge.textContent = "Active";
-    badge.classList.add("active");
+    badge.textContent = enabled ? "Active" : "Disabled";
+    badge.classList.toggle("active", enabled);
   } else {
     badge.textContent = "Not configured";
     badge.classList.remove("active");
@@ -99,6 +99,7 @@ async function showOptionsModal(pushState = true) {
   document.getElementById("webhookSecretSection").hidden = true;
   document.getElementById("webhookSecretValue").value = "";
   document.getElementById("webhookSecretKept").hidden = true;
+  document.getElementById("webhookEnabledRow").hidden = true;
   document.getElementById("webhookAdvanced").open = false;
   setWebhookBadge(false);
 
@@ -125,11 +126,13 @@ async function showOptionsModal(pushState = true) {
       renderWebhookHeaders();
       document.getElementById("deleteWebhookBtn").hidden = false;
       document.getElementById("webhookSecretKept").hidden = false;
+      document.getElementById("webhookEnabledRow").hidden = false;
+      document.getElementById("webhookEnabled").checked = config.isEnabled;
       document.getElementById("webhookAdvanced").open =
         document.getElementById("webhookMethod").value !== "POST" ||
         Object.keys(webhookHeaders).length > 0 ||
         webhookBodyVal !== WEBHOOK_DEFAULT_BODY;
-      setWebhookBadge(true);
+      setWebhookBadge(true, config.isEnabled);
 
       sections[2].open = true;
     }
@@ -334,6 +337,8 @@ async function saveWebhook() {
     if (result.data?.signingSecret) {
       showWebhookSecret(result.data.signingSecret);
       document.getElementById("deleteWebhookBtn").hidden = false;
+      document.getElementById("webhookEnabledRow").hidden = false;
+      document.getElementById("webhookEnabled").checked = true;
       setWebhookBadge(true);
       notify(
         "success",
@@ -346,6 +351,19 @@ async function saveWebhook() {
       closeOptionsModal();
     }
   }
+}
+
+async function setWebhookEnabled(enabled) {
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/enabled`,
+    { method: "PUT", body: { enabled } },
+  );
+  if (!result.ok) {
+    document.getElementById("webhookEnabled").checked = !enabled;
+    return;
+  }
+  setWebhookBadge(true, enabled);
+  notify("success", enabled ? "Webhook enabled" : "Webhook disabled");
 }
 
 function showWebhookSecret(secret) {

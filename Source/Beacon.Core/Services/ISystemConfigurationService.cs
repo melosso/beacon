@@ -125,6 +125,9 @@ public sealed class SystemConfig
     [JsonPropertyName("pendingConfirmationPurgeRequireApproval")]
     public bool PendingConfirmationPurgeRequireApproval { get; set; } = true;
 
+    [JsonPropertyName("webhooksEnabled")]
+    public bool WebhooksEnabled { get; set; } = true;
+
     [JsonPropertyName("erasureNoticeEnabled")]
     public bool ErasureNoticeEnabled { get; set; } = true;
 
