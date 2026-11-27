@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace Beacon.Core.Models;
 
+[JsonConverter(typeof(JsonStringEnumConverter<WorkflowTaskStatus>))]
 public enum WorkflowTaskStatus
 {
     PendingApproval,
@@ -9,12 +12,14 @@ public enum WorkflowTaskStatus
     Rejected
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<WorkflowTrigger>))]
 public enum WorkflowTrigger
 {
     Cron,
     Manual
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<WorkflowTaskType>))]
 public enum WorkflowTaskType
 {
     RetentionPurge,

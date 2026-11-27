@@ -235,6 +235,18 @@ public sealed class StateMachineTests : IDisposable
 
     // Workflow task
 
+    [Fact]
+    public void WorkflowTask_SerializesEnumsByName()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            new WorkflowTask { TaskType = WorkflowTaskType.PendingConfirmationPurge, Status = WorkflowTaskStatus.PendingApproval, TriggeredBy = WorkflowTrigger.Manual },
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+
+        Assert.Contains("\"taskType\":\"PendingConfirmationPurge\"", json);
+        Assert.Contains("\"status\":\"PendingApproval\"", json);
+        Assert.Contains("\"triggeredBy\":\"Manual\"", json);
+    }
+
     private async Task<WorkflowTask> SeedApprovalTaskAsync()
     {
         var task = new WorkflowTask
