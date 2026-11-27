@@ -36,6 +36,30 @@ public static class SsrfGuard
         }
     }
 
+    public static SocketsHttpHandler CreateGuardedHandler(bool allowPrivateNetwork) => new()
+    {
+        AllowAutoRedirect = false,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectCallback = async (context, ct) =>
+        {
+            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct);
+            if (addresses.Length == 0 || (!allowPrivateNetwork && addresses.Any(IsPrivateOrReserved)))
+                throw new HttpRequestException($"{context.DnsEndPoint.Host} resolves to a private or reserved address.");
+
+            var socket = new Socket(addresses[0].AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(addresses[0], context.DnsEndPoint.Port), ct);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+    };
+
     public static bool IsPrivateOrReserved(IPAddress address)
     {
         if (IPAddress.IsLoopback(address))
