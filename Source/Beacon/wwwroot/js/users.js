@@ -54,7 +54,7 @@ function updateOidcRedirectUri() {
 }
 
 function openOidcProviderSheet(id) {
-  const p = typeof id === "number" ? _oidcProviders.find((x) => x.id === id) : null;
+  const p = typeof id === "string" ? _oidcProviders.find((x) => x.id === id) : null;
   _editingOidcId = p ? p.id : null;
   const set = (field, value) => (document.getElementById(field).value = value ?? "");
   document.getElementById("oidcProviderTitle").textContent = p ? "Edit provider" : "Add provider";

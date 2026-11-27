@@ -22,7 +22,7 @@ public class EndpointAuthorizationTests
         ["DELETE /api/admin/cache"] = "Admin",
         ["DELETE /api/admin/identities/{emailHash}"] = "ConsentWrite",
         ["DELETE /api/admin/oidc/link"] = "authenticated",
-        ["DELETE /api/admin/oidc/providers/{id:int}"] = "Admin",
+        ["DELETE /api/admin/oidc/providers/{id:guid}"] = "Admin",
         ["DELETE /api/admin/submissions/{id:guid}"] = "SubmissionsWrite",
         ["DELETE /api/admin/users/{id:guid}"] = "Admin",
         ["GET /api/admin/api-keys"] = "Admin",
@@ -100,7 +100,7 @@ public class EndpointAuthorizationTests
         ["PUT /api/admin/buckets/{bucket}/options"] = "BucketsWrite",
         ["PUT /api/admin/buckets/{bucket}/webhook/enabled"] = "Admin",
         ["PUT /api/admin/identities/{emailHash}/name"] = "ConsentWrite",
-        ["PUT /api/admin/oidc/providers/{id:int}"] = "Admin",
+        ["PUT /api/admin/oidc/providers/{id:guid}"] = "Admin",
         ["PUT /api/admin/settings"] = "Admin",
         ["PUT /api/admin/submissions/{id:guid}"] = "SubmissionsWrite",
     };

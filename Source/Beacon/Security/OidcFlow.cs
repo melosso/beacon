@@ -99,7 +99,7 @@ public sealed class OidcClient(bool allowPrivateNetwork) : IDisposable
             new OpenIdConnectConfigurationRetriever(),
             new HttpDocumentRetriever(_http) { RequireHttps = !OidcFlow.AllowsPlainHttp(provider.Authority) })).GetConfigurationAsync(ct);
 
-    public void Forget(int providerId)
+    public void Forget(Guid providerId)
     {
         foreach (var key in _documents.Keys)
             if (key.StartsWith(providerId + "|", StringComparison.Ordinal))

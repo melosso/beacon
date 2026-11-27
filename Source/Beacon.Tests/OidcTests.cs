@@ -18,7 +18,7 @@ public sealed class OidcTests : IDisposable
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private readonly BeaconDbContext _db;
     private readonly Encryptor _encryptor = new("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
-    private readonly OidcProvider _provider = new() { Id = 1, Slug = "idp", Name = "IdP", Authority = "https://idp.example.test", ClientId = "beacon", IsEnabled = true };
+    private readonly OidcProvider _provider = new() { Id = Guid.NewGuid(), Slug = "idp", Name = "IdP", Authority = "https://idp.example.test", ClientId = "beacon", IsEnabled = true };
 
     public OidcTests()
     {
@@ -199,8 +199,8 @@ public sealed class OidcTests : IDisposable
     [Theory]
     [InlineData("GET", "/api/admin/oidc/providers", "Admin")]
     [InlineData("POST", "/api/admin/oidc/providers", "Admin")]
-    [InlineData("PUT", "/api/admin/oidc/providers/{id:int}", "Admin")]
-    [InlineData("DELETE", "/api/admin/oidc/providers/{id:int}", "Admin")]
+    [InlineData("PUT", "/api/admin/oidc/providers/{id:guid}", "Admin")]
+    [InlineData("DELETE", "/api/admin/oidc/providers/{id:guid}", "Admin")]
     [InlineData("GET", "/api/admin/auth/oidc/{slug}/callback", null)]
     [InlineData("GET", "/api/admin/auth/oidc/{slug}/start", null)]
     [InlineData("GET", "/api/admin/auth/providers", null)]

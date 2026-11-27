@@ -227,11 +227,17 @@ public static class DatabaseMigrator
         AddColumnIfMissing(db, "Users", "Email", "TEXT NULL");
         db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Users_Provider_ExternalId ON Users (Provider, ExternalId)");
 
+        if (TableExists(db, "OidcProviders") && db.Database.SqlQuery<string>($"SELECT type AS Value FROM pragma_table_info('OidcProviders') WHERE name = 'Id'").AsEnumerable().FirstOrDefault() == "INTEGER")
+        {
+            db.Database.ExecuteSqlRaw("DROP TABLE IF EXISTS OidcPendingFlows");
+            db.Database.ExecuteSqlRaw("DROP TABLE OidcProviders");
+        }
+
         if (!TableExists(db, "OidcProviders"))
         {
             db.Database.ExecuteSqlRaw("""
                 CREATE TABLE OidcProviders (
-                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    Id TEXT NOT NULL PRIMARY KEY,
                     Slug TEXT NOT NULL,
                     Name TEXT NOT NULL,
                     Authority TEXT NOT NULL,
@@ -254,7 +260,7 @@ public static class DatabaseMigrator
             db.Database.ExecuteSqlRaw("""
                 CREATE TABLE OidcPendingFlows (
                     State TEXT NOT NULL PRIMARY KEY,
-                    ProviderId INTEGER NOT NULL,
+                    ProviderId TEXT NOT NULL,
                     Verifier TEXT NOT NULL,
                     Nonce TEXT NOT NULL,
                     RedirectUri TEXT NOT NULL,

@@ -27,8 +27,8 @@ public static partial class OidcEndpoints
 
         routes.MapGet(AdminBase, ListProviders).RequireAuthorization("Admin").ExcludeFromDescription();
         routes.MapPost(AdminBase, CreateProvider).RequireAuthorization("Admin").ExcludeFromDescription();
-        routes.MapPut($"{AdminBase}/{{id:int}}", UpdateProvider).RequireAuthorization("Admin").ExcludeFromDescription();
-        routes.MapDelete($"{AdminBase}/{{id:int}}", DeleteProvider).RequireAuthorization("Admin").ExcludeFromDescription();
+        routes.MapPut($"{AdminBase}/{{id:guid}}", UpdateProvider).RequireAuthorization("Admin").ExcludeFromDescription();
+        routes.MapDelete($"{AdminBase}/{{id:guid}}", DeleteProvider).RequireAuthorization("Admin").ExcludeFromDescription();
     }
 
     internal static bool Allowed(IOptionsMonitor<ApiKeyAuthOptions> options) =>
@@ -311,7 +311,7 @@ public static partial class OidcEndpoints
         return Results.Ok(new { id = provider.Id });
     }
 
-    private static async Task<IResult> UpdateProvider(int id, [FromBody] ProviderRequest request, [FromServices] BeaconDbContext db, [FromServices] OidcClient oidc, [FromServices] Encryptor encryptor, CancellationToken ct)
+    private static async Task<IResult> UpdateProvider(Guid id, [FromBody] ProviderRequest request, [FromServices] BeaconDbContext db, [FromServices] OidcClient oidc, [FromServices] Encryptor encryptor, CancellationToken ct)
     {
         var provider = await db.OidcProviders.FirstOrDefaultAsync(p => p.Id == id, ct);
         if (provider is null) return Results.NotFound();
@@ -328,7 +328,7 @@ public static partial class OidcEndpoints
         return Results.Ok(new { id });
     }
 
-    private static async Task<IResult> DeleteProvider(int id, [FromServices] BeaconDbContext db, [FromServices] OidcClient oidc, CancellationToken ct)
+    private static async Task<IResult> DeleteProvider(Guid id, [FromServices] BeaconDbContext db, [FromServices] OidcClient oidc, CancellationToken ct)
     {
         var provider = await db.OidcProviders.FirstOrDefaultAsync(p => p.Id == id, ct);
         if (provider is null) return Results.NotFound();

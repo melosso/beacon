@@ -53,7 +53,7 @@ public abstract class DatabaseProviderTests
             {
                 db.OidcPendingFlows.Add(new OidcPendingFlow
                 {
-                    State = state, ProviderId = 1, Verifier = "v", Nonce = "n", RedirectUri = "https://beacon.example.test/cb",
+                    State = state, ProviderId = Guid.NewGuid(), Verifier = "v", Nonce = "n", RedirectUri = "https://beacon.example.test/cb",
                     ExpiresAt = DateTime.UtcNow.AddMinutes(5)
                 });
                 await db.SaveChangesAsync(TestContext.Current.CancellationToken);
