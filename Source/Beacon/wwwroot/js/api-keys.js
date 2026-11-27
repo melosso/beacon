@@ -97,9 +97,9 @@ function renderPermissionBadges(permissions) {
 function apiKeyStatus(k) {
   if (!k.isEnabled) return { label: "Disabled", tone: "text-muted" };
   const now = new Date();
-  if (k.activeFrom && now < new Date(k.activeFrom))
+  if (k.activeFrom && now < parseServerDate(k.activeFrom))
     return { label: "Pending", tone: "text-warning" };
-  if (k.activeUntil && now > new Date(k.activeUntil))
+  if (k.activeUntil && now > parseServerDate(k.activeUntil))
     return { label: "Expired", tone: "text-danger" };
   return { label: "Active", tone: "text-success" };
 }
@@ -126,8 +126,8 @@ function renderApiKeysTable(keys) {
           <td><strong>${k.name}</strong>${k.user ? html` <span class="status-badge status-badge--sm status-badge-muted">User key</span>` : nothing}</td>
           <td>${renderPermissionBadges(k.permissions)}</td>
           <td><span class=${st.tone}>${st.label}</span></td>
-          <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString(UI_LOCALE) : html`<span class="text-muted">—</span>`}</td>
-          <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
+          <td>${k.activeUntil ? parseServerDate(k.activeUntil).toLocaleDateString(UI_LOCALE, { timeZone: "UTC" }) : html`<span class="text-muted">—</span>`}</td>
+          <td>${k.createdAt ? parseServerDate(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
           <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">${k.user ? "—" : "Never"}</span>`}</td>
           <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, k.user ? [
             ["Regenerate key", () => regenerateUserApiKey(k.user.id, k.user.username)],

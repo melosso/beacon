@@ -223,7 +223,7 @@ function renderUsersTable(users) {
           <td><strong>${u.username}</strong></td>
           <td><span class="status-badge ${u.role === "admin" ? "" : "status-badge-muted"}">${u.role}</span></td>
           <td>${u.isEnabled ? html`<span class="text-success">Enabled</span>` : html`<span class="text-muted">Disabled</span>`}</td>
-          <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
+          <td>${u.createdAt ? parseServerDate(u.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
           <td>${u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : html`<span class="text-muted">Never</span>`}</td>
           <td class="col-actions">${rowMenu(`userDropdown-${u.id}`, [
             ["Rename", () => openRenameUserModal(u.id, u.username)],

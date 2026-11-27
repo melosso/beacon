@@ -541,7 +541,7 @@ function openOverviewErrorDetail(error) {
 
 function openErrorDetail(error) {
   activeErrorDetail = error;
-  document.getElementById("errorDetailTime").textContent = new Date(
+  document.getElementById("errorDetailTime").textContent = parseServerDate(
     error.occurredAt,
   ).toLocaleString(UI_LOCALE);
   paint(document.getElementById("errorDetailBadge"), errorStatus(error));
@@ -590,7 +590,7 @@ function copyErrorMessage() {
     meta.push(`Request: ${e.requestMethod} ${e.requestUrl}`);
   if (e.statusCode) meta.push(`Status: ${e.statusCode}`);
   if (e.attemptCount > 0) meta.push(`Attempts: ${e.attemptCount}`);
-  meta.push(`Time: ${new Date(e.occurredAt).toLocaleString(UI_LOCALE)}`);
+  meta.push(`Time: ${parseServerDate(e.occurredAt).toLocaleString(UI_LOCALE)}`);
   if (meta.length) text = meta.join("\n") + "\n\n" + text;
   if (e.stackTrace) text += "\n\nStack Trace:\n" + e.stackTrace;
   clipboardWrite(text).then(() => {

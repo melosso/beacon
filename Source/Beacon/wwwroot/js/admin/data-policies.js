@@ -492,7 +492,7 @@ function renderWorkflowTable() {
         <tr>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
-          <td>${t.scheduledAt ? new Date(t.scheduledAt).toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
+          <td>${t.scheduledAt ? parseServerDate(t.scheduledAt).toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
           <td>${t.status === "Completed" || t.status === "Failed" ? t.recordsAffected : "—"}</td>
           <td>${workflowStatus(t)}</td>
           <td>${
@@ -553,9 +553,9 @@ function renderSettingsRunHistory(tasks) {
     !tasks?.length
       ? html`<tr><td class="table-empty" colspan="6">No completed runs.</td></tr>`
       : html`${tasks.map((t) => {
-          const started = t.startedAt ? new Date(t.startedAt) : null;
+          const started = t.startedAt ? parseServerDate(t.startedAt) : null;
           const durationMs =
-            started && t.completedAt ? new Date(t.completedAt) - started : null;
+            started && t.completedAt ? parseServerDate(t.completedAt) - started : null;
           const duration =
             durationMs === null
               ? "—"
