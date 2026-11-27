@@ -53,6 +53,19 @@ public sealed class OidcTests : IDisposable
         Assert.Null(await OidcFlow.ClaimAsync(_db, "forged", TestContext.Current.CancellationToken));
     }
 
+    [Theory]
+    [InlineData("state-a", "state-a", true)]
+    [InlineData("state-a", "state-b", false)]
+    [InlineData(null, "state-a", false)]
+    [InlineData("state-a", null, false)]
+    public void Callback_RequiresStateCookieFromStartingBrowser(string? cookie, string? state, bool expected)
+    {
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        if (cookie is not null) context.Request.Headers.Cookie = $"{OidcEndpoints.StateCookie}={cookie}";
+
+        Assert.Equal(expected, OidcEndpoints.StateMatches(context.Request, state));
+    }
+
     [Fact]
     public async Task Claim_ExpiredFlow_ReturnsNullAndPruneRemovesIt()
     {

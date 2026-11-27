@@ -45,7 +45,7 @@ public static partial class OidcEndpoints
         return Results.Ok(providers);
     }
 
-    private static async Task<IResult> StartSignIn(string slug, HttpContext context, [FromServices] BeaconDbContext db, [FromServices] OidcClient oidc, [FromServices] IOptionsMonitor<ApiKeyAuthOptions> options, [FromServices] ILogger<Program> logger, CancellationToken ct)
+    private static async Task<IResult> StartSignIn(string slug, HttpContext context, [FromServices] BeaconDbContext db, [FromServices] OidcClient oidc, [FromServices] IWebHostEnvironment env, [FromServices] IOptionsMonitor<ApiKeyAuthOptions> options, [FromServices] ILogger<Program> logger, CancellationToken ct)
     {
         var provider = await UsableAsync(db, options, slug, ct);
         if (provider is null) return Results.NotFound();
@@ -53,6 +53,7 @@ public static partial class OidcEndpoints
         try
         {
             var start = await oidc.BeginAsync(db, provider, RedirectUri(context, provider.Slug), null, ct);
+            BindState(context, env, start.State);
             return Results.Redirect(start.AuthorizeUrl);
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
@@ -77,6 +78,10 @@ public static partial class OidcEndpoints
         [FromServices] ILogger<Program> logger,
         CancellationToken ct)
     {
+        var bound = StateMatches(context.Request, state);
+        context.Response.Cookies.Delete(StateCookie, new CookieOptions { Path = FlowBase });
+        if (!bound) return Results.Redirect(Back(OidcFlow.Failed));
+
         var flow = await OidcFlow.ClaimAsync(db, state, ct);
         if (flow is null) return Results.Redirect(Back(OidcFlow.Failed));
         if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code)) return Results.Redirect(Back(OidcFlow.Denied));
@@ -163,6 +168,7 @@ public static partial class OidcEndpoints
         [FromServices] BeaconDbContext db,
         [FromServices] OidcClient oidc,
         [FromServices] LoginLockout lockout,
+        [FromServices] IWebHostEnvironment env,
         [FromServices] IOptionsMonitor<ApiKeyAuthOptions> options,
         [FromServices] ILogger<Program> logger,
         CancellationToken ct)
@@ -177,6 +183,7 @@ public static partial class OidcEndpoints
         try
         {
             var start = await oidc.BeginAsync(db, provider, RedirectUri(context, provider.Slug), user.Id, ct);
+            BindState(context, env, start.State);
             return Results.Ok(new { authorizeUrl = start.AuthorizeUrl });
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or IOException)
@@ -396,6 +403,24 @@ public static partial class OidcEndpoints
         Allowed(options)
             ? db.OidcProviders.FirstOrDefaultAsync(p => p.Slug == slug && p.IsEnabled, ct)
             : Task.FromResult<OidcProvider?>(null);
+
+    internal const string StateCookie = "beacon_oidc_state";
+
+    internal static void BindState(HttpContext context, IWebHostEnvironment env, string state) =>
+        context.Response.Cookies.Append(StateCookie, state, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !env.IsDevelopment(),
+            SameSite = SameSiteMode.Lax,
+            Path = FlowBase,
+            MaxAge = OidcFlow.FlowLifetime
+        });
+
+    internal static bool StateMatches(HttpRequest request, string? state) =>
+        !string.IsNullOrEmpty(state)
+        && request.Cookies.TryGetValue(StateCookie, out var bound)
+        && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(bound), System.Text.Encoding.UTF8.GetBytes(state));
 
     private static string Back(string reason) => $"/admin/login?sso={reason}";
 
