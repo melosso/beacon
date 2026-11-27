@@ -170,6 +170,27 @@ public abstract class DatabaseProviderTests
     }
 
     [Fact]
+    public async Task AnonymiseOptedOutAsync_WipesRecordAndAuditCustomFields()
+    {
+        var bucket = $"anon-{Guid.NewGuid():N}"[..20];
+        await using var db = CreateDbContext();
+        var repo = new ConsentRepository(db);
+        var seeded = MakeRecord(bucket, "h", "email", ConsentStatus.OptedOut, "enc", "name");
+        seeded.CustomFields = """{"city":"Utrecht"}""";
+        await repo.UpsertAsync(seeded);
+        db.ChangeTracker.Clear();
+
+        Assert.True(await repo.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken) >= 1);
+        db.ChangeTracker.Clear();
+
+        var record = await repo.GetAsync(bucket, "h", "email");
+        Assert.Equal(ConsentStatus.OptedOut, record!.Status);
+        Assert.Null(record.EncryptedName);
+        Assert.Null(record.CustomFields);
+        Assert.False(await db.ConsentAuditEntries.AnyAsync(a => a.Bucket == bucket && a.CustomFields != null, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task GetBucketsAsync_CountsRecordsAndOptIns()
     {
         var bucket = $"rate-{Guid.NewGuid():N}"[..20];
