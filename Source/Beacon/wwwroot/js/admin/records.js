@@ -252,7 +252,7 @@ async function loadOverview(refresh = false) {
   // Fetch which buckets have webhooks configured; also refresh brand identities if needed
   const [whResult, biResult] = await Promise.all([
     apiRequest("/api/admin/webhooks/buckets"),
-    _brandIdentities.length === 0
+    _brandIdentities.length === 0 && currentUserRole === "admin"
       ? apiRequest("/api/admin/brand-identities")
       : Promise.resolve({ ok: true, data: _brandIdentities }),
   ]);
