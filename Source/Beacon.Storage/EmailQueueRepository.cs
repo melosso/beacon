@@ -96,12 +96,4 @@ public sealed class EmailQueueRepository {
                       || e.Status == EmailQueueStatus.Cancelled))
             .ExecuteDeleteAsync();
     }
-
-    /// <summary>Deletes the queued confirmation emails of one record: the email hash within one bucket.</summary>
-    public async Task<int> DeleteForRecordAsync(string bucket, string emailHash, CancellationToken ct = default)
-    {
-        return await _db.EmailQueueEntries
-            .Where(e => e.Bucket == bucket && e.EmailHash == emailHash)
-            .ExecuteDeleteAsync(ct);
-    }
 }
