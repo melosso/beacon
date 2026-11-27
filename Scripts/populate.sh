@@ -392,5 +392,64 @@ RENAME_HASH=$(identity_hash "jan.devries@organisatie.nl")
 ERASE_HASH=$(identity_hash "marie.curie@societe.fr")
 [[ -n "$ERASE_HASH" ]] && admin_call DELETE "/identities/$ERASE_HASH" > /dev/null && echo "  erased marie.curie@societe.fr (see Audit, source Erasure)"
 
+echo "Backdating records for the data policies..."
+ENV_FILE="$(dirname "$0")/../Source/Beacon/.env"
+DB_PROVIDER="${DATABASE_PROVIDER:-$(grep -s '^DATABASE_PROVIDER=' "$ENV_FILE" | cut -d= -f2-)}"
+DB_SOURCE="${CONNECTION_STRING:-$(grep -s '^CONNECTION_STRING=' "$ENV_FILE" | cut -d= -f2-)}"
+DB_SOURCE="${DB_SOURCE:-Data Source=Beacon.db}"
+DB_FILE=$(sed -n 's/.*Data Source=\([^;]*\).*/\1/Ip' <<< "$DB_SOURCE")
+[[ -n "$DB_FILE" && "$DB_FILE" != /* ]] && DB_FILE="$(dirname "$0")/../Source/Beacon/$DB_FILE"
+if [[ "${DB_PROVIDER:-sqlite}" != "sqlite" ]] || ! command -v python3 > /dev/null || [[ ! -f "$DB_FILE" ]]; then
+    echo "  skipped: needs python3 and the SQLite database file (${DB_FILE:-not found})"
+else
+    python3 -I - "$DB_FILE" <<'EOF'
+import random, sqlite3, sys
+db = sqlite3.connect(sys.argv[1], timeout=30)
+rng = random.Random(190)
+
+def shift(rows, days, base="ChangedAt"):
+    stamp = f"strftime('%Y-%m-%d %H:%M:%f', {base}, ?)"
+    for rid, bucket, email_hash, permission in rows:
+        delta = f"-{days()} days"
+        db.execute(f"update ConsentRecords set ChangedAt = {stamp} where Id = ?", (delta, rid))
+        db.execute(f"update ConsentAuditEntries set ChangedAt = {stamp} where Bucket = ? and EmailHash = ? and Permission = ?",
+                   (delta, bucket, email_hash, permission))
+    return len(rows)
+
+def pick(where, limit):
+    return db.execute(f"select Id, Bucket, EmailHash, Permission from ConsentRecords where {where} order by random() limit {limit}").fetchall()
+
+spread = shift(pick("ChangedAt > datetime('now', '-1 day')", -1), lambda: rng.randint(0, 179))
+stale_optout = 0
+if not db.execute("select 1 from ConsentRecords where Status = 1 and ChangedAt < datetime('now', '-1095 days')").fetchone():
+    stale_optout = shift(pick("Status = 1 and EncryptedEmail is not null", 40), lambda: rng.randint(1100, 1500))
+pending_old = pending_new = 0
+if not db.execute("select 1 from ConsentRecords where Status = 2").fetchone():
+    old, new = pick("Status = 0", 30), pick("Status = 0", 12)
+    new = [r for r in new if r not in old]
+    for rid, *_ in old + new:
+        db.execute("update ConsentRecords set Status = 2 where Id = ?", (rid,))
+    pending_old = shift(old, lambda: rng.randint(31, 70), base="'now'")
+    pending_new = shift(new, lambda: rng.randint(1, 20), base="'now'")
+db.commit()
+print(f"  {spread} records spread over 180 days")
+print(f"  {stale_optout} opted-out records older than 3 years (retention purge)")
+print(f"  {pending_old} pending confirmations older than 30 days (pending confirmation purge), {pending_new} recent")
+EOF
+    admin_call DELETE /cache > /dev/null
+    admin_call POST /data-policies/run > /dev/null
+    sleep 3
+    PENDING_TASK=$(admin_call GET "/data-policies/tasks?limit=20" | python3 -I -c '
+import json, sys
+tasks = json.load(sys.stdin)
+print(next((t["id"] for t in tasks if t["taskType"] in ("PendingConfirmationPurge", 1) and t["status"] in ("PendingApproval", 0)), ""))')
+    if [[ -n "$PENDING_TASK" ]]; then
+        admin_call POST "/data-policies/tasks/$PENDING_TASK/approve" > /dev/null
+        echo "  pending confirmation purge approved; retention purge awaits approval under Workflow"
+    else
+        echo "  no policy task queued (see Workflow)"
+    fi
+fi
+
 echo "--------------------------------------"
 echo "Operation complete."
