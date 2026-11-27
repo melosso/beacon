@@ -183,7 +183,9 @@ try
     builder.Services.AddScoped<SubmissionFormService>();
     builder.Services.AddSingleton<SubmissionRateLimiter>();
     builder.Services.AddSingleton<LoginLockout>();
-    builder.Services.AddSingleton(new OidcClient(config.GetValue<bool>("OidcAllowPrivateNetwork", false)));
+    var outboundNetwork = new OutboundNetwork(config.GetValue<bool>("AllowPrivateNetwork", false));
+    builder.Services.AddSingleton(outboundNetwork);
+    builder.Services.AddSingleton(new OidcClient(outboundNetwork.AllowPrivateNetwork));
 
     // Keyed on RemoteIpAddress, which UseForwardedHeaders resolves from trusted proxies only.
     // Reading X-Forwarded-For here would let any client pick its own bucket.

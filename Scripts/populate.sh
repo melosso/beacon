@@ -362,7 +362,7 @@ if curl -s -o /dev/null --max-time 2 http://127.0.0.1:9555/.well-known/openid-co
         *) echo "  skipped: $RESULT" ;;
     esac
 else
-    echo "  skipped: start the stub with  dotnet run Scripts/oidc-stub.cs  and run Beacon with OIDC_ALLOW_PRIVATE_NETWORK=true"
+    echo "  skipped: start the stub with  dotnet run Scripts/oidc-stub.cs  and run Beacon with ALLOW_PRIVATE_NETWORK=true"
 fi
 
 echo "Pointing object storage at the S3 stub..."

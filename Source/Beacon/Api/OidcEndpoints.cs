@@ -397,7 +397,7 @@ public static partial class OidcEndpoints
     internal static async Task<string?> IssuerProblemAsync(OidcClient oidc, string authority, CancellationToken ct = default) =>
         oidc.AllowPrivateNetwork || await SsrfGuard.ResolveAndValidateAsync(authority, ct) is not null
             ? null
-            : "The issuer resolves to a private or reserved address. Set OIDC_ALLOW_PRIVATE_NETWORK=true to allow providers on your own network.";
+            : "The issuer resolves to a private or reserved address. Set ALLOW_PRIVATE_NETWORK=true to allow providers on your own network.";
 
     private static Task<OidcProvider?> UsableAsync(BeaconDbContext db, IOptionsMonitor<ApiKeyAuthOptions> options, string slug, CancellationToken ct) =>
         Allowed(options)

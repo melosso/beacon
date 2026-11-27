@@ -115,7 +115,7 @@ Console.WriteLine($"""
       Client ID      {ClientId}
       Client secret  {ClientSecret}
 
-    Beacon must run with OIDC_ALLOW_PRIVATE_NETWORK=true to reach this address.
+    Beacon must run with ALLOW_PRIVATE_NETWORK=true to reach this address.
     Press Ctrl+C to stop.
     """);
 app.Run();

@@ -138,7 +138,7 @@ public class S3ClientFactoryTests
     public void ConstructsForEveryConfiguredCombination(string provider, string? endpoint, string? region)
     {
         using var client = Beacon.Storage.S3ObjectStorageService.CreateClient(
-            provider, endpoint, region, "access", "secret");
+            provider, endpoint, region, "access", "secret", allowPrivateNetwork: false);
 
         Assert.NotNull(client.Config.RegionEndpoint ?? (object?)client.Config.ServiceURL);
     }
@@ -146,11 +146,21 @@ public class S3ClientFactoryTests
     [Fact]
     public void PathStyleIsForcedOnlyForR2AndMinio()
     {
-        using var s3 = Beacon.Storage.S3ObjectStorageService.CreateClient("s3", null, null, "a", "b");
-        using var r2 = Beacon.Storage.S3ObjectStorageService.CreateClient("r2", "https://x.example", null, "a", "b");
+        using var s3 = Beacon.Storage.S3ObjectStorageService.CreateClient("s3", null, null, "a", "b", allowPrivateNetwork: false);
+        using var r2 = Beacon.Storage.S3ObjectStorageService.CreateClient("r2", "https://x.example", null, "a", "b", allowPrivateNetwork: false);
 
         Assert.False(((Amazon.S3.AmazonS3Config)s3.Config).ForcePathStyle);
         Assert.True(((Amazon.S3.AmazonS3Config)r2.Config).ForcePathStyle);
+    }
+
+    [Fact]
+    public async Task StorageClientRefusesPrivateEndpointAtConnect()
+    {
+        using var client = Beacon.Storage.S3ObjectStorageService.CreateClient("minio", "http://127.0.0.1:9", null, "a", "b", allowPrivateNetwork: false);
+        using var http = client.Config.HttpClientFactory.CreateHttpClient(client.Config);
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("http://127.0.0.1:9/", TestContext.Current.CancellationToken));
+        Assert.Contains("private or reserved", ex.Message + ex.InnerException?.Message);
     }
 
     [Fact]
@@ -185,7 +195,7 @@ public class S3ClientFactoryTests
             ObjectStorageAccessKey = encryptor.Encrypt("access-plain"),
             ObjectStorageSecretKey = encryptor.Encrypt("secret-plain")
         };
-        var service = new Beacon.Storage.S3ObjectStorageService(new Beacon.Tests.Fakes.StubSystemConfigurationService(config), encryptor);
+        var service = new Beacon.Storage.S3ObjectStorageService(new Beacon.Tests.Fakes.StubSystemConfigurationService(config), encryptor, new Beacon.Security.OutboundNetwork(false));
 
         var client = typeof(Beacon.Storage.S3ObjectStorageService)
             .GetField("_client", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(service)!;

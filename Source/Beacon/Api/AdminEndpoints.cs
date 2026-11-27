@@ -1900,17 +1900,18 @@ public static class AdminEndpoints
 
     private static async Task<IResult> TestObjectStorageConnection(
         [FromBody] ObjectStorageTestRequest request,
+        [FromServices] Beacon.Security.OutboundNetwork network,
         CancellationToken ct)
     {
         // A custom endpoint is an arbitrary URL; without this the probe is an internal port scanner
         // whose results are read back through the error message.
-        if (!string.IsNullOrWhiteSpace(request.Endpoint) &&
+        if (!network.AllowPrivateNetwork && !string.IsNullOrWhiteSpace(request.Endpoint) &&
             await Beacon.Security.SsrfGuard.ResolveAndValidateAsync(request.Endpoint, ct) is null)
         {
             return Results.Ok(new
             {
                 success = false,
-                message = "Endpoint must be an http(s) URL that resolves to a public address.",
+                message = "Endpoint must be an http(s) URL that resolves to a public address. Set ALLOW_PRIVATE_NETWORK=true to allow storage on your own network.",
                 latencyMs = 0
             });
         }
@@ -1918,7 +1919,7 @@ public static class AdminEndpoints
         try
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            using var client = BuildTestS3Client(request);
+            using var client = BuildTestS3Client(request, network.AllowPrivateNetwork);
             await client.GetBucketLocationAsync(request.Bucket, ct);
             sw.Stop();
 
@@ -1940,9 +1941,9 @@ public static class AdminEndpoints
         }
     }
 
-    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req) =>
+    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req, bool allowPrivateNetwork) =>
         S3ObjectStorageService.CreateClient(
-            req.Provider, req.Endpoint, req.Region, req.AccessKey, req.SecretKey);
+            req.Provider, req.Endpoint, req.Region, req.AccessKey, req.SecretKey, allowPrivateNetwork);
 
     private static async Task<IResult> FlushCache(
         [FromServices] IBeaconCacheService cache,

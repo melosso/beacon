@@ -3,6 +3,8 @@ using System.Net.Sockets;
 
 namespace Beacon.Security;
 
+public sealed record OutboundNetwork(bool AllowPrivateNetwork);
+
 /// <summary>
 /// Shared guard for outbound requests to operator-supplied URLs. Resolves the host once and returns the
 /// validated address so callers can pin the connection to it, closing the DNS-rebinding window between
