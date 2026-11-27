@@ -1667,6 +1667,7 @@ dialog.modal-backdrop.sheet > .modal {
   border-left: 1px solid hsl(var(--border));
   border-radius: 0;
   padding-block: 0;
+  scroll-padding-block: 5rem;
   animation: sheetIn var(--duration) var(--ease-out);
 }
 .sheet .modal-header,
