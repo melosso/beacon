@@ -122,7 +122,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 
             var isAdminKey = payload.TryGetProperty("akey", out var akeyElement) && akeyElement.ValueKind == JsonValueKind.True;
             var isKeyLogin = isAdminKey || (payload.TryGetProperty("kl", out var klElement) && klElement.ValueKind == JsonValueKind.True);
-            if (isKeyLogin && !string.IsNullOrEmpty(Options.UserAuthentication) && _configService?.Get().RequireUserSignIn == true)
+            if (isKeyLogin && Options.UserAuthentication is "user" or "both" && _configService?.Get().RequireUserSignIn == true)
                 return AuthenticateResult.Fail("API key sessions are disabled");
 
             // Tokens issued before auth_time existed fall back to iat.

@@ -357,18 +357,20 @@ public class SecurityAuditTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false, true, true)]
-    [InlineData(true, false, true)]
-    public async Task Jwt_KeyLoginSessions_EndWhenUserSignInRequired(bool required, bool keySessionsPass, bool passwordSessionsPass)
+    [InlineData(false, "both", true, true)]
+    [InlineData(true, "both", false, true)]
+    [InlineData(true, "user", false, true)]
+    [InlineData(true, "api", true, true)]
+    public async Task Jwt_KeyLoginSessions_EndWhenUserSignInRequired(bool required, string userAuthentication, bool keySessionsPass, bool passwordSessionsPass)
     {
         _db.Users.Add(new User { Username = "ops", PasswordHash = "x", Salt = "x", ApiKeyHash = "x", Role = "admin" });
         await _db.SaveChangesAsync();
         var config = new SystemConfig { RequireUserSignIn = required };
         var expires = DateTimeOffset.UtcNow.AddHours(1);
 
-        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "admin", expires, "admin", adminKey: true), config)).Succeeded);
-        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin", keyLogin: true), config)).Succeeded);
-        Assert.Equal(passwordSessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin"), config)).Succeeded);
+        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "admin", expires, "admin", adminKey: true), config, userAuthentication)).Succeeded);
+        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin", keyLogin: true), config, userAuthentication)).Succeeded);
+        Assert.Equal(passwordSessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin"), config, userAuthentication)).Succeeded);
     }
 
     [Theory]
@@ -417,9 +419,9 @@ public class SecurityAuditTests : IDisposable
         public string EnvironmentName { get; set; } = "Production";
     }
 
-    private async Task<AuthenticateResult> AuthenticateAsync(string token, SystemConfig? config = null)
+    private async Task<AuthenticateResult> AuthenticateAsync(string token, SystemConfig? config = null, string userAuthentication = "both")
     {
-        var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = "both" };
+        var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = userAuthentication };
         var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db), new StubSystemConfigurationService(config));
         var context = new DefaultHttpContext();
         context.Request.Headers.Cookie = $"{JwtAuthHandler.CookieName}={token}";
