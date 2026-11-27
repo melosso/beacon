@@ -107,19 +107,23 @@ document.addEventListener(
   "change",
   (e) => {
     const box = e.target;
-    if (!box.matches?.("input[type=checkbox][data-confirm-off]")) return;
-    if (box.checked || box.hasAttribute("data-confirmed")) {
+    if (!box.matches?.("input[type=checkbox]")) return;
+    const turningOn = box.checked;
+    const feature = turningOn ? box.dataset.confirmOn : box.dataset.confirmOff;
+    if (!feature) return;
+    if (box.hasAttribute("data-confirmed")) {
       box.removeAttribute("data-confirmed");
       return;
     }
     e.stopImmediatePropagation();
-    box.checked = true;
+    box.checked = !turningOn;
     openConfirmModal(
-      `Turn off ${box.dataset.confirmOff}?`,
-      "This stops the feature for every bucket and user until someone turns it back on.",
-      "Turn off",
+      `Turn ${turningOn ? "on" : "off"} ${feature}?`,
+      box.dataset.confirmMessage ||
+        "This stops the feature for every bucket and user until someone turns it back on.",
+      turningOn ? "Turn on" : "Turn off",
       () => {
-        box.checked = false;
+        box.checked = turningOn;
         box.setAttribute("data-confirmed", "");
         box.dispatchEvent(new Event("change", { bubbles: true }));
       },

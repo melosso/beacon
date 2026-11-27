@@ -201,6 +201,9 @@ async function loadServerSettings() {
     const cronEl = document.getElementById("setting-emailQueueCron");
     if (cronEl) cronEl.value = appSettings.emailQueueCron;
     appSettings.emailQueueRetentionDays = res.data.emailQueueRetentionDays ?? 90;
+    appSettings.requireUserSignIn = res.data.requireUserSignIn ?? false;
+    document.getElementById("setting-requireUserSignIn").checked =
+      appSettings.requireUserSignIn;
     appSettings.webhooksEnabled = res.data.webhooksEnabled ?? true;
     document.getElementById("setting-webhooksEnabled").checked =
       appSettings.webhooksEnabled;
@@ -431,6 +434,7 @@ async function saveCurrentSettings() {
       emailQueueCron: appSettings.emailQueueCron,
       emailQueueRetentionDays: appSettings.emailQueueRetentionDays,
       webhooksEnabled: appSettings.webhooksEnabled,
+      requireUserSignIn: appSettings.requireUserSignIn,
       erasureNoticeEnabled: appSettings.erasureNoticeEnabled,
       erasureNoticeIncludeEmail: appSettings.erasureNoticeIncludeEmail,
       dataPoliciesEnabled: appSettings.dataPoliciesEnabled,
@@ -453,6 +457,8 @@ async function saveCurrentSettings() {
   });
   if (res.ok) {
     notify("success", "Settings saved");
+  } else {
+    await loadServerSettings();
   }
 }
 

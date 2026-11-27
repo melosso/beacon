@@ -125,6 +125,9 @@ public sealed class SystemConfig
     [JsonPropertyName("pendingConfirmationPurgeRequireApproval")]
     public bool PendingConfirmationPurgeRequireApproval { get; set; } = true;
 
+    [JsonPropertyName("requireUserSignIn")]
+    public bool RequireUserSignIn { get; set; }
+
     [JsonPropertyName("webhooksEnabled")]
     public bool WebhooksEnabled { get; set; } = true;
 

@@ -13,6 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Beacon.Tests.Fakes;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
 using Xunit;
 
 namespace Beacon.Tests;
@@ -353,10 +356,71 @@ public class SecurityAuditTests : IDisposable
         Assert.False((await AuthenticateAsync(token)).Succeeded);
     }
 
-    private async Task<AuthenticateResult> AuthenticateAsync(string token)
+    [Theory]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    public async Task Jwt_KeyLoginSessions_EndWhenUserSignInRequired(bool required, bool keySessionsPass, bool passwordSessionsPass)
+    {
+        _db.Users.Add(new User { Username = "ops", PasswordHash = "x", Salt = "x", ApiKeyHash = "x", Role = "admin" });
+        await _db.SaveChangesAsync();
+        var config = new SystemConfig { RequireUserSignIn = required };
+        var expires = DateTimeOffset.UtcNow.AddHours(1);
+
+        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "admin", expires, "admin", adminKey: true), config)).Succeeded);
+        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin", keyLogin: true), config)).Succeeded);
+        Assert.Equal(passwordSessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin"), config)).Succeeded);
+    }
+
+    [Theory]
+    [InlineData(false, "both", null, 200)]
+    [InlineData(true, "both", null, 403)]
+    [InlineData(true, "user", null, 403)]
+    [InlineData(true, "", null, 200)]
+    [InlineData(true, "both", "ops", 401)]
+    [InlineData(false, "both", "ops", 200)]
+    public async Task Login_RefusesApiKeys_WhenUserSignInRequired(bool required, string userAuthentication, string? username, int expected)
+    {
+        var result = await AuthEndpoints.Login(
+            new AuthEndpoints.LoginRequest(ApiKey: "admin-key", Username: username, Password: username is null ? null : "wrong"),
+            new DefaultHttpContext(),
+            new FakeWebHostEnvironment(),
+            new StaticOptionsMonitor<ApiKeyAuthOptions>(new ApiKeyAuthOptions { AdminApiKey = "admin-key", UserAuthentication = userAuthentication }),
+            new StaticOptionsMonitor<JwtAuthOptions>(new JwtAuthOptions { SigningKey = SigningKey }),
+            new LoginLockout(),
+            new StubSystemConfigurationService(new SystemConfig { RequireUserSignIn = required }),
+            new UserRepository(_db));
+
+        Assert.Equal(expected, ((IStatusCodeHttpResult)result).StatusCode ?? 200);
+    }
+
+    [Theory]
+    [InlineData("both", "admin", true, null)]
+    [InlineData("user", "admin", true, null)]
+    [InlineData("", "admin", true, "Password sign-in is off. Set USER_AUTHENTICATION to user or both first.")]
+    [InlineData("both", "user", true, "Add an enabled admin user first, or no one can sign in to the admin panel.")]
+    [InlineData("both", "admin", false, "Add an enabled admin user first, or no one can sign in to the admin panel.")]
+    public async Task RequireUserSignIn_NeedsAnEnabledAdminUser(string userAuthentication, string role, bool enabled, string? problem)
+    {
+        _db.Users.Add(new User { Username = "ops", PasswordHash = "x", Salt = "x", ApiKeyHash = "x", Role = role, IsEnabled = enabled });
+        await _db.SaveChangesAsync();
+
+        Assert.Equal(problem, await AdminEndpoints.RequireUserSignInProblemAsync(_db, userAuthentication));
+    }
+
+    private sealed class FakeWebHostEnvironment : IWebHostEnvironment
+    {
+        public string WebRootPath { get; set; } = "";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string ApplicationName { get; set; } = "Beacon";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = "";
+        public string EnvironmentName { get; set; } = "Production";
+    }
+
+    private async Task<AuthenticateResult> AuthenticateAsync(string token, SystemConfig? config = null)
     {
         var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = "both" };
-        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db));
+        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db), new StubSystemConfigurationService(config));
         var context = new DefaultHttpContext();
         context.Request.Headers.Cookie = $"{JwtAuthHandler.CookieName}={token}";
         await handler.InitializeAsync(new AuthenticationScheme(JwtAuthExtensions.SchemeName, null, typeof(JwtAuthHandler)), context);

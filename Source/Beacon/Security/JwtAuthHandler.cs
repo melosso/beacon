@@ -15,16 +15,19 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 {
     private readonly UserRepository? _userRepository;
     private readonly TokenUsageRepository? _tokenUsage;
+    private readonly ISystemConfigurationService? _configService;
 
     public JwtAuthHandler(
         IOptionsMonitor<JwtAuthOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
         UserRepository? userRepository = null,
-        TokenUsageRepository? tokenUsage = null) : base(options, logger, encoder)
+        TokenUsageRepository? tokenUsage = null,
+        ISystemConfigurationService? configService = null) : base(options, logger, encoder)
     {
         _userRepository = userRepository;
         _tokenUsage = tokenUsage;
+        _configService = configService;
     }
 
     /// <summary>Key under which a signed-out session token is stored in UsedTokens (64 hex characters, the column limit).</summary>
@@ -118,6 +121,9 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
                 return AuthenticateResult.Fail("Token missing role claim");
 
             var isAdminKey = payload.TryGetProperty("akey", out var akeyElement) && akeyElement.ValueKind == JsonValueKind.True;
+            var isKeyLogin = isAdminKey || (payload.TryGetProperty("kl", out var klElement) && klElement.ValueKind == JsonValueKind.True);
+            if (isKeyLogin && !string.IsNullOrEmpty(Options.UserAuthentication) && _configService?.Get().RequireUserSignIn == true)
+                return AuthenticateResult.Fail("API key sessions are disabled");
 
             // Tokens issued before auth_time existed fall back to iat.
             if (!payload.TryGetProperty("auth_time", out var authTimeElement) && !payload.TryGetProperty("iat", out authTimeElement))
@@ -143,6 +149,8 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             ];
             if (isAdminKey)
                 claims.Add(new Claim(AdminKeyClaim, "true"));
+            if (isKeyLogin)
+                claims.Add(new Claim(KeyLoginClaim, "true"));
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
@@ -218,6 +226,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
 
     /// <summary>Marks a session issued for the global AdminApiKey, which has no user record.</summary>
     public const string AdminKeyClaim = "beacon:akey";
+    public const string KeyLoginClaim = "beacon:kl";
 
     /// <summary>Unix time of the sign-in that started the session; refresh keeps it unchanged.</summary>
     public const string AuthTimeClaim = "beacon:auth_time";
@@ -232,7 +241,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         return now >= cap ? null : (now + slide < cap ? now + slide : cap);
     }
 
-    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false, DateTimeOffset? authTime = null)
+    public static string CreateToken(byte[] signingKey, string subject, DateTimeOffset expiresAt, string role = "admin", bool adminKey = false, DateTimeOffset? authTime = null, bool keyLogin = false)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var header = Base64Url.EncodeToString("""{"alg":"HS256","typ":"JWT"}"""u8);
@@ -243,6 +252,7 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
             sub = subject,
             role,
             akey = adminKey,
+            kl = keyLogin || adminKey,
             iat = now,
             auth_time = authTime?.ToUnixTimeSeconds() ?? now,
             exp = expiresAt.ToUnixTimeSeconds(),

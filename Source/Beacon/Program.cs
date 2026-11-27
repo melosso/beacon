@@ -680,12 +680,13 @@ try
     app.MapGet("/admin/config.js", (HttpContext context) =>
     {
         var (apiBase, publicUrl) = ResolveApiOrigins(context);
+        var requireUserSignIn = context.RequestServices.GetRequiredService<ISystemConfigurationService>().Get().RequireUserSignIn;
         var js = string.Join("\n", [
             $"const API_BASE = {JsonSerializer.Serialize(apiBase)};",
             $"const PUBLIC_URL = {JsonSerializer.Serialize(publicUrl)};",
             $"const DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};",
             $"const DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};",
-            $"const USER_AUTH_METHOD = {JsonSerializer.Serialize(userAuthentication)};"
+            $"const USER_AUTH_METHOD = {JsonSerializer.Serialize(requireUserSignIn && userAuthentication == "both" ? "user" : userAuthentication)};"
         ]);
 
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");

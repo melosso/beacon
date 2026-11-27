@@ -629,7 +629,7 @@
                 <div class="settings-item-block items-center">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">API Key</span>
-                    <p class="settings-item-desc">Programmatic access key. Regenerating revokes the previous key immediately.</p>
+                    <p class="settings-item-desc">Regenerating immediately invalidates your active key.</p>
                   </div>
                   <button class="btn btn-outline" data-click="regenerateOwnApiKey">Regenerate key</button>
                 </div>
@@ -704,6 +704,16 @@
                   </svg>
                 </button>
               </div>
+              <label class="settings-item-card" for="setting-requireUserSignIn">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Require user sign-in</span>
+                  <p class="settings-item-desc">Only user accounts can sign in to the admin panel. API keys keep working for the API. Current API key sessions end.</p>
+                </div>
+                <div class="settings-item-control">
+                  <input type="checkbox" id="setting-requireUserSignIn" data-confirm-on="user sign-in" data-confirm-message="Anyone signed in to the admin panel with an API key is signed out. API keys keep working for the API." data-change="saveSettingImmediate requireUserSignIn $checked">
+                  <span class="toggle-track"></span>
+                </div>
+              </label>
             </div>
           </div>
 

@@ -1226,6 +1226,15 @@ public static class AdminEndpoints
             : Results.NotFound(new { error = "Webhook is not configured" });
     }
 
+    internal static async Task<string?> RequireUserSignInProblemAsync(BeaconDbContext db, string? userAuthentication)
+    {
+        if (userAuthentication is not ("user" or "both"))
+            return "Password sign-in is off. Set USER_AUTHENTICATION to user or both first.";
+        if (!await db.Users.AnyAsync(u => u.IsEnabled && u.Role == "admin"))
+            return "Add an enabled admin user first, or no one can sign in to the admin panel.";
+        return null;
+    }
+
     private static async Task<IResult> RotateWebhookSecret(
         string bucket,
         [FromServices] IWebhookService webhookService,
@@ -1812,7 +1821,9 @@ public static class AdminEndpoints
 
     internal static IResult GetSystemConfiguration(
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] Encryptor encryptor)
+        [FromServices] Encryptor encryptor) => Results.Ok(Masked(configService.Get(), encryptor));
+
+    private static SystemConfig Masked(SystemConfig source, Encryptor encryptor)
     {
         var config = JsonSerializer.Deserialize<SystemConfig>(JsonSerializer.Serialize(source))!;
         config.EmailResendApiKey = MaskSecret(encryptor.Decrypt(config.EmailResendApiKey));
@@ -1826,10 +1837,14 @@ public static class AdminEndpoints
     private static async Task<IResult> SaveSystemConfiguration(
         [FromBody] SystemConfig config,
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] Encryptor encryptor) => Results.Ok(Masked(configService.Get(), encryptor));
-
-    private static SystemConfig Masked(SystemConfig source, Encryptor encryptor)
+        [FromServices] Encryptor encryptor,
+        [FromServices] BeaconDbContext db,
+        [FromServices] Microsoft.Extensions.Options.IOptionsMonitor<Beacon.Security.ApiKeyAuthOptions> apiKeyOptions)
     {
+        if (config.RequireUserSignIn && !configService.Get().RequireUserSignIn
+            && await RequireUserSignInProblemAsync(db, apiKeyOptions.Get(Beacon.Security.ApiKeyAuthExtensions.SchemeName).UserAuthentication) is { } signInProblem)
+            return Results.BadRequest(new { error = signInProblem });
+
         if (config.LoginFooter != null && config.LoginFooter.Length > 500)
             return Results.BadRequest(new { error = "Login footer must be 500 characters or less." });
         if (config.PromoBar != null && config.PromoBar.Length > 500)
