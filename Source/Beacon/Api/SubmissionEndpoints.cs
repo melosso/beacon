@@ -1132,8 +1132,8 @@ public static class SubmissionEndpoints
     private static string FormUnavailableHtml(string language, FormConfigDto? config)
     {
         var lang = WebUtility.HtmlEncode(language);
-        var bg = WebUtility.HtmlEncode(config?.BackgroundColor ?? "transparent");
-        var text = WebUtility.HtmlEncode(config?.TextColor ?? "inherit");
+        var bg = InputValidator.SanitizeCssColor(config?.BackgroundColor, "transparent");
+        var text = InputValidator.SanitizeCssColor(config?.TextColor, "inherit");
         var msg = WebUtility.HtmlEncode(GetUnavailableMessage(language));
 
         return $$"""
