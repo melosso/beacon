@@ -298,11 +298,19 @@ function showSettingsSection(section, pushState = true) {
   if (section === "account") loadAccount();
   if (section === "data-policies") loadDataPoliciesSection();
   if (section === "personalisation") loadBrandIdentities();
-  if (section === "connectors") loadWebhooksOverview();
 }
 
 function saveSetting(key, value) {
   appSettings[key] = value;
+}
+
+function openWebhooksSheet() {
+  openModal("webhooksSheet");
+  loadWebhooksOverview();
+}
+
+function closeWebhooksSheet() {
+  closeModal("webhooksSheet");
 }
 
 async function loadWebhooksOverview() {
@@ -329,7 +337,7 @@ async function loadWebhooksOverview() {
             (h) => html`<tr class="cursor-pointer" @click=${() => openBucketWebhook(h.bucket)}>
               <td><strong>${h.bucket}</strong><span class="cell-sub">${
                 h.lastTriggeredAt
-                  ? `${formatNumber(h.triggerCount)} sent · last ${formatRelativeTime(h.lastTriggeredAt)}`
+                  ? html`${formatNumber(h.triggerCount)} sent · last ${formatRelativeTime(h.lastTriggeredAt)}`
                   : "Never sent"
               }</span></td>
               <td class="text-sm break-all">${h.method} ${h.url}</td>
@@ -343,6 +351,7 @@ async function loadWebhooksOverview() {
 }
 
 function openBucketWebhook(bucket) {
+  closeWebhooksSheet();
   showBucket(bucket);
   showOptionsModal();
 }

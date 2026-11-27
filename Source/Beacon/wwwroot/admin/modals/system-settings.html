@@ -726,3 +726,25 @@
     </div>
   </div>
 </dialog>
+
+<dialog
+  class="modal-backdrop sheet"
+  id="webhooksSheet"
+  aria-labelledby="webhooksSheetTitle"
+  data-self
+  data-click="closeWebhooksSheet"
+>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="webhooksSheetTitle">Webhooks</h3>
+      <button class="btn btn-icon" data-click="closeWebhooksSheet" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>Webhooks per bucket. Select a bucket to change its endpoint or switch it off.</p>
+    <div id="webhooksOverview"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-click="closeWebhooksSheet">Done</button>
+    </div>
+  </div>
+</dialog>
