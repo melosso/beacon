@@ -1,5 +1,15 @@
 const NON_EMAIL_SAFE_FONTS = new Set(["inter", "manrope", "system"]);
-const IDENTITY_FONTS = ["Arial", "Helvetica", "Georgia", "Tahoma", "Verdana", "Trebuchet MS", "Courier New", "Inter", "Manrope"];
+const IDENTITY_FONTS = [
+  "Arial",
+  "Helvetica",
+  "Georgia",
+  "Tahoma",
+  "Verdana",
+  "Trebuchet MS",
+  "Courier New",
+  "Inter",
+  "Manrope",
+];
 
 let _brandIdentities = [];
 
@@ -21,7 +31,10 @@ async function loadBrandIdentities() {
   if (!list) return;
   const res = await apiRequest("/api/admin/brand-identities");
   if (!res.ok) {
-    paint(list, html`<p class="list-empty text-danger">Identities failed to load. Refresh to retry.</p>`);
+    paint(
+      list,
+      html`<p class="list-empty text-danger">Identities failed to load. Refresh to retry.</p>`,
+    );
     return;
   }
   _brandIdentities = res.data || [];
@@ -31,9 +44,12 @@ async function loadBrandIdentities() {
 function renderBrandIdentities() {
   const list = document.getElementById("brand-identities-list");
   if (!list) return;
-  paint(list, _brandIdentities.length
-    ? html`${_brandIdentities.map(identityCard)}`
-    : html`<p class="list-empty">No identities.</p>`);
+  paint(
+    list,
+    _brandIdentities.length
+      ? html`${_brandIdentities.map(identityCard)}`
+      : html`<p class="list-empty">No identities.</p>`,
+  );
 }
 
 let _editingIdentityId = null;
@@ -140,7 +156,16 @@ function identityEditBody(identity) {
         <div class="logo-upload-area" id="bi-logo-area-${id}" @click=${() => triggerLogoUpload(id)}>
           ${logoPreview(s.logo)}
           <span class="logo-upload-text"><strong>Upload image</strong><br>or paste a URL below</span>
-          ${s.logo ? html`<button class="logo-remove-btn" type="button" @click=${(e) => { e.stopPropagation(); removeLogo(id); }}>Remove</button>` : nothing}
+          ${
+            s.logo
+              ? html`<button class="logo-remove-btn" type="button" @click=${(
+                  e,
+                ) => {
+                  e.stopPropagation();
+                  removeLogo(id);
+                }}>Remove</button>`
+              : nothing
+          }
         </div>
         <input type="file" id="bi-logo-file-${id}" accept="image/*" aria-label="Upload logo"
           @change=${(e) => handleLogoFileChange(id, e.target)} hidden />
@@ -159,7 +184,8 @@ function identityEditBody(identity) {
       </div>
       <div class="identity-field-control">
         <div class="theme-radio-group">
-          ${["light", "dark", "system"].map((th) => html`
+          ${["light", "dark", "system"].map(
+            (th) => html`
             <label class="theme-option" for="bi-theme-${id}-${th}">
               <input type="radio" name="bi-theme-${id}" id="bi-theme-${id}-${th}" value=${th}
                 ?checked=${(s.theme || "system") === th} @change=${refresh} />
@@ -169,7 +195,8 @@ function identityEditBody(identity) {
                 </div>
               </div>
               <span class="theme-option-label">${th.charAt(0).toUpperCase() + th.slice(1)}</span>
-            </label>`)}
+            </label>`,
+          )}
         </div>
       </div>
     </div>`;
@@ -220,20 +247,38 @@ function identityEditBody(identity) {
             @input=${() => syncColourInput(id, type)} />
           <input type="text" class="colour-hex-input" id="bi-${type}-hex-${id}" aria-label="${label} hex value" .value=${value}
             maxlength="7" placeholder=${value}
-            @input=${() => { syncColourPicker(id, type); refresh(); }} />
+            @input=${() => {
+              syncColourPicker(id, type);
+              refresh();
+            }} />
         </div>
       </div>
     </div>`;
 
-  const field = (key, label, value, placeholder, multiline, live = true) => html`
+  const field = (
+    key,
+    label,
+    value,
+    placeholder,
+    multiline,
+    live = true,
+  ) => html`
     <div>
       <label class="identity-field-label" for="bi-${key}-${id}">${label}</label>
-      ${multiline
-        ? html`<textarea class="identity-textarea" id="bi-${key}-${id}" rows="2" placeholder=${placeholder} .value=${value || ""} @input=${live ? refresh : null}></textarea>`
-        : html`<input type="text" class="identity-input" id="bi-${key}-${id}" placeholder=${placeholder} .value=${value || ""} @input=${live ? refresh : null} />`}
+      ${
+        multiline
+          ? html`<textarea class="identity-textarea" id="bi-${key}-${id}" rows="2" placeholder=${placeholder} .value=${value || ""} @input=${live ? refresh : null}></textarea>`
+          : html`<input type="text" class="identity-input" id="bi-${key}-${id}" placeholder=${placeholder} .value=${value || ""} @input=${live ? refresh : null} />`
+      }
     </div>`;
 
-  const copySection = (section, label, unlocked, fields, divider = true) => html`
+  const copySection = (
+    section,
+    label,
+    unlocked,
+    fields,
+    divider = true,
+  ) => html`
     <div class="copy-section${divider ? "" : " copy-section--last"}">
       <div class="copy-section-head">
         <span class="copy-section-title">${label}</span>
@@ -271,16 +316,32 @@ function identityEditBody(identity) {
     <div>
       <p class="identity-section-hd">Copy</p>
       <p class="identity-field-desc mb-3">Custom copy overrides automatic locale translations for that section.</p>
-      ${copySection("page", "Opt-out page", !!(s.pageTitle || s.pageBody || s.browserTitle), html`
+      ${copySection(
+        "page",
+        "Opt-out page",
+        !!(s.pageTitle || s.pageBody || s.browserTitle),
+        html`
         ${field("browser-title", "Browser tab title", s.browserTitle, "Email Preferences")}
         ${field("page-title", "Page heading", s.pageTitle, "Email preferences")}
-        ${field("page-body", "Body text", s.pageBody, "You're receiving these emails because you previously opted in.", true)}`)}
-      ${copySection("email", "Email", !!(s.emailTitle || s.emailBody), html`
+        ${field("page-body", "Body text", s.pageBody, "You're receiving these emails because you previously opted in.", true)}`,
+      )}
+      ${copySection(
+        "email",
+        "Email",
+        !!(s.emailTitle || s.emailBody),
+        html`
         ${field("email-title", "Heading", s.emailTitle, "One more step to complete your sign-up")}
-        ${field("email-body", "Body text", s.emailBody, "Click the button below to confirm.", true)}`)}
-      ${copySection("confirm", "Confirmation", !!(s.confirmTitle || s.confirmMsg), html`
+        ${field("email-body", "Body text", s.emailBody, "Click the button below to confirm.", true)}`,
+      )}
+      ${copySection(
+        "confirm",
+        "Confirmation",
+        !!(s.confirmTitle || s.confirmMsg),
+        html`
         ${field("confirm-title", "Heading", s.confirmTitle, "Subscription confirmed", false, false)}
-        ${field("confirm-msg", "Message", s.confirmMsg, "Your subscription has been confirmed. You're now opted in.", true, false)}`, false)}
+        ${field("confirm-msg", "Message", s.confirmMsg, "Your subscription has been confirmed. You're now opted in.", true, false)}`,
+        false,
+      )}
     </div>
 
     <div>
@@ -304,16 +365,21 @@ function openEditBrandIdentityModal(id) {
   const identity = _brandIdentities.find((i) => i.id === id);
   if (!identity) return;
   _editingIdentityId = id;
-  document.getElementById("editBrandIdentityTitle").textContent = `Edit — ${identity.name}`;
-  paint(document.getElementById("editBrandIdentityBody"), identityEditBody(identity));
-  document.getElementById("editBrandIdentityDeleteBtn").hidden = identity.isDefault;
+  document.getElementById("editBrandIdentityTitle").textContent =
+    `Edit — ${identity.name}`;
+  paint(
+    document.getElementById("editBrandIdentityBody"),
+    identityEditBody(identity),
+  );
+  document.getElementById("editBrandIdentityDeleteBtn").hidden =
+    identity.isDefault;
   openModal("editBrandIdentityModal");
   renderBucketAssignment(id);
   updateIdentityPreview(id);
 }
 
-function closeEditBrandIdentityModal() {
-  closeModal("editBrandIdentityModal");
+function closeEditBrandIdentityModal(force) {
+  if (!closeModal("editBrandIdentityModal", force)) return;
   _editingIdentityId = null;
 }
 
@@ -324,7 +390,7 @@ async function saveEditBrandIdentity() {
   btn.disabled = true;
   try {
     const ok = await saveBrandIdentity(_editingIdentityId);
-    if (ok) closeEditBrandIdentityModal();
+    if (ok) closeEditBrandIdentityModal(true);
   } finally {
     btn.classList.remove("is-loading");
     btn.disabled = false;
@@ -334,7 +400,7 @@ async function saveEditBrandIdentity() {
 function deleteEditingBrandIdentity() {
   if (_editingIdentityId === null) return;
   const id = _editingIdentityId;
-  closeEditBrandIdentityModal();
+  closeEditBrandIdentityModal(true);
   deleteBrandIdentity(id);
 }
 
@@ -350,18 +416,28 @@ async function renderBucketAssignment(identityId) {
   if (!container) return;
   const res = await apiRequest("/api/admin/buckets");
   if (!res.ok) {
-    paint(container, html`<span class="list-empty text-danger">Buckets failed to load. Refresh to retry.</span>`);
+    paint(
+      container,
+      html`<span class="list-empty text-danger">Buckets failed to load. Refresh to retry.</span>`,
+    );
     return;
   }
-  const allBuckets = (res.data || []).map((b) => (typeof b === "string" ? b : b.bucket || b.name || String(b)));
+  const allBuckets = (res.data || []).map((b) =>
+    typeof b === "string" ? b : b.bucket || b.name || String(b),
+  );
   const identity = _brandIdentities.find((i) => i.id === identityId);
   const assigned = new Set(identity?.buckets || []);
-  paint(container, allBuckets.length
-    ? html`${allBuckets.map((bucket) => html`
+  paint(
+    container,
+    allBuckets.length
+      ? html`${allBuckets.map(
+          (bucket) => html`
         <button type="button" class="bucket-pill${assigned.has(bucket) ? " is-assigned" : ""}"
           aria-pressed=${assigned.has(bucket)} data-bucket=${bucket}
-          @click=${(e) => toggleBucketPill(e.currentTarget)}>${bucket}</button>`)}`
-    : html`<span class="list-empty">No buckets.</span>`);
+          @click=${(e) => toggleBucketPill(e.currentTarget)}>${bucket}</button>`,
+        )}`
+      : html`<span class="list-empty">No buckets.</span>`,
+  );
 }
 
 function toggleBucketPill(btn) {
@@ -397,7 +473,7 @@ function onIdentityFontChange(id) {
   const select = document.getElementById(`bi-font-${id}`);
   const warn = document.getElementById(`bi-font-warn-${id}`);
   if (select && warn)
-    warn.hidden = !(NON_EMAIL_SAFE_FONTS.has(select.value.toLowerCase()));
+    warn.hidden = !NON_EMAIL_SAFE_FONTS.has(select.value.toLowerCase());
   updateIdentityPreview(id);
 }
 

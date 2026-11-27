@@ -46,8 +46,33 @@ function closeMobileNav() {
   if (nav?.matches(":popover-open")) nav.hidePopover();
 }
 
+const SHEET_VIEWS = {
+  "new-token": (pushState) => openNewTokenSheet(pushState),
+  "new-bucket": (pushState) => openNewBucketSheet(pushState),
+};
+
+function openUrlSheet(id, key, pushState) {
+  openModal(id);
+  if (!pushState) return;
+  const url = new URL(window.location);
+  url.searchParams.set("modal", key);
+  history.pushState(null, "", url);
+}
+
+function closeUrlSheet(id, force) {
+  if (!closeModal(id, force)) return false;
+  const url = new URL(window.location);
+  url.searchParams.delete("modal");
+  history.replaceState(null, "", url);
+  return true;
+}
+
 function showView(view, pushState = true, skipLoad = false) {
   closeMobileNav();
+  if (SHEET_VIEWS[view]) {
+    SHEET_VIEWS[view](pushState);
+    return;
+  }
   if (view === "users") {
     showView("settings", pushState, true);
     showSettingsSection("users", pushState);
@@ -96,10 +121,6 @@ function showView(view, pushState = true, skipLoad = false) {
   if (view === "overview") loadOverview();
   if (view === "submissions") loadSubmissionForms();
   if (view === "submission-create") initSubmissionWizard();
-  if (view === "new-bucket") renderNewBucketPerms();
-  if (view === "new-token")
-    document.getElementById("tokenLanguage").value =
-      appSettings.uiLanguage || "en";
   if (view === "settings") loadSettings();
   if (view === "workflow") loadWorkflowPage();
   if (view === "audit") loadAudit();
@@ -110,8 +131,7 @@ function showView(view, pushState = true, skipLoad = false) {
 
 function showBucket(bucket, pushState = true) {
   closeMobileNav();
-  if (isModalOpen("optionsModal"))
-    closeOptionsModal();
+  if (isModalOpen("optionsModal") && !closeOptionsModal()) return;
   if (bucket !== currentBucket) {
     bucketSelectedHashes.clear();
     const bar = document.getElementById("bucketBulkBar");
@@ -217,31 +237,37 @@ const SEARCH_ICON = html`<svg
 
 // Column header with an optional sort toggle and a search popover; used by records, subscribers and audit.
 function searchColumn(o) {
-  const labelText = o.onType
-    ? o.type === "id"
-      ? o.idLabel
-      : o.emailLabel || "Enter email — use * as wildcard"
-    : o.fixedLabel;
-  const placeholder =
-    o.placeholder || (o.type === "id" ? "e.g., a1b2*" : "e.g., *@gmail.com");
-  const typeBtn = (type, text) =>
+  const types = {
+    email: ["By email", o.emailLabel || "Enter email — use * as wildcard", "e.g., *@gmail.com"],
+    name: ["By name", "Enter name — use * as wildcard", "e.g., Jane*"],
+    id: ["By ID", o.idLabel, "e.g., a1b2*"],
+  };
+  const [, labelText, placeholder] = o.onType
+    ? types[o.type]
+    : [, o.fixedLabel, o.placeholder];
+  const typeBtn = (type) =>
     html`<button
       class="search-type-btn ${o.type === type ? "active" : ""}"
+      data-type=${type}
+      data-label=${types[type][1]}
+      data-placeholder=${types[type][2]}
       @click=${(e) => {
         e.stopPropagation();
         o.onType(type);
       }}
     >
-      ${text}
+      ${types[type][0]}
     </button>`;
   return html` <div class="column-search">
-    ${o.onSort
-      ? html`<span
+    ${
+      o.onSort
+        ? html`<span
           class="sortable ${o.sortActive ? o.sortDir : ""}"
           @click=${o.onSort}
           >${o.label} <span class="sort-icon">▲</span></span
         >`
-      : html`<span>${o.label}</span>`}
+        : html`<span>${o.label}</span>`
+    }
     <button
       class="search-trigger ${o.query ? "has-search" : ""}"
       id=${o.ids.trigger}
@@ -255,11 +281,13 @@ function searchColumn(o) {
       class="search-popover"
       id=${o.ids.popover}
     >
-      ${o.onType
-        ? html`<div class="search-type-toggle">
-            ${typeBtn("email", "By email")}${typeBtn("id", "By ID")}
+      ${
+        o.onType
+          ? html`<div class="search-type-toggle">
+            ${(o.types || ["email", "id"]).map(typeBtn)}
           </div>`
-        : nothing}
+          : nothing
+      }
       <label for=${o.ids.input}>${labelText}</label>
       <input
         type="text"
@@ -293,11 +321,11 @@ function renderDetailSubscriptions() {
   paint(
     document.getElementById("subscriptionsTableHead"),
     html` ${sortHeader(
-        "Bucket",
-        subDetailSortBy === "bucket",
-        subDetailSortDir,
-        () => toggleDetailSort("bucket"),
-      )}
+      "Bucket",
+      subDetailSortBy === "bucket",
+      subDetailSortDir,
+      () => toggleDetailSort("bucket"),
+    )}
       <th>Permissions</th>
       ${sortHeader(
         "Last changed",
@@ -412,8 +440,11 @@ function updateSubPagination() {
   const start =
     subTotalRecords === 0 ? 0 : (subCurrentPage - 1) * subPageSize + 1;
   const end = Math.min(subCurrentPage * subPageSize, subTotalRecords);
-  document.getElementById("subPaginationInfo").textContent =
-    pageRangeText(start, end, subTotalRecords);
+  document.getElementById("subPaginationInfo").textContent = pageRangeText(
+    start,
+    end,
+    subTotalRecords,
+  );
   document.getElementById("subPrevBtn").disabled = subCurrentPage === 1;
   document.getElementById("subNextBtn").disabled = subCurrentPage >= totalPages;
 }
@@ -474,28 +505,24 @@ function clearSubSearch() {
   document.getElementById("subSearchTrigger")?.classList.remove("active");
 }
 
+function applySearchType(popoverId, type) {
+  const popover = document.getElementById(popoverId);
+  if (!popover) return null;
+  let active = null;
+  for (const btn of popover.querySelectorAll(".search-type-btn")) {
+    btn.classList.toggle("active", btn.dataset.type === type);
+    if (btn.dataset.type === type) active = btn;
+  }
+  popover.querySelector("label").textContent = active.dataset.label;
+  const input = popover.querySelector("input");
+  input.placeholder = active.dataset.placeholder;
+  input.focus();
+  return input;
+}
+
 function setSubSearchType(type) {
   subSearchType = type;
-  // Update toggle, label, placeholder in-place
-  document
-    .querySelectorAll("#subSearchPopover .search-type-btn")
-    .forEach((btn) => {
-      btn.classList.toggle(
-        "active",
-        btn.textContent.trim() === (type === "id" ? "By ID" : "By email"),
-      );
-    });
-  const label = document.querySelector("#subSearchPopover label");
-  if (label)
-    label.textContent =
-      type === "id"
-        ? "Enter ID from logs (partial hash)"
-        : "Enter email — use * as wildcard";
-  const input = document.getElementById("subSearchInput");
-  if (input) {
-    input.placeholder = type === "id" ? "e.g., a1b2*" : "e.g., *@gmail.com";
-    input.focus();
-  }
+  applySearchType("subSearchPopover", type);
 }
 
 function updateSubBulkBar() {
@@ -549,11 +576,94 @@ function clearSubSelection() {
   updateSubBulkBar();
 }
 
+function subExportHashes() {
+  return subDetailHash ? [subDetailHash] : [...subSelectedHashes];
+}
+
 function openSubExportModal() {
-  const count = subSelectedHashes.size;
+  closeAllMenus();
+  const count = subExportHashes().length;
   document.getElementById("subExportCount").textContent =
     count > 0 ? count : "all";
+  if (subDetailHash) document.getElementById("subExportContents").value = "full";
   openModal("subExportModal");
+}
+
+function openIdentityNameModal() {
+  closeAllMenus();
+  const input = document.getElementById("identityNameInput");
+  input.value = subDetailName || "";
+  openModal("identityNameModal");
+  input.focus();
+}
+
+function closeIdentityNameModal() {
+  closeModal("identityNameModal");
+}
+
+async function saveIdentityName() {
+  const name = document.getElementById("identityNameInput").value.trim();
+  const result = await apiRequest(
+    `/api/admin/identities/${encodeURIComponent(subDetailHash)}/name`,
+    { method: "PUT", body: { name } },
+  );
+  if (!result.ok) return;
+  closeIdentityNameModal();
+  notify("success", "Name saved");
+  showIdentityDetails(subDetailHash, false);
+}
+
+function identityDeleteKey() {
+  if (!subDetailHash) return String(subSelectedHashes.size);
+  return subDetailEmail || subDetailHash.slice(0, 12);
+}
+
+function openIdentityDeleteModal() {
+  closeAllMenus();
+  const count = subDetailHash ? 1 : subSelectedHashes.size;
+  document.getElementById("identityDeleteDesc").textContent =
+    count === 1
+      ? "Wipes this subscriber from every bucket, with their consent history and queued emails. Connected webhooks get an erasure notice. This cannot be undone."
+      : `Wipes ${formatNumber(count)} subscribers from every bucket, with their consent history and queued emails. Connected webhooks get an erasure notice. This cannot be undone.`;
+  document.getElementById("identityDeleteLabel").textContent =
+    `Type ${identityDeleteKey()} to confirm.`;
+  document.getElementById("identityDeleteInput").value = "";
+  document.getElementById("identityDeleteBtn").disabled = true;
+  openModal("identityDeleteModal");
+  document.getElementById("identityDeleteInput").focus();
+}
+
+function closeIdentityDeleteModal() {
+  closeModal("identityDeleteModal");
+}
+
+function checkIdentityDeleteInput(value) {
+  document.getElementById("identityDeleteBtn").disabled =
+    value.trim().toLowerCase() !== identityDeleteKey().toLowerCase();
+}
+
+async function deleteIdentity() {
+  if (document.getElementById("identityDeleteBtn").disabled) return;
+  const result = subDetailHash
+    ? await apiRequest(
+        `/api/admin/identities/${encodeURIComponent(subDetailHash)}`,
+        { method: "DELETE" },
+      )
+    : await apiRequest("/api/admin/identities/delete", {
+        method: "POST",
+        body: { hashes: [...subSelectedHashes] },
+      });
+  if (!result.ok) return;
+  closeIdentityDeleteModal();
+  notify(
+    "success",
+    subDetailHash ? "Subscriber deleted" : "Subscribers deleted",
+    subDetailHash
+      ? `Wiped from ${formatNumber(result.data.bucketsDeleted)} bucket(s).`
+      : `${formatNumber(result.data.identitiesDeleted)} subscriber(s) wiped.`,
+  );
+  clearSubSelection();
+  loadIdentities();
 }
 
 function closeSubExportModal() {
@@ -562,17 +672,22 @@ function closeSubExportModal() {
 
 async function confirmSubExport() {
   const format = document.getElementById("subExportFormat").value;
+  const full = document.getElementById("subExportContents").value === "full";
   const btn = document.getElementById("subExportConfirmBtn");
   btn.disabled = true;
   btn.textContent = "Exporting…";
 
-  const body =
-    subSelectedHashes.size > 0
-      ? { hashes: [...subSelectedHashes], format }
-      : { format };
+  const hashes = subExportHashes();
+  const body = hashes.length > 0 ? { hashes, format, full } : { format, full };
 
   try {
-    if (await downloadExport(`${window.location.origin}/api/admin/identities/export`, body, `beacon-subscribers.${format}`))
+    if (
+      await downloadExport(
+        `${window.location.origin}/api/admin/identities/export`,
+        body,
+        `beacon-subscribers${full ? "-full" : ""}.${format}`,
+      )
+    )
       closeSubExportModal();
   } finally {
     btn.disabled = false;
@@ -595,11 +710,10 @@ async function loadIdentities(pushState = true) {
   badge.ondblclick = null;
   subDetailHash = "";
   document.getElementById("subBackBtn").hidden = true;
-  document.querySelector(
-    "#view-subscriptions .pagination-container",
-  ).hidden = false;
-  const subNameEl = document.getElementById("subDetailName");
-  if (subNameEl) subNameEl.hidden = true;
+  document.getElementById("subIdentityActions").hidden = true;
+  document.getElementById("subAddBtn").textContent = "Add identity";
+  document.querySelector("#view-subscriptions .pagination-container").hidden =
+    false;
 
   if (pushState) syncSubUrl();
 
@@ -629,6 +743,7 @@ async function loadIdentities(pushState = true) {
             input: "subSearchInput",
           },
           type: subSearchType,
+          types: ["email", "name", "id"],
           query: subSearchQuery,
           idLabel: "Enter ID from logs (partial hash)",
           onToggle: toggleSubSearchPopover,
@@ -694,8 +809,9 @@ async function loadIdentities(pushState = true) {
             /></label>
           </td>
           <td>
-            ${id.email
-              ? html`<span class="tooltip-wrapper"
+            ${
+              id.email
+                ? html`<span class="tooltip-wrapper"
                   ><span
                     class="email-text select-none cursor-pointer"
                     @click=${stop(() => copyText(id.email))}
@@ -705,18 +821,21 @@ async function loadIdentities(pushState = true) {
                     >Click to copy &middot; double-click for ID</span
                   ></span
                 >`
-              : html`<span
+                : html`<span
                   class="tooltip-wrapper"
                   @dblclick=${stop(() => copyTextNow(id.emailHash))}
                   ><span class="email-hash"
                     >${id.emailHash.substring(0, 16)}…</span
                   ><span class="tooltip">Double-click to copy ID</span></span
-                >`}
+                >`
+            }
           </td>
           <td>
-            ${id.name
-              ? html`<span class="name-text">${id.name}</span>`
-              : html`<span class="muted">—</span>`}
+            ${
+              id.name
+                ? html`<span class="name-text">${id.name}</span>`
+                : html`<span class="muted">—</span>`
+            }
           </td>
           <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? "s" : ""}</td>
           <td
@@ -724,9 +843,11 @@ async function loadIdentities(pushState = true) {
             title="View audit"
             @click=${stop(() => showAuditForIdentity(id.emailHash))}
           >
-            ${formatDate(id.lastChanged)}${formatDate(id.firstSeen) !== formatDate(id.lastChanged)
-              ? html`<span class="cell-sub">Created ${formatDate(id.firstSeen)}</span>`
-              : nothing}
+            ${formatDate(id.lastChanged)}${
+              formatDate(id.firstSeen) !== formatDate(id.lastChanged)
+                ? html`<span class="cell-sub">Created ${formatDate(id.firstSeen)}</span>`
+                : nothing
+            }
           </td>
           <td>
             <div class="row-actions">
@@ -776,6 +897,11 @@ async function loadIdentities(pushState = true) {
   updateSubPagination();
 }
 
+function openSubscriber(emailHash) {
+  showView("subscriptions", false, true);
+  showIdentityDetails(emailHash);
+}
+
 async function showIdentityDetails(emailHash, pushState = true) {
   // Update chrome synchronously before the fetch so there is no flash of stale content
   document.getElementById("subTitle").textContent = "Identity details";
@@ -794,9 +920,10 @@ async function showIdentityDetails(emailHash, pushState = true) {
       ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,
   );
   document.getElementById("subBackBtn").hidden = false;
-  document.querySelector(
-    "#view-subscriptions .pagination-container",
-  ).hidden = true;
+  document.getElementById("subIdentityActions").hidden = false;
+  document.getElementById("subAddBtn").textContent = "Add subscription";
+  document.querySelector("#view-subscriptions .pagination-container").hidden =
+    true;
 
   // Clear cached data and render the detail headers with a blank body (no stale rows)
   subDetailSubscriptions = [];
@@ -826,14 +953,12 @@ async function showIdentityDetails(emailHash, pushState = true) {
   }
 
   subDetailName = details.name || null;
-  const nameEl = document.getElementById("subDetailName");
-  if (nameEl) {
-    nameEl.textContent = subDetailName || "";
-    nameEl.hidden = !subDetailName;
-  }
+  if (subDetailName)
+    document.getElementById("subTitle").textContent = subDetailName;
 
   subDetailSubscriptions = details.subscriptions;
   subDetailEmail = details.email || null;
   subDetailLoaded = true;
   renderDetailSubscriptions();
+  if (isModalOpen("newTokenSheet")) prefillTokenFromIdentity();
 }

@@ -5,7 +5,10 @@ namespace Beacon.Core.Services;
 public interface IWebhookService
 {
     Task<WebhookConfig?> GetWebhookConfigAsync(string bucket);
-    Task<string> SaveWebhookConfigAsync(string bucket, string url, string method, Dictionary<string, string>? headers, string? bodyTemplate);
+    Task<string?> SaveWebhookConfigAsync(string bucket, string url, string method, Dictionary<string, string>? headers, string? bodyTemplate);
+    Task<string?> RotateWebhookSecretAsync(string bucket);
+    Task<bool> SetWebhookEnabledAsync(string bucket, bool enabled);
+    Task<IReadOnlyList<WebhookConfig>> GetWebhookConfigsAsync();
     Task DeleteWebhookConfigAsync(string bucket);
     Task TriggerWebhookAsync(string bucket, WebhookTriggerData data);
     Task<IReadOnlyList<string>> GetWebhookBucketsAsync();

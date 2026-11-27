@@ -32,7 +32,9 @@
     </div>
     <p>Name shown for this identity in the admin panel.</p>
     <div class="form-group">
-      <label for="newBrandIdentityName">Name <span class="required" title="Required">*</span></label>
+      <label for="newBrandIdentityName"
+        >Name <span class="required" title="Required">*</span></label
+      >
       <input
         type="text"
         id="newBrandIdentityName"
@@ -64,13 +66,13 @@
 
 <!-- Edit Brand Identity Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="editBrandIdentityModal"
   aria-labelledby="editBrandIdentityTitle"
   data-self
   data-click="closeEditBrandIdentityModal"
 >
-  <div class="modal modal--xl">
+  <div class="modal modal--xl" data-guard>
     <div class="modal-header">
       <h3 id="editBrandIdentityTitle">Edit identity</h3>
       <button

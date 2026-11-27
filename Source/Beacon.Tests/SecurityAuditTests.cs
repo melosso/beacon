@@ -13,6 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Beacon.Tests.Fakes;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
 using Xunit;
 
 namespace Beacon.Tests;
@@ -322,6 +325,22 @@ public class SecurityAuditTests : IDisposable
     }
 
     [Fact]
+    public void FullCopyRow_IncludesConsentProofAndCustomFields()
+    {
+        var record = new ConsentRecord
+        {
+            Bucket = "b", EmailHash = "h", Permission = "news", Status = ConsentStatus.PendingConfirmation,
+            Source = ConsentSource.Url, ConsentText = "I agree", ChangedAt = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+        };
+        var contact = new IdentityInfo { EmailHash = "h", Email = "a@x.com", Name = "A" };
+
+        var csv = ExportWriter.ToCsv([AdminEndpoints.FullCopyRow(record, contact, new Dictionary<string, string> { ["city"] = "Utrecht" }, ["city", "zip"])]);
+
+        Assert.StartsWith("beaconId,email,name,bucket,permission,status,source,consentText,changedAt,customFields.city,customFields.zip\r\n", csv);
+        Assert.Contains("h,a@x.com,A,b,news,pendingConfirmation,url,I agree,2026-01-02T03:04:05Z,Utrecht,\r\n", csv);
+    }
+
+    [Fact]
     public void ExportWriter_TimestampIsUtcIso8601() =>
         Assert.Equal("2026-10-18T20:01:41Z", ExportWriter.Timestamp(new DateTime(2026, 10, 18, 20, 1, 41, 123, DateTimeKind.Unspecified)));
 
@@ -337,14 +356,89 @@ public class SecurityAuditTests : IDisposable
         Assert.False((await AuthenticateAsync(token)).Succeeded);
     }
 
-    private async Task<AuthenticateResult> AuthenticateAsync(string token)
+    [Theory]
+    [InlineData(false, "both", true, true)]
+    [InlineData(true, "both", false, true)]
+    [InlineData(true, "user", false, true)]
+    [InlineData(true, "api", true, true)]
+    public async Task Jwt_KeyLoginSessions_EndWhenUserSignInRequired(bool required, string userAuthentication, bool keySessionsPass, bool passwordSessionsPass)
     {
-        var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = "both" };
-        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db));
+        _db.Users.Add(new User { Username = "ops", PasswordHash = "x", Salt = "x", ApiKeyHash = "x", Role = "admin" });
+        await _db.SaveChangesAsync();
+        var config = new SystemConfig { RequireUserSignIn = required };
+        var expires = DateTimeOffset.UtcNow.AddHours(1);
+
+        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "admin", expires, "admin", adminKey: true), config, userAuthentication)).Succeeded);
+        Assert.Equal(keySessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin", keyLogin: true), config, userAuthentication)).Succeeded);
+        Assert.Equal(passwordSessionsPass, (await AuthenticateAsync(JwtAuthHandler.CreateToken(SigningKey, "ops", expires, "admin"), config, userAuthentication)).Succeeded);
+    }
+
+    [Theory]
+    [InlineData(false, "both", null, 200)]
+    [InlineData(true, "both", null, 403)]
+    [InlineData(true, "user", null, 403)]
+    [InlineData(true, "", null, 200)]
+    [InlineData(true, "both", "ops", 401)]
+    [InlineData(false, "both", "ops", 200)]
+    public async Task Login_RefusesApiKeys_WhenUserSignInRequired(bool required, string userAuthentication, string? username, int expected)
+    {
+        var result = await AuthEndpoints.Login(
+            new AuthEndpoints.LoginRequest(ApiKey: "admin-key", Username: username, Password: username is null ? null : "wrong"),
+            new DefaultHttpContext(),
+            new FakeWebHostEnvironment(),
+            new StaticOptionsMonitor<ApiKeyAuthOptions>(new ApiKeyAuthOptions { AdminApiKey = "admin-key", UserAuthentication = userAuthentication }),
+            new StaticOptionsMonitor<JwtAuthOptions>(new JwtAuthOptions { SigningKey = SigningKey }),
+            new LoginLockout(),
+            new StubSystemConfigurationService(new SystemConfig { RequireUserSignIn = required }),
+            new UserRepository(_db));
+
+        Assert.Equal(expected, ((IStatusCodeHttpResult)result).StatusCode ?? 200);
+    }
+
+    [Theory]
+    [InlineData("both", "admin", true, null)]
+    [InlineData("user", "admin", true, null)]
+    [InlineData("", "admin", true, "Password sign-in is off. Set USER_AUTHENTICATION to user or both first.")]
+    [InlineData("both", "user", true, "Add an enabled admin user first, or no one can sign in to the admin panel.")]
+    [InlineData("both", "admin", false, "Add an enabled admin user first, or no one can sign in to the admin panel.")]
+    public async Task RequireUserSignIn_NeedsAnEnabledAdminUser(string userAuthentication, string role, bool enabled, string? problem)
+    {
+        _db.Users.Add(new User { Username = "ops", PasswordHash = "x", Salt = "x", ApiKeyHash = "x", Role = role, IsEnabled = enabled });
+        await _db.SaveChangesAsync();
+
+        Assert.Equal(problem, await AdminEndpoints.RequireUserSignInProblemAsync(_db, userAuthentication));
+    }
+
+    private sealed class FakeWebHostEnvironment : IWebHostEnvironment
+    {
+        public string WebRootPath { get; set; } = "";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string ApplicationName { get; set; } = "Beacon";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = "";
+        public string EnvironmentName { get; set; } = "Production";
+    }
+
+    private async Task<AuthenticateResult> AuthenticateAsync(string token, SystemConfig? config = null, string userAuthentication = "both")
+    {
+        var options = new JwtAuthOptions { SigningKey = SigningKey, UserAuthentication = userAuthentication };
+        var handler = new JwtAuthHandler(new StaticOptionsMonitor<JwtAuthOptions>(options), NullLoggerFactory.Instance, UrlEncoder.Default, new UserRepository(_db), new TokenUsageRepository(_db), new StubSystemConfigurationService(config));
         var context = new DefaultHttpContext();
         context.Request.Headers.Cookie = $"{JwtAuthHandler.CookieName}={token}";
         await handler.InitializeAsync(new AuthenticationScheme(JwtAuthExtensions.SchemeName, null, typeof(JwtAuthHandler)), context);
         return await handler.AuthenticateAsync();
+    }
+
+    [Fact]
+    public void AuthCookieName_IsPerInstance()
+    {
+        var a = JwtAuthHandler.InstanceCookieName(new byte[32], secure: true);
+        var b = JwtAuthHandler.InstanceCookieName(Enumerable.Repeat((byte)1, 32).ToArray(), secure: true);
+
+        Assert.NotEqual(a, b);
+        Assert.Equal(a, JwtAuthHandler.InstanceCookieName(new byte[32], secure: true));
+        Assert.StartsWith("__Host-beacon_auth_", a);
+        Assert.StartsWith("beacon_auth_", JwtAuthHandler.InstanceCookieName(new byte[32], secure: false));
     }
 
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

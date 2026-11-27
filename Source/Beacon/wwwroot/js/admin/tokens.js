@@ -18,10 +18,41 @@ function handleGenerateToken() {
   }
 }
 
+function addIdentityFromOptions() {
+  if (closeOptionsModal()) newTokenForBucket(currentBucket);
+}
+
 function newTokenForBucket(bucket = currentBucket) {
   clearTokenForm();
   showView("new-token");
   selectBucket(bucket);
+}
+
+function prefillTokenFromIdentity() {
+  if (currentView !== "subscriptions" || !subDetailHash || !subDetailEmail) return;
+  const email = document.getElementById("tokenEmail");
+  const name = document.getElementById("tokenName");
+  if (!email.value) email.value = subDetailEmail;
+  if (!name.value) name.value = subDetailName || "";
+}
+
+function openNewTokenSheet(pushState = true) {
+  if (!isModalOpen("newTokenSheet")) {
+    document.getElementById("tokenLanguage").value =
+      appSettings.uiLanguage || "en";
+    prefillTokenFromIdentity();
+    document.getElementById("newTokenTitle").textContent =
+      currentView === "subscriptions" && subDetailHash
+        ? "Add subscription"
+        : "Add identity";
+  }
+  openUrlSheet("newTokenSheet", "new-token", pushState);
+}
+
+function closeNewTokenSheet(force) {
+  if (!closeUrlSheet("newTokenSheet", force)) return false;
+  clearTokenForm();
+  return true;
 }
 
 function clearTokenForm() {
@@ -146,7 +177,9 @@ async function generateToken() {
         result.data[0].doubleOptIn ?? tokenDefaultOptOut;
       tokenDefaultOptOut = doubleOptInConfirmed;
       const hasOptIn = Object.values(permissions).some((v) => v === true);
-      document.getElementById("tokenDoubleOptInNotice").hidden = !(doubleOptInConfirmed && hasOptIn);
+      document.getElementById("tokenDoubleOptInNotice").hidden = !(
+        doubleOptInConfirmed && hasOptIn
+      );
       document.getElementById("tokenSkipEmailGroup").hidden = true;
 
       const toastMsg =
@@ -157,6 +190,7 @@ async function generateToken() {
 
       // Freeze the form fields until the user starts a new token
       document.getElementById("tokenFormFields").classList.add("frozen");
+      markClean("newTokenSheet");
 
       loadBuckets();
     }
@@ -212,7 +246,9 @@ function copyTextNow(text) {
 }
 
 function copyInput(id) {
-  clipboardWrite(document.getElementById(id).value);
+  const input = document.getElementById(id);
+  clipboardWrite(input.value);
+  input.closest("[data-uncopied]")?.removeAttribute("data-uncopied");
   notify("success", "Copied");
 }
 
@@ -232,7 +268,20 @@ async function clipboardWrite(text) {
 }
 
 // Acronyms and quarter labels stay upper case: sms_notifications -> SMS Notifications, q2 -> Q2
-const NAME_ACRONYMS = new Set(["api", "crm", "doi", "erp", "eu", "gdpr", "id", "sms", "uk", "url", "us", "utm"]);
+const NAME_ACRONYMS = new Set([
+  "api",
+  "crm",
+  "doi",
+  "erp",
+  "eu",
+  "gdpr",
+  "id",
+  "sms",
+  "uk",
+  "url",
+  "us",
+  "utm",
+]);
 
 function formatPermission(p) {
   if (!p) return "";
@@ -257,14 +306,7 @@ function consentChip(optedIn, pending) {
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
-  // Server stores UTC but may serialize without Z suffix to ensure UTC parsing
-  if (
-    !dateStr.endsWith("Z") &&
-    !dateStr.includes("+") &&
-    !dateStr.includes("-", 10)
-  )
-    dateStr += "Z";
-  const date = new Date(dateStr);
+  const date = parseServerDate(dateStr);
   if (isNaN(date.getTime())) return "N/A";
   return date.toLocaleString(UI_LOCALE, {
     year: "numeric",
@@ -343,7 +385,7 @@ async function confirmUnarchive() {
 }
 
 function toggleArchiveFromOptions() {
-  closeOptionsModal();
+  if (!closeOptionsModal()) return;
   if (currentBucketArchived) {
     showUnarchiveModal(currentBucket);
   } else {
@@ -362,7 +404,7 @@ function initiateRemoval() {
     return;
   }
   bucketToRemove = currentBucket;
-  closeOptionsModal();
+  if (!closeOptionsModal()) return;
   showRemoveModal();
 }
 
@@ -407,11 +449,7 @@ async function confirmRemoval() {
   );
 
   if (result.ok) {
-    notify(
-      "success",
-      "Bucket removed",
-      `${bucketToRemove} is deleted.`,
-    );
+    notify("success", "Bucket removed", `${bucketToRemove} is deleted.`);
     closeRemoveModal();
     await loadBuckets();
     showView("overview");
@@ -425,16 +463,58 @@ function closeRemoveModal() {
 }
 
 const PASSPHRASE_WORDS = [
-  "PHOTON", "CHIRP", "JITTER", "PARITY", "LUMEN", "GOSSIP", "LATENCY", "QUORUM", "UPSTREAM", "PACKET",
-  "PULSAR", "QUASAR", "ENTROPY", "NONCE", "CIPHER", "MANTISSA", "MODULO", "KERNEL", "SOCKET", "BINARY",
-  "REEF", "PORT", "DOCK", "VOYAGE", "CROWNEST", "AHOY", "BILGE", "SCALLYWAG", "CUTLASS", "STARBOARD",
-  "KEELHAUL", "LANDLUBBER", "SEADOG", "YOHOHO", "BRIG", "CAPSTAN", "GALLEON", "JOLLYROGER", "MAROONED",
-  "PLUNDER", "RIGGING", "SWASHBUCKLE", "ANCHOR", "DEADRECKON",
+  "PHOTON",
+  "CHIRP",
+  "JITTER",
+  "PARITY",
+  "LUMEN",
+  "GOSSIP",
+  "LATENCY",
+  "QUORUM",
+  "UPSTREAM",
+  "PACKET",
+  "PULSAR",
+  "QUASAR",
+  "ENTROPY",
+  "NONCE",
+  "CIPHER",
+  "MANTISSA",
+  "MODULO",
+  "KERNEL",
+  "SOCKET",
+  "BINARY",
+  "REEF",
+  "PORT",
+  "DOCK",
+  "VOYAGE",
+  "CROWNEST",
+  "AHOY",
+  "BILGE",
+  "SCALLYWAG",
+  "CUTLASS",
+  "STARBOARD",
+  "KEELHAUL",
+  "LANDLUBBER",
+  "SEADOG",
+  "YOHOHO",
+  "BRIG",
+  "CAPSTAN",
+  "GALLEON",
+  "JOLLYROGER",
+  "MAROONED",
+  "PLUNDER",
+  "RIGGING",
+  "SWASHBUCKLE",
+  "ANCHOR",
+  "DEADRECKON",
 ];
 
 // Typed confirmation for destructive actions; not a secret.
 function makePassphrase() {
-  return Array.from({ length: 3 }, () => PASSPHRASE_WORDS[Math.floor(Math.random() * PASSPHRASE_WORDS.length)]).join(" ");
+  return Array.from(
+    { length: 3 },
+    () => PASSPHRASE_WORDS[Math.floor(Math.random() * PASSPHRASE_WORDS.length)],
+  ).join(" ");
 }
 
 // BUCKET PERMISSIONS MANAGEMENT
@@ -452,14 +532,19 @@ function renderBucketPermsGrid() {
     badge.classList.remove("active");
   }
 
-  paint(container, bucketPermsData.length === 0
-    ? html`<p class="list-empty">No permissions. Add one below, or generate a token to create them.</p>`
-    : html`${bucketPermsData.map((p) => html`
+  paint(
+    container,
+    bucketPermsData.length === 0
+      ? html`<p class="list-empty">No permissions. Add one below, or generate a token to create them.</p>`
+      : html`${bucketPermsData.map(
+          (p) => html`
         <div class="permission-row" data-perm=${p.permission}>
           <span class="permission-name">${formatPermission(p.permission)}</span>
           <span class="permission-count">${p.optedIn} in / ${p.optedOut} out</span>
           <button type="button" class="btn-remove" @click=${() => showPermRemoveModal(p.permission)} title="Remove" aria-label="Remove">&times;</button>
-        </div>`)}`);
+        </div>`,
+        )}`,
+  );
 }
 
 async function loadBucketPerms() {
@@ -491,7 +576,11 @@ async function addBucketPermission() {
   }
 
   if (bucketPermsData.some((p) => p.permission === perm)) {
-    notify("warning", "Duplicate permission", "The bucket already has this permission.");
+    notify(
+      "warning",
+      "Duplicate permission",
+      "The bucket already has this permission.",
+    );
     return;
   }
 

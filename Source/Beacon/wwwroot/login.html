@@ -14,181 +14,214 @@
     <!-- LOGIN_PROMO_BAR_PLACEHOLDER -->
 
     <main class="auth-page" id="loginOverlay" hidden>
-      <button type="button" class="btn-icon auth-theme-toggle" id="themeToggle" data-click="cycleTheme" aria-label="Toggle theme">
-        <svg class="theme-icon theme-icon--light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
-        <svg class="theme-icon theme-icon--dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      <button
+        type="button"
+        class="btn-icon auth-theme-toggle"
+        id="themeToggle"
+        data-click="cycleTheme"
+        aria-label="Toggle theme"
+      >
+        <svg
+          class="theme-icon theme-icon--light"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4"></circle>
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+          ></path>
+        </svg>
+        <svg
+          class="theme-icon theme-icon--dark"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
       </button>
       <div class="auth-brand select-none">
         <div class="brand-avatar brand-avatar--lg">
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              class="brand-avatar-bg"
-              aria-hidden="true"
-            >
-              <g clip-path="url(#beacon-avatar-clip)">
-                <rect width="20" height="20" fill="#000" rx="5.5" />
-                <rect
-                  width="20"
-                  height="20"
-                  fill="url(#beacon-avatar-gradient)"
-                  fill-opacity="0.2"
-                  rx="5.5"
-                />
-                <g filter="url(#beacon-avatar-blur-1)" opacity="0.3">
-                  <circle
-                    cx="16"
-                    cy="17"
-                    r="6"
-                    fill="#FF64B4"
-                    fill-opacity="0.671"
-                  />
-                </g>
-                <g filter="url(#beacon-avatar-blur-2)" opacity="0.1">
-                  <circle
-                    cx="16"
-                    cy="16"
-                    r="6"
-                    fill="#FF64B4"
-                    fill-opacity="0.671"
-                  />
-                </g>
-                <g filter="url(#beacon-avatar-blur-3)" opacity="0.4">
-                  <circle
-                    cx="17"
-                    cy="19"
-                    r="6"
-                    fill="#FF64B4"
-                    fill-opacity="0.671"
-                  />
-                </g>
-                <rect
-                  width="20"
-                  height="20"
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            class="brand-avatar-bg"
+            aria-hidden="true"
+          >
+            <g clip-path="url(#beacon-avatar-clip)">
+              <rect width="20" height="20" fill="#000" rx="5.5" />
+              <rect
+                width="20"
+                height="20"
+                fill="url(#beacon-avatar-gradient)"
+                fill-opacity="0.2"
+                rx="5.5"
+              />
+              <g filter="url(#beacon-avatar-blur-1)" opacity="0.3">
+                <circle
+                  cx="16"
+                  cy="17"
+                  r="6"
                   fill="#FF64B4"
-                  fill-opacity="0.15"
-                  rx="5.5"
+                  fill-opacity="0.671"
                 />
-                <g class="blend-hard-light">
-                  <rect
-                    width="20"
-                    height="20"
-                    fill="#6A62FF"
-                    fill-opacity="0.1"
-                    rx="5.5"
-                  />
-                </g>
+              </g>
+              <g filter="url(#beacon-avatar-blur-2)" opacity="0.1">
+                <circle
+                  cx="16"
+                  cy="16"
+                  r="6"
+                  fill="#FF64B4"
+                  fill-opacity="0.671"
+                />
+              </g>
+              <g filter="url(#beacon-avatar-blur-3)" opacity="0.4">
+                <circle
+                  cx="17"
+                  cy="19"
+                  r="6"
+                  fill="#FF64B4"
+                  fill-opacity="0.671"
+                />
               </g>
               <rect
-                width="19"
-                height="19"
-                x="0.5"
-                y="0.5"
-                stroke="#FDFDFD"
-                stroke-opacity="0.1"
-                rx="5"
+                width="20"
+                height="20"
+                fill="#FF64B4"
+                fill-opacity="0.15"
+                rx="5.5"
               />
-              <defs>
-                <filter
-                  id="beacon-avatar-blur-1"
-                  width="32"
-                  height="32"
-                  x="0"
-                  y="1"
-                  color-interpolation-filters="sRGB"
-                  filterUnits="userSpaceOnUse"
-                >
-                  <feFlood flood-opacity="0" result="BackgroundImageFix" />
-                  <feBlend
-                    in="SourceGraphic"
-                    in2="BackgroundImageFix"
-                    result="shape"
-                  />
-                  <feGaussianBlur
-                    result="effect1_foregroundBlur"
-                    stdDeviation="5"
-                  />
-                </filter>
-                <filter
-                  id="beacon-avatar-blur-2"
-                  width="22"
-                  height="22"
-                  x="5"
-                  y="5"
-                  color-interpolation-filters="sRGB"
-                  filterUnits="userSpaceOnUse"
-                >
-                  <feFlood flood-opacity="0" result="BackgroundImageFix" />
-                  <feBlend
-                    in="SourceGraphic"
-                    in2="BackgroundImageFix"
-                    result="shape"
-                  />
-                  <feGaussianBlur
-                    result="effect1_foregroundBlur"
-                    stdDeviation="5"
-                  />
-                </filter>
-                <filter
-                  id="beacon-avatar-blur-3"
-                  width="28"
-                  height="28"
-                  x="3"
-                  y="5"
-                  color-interpolation-filters="sRGB"
-                  filterUnits="userSpaceOnUse"
-                >
-                  <feFlood flood-opacity="0" result="BackgroundImageFix" />
-                  <feBlend
-                    in="SourceGraphic"
-                    in2="BackgroundImageFix"
-                    result="shape"
-                  />
-                  <feGaussianBlur
-                    result="effect1_foregroundBlur"
-                    stdDeviation="5"
-                  />
-                </filter>
-                <linearGradient
-                  id="beacon-avatar-gradient"
-                  x1="10"
-                  y1="0"
-                  x2="10"
-                  y2="20"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop stop-color="#FF64B4" />
-                  <stop offset="1" stop-color="#6A62FF" stop-opacity="0" />
-                </linearGradient>
-                <clipPath id="beacon-avatar-clip">
-                  <rect width="20" height="20" rx="5.5" />
-                </clipPath>
-              </defs>
-            </svg>
-            <svg
-              class="brand-avatar-icon"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
+              <g class="blend-hard-light">
+                <rect
+                  width="20"
+                  height="20"
+                  fill="#6A62FF"
+                  fill-opacity="0.1"
+                  rx="5.5"
+                />
+              </g>
+            </g>
+            <rect
+              width="19"
+              height="19"
+              x="0.5"
+              y="0.5"
               stroke="#FDFDFD"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
-              />
-            </svg>
-          </div>
+              stroke-opacity="0.1"
+              rx="5"
+            />
+            <defs>
+              <filter
+                id="beacon-avatar-blur-1"
+                width="32"
+                height="32"
+                x="0"
+                y="1"
+                color-interpolation-filters="sRGB"
+                filterUnits="userSpaceOnUse"
+              >
+                <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                <feBlend
+                  in="SourceGraphic"
+                  in2="BackgroundImageFix"
+                  result="shape"
+                />
+                <feGaussianBlur
+                  result="effect1_foregroundBlur"
+                  stdDeviation="5"
+                />
+              </filter>
+              <filter
+                id="beacon-avatar-blur-2"
+                width="22"
+                height="22"
+                x="5"
+                y="5"
+                color-interpolation-filters="sRGB"
+                filterUnits="userSpaceOnUse"
+              >
+                <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                <feBlend
+                  in="SourceGraphic"
+                  in2="BackgroundImageFix"
+                  result="shape"
+                />
+                <feGaussianBlur
+                  result="effect1_foregroundBlur"
+                  stdDeviation="5"
+                />
+              </filter>
+              <filter
+                id="beacon-avatar-blur-3"
+                width="28"
+                height="28"
+                x="3"
+                y="5"
+                color-interpolation-filters="sRGB"
+                filterUnits="userSpaceOnUse"
+              >
+                <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                <feBlend
+                  in="SourceGraphic"
+                  in2="BackgroundImageFix"
+                  result="shape"
+                />
+                <feGaussianBlur
+                  result="effect1_foregroundBlur"
+                  stdDeviation="5"
+                />
+              </filter>
+              <linearGradient
+                id="beacon-avatar-gradient"
+                x1="10"
+                y1="0"
+                x2="10"
+                y2="20"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stop-color="#FF64B4" />
+                <stop offset="1" stop-color="#6A62FF" stop-opacity="0" />
+              </linearGradient>
+              <clipPath id="beacon-avatar-clip">
+                <rect width="20" height="20" rx="5.5" />
+              </clipPath>
+            </defs>
+          </svg>
+          <svg
+            class="brand-avatar-icon"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#FDFDFD"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
         <span class="auth-brand-name">Beacon</span>
       </div>
       <form class="auth-box" id="authForm" data-submit="authenticate">
         <h1 id="loginHeading">Sign in</h1>
-        <p id="authOverlayDesc">Enter your API key to sign in.</p>
-        <div class="form-group" id="usernameGroup" hidden>
+        <p id="authOverlayDesc">Enter your credentials to sign in.</p>
+        <div class="form-group" id="usernameGroup">
           <label for="usernameInput">Username</label>
           <input
             type="text"
@@ -196,11 +229,10 @@
             autocomplete="username"
             placeholder="user@example.com"
             required
-            disabled
           />
         </div>
         <div class="form-group">
-          <label for="apiKeyInput" id="apiKeyLabel">API key</label>
+          <label for="apiKeyInput" id="apiKeyLabel">Password</label>
           <input
             type="password"
             id="apiKeyInput"
@@ -221,6 +253,7 @@
           data-click="toggleAuthMode"
           hidden
         ></button>
+        <div class="sso-providers" id="ssoProviders" hidden></div>
       </form>
       <div class="auth-footer"><!-- LOGIN_FOOTER_PLACEHOLDER --></div>
     </main>

@@ -30,9 +30,20 @@ let _rotatedApiKey = "";
 let _newRawApiKey = "";
 
 async function loadApiKeys() {
-  const result = await apiRequest("/api/admin/api-keys");
+  const [result, users] = await Promise.all([
+    apiRequest("/api/admin/api-keys"),
+    apiRequest("/api/admin/users"),
+  ]);
   if (!result.ok) return;
-  _apiKeysAll = result.data || [];
+  const userKeys = (users.ok ? users.data : []).map((u) => ({
+    id: `user-${u.id}`,
+    user: u,
+    name: u.username,
+    permissions: [u.role === "admin" ? "_all" : "user role"],
+    isEnabled: u.isEnabled,
+    createdAt: u.createdAt,
+  }));
+  _apiKeysAll = [...(result.data || []), ...userKeys];
   _apiKeysPage = 1;
   renderApiKeysPage();
 }
@@ -54,7 +65,7 @@ function renderApiKeysPagination() {
   if (info) {
     const start = (_apiKeysPage - 1) * _apiKeysPageSize + 1;
     const end = Math.min(_apiKeysPage * _apiKeysPageSize, total);
-    info.textContent = `${start}–${end} of ${total}`;
+    info.textContent = pageRangeText(start, end, total);
   }
   if (prevBtn) prevBtn.disabled = _apiKeysPage <= 1;
   if (nextBtn) nextBtn.disabled = _apiKeysPage >= totalPages;
@@ -77,16 +88,18 @@ function updateApiKeysPageSize() {
 
 function renderPermissionBadges(permissions) {
   if (!permissions?.length) return html`<span class="text-muted">—</span>`;
-  return permissions.map((p) => html`<span class="status-badge status-badge--sm${p === "_all" ? "" : " status-badge-muted"}">${p}</span>`);
+  return permissions.map(
+    (p) =>
+      html`<span class="status-badge status-badge--sm${p === "_all" ? "" : " status-badge-muted"}">${p}</span>`,
+  );
 }
 
 function apiKeyStatus(k) {
-  if (!k.isEnabled)
-    return { label: "Disabled", tone: "text-muted" };
+  if (!k.isEnabled) return { label: "Disabled", tone: "text-muted" };
   const now = new Date();
-  if (k.activeFrom && now < new Date(k.activeFrom))
+  if (k.activeFrom && now < parseServerDate(k.activeFrom))
     return { label: "Pending", tone: "text-warning" };
-  if (k.activeUntil && now > new Date(k.activeUntil))
+  if (k.activeUntil && now > parseServerDate(k.activeUntil))
     return { label: "Expired", tone: "text-danger" };
   return { label: "Active", tone: "text-success" };
 }
@@ -94,32 +107,60 @@ function apiKeyStatus(k) {
 function renderApiKeysTable(keys) {
   const tbody = document.getElementById("apiKeysBody");
   if (!keys.length) {
-    paint(tbody, html`<tr><td colspan="7"><div class="table-empty-state">
+    paint(
+      tbody,
+      html`<tr><td colspan="7"><div class="table-empty-state">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
           <p class="empty-title">No API keys</p>
           <p class="empty-sub">Add an API key to grant programmatic access.</p>
-        </div></td></tr>`);
+        </div></td></tr>`,
+    );
     return;
   }
-  paint(tbody, html`${keys.map((k) => {
-    const st = apiKeyStatus(k);
-    return html`
+  paint(
+    tbody,
+    html`${keys.map((k) => {
+      const st = apiKeyStatus(k);
+      return html`
         <tr>
-          <td><strong>${k.name}</strong></td>
+          <td><strong>${k.name}</strong>${k.user ? html` <span class="status-badge status-badge--sm status-badge-muted">User</span>` : nothing}</td>
           <td>${renderPermissionBadges(k.permissions)}</td>
           <td><span class=${st.tone}>${st.label}</span></td>
-          <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString(UI_LOCALE) : html`<span class="text-muted">—</span>`}</td>
-          <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
-          <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">Never</span>`}</td>
-          <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, [
-            ["Edit permissions", () => openEditApiKeyPermissionsModal(k.id, k.name, k.permissions || [])],
-            ["Edit validity window", () => openEditApiKeyDatesModal(k.id, k.name, k.activeFrom || "", k.activeUntil || "")],
-            [k.isEnabled ? "Disable" : "Enable", () => toggleApiKeyEnabled(k.id, k.isEnabled)],
+          <td>${k.activeUntil ? parseServerDate(k.activeUntil).toLocaleDateString(UI_LOCALE, { timeZone: "UTC" }) : html`<span class="text-muted">—</span>`}</td>
+          <td>${k.createdAt ? parseServerDate(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
+          <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">${k.user ? "—" : "Never"}</span>`}</td>
+          <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, k.user ? [
+            ["Regenerate key", () => regenerateUserApiKey(k.user.id, k.user.username)],
+          ] : [
+            [
+              "Edit permissions",
+              () =>
+                openEditApiKeyPermissionsModal(
+                  k.id,
+                  k.name,
+                  k.permissions || [],
+                ),
+            ],
+            [
+              "Edit validity window",
+              () =>
+                openEditApiKeyDatesModal(
+                  k.id,
+                  k.name,
+                  k.activeFrom || "",
+                  k.activeUntil || "",
+                ),
+            ],
+            [
+              k.isEnabled ? "Disable" : "Enable",
+              () => toggleApiKeyEnabled(k.id, k.isEnabled),
+            ],
             ["Rotate key", () => rotateApiKey(k.id, k.name)],
             ["Delete", () => deleteApiKey(k.id, k.name), true],
           ])}</td>
         </tr>`;
-  })}`);
+    })}`,
+  );
   staggerRows(tbody);
 }
 
@@ -129,18 +170,25 @@ function buildPermissionCheckboxes(containerId, selected) {
   // Initial sync keeps the saved selection; toggling _all sets every box to match it.
   const syncAllState = (event) => {
     const isAll = container.querySelector('input[value="_all"]').checked;
-    container.querySelectorAll('input[type=checkbox]:not([value="_all"])').forEach((cb) => {
-      if (event || isAll) cb.checked = isAll;
-      cb.disabled = isAll;
-      if (isAll) triggerClass(cb, "cb-flash", 300);
-    });
+    container
+      .querySelectorAll('input[type=checkbox]:not([value="_all"])')
+      .forEach((cb) => {
+        if (event || isAll) cb.checked = isAll;
+        cb.disabled = isAll;
+        if (isAll) triggerClass(cb, "cb-flash", 300);
+      });
   };
-  paint(container, html`${KNOWN_PERMISSIONS.map((p) => html`
+  paint(
+    container,
+    html`${KNOWN_PERMISSIONS.map(
+      (p) => html`
         <label class="check-row">
           <input type="checkbox" value=${p.value} ?checked=${selected.includes(p.value)}
             @change=${p.value === "_all" ? syncAllState : null}>
           ${p.label}
-        </label>`)}`);
+        </label>`,
+    )}`,
+  );
   syncAllState();
 }
 
@@ -156,7 +204,9 @@ function openAddApiKeyModal() {
   document.getElementById("newApiKeyName").value = "";
   const today = new Date();
   document.getElementById("newApiKeyActiveFrom").value = isoDate(today);
-  document.getElementById("newApiKeyActiveUntil").value = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90));
+  document.getElementById("newApiKeyActiveUntil").value = isoDate(
+    new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90),
+  );
   document.getElementById("newApiKeyRevealSection").hidden = true;
   buildPermissionCheckboxes("newApiKeyPermissions", []);
   const btn = document.getElementById("addApiKeyBtn");
@@ -169,8 +219,8 @@ function openAddApiKeyModal() {
   setTimeout(() => document.getElementById("newApiKeyName")?.focus(), 50);
 }
 
-function closeAddApiKeyModal() {
-  closeModal("addApiKeyModal");
+function closeAddApiKeyModal(force) {
+  closeModal("addApiKeyModal", force);
 }
 
 async function createApiKey() {
@@ -188,7 +238,11 @@ async function createApiKey() {
     return;
   }
   if (_apiKeysAll.some((k) => k.name.toLowerCase() === name.toLowerCase())) {
-    notify("error", "Duplicate name", "An API key with this name exists. Choose another name.");
+    notify(
+      "error",
+      "Duplicate name",
+      "An API key with this name exists. Choose another name.",
+    );
     return;
   }
   if (!permissions.length) {
@@ -209,7 +263,11 @@ async function createApiKey() {
   btn.disabled = true;
 
   const body = { name, permissions };
-  if (activeFrom) body.activeFrom = activeFrom === isoDate(new Date()) ? new Date().toISOString() : activeFrom;
+  if (activeFrom)
+    body.activeFrom =
+      activeFrom === isoDate(new Date())
+        ? new Date().toISOString()
+        : activeFrom;
   if (activeUntil) body.activeUntil = activeUntil;
 
   const result = await apiRequest("/api/admin/api-keys", {
@@ -225,6 +283,8 @@ async function createApiKey() {
     const newKeyOut = document.getElementById("newApiKeyOutput");
     newKeyOut.textContent = _newRawApiKey;
     document.getElementById("newApiKeyRevealSection").hidden = false;
+    document.getElementById("newApiKeyRevealSection").setAttribute("data-uncopied", "");
+    markClean("addApiKeyModal");
     triggerClass(newKeyOut, "key-new", 1200);
     btn.querySelector(".btn-label").textContent = "Done";
     document.getElementById("addApiKeyCancelBtn").hidden = true;
@@ -234,6 +294,7 @@ async function createApiKey() {
 
 function copyNewApiKey() {
   if (!_newRawApiKey) return;
+  document.getElementById("newApiKeyRevealSection").removeAttribute("data-uncopied");
   clipboardWrite(_newRawApiKey).then(() => {
     triggerClass(document.getElementById("newApiKeyOutput"), "key-copied", 700);
     notify("success", "API key copied");
@@ -280,6 +341,7 @@ async function rotateApiKey(id, name) {
           `New key for "${name}". Copy it now — it won't be shown again.`;
         const revealOut = document.getElementById("apiKeyRevealOutput");
         revealOut.textContent = _rotatedApiKey;
+        revealOut.setAttribute("data-uncopied", "");
         openModal("apiKeyRevealModal");
         triggerClass(revealOut, "key-new", 1200);
         loadApiKeys();
@@ -288,12 +350,13 @@ async function rotateApiKey(id, name) {
   );
 }
 
-function closeApiKeyRevealModal() {
-  closeModal("apiKeyRevealModal");
+function closeApiKeyRevealModal(force) {
+  closeModal("apiKeyRevealModal", force);
 }
 
 function copyRotatedApiKey() {
   if (!_rotatedApiKey) return;
+  document.getElementById("apiKeyRevealOutput").removeAttribute("data-uncopied");
   clipboardWrite(_rotatedApiKey).then(() => {
     triggerClass(
       document.getElementById("apiKeyRevealOutput"),
@@ -315,8 +378,8 @@ function openEditApiKeyPermissionsModal(id, name, permissions) {
   openModal("editApiKeyPermissionsModal");
 }
 
-function closeEditApiKeyPermissionsModal() {
-  closeModal("editApiKeyPermissionsModal");
+function closeEditApiKeyPermissionsModal(force) {
+  if (!closeModal("editApiKeyPermissionsModal", force)) return;
   _editApiKeyId = null;
 }
 
@@ -339,7 +402,7 @@ async function saveApiKeyPermissions() {
   btn.classList.remove("is-loading");
   btn.disabled = false;
   if (result.ok) {
-    closeEditApiKeyPermissionsModal();
+    closeEditApiKeyPermissionsModal(true);
     loadApiKeys();
     notify("success", "Permissions saved");
   }

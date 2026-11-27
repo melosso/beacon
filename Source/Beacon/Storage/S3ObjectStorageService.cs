@@ -2,7 +2,9 @@ using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Beacon.Security;
 
 namespace Beacon.Storage;
 
@@ -12,7 +14,7 @@ internal sealed class S3ObjectStorageService : IObjectStorageService
     private readonly string _bucket;
     private readonly string _publicUrl;
 
-    public S3ObjectStorageService(ISystemConfigurationService configService)
+    public S3ObjectStorageService(ISystemConfigurationService configService, Encryptor encryptor, OutboundNetwork network)
     {
         var cfg = configService.Get();
         _bucket = cfg.ObjectStorageBucket;
@@ -22,8 +24,9 @@ internal sealed class S3ObjectStorageService : IObjectStorageService
             cfg.ObjectStorageProvider,
             cfg.ObjectStorageEndpoint,
             cfg.ObjectStorageRegion,
-            cfg.ObjectStorageAccessKey,
-            cfg.ObjectStorageSecretKey);
+            encryptor.Decrypt(cfg.ObjectStorageAccessKey),
+            encryptor.Decrypt(cfg.ObjectStorageSecretKey),
+            network.AllowPrivateNetwork);
     }
 
     /// <summary>
@@ -31,11 +34,12 @@ internal sealed class S3ObjectStorageService : IObjectStorageService
     /// the environment. Falls back to us-east-1, which S3-compatible endpoints accept.
     /// </summary>
     internal static AmazonS3Client CreateClient(
-        string? provider, string? endpoint, string? region, string? accessKey, string? secretKey)
+        string? provider, string? endpoint, string? region, string? accessKey, string? secretKey, bool allowPrivateNetwork)
     {
         var config = new AmazonS3Config
         {
-            ForcePathStyle = provider is "r2" or "minio"
+            ForcePathStyle = provider is "r2" or "minio",
+            HttpClientFactory = new GuardedHttpClientFactory(allowPrivateNetwork)
         };
 
         if (!string.IsNullOrWhiteSpace(endpoint))
@@ -50,6 +54,12 @@ internal sealed class S3ObjectStorageService : IObjectStorageService
         }
 
         return new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey), config);
+    }
+
+    internal sealed class GuardedHttpClientFactory(bool allowPrivateNetwork) : HttpClientFactory
+    {
+        public override HttpClient CreateHttpClient(IClientConfig clientConfig) =>
+            new(SsrfGuard.CreateGuardedHandler(allowPrivateNetwork));
     }
 
     public async Task<string> UploadAsync(string key, Stream data, string contentType, CancellationToken ct = default)

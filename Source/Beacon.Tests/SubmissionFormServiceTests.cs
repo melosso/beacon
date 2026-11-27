@@ -806,7 +806,8 @@ public class SubmissionFormServiceTests
             return Task.FromResult<IReadOnlyList<EmailPermissions>>(new List<EmailPermissions>());
         }
 
-        public Task<int> DeleteRecordAsync(string bucket, string emailHash) => Task.FromResult(0);
+        public Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null) => Task.FromResult(0);
+        public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) => Task.FromResult(0);
         public Task<int> DeleteBucketAsync(string bucket) => Task.FromResult(0);
         public Task<int> DeletePermissionAsync(string bucket, string permission) => Task.FromResult(0);
         public Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash) => Task.FromResult(false);
@@ -822,6 +823,9 @@ public class SubmissionFormServiceTests
         public Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null) => throw new NotImplementedException();
         public Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail, string? EncryptedName)>> GetEmailHashMappingsAsync() => throw new NotImplementedException();
         public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null) => throw new NotImplementedException();
+
+        public Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ConsentRecord>>([]);
 
         public Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
         {
@@ -854,10 +858,8 @@ public class SubmissionFormServiceTests
 
         public Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default) => Task.CompletedTask;
         public Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-        public Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-        public Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
 
         private class NoOpDisposable : IDisposable
@@ -875,10 +877,14 @@ public class SubmissionFormServiceTests
             return Task.FromResult<WebhookConfig?>(null);
         }
 
-        public Task<string> SaveWebhookConfigAsync(string bucket, string url, string method, Dictionary<string, string>? headers, string? bodyTemplate)
+        public Task<string?> SaveWebhookConfigAsync(string bucket, string url, string method, Dictionary<string, string>? headers, string? bodyTemplate)
         {
-            return Task.FromResult("test-id");
+            return Task.FromResult<string?>("test-id");
         }
+
+        public Task<string?> RotateWebhookSecretAsync(string bucket) => Task.FromResult<string?>(null);
+        public Task<bool> SetWebhookEnabledAsync(string bucket, bool enabled) => Task.FromResult(false);
+        public Task<IReadOnlyList<WebhookConfig>> GetWebhookConfigsAsync() => Task.FromResult<IReadOnlyList<WebhookConfig>>([]);
 
         public Task DeleteWebhookConfigAsync(string bucket) => Task.CompletedTask;
 

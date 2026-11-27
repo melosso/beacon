@@ -9,6 +9,8 @@ try {
   const saved = JSON.parse(localStorage.getItem("beacon_settings") || "{}");
   if (saved.theme && saved.theme !== "system")
     document.documentElement.setAttribute("data-theme", saved.theme);
+  if (JSON.parse(localStorage.getItem("beacon_sidebar_prefs") || "{}").collapsed)
+    document.documentElement.classList.add("sidebar-collapsed");
   document.documentElement.style.setProperty(
     "--app-font",
     APP_FONTS[saved.font] || APP_FONTS.plex,

@@ -20,19 +20,20 @@ function insertWebhookVar(name) {
   const varText = `{{${name}}}`;
   ta.value = text.substring(0, start) + varText + text.substring(end);
   ta.selectionStart = ta.selectionEnd = start + varText.length;
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
   ta.focus();
 }
 
 function resetWebhookBodyTemplate() {
-  document.getElementById("webhookBody").value = WEBHOOK_DEFAULT_BODY;
-  checkWebhookEmailVar(WEBHOOK_DEFAULT_BODY);
+  const ta = document.getElementById("webhookBody");
+  ta.value = WEBHOOK_DEFAULT_BODY;
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
   closeWebhookTemplateMenu();
 }
 
 function checkWebhookEmailVar(body) {
   const warning = document.getElementById("webhookEmailWarning");
-  if (warning)
-    warning.hidden = !(/\{\{\s*email\s*\}\}/i.test(body));
+  if (warning) warning.hidden = !/\{\{\s*email\s*\}\}/i.test(body);
 }
 
 function toggleWebhookTemplateMenu(trigger) {
@@ -62,11 +63,11 @@ function formatBodyTemplate(template) {
   }
 }
 
-function setWebhookBadge(configured) {
+function setWebhookBadge(configured, enabled = true) {
   const badge = document.getElementById("webhookStatusBadge");
   if (configured) {
-    badge.textContent = "Active";
-    badge.classList.add("active");
+    badge.textContent = enabled ? "Active" : "Disabled";
+    badge.classList.toggle("active", enabled);
   } else {
     badge.textContent = "Not configured";
     badge.classList.remove("active");
@@ -97,6 +98,9 @@ async function showOptionsModal(pushState = true) {
   document.getElementById("deleteWebhookBtn").hidden = true;
   document.getElementById("webhookSecretSection").hidden = true;
   document.getElementById("webhookSecretValue").value = "";
+  document.getElementById("webhookSecretKept").hidden = true;
+  document.getElementById("webhookEnabledRow").hidden = true;
+  document.getElementById("webhookAdvanced").open = false;
   setWebhookBadge(false);
 
   const sections = document.querySelectorAll("#optionsModal .options-section");
@@ -121,7 +125,14 @@ async function showOptionsModal(pushState = true) {
       webhookHeaders = config.headers || {};
       renderWebhookHeaders();
       document.getElementById("deleteWebhookBtn").hidden = false;
-      setWebhookBadge(true);
+      document.getElementById("webhookSecretKept").hidden = false;
+      document.getElementById("webhookEnabledRow").hidden = false;
+      document.getElementById("webhookEnabled").checked = config.isEnabled;
+      document.getElementById("webhookAdvanced").open =
+        document.getElementById("webhookMethod").value !== "POST" ||
+        Object.keys(webhookHeaders).length > 0 ||
+        webhookBodyVal !== WEBHOOK_DEFAULT_BODY;
+      setWebhookBadge(true, config.isEnabled);
 
       sections[2].open = true;
     }
@@ -136,15 +147,23 @@ async function showOptionsModal(pushState = true) {
   if (biContent) {
     if (identity) {
       const accent = safeColor(identity.settings?.primaryAccent, null);
-      paint(biContent, html`<div class="identity-chip">${accent
-        ? html`<span class="swatch" data-vars="--swatch:${accent}"></span>`
-        : nothing}<span>${identity.name}</span></div>`);
+      paint(
+        biContent,
+        html`<div class="identity-chip">${
+          accent
+            ? html`<span class="swatch" data-vars="--swatch:${accent}"></span>`
+            : nothing
+        }<span>${identity.name}</span></div>`,
+      );
       if (biBadge) {
         biBadge.textContent = identity.name;
         biBadge.hidden = false;
       }
     } else {
-      paint(biContent, html`<p class="list-empty">Uses the default identity.</p>`);
+      paint(
+        biContent,
+        html`<p class="list-empty">Uses the default identity.</p>`,
+      );
       if (biBadge) biBadge.hidden = true;
     }
   }
@@ -159,8 +178,8 @@ async function showOptionsModal(pushState = true) {
   }
 }
 
-function closeOptionsModal() {
-  closeModal("optionsModal");
+function closeOptionsModal(force) {
+  if (!closeModal("optionsModal", force)) return false;
   webhookHeaders = {};
   bucketPermsData = [];
   document.getElementById("newBucketPermInput").value = "";
@@ -169,28 +188,39 @@ function closeOptionsModal() {
   const url = new URL(window.location);
   url.searchParams.delete("modal");
   history.replaceState(null, "", url);
+  return true;
 }
 
 async function loadBucketOptions() {
   if (!currentBucket) return;
   const toggle = document.getElementById("bucketDoubleOptIn");
   const label = document.getElementById("bucketDoubleOptInLabel");
-  const desc = document.getElementById("bucketDoubleOptInDesc");
   const emailDisabled =
     typeof DISABLE_EMAIL_NOTIFICATIONS !== "undefined" &&
     DISABLE_EMAIL_NOTIFICATIONS;
-  const globalEnabled = !emailDisabled && appSettings.enableDoubleOptIn;
+  const reason = emailDisabled
+    ? "Email is turned off on this server (DISABLE_EMAIL_NOTIFICATIONS), so confirmation emails cannot be sent."
+    : !appSettings.emailNotifications
+      ? "Email notifications are off. Turn them on under Settings, Integration to send confirmation emails."
+      : (appSettings.emailProvider ?? "none") === "none"
+        ? "No email provider is set. Choose one under Settings, Integration to send confirmation emails."
+        : !appSettings.enableDoubleOptIn
+          ? "Double opt-in is off for all buckets. Turn it on under Settings, Modules to set it per bucket."
+          : null;
+  const globalEnabled = !reason;
+  const reasonEl = document.getElementById("bucketDoubleOptInReason");
+  if (reasonEl) {
+    reasonEl.textContent = reason ?? "";
+    reasonEl.hidden = !reason;
+  }
 
   // Default state: inherit global (true), grayed out when global feature is off or email is disabled
   if (toggle) toggle.checked = true;
   if (toggle) toggle.disabled = !globalEnabled;
-  label?.closest(".toggle-row")?.classList.toggle("is-disabled", !globalEnabled);
-  if (desc)
-    desc.textContent = globalEnabled
-      ? "Subscribers confirm by email. Off: this bucket opts out of the global setting."
-      : emailDisabled
-        ? "Email notifications are disabled by your administrator."
-        : "Enable the global double opt-in setting first to configure this option.";
+  label
+    ?.closest(".toggle-row")
+    ?.querySelectorAll(":scope > div, .toggle-track")
+    .forEach((el) => el.classList.toggle("is-disabled", !globalEnabled));
 
   if (!globalEnabled) return;
 
@@ -250,6 +280,7 @@ function addWebhookHeader() {
 
   webhookHeaders[key] = value;
   renderWebhookHeaders();
+  keyInput.dispatchEvent(new Event("input", { bubbles: true }));
 
   keyInput.value = "";
   valueInput.value = "";
@@ -258,15 +289,21 @@ function addWebhookHeader() {
 function removeWebhookHeader(key) {
   delete webhookHeaders[key];
   renderWebhookHeaders();
+  document
+    .getElementById("webhookHeadersGrid")
+    .dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function renderWebhookHeaders() {
   const grid = document.getElementById("webhookHeadersGrid");
   const entries = Object.entries(webhookHeaders);
 
-  paint(grid, entries.length === 0
-    ? html`<p class="list-empty">No headers.</p>`
-    : html`${entries.map(([key, value]) => html`
+  paint(
+    grid,
+    entries.length === 0
+      ? html`<p class="list-empty">No headers.</p>`
+      : html`${entries.map(
+          ([key, value]) => html`
         <div class="custom-field-row">
           <div class="custom-field-key">${key}</div>
           <div class="custom-field-value">${value}</div>
@@ -276,7 +313,9 @@ function renderWebhookHeaders() {
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
-        </div>`)}`);
+        </div>`,
+        )}`,
+  );
 }
 
 async function saveWebhook() {
@@ -296,14 +335,18 @@ async function saveWebhook() {
     bodyTemplate: bodyTemplate || null,
   };
 
-  const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`, { method: "POST", body: payload });
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`,
+    { method: "POST", body: payload },
+  );
 
   if (result.ok) {
+    markClean("optionsModal");
     if (result.data?.signingSecret) {
-      document.getElementById("webhookSecretValue").value =
-        result.data.signingSecret;
-      document.getElementById("webhookSecretSection").hidden = false;
+      showWebhookSecret(result.data.signingSecret);
       document.getElementById("deleteWebhookBtn").hidden = false;
+      document.getElementById("webhookEnabledRow").hidden = false;
+      document.getElementById("webhookEnabled").checked = true;
       setWebhookBadge(true);
       notify(
         "success",
@@ -312,26 +355,73 @@ async function saveWebhook() {
       );
     } else {
       setWebhookBadge(true);
-      notify(
-        "success",
-        "Webhook saved",
-      );
+      notify("success", "Webhook saved");
       closeOptionsModal();
     }
   }
 }
 
-async function deleteWebhook() {
-  if (!confirm("Delete webhook configuration? This cannot be undone.")) {
+async function setWebhookEnabled(enabled) {
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/enabled`,
+    { method: "PUT", body: { enabled } },
+  );
+  if (!result.ok) {
+    document.getElementById("webhookEnabled").checked = !enabled;
     return;
   }
+  setWebhookBadge(true, enabled);
+  notify("success", enabled ? "Webhook enabled" : "Webhook disabled");
+}
 
-  const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`, { method: "DELETE" });
+function showWebhookSecret(secret) {
+  document.getElementById("webhookSecretValue").value = secret;
+  const box = document.getElementById("webhookSecretSection");
+  box.hidden = false;
+  box.setAttribute("data-uncopied", "");
+  document.getElementById("webhookSecretKept").hidden = true;
+}
+
+function rotateWebhookSecret() {
+  openConfirmModal(
+    "Rotate signing secret?",
+    "Connected services reject requests until they use the new secret.",
+    "Rotate secret",
+    confirmRotateWebhookSecret,
+  );
+}
+
+async function confirmRotateWebhookSecret() {
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/secret`,
+    { method: "POST" },
+  );
+  if (!result.ok) return;
+  showWebhookSecret(result.data.signingSecret);
+  notify(
+    "success",
+    "Secret rotated",
+    "Copy the new signing secret now. The secret is shown once.",
+  );
+}
+
+function deleteWebhook() {
+  openConfirmModal(
+    "Delete webhook?",
+    "Consent changes in this bucket are no longer sent to the endpoint. This cannot be undone.",
+    "Delete webhook",
+    confirmDeleteWebhook,
+  );
+}
+
+async function confirmDeleteWebhook() {
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`,
+    { method: "DELETE" },
+  );
   if (result.ok) {
-    notify(
-      "success",
-      "Webhook deleted",
-    );
+    markClean("optionsModal");
+    notify("success", "Webhook deleted");
     setWebhookBadge(false);
     closeOptionsModal();
   }
@@ -412,13 +502,26 @@ async function loadWebhookErrors(bucket) {
   webhookErrorsCache = errors;
 
   trigger.classList.toggle("has-errors", errors.length > 0);
-  paint(dropdown, errors.length === 0
-    ? EMPTY_NOTIFICATIONS
-    : html`<div class="error-header"><span>Recent errors</span><button class="clear-all-btn" @click=${(e) => { e.stopPropagation(); clearAllWebhookErrors(); }}>Clear all</button></div>
-      ${errors.map((err) => html`<div class="error-item" @click=${(e) => { e.stopPropagation(); openErrorDetail(err); }}>
+  paint(
+    dropdown,
+    errors.length === 0
+      ? EMPTY_NOTIFICATIONS
+      : html`<div class="error-header"><span>Recent errors</span><button class="clear-all-btn" @click=${(
+          e,
+        ) => {
+          e.stopPropagation();
+          clearAllWebhookErrors();
+        }}>Clear all</button></div>
+      ${errors.map(
+        (err) => html`<div class="error-item" @click=${(e) => {
+          e.stopPropagation();
+          openErrorDetail(err);
+        }}>
         <div class="error-time">${formatDate(err.occurredAt)}</div>
         <div class="error-msg">${truncate(err.errorMessage, 120)}${errorStatus(err)}</div>
-      </div>`)}`);
+      </div>`,
+      )}`,
+  );
 }
 
 const EMPTY_NOTIFICATIONS = html`<div class="error-header">Notifications</div><div class="error-empty">No notifications.</div>`;
@@ -428,7 +531,9 @@ function truncate(text, max) {
 }
 
 function errorStatus(err) {
-  return err.statusCode ? html`<span class="error-status">${err.statusCode}</span>` : nothing;
+  return err.statusCode
+    ? html`<span class="error-status">${err.statusCode}</span>`
+    : nothing;
 }
 
 function openOverviewErrorDetail(error) {
@@ -444,13 +549,17 @@ function openOverviewErrorDetail(error) {
 
 function openErrorDetail(error) {
   activeErrorDetail = error;
-  document.getElementById("errorDetailTime").textContent = new Date(
+  document.getElementById("errorDetailTime").textContent = parseServerDate(
     error.occurredAt,
   ).toLocaleString(UI_LOCALE);
   paint(document.getElementById("errorDetailBadge"), errorStatus(error));
   const parts = [];
-  if (error.requestMethod && error.requestUrl) parts.push(`${error.requestMethod} ${error.requestUrl}`);
-  if (error.attemptCount > 0) parts.push(`${error.attemptCount} attempt${error.attemptCount !== 1 ? "s" : ""}`);
+  if (error.requestMethod && error.requestUrl)
+    parts.push(`${error.requestMethod} ${error.requestUrl}`);
+  if (error.attemptCount > 0)
+    parts.push(
+      `${error.attemptCount} attempt${error.attemptCount !== 1 ? "s" : ""}`,
+    );
   document.getElementById("errorDetailRequest").textContent = parts.join(" · ");
 
   document.getElementById("errorDetailMessage").textContent =
@@ -489,7 +598,7 @@ function copyErrorMessage() {
     meta.push(`Request: ${e.requestMethod} ${e.requestUrl}`);
   if (e.statusCode) meta.push(`Status: ${e.statusCode}`);
   if (e.attemptCount > 0) meta.push(`Attempts: ${e.attemptCount}`);
-  meta.push(`Time: ${new Date(e.occurredAt).toLocaleString(UI_LOCALE)}`);
+  meta.push(`Time: ${parseServerDate(e.occurredAt).toLocaleString(UI_LOCALE)}`);
   if (meta.length) text = meta.join("\n") + "\n\n" + text;
   if (e.stackTrace) text += "\n\nStack Trace:\n" + e.stackTrace;
   clipboardWrite(text).then(() => {
@@ -554,13 +663,21 @@ function toggleOverviewWebhookErrors(event) {
 
 function renderOverviewErrorsDropdown() {
   const dropdown = document.getElementById("overviewWebhookErrorsDropdown");
-  paint(dropdown, overviewErrorsCache.length === 0
-    ? EMPTY_NOTIFICATIONS
-    : html`<div class="error-header"><span>Notifications</span></div>
-      ${overviewErrorsCache.map((err) => html`<div class="error-item" @click=${(e) => { e.stopPropagation(); openOverviewErrorDetail(err); }}>
+  paint(
+    dropdown,
+    overviewErrorsCache.length === 0
+      ? EMPTY_NOTIFICATIONS
+      : html`<div class="error-header"><span>Notifications</span></div>
+      ${overviewErrorsCache.map(
+        (err) => html`<div class="error-item" @click=${(e) => {
+          e.stopPropagation();
+          openOverviewErrorDetail(err);
+        }}>
         <div class="error-time"><strong>${err.bucket}</strong> &middot; ${formatDate(err.occurredAt)}</div>
         <div class="error-msg">${truncate(err.errorMessage, 100)}${errorStatus(err)}</div>
-      </div>`)}`);
+      </div>`,
+      )}`,
+  );
 }
 
 // EDIT PERMISSIONS MODAL
@@ -577,10 +694,14 @@ function openEditPermissions(record) {
   document.getElementById("editPermissionsBucket").textContent = editingBucket;
   document.getElementById("editName").value = editingRecord.name || "";
 
-  paint(document.getElementById("editPermissionsGrid"), html`${currentBucketPermissions.map((p) => {
-    // Pending and unrecorded permissions start with no choice: saving leaves them unchanged
-    const state = editingRecord.pendingPermissions?.includes(p) ? undefined : editingRecord.permissions[p];
-    return html`
+  paint(
+    document.getElementById("editPermissionsGrid"),
+    html`${currentBucketPermissions.map((p) => {
+      // Pending and unrecorded permissions start with no choice: saving leaves them unchanged
+      const state = editingRecord.pendingPermissions?.includes(p)
+        ? undefined
+        : editingRecord.permissions[p];
+      return html`
       <div class="permission-row" data-perm=${p}>
         <span class="permission-name">${formatPermission(p)}${editingRecord.pendingPermissions?.includes(p) ? html` ${consentChip(false, true)}` : nothing}</span>
         <div class="permission-toggle">
@@ -588,7 +709,8 @@ function openEditPermissions(record) {
           <button type="button" class="opted-out ${state === false ? "active" : ""}" @click=${(e) => setPermState(e.currentTarget, false)}>Out</button>
         </div>
       </div>`;
-  })}`);
+    })}`,
+  );
 
   document.getElementById("editLanguage").value =
     appSettings.uiLanguage || "en";
@@ -609,40 +731,12 @@ function openEditFromSubscription(bucket, permissions, record) {
   document.getElementById("editPermissionsBucket").textContent = bucket;
 }
 
-function closeEditPermissionsModal() {
-  closeModal("editPermissionsModal");
+function closeEditPermissionsModal(force) {
+  if (!closeModal("editPermissionsModal", force)) return;
   document.getElementById("editName").value = "";
   editingRecord = null;
   editingBucket = "";
 }
-
-function toggleBucketSubmenu(e) {
-  if (e) e.stopPropagation();
-  const submenu = document.getElementById("bucketSubmenu");
-  const wasOpen = submenu.classList.contains("open");
-  closeAllSubmenus();
-  if (!wasOpen) submenu.classList.add("open");
-}
-
-function toggleModulesSubmenu(e) {
-  if (e) e.stopPropagation();
-  const submenu = document.getElementById("modulesSubmenu");
-  const wasOpen = submenu.classList.contains("open");
-  closeAllSubmenus();
-  if (!wasOpen) submenu.classList.add("open");
-}
-
-function closeAllSubmenus() {
-  document
-    .querySelectorAll(".submenu.open")
-    .forEach((el) => el.classList.remove("open"));
-}
-
-document.addEventListener("click", function (e) {
-  if (!e.target.closest(".submenu, .btn-plus")) {
-    closeAllSubmenus();
-  }
-});
 
 function showPermissionsConfirmModal() {
   if (!editingRecord || !editingRecord.email) {
@@ -704,7 +798,7 @@ async function confirmDeleteRecord() {
   if (result.ok) {
     notify("success", "Record deleted");
     closeDeleteRecordModal();
-    closeEditPermissionsModal();
+    closeEditPermissionsModal(true);
     if (currentView === "subscriptions" && subDetailHash) {
       showIdentityDetails(subDetailHash, false);
     } else if (currentBucket) {
@@ -729,11 +823,17 @@ async function savePermissions() {
     .forEach((row) => {
       const chosen = row.querySelector(".opted-in.active, .opted-out.active");
       if (chosen)
-        permissions[row.dataset.perm] = chosen.classList.contains("opted-in") ? "OptedIn" : "OptedOut";
+        permissions[row.dataset.perm] = chosen.classList.contains("opted-in")
+          ? "OptedIn"
+          : "OptedOut";
     });
 
   if (Object.keys(permissions).length === 0) {
-    notify("warning", "Nothing to save", "Choose In or Out for at least one permission.");
+    notify(
+      "warning",
+      "Nothing to save",
+      "Choose In or Out for at least one permission.",
+    );
     return;
   }
 
@@ -756,11 +856,8 @@ async function savePermissions() {
   );
 
   if (result.ok) {
-    notify(
-      "success",
-      "Permissions saved",
-    );
-    closeEditPermissionsModal();
+    notify("success", "Permissions saved");
+    closeEditPermissionsModal(true);
     if (currentBucket) loadBucket(currentBucket);
   }
 }
@@ -897,10 +994,22 @@ function handleSSEEvent(type, data) {
 }
 
 // START
+const URL_SHEETS = {
+  options: ["optionsModal", () => closeOptionsModal()],
+  "new-token": ["newTokenSheet", () => closeNewTokenSheet()],
+  "new-bucket": ["newBucketSheet", () => closeNewBucketSheet()],
+};
+
 window.addEventListener("popstate", () => {
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has("modal")) {
-    closeModal("optionsModal");
+  const modal = new URLSearchParams(window.location.search).get("modal");
+  for (const [key, [id, close]] of Object.entries(URL_SHEETS)) {
+    if (key === modal || !isModalOpen(id)) continue;
+    const url = new URL(window.location);
+    if (!close()) {
+      url.searchParams.set("modal", key);
+      history.pushState(null, "", url);
+      return;
+    }
   }
   restoreViewFromUrl();
 });

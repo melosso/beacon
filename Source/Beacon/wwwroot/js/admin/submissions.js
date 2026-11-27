@@ -119,9 +119,12 @@ async function loadSubmissionForms() {
   if (!result.ok) return;
   const forms = result.data || [];
   const body = document.getElementById("submissionBody");
-  paint(body, forms.length === 0
-    ? html`<tr><td class="table-empty" colspan="7">No submission forms. Create a form to embed on a website.</td></tr>`
-    : html`${forms.map((f, idx) => html`
+  paint(
+    body,
+    forms.length === 0
+      ? html`<tr><td class="table-empty" colspan="7">No submission forms. Create a form to embed on a website.</td></tr>`
+      : html`${forms.map(
+          (f, idx) => html`
         <tr>
           <td><strong>${f.name}</strong></td>
           <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => showBucket(f.bucket)}>${f.bucket}<span class="tooltip">${f.bucket}</span></span></td>
@@ -137,14 +140,18 @@ async function loadSubmissionForms() {
           <td class="col-actions">
             <div class="row-actions">
               <span class="row-status-icons">
-                ${buckets.some((b) => b.name === f.bucket && b.isArchived) ? html`<span class="tooltip-wrapper">
+                ${
+                  buckets.some((b) => b.name === f.bucket && b.isArchived)
+                    ? html`<span class="tooltip-wrapper">
                   <svg class="align-middle text-danger" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                   </svg>
                   <span class="tooltip tooltip-above tooltip-right">Bucket is archived. Submissions are rejected.</span>
-                </span>` : nothing}
+                </span>`
+                    : nothing
+                }
               </span>
               <span class="tooltip-wrapper">
                 <button class="btn-actions" aria-label="Actions" @click=${(e) => toggleNlMenu(e, idx)}>:</button>
@@ -157,7 +164,9 @@ async function loadSubmissionForms() {
               </div>
             </div>
           </td>
-        </tr>`)}`);
+        </tr>`,
+        )}`,
+  );
 }
 
 function toggleRedirectFields() {
@@ -240,10 +249,18 @@ function updateLivePreview() {
   const privacyUrl = document
     .getElementById("nlPrivacyPolicyUrl")
     ?.value.trim();
-  for (const [k, v] of Object.entries({ "--pv-bg": bg, "--pv-fg": fg, "--pv-accent": primary, "--pv-radius": radius }))
+  for (const [k, v] of Object.entries({
+    "--pv-bg": bg,
+    "--pv-fg": fg,
+    "--pv-accent": primary,
+    "--pv-radius": radius,
+  }))
     panel.style.setProperty(k, v);
-  const shortConsent = consentTxt.length > 110 ? consentTxt.slice(0, 110) + "…" : consentTxt;
-  paint(panel, html`
+  const shortConsent =
+    consentTxt.length > 110 ? consentTxt.slice(0, 110) + "…" : consentTxt;
+  paint(
+    panel,
+    html`
     ${title ? html`<h2 class="pv-title">${title}</h2>` : nothing}
     ${description ? html`<p class="pv-desc">${description}</p>` : nothing}
     ${collectName ? html`<input class="pv-input pv-input--block" type="text" placeholder=${nameLabel} disabled>` : nothing}
@@ -252,7 +269,8 @@ function updateLivePreview() {
       <button class="pv-button" disabled>${buttonText}</button>
     </div>
     ${consent ? html`<div class="pv-consent"><input type="checkbox" disabled><span>${shortConsent}</span></div>` : nothing}
-    ${privacyUrl ? html`<p class="pv-privacy"><a href="#" @click=${(e) => e.preventDefault()}>Privacy Policy</a></p>` : nothing}`);
+    ${privacyUrl ? html`<p class="pv-privacy"><a href="#" @click=${(e) => e.preventDefault()}>Privacy Policy</a></p>` : nothing}`,
+  );
 }
 
 function initSubmissionWizard(editData) {
@@ -403,11 +421,7 @@ function submissionWizardNext(step) {
   }
   if (step === 3) {
     if (nlOrigins.length === 0) {
-      notify(
-        "warning",
-        "Origin required",
-        "Add at least one allowed origin.",
-      );
+      notify("warning", "Origin required", "Add at least one allowed origin.");
       return;
     }
   }
@@ -434,7 +448,11 @@ function addSubmissionOrigin() {
     }
     const clean = `${url.protocol}//${url.host}`;
     if (nlOrigins.includes(clean)) {
-      notify("warning", "Duplicate origin", "The origin is already in the list.");
+      notify(
+        "warning",
+        "Duplicate origin",
+        "The origin is already in the list.",
+      );
       return;
     }
     nlOrigins.push(clean);
@@ -456,13 +474,18 @@ function removeSubmissionOrigin(i) {
 
 function renderNlOrigins() {
   const container = document.getElementById("nlOriginsList");
-  paint(container, nlOrigins.length === 0
-    ? html`<p class="list-empty">No origins.</p>`
-    : html`${nlOrigins.map((o, i) => html`
+  paint(
+    container,
+    nlOrigins.length === 0
+      ? html`<p class="list-empty">No origins.</p>`
+      : html`${nlOrigins.map(
+          (o, i) => html`
         <div class="custom-field-row">
           <span class="custom-field-value">${o}</span>
           <button type="button" class="btn-remove" @click=${() => removeSubmissionOrigin(i)} title="Remove" aria-label="Remove origin">&times;</button>
-        </div>`)}`);
+        </div>`,
+        )}`,
+  );
 }
 
 function showNlBucketSuggestions() {
@@ -478,11 +501,17 @@ function showNlBucketSuggestions() {
     dropdown.classList.remove("open");
     return;
   }
-  paint(dropdown, html`${matches.map((b) => html`<div class="autocomplete-item" @click=${() => {
-    input.value = b.name;
-    dropdown.classList.remove("open");
-    checkNlBucketArchived();
-  }}>${b.name}</div>`)}`);
+  paint(
+    dropdown,
+    html`${matches.map(
+      (b) =>
+        html`<div class="autocomplete-item" @click=${() => {
+          input.value = b.name;
+          dropdown.classList.remove("open");
+          checkNlBucketArchived();
+        }}>${b.name}</div>`,
+    )}`,
+  );
   positionDropdown(input, dropdown);
   dropdown.classList.add("open");
 }
@@ -517,18 +546,21 @@ function showNlPermissionSuggestions() {
     dropdown.classList.remove("open");
     return;
   }
-  paint(dropdown, html`${matches.map((p) => {
+  paint(
+    dropdown,
+    html`${matches.map((p) => {
       const prefix = parts
         .slice(0, -1)
         .map((s) => s.trim())
         .filter(Boolean)
         .join(", ");
       const newVal = prefix ? `${prefix}, ${p}` : p;
-    return html`<div class="autocomplete-item" @click=${() => {
-      input.value = newVal;
-      dropdown.classList.remove("open");
-    }}>${formatPermission(p)} <span class="autocomplete-code">${p}</span></div>`;
-  })}`);
+      return html`<div class="autocomplete-item" @click=${() => {
+        input.value = newVal;
+        dropdown.classList.remove("open");
+      }}>${formatPermission(p)} <span class="autocomplete-code">${p}</span></div>`;
+    })}`,
+  );
   positionDropdown(input, dropdown);
   dropdown.classList.add("open");
 }
@@ -627,7 +659,8 @@ async function showEmbedCode(id = previewFormId) {
   updateUrl({ view: "submission-embed", id });
 
   // Set title immediately so it never flashes "Edit" or "Create"
-  document.getElementById("submissionWizardTitle").textContent = "View and share";
+  document.getElementById("submissionWizardTitle").textContent =
+    "View and share";
   document.getElementById("nlIntroTitle").textContent = "Share form";
   document.getElementById("nlIntroDesc").textContent =
     "Embed snippets and the direct link for this form.";
@@ -663,7 +696,9 @@ async function showEmbedCode(id = previewFormId) {
 }
 
 function embedBase() {
-  return typeof PUBLIC_URL !== "undefined" && PUBLIC_URL ? PUBLIC_URL : API_BASE;
+  return typeof PUBLIC_URL !== "undefined" && PUBLIC_URL
+    ? PUBLIC_URL
+    : API_BASE;
 }
 
 function renderEmbedSnippets(formId) {
@@ -672,8 +707,14 @@ function renderEmbedSnippets(formId) {
     `<iframe src="${apiBase}/api/submission/${formId}/embed" style="border:none;width:100%;max-width:480px;min-height:235px;" loading="lazy" title="Submission form"></iframe>`;
   document.getElementById("nlJsCode").textContent =
     `<div id="beacon-nl-${formId}"></div>\n<script src="${apiBase}/api/submission/${formId}/embed.js"><\/script>`;
-  document.getElementById("nlFormCode").textContent = buildFormPostSnippet(apiBase, formId);
-  document.getElementById("nlApiCode").textContent = buildApiSnippet(apiBase, formId);
+  document.getElementById("nlFormCode").textContent = buildFormPostSnippet(
+    apiBase,
+    formId,
+  );
+  document.getElementById("nlApiCode").textContent = buildApiSnippet(
+    apiBase,
+    formId,
+  );
 }
 
 let submissionToRemove = null;
@@ -717,11 +758,7 @@ async function confirmSubmissionRemoval() {
     { method: "DELETE" },
   );
   if (result.ok) {
-    notify(
-      "success",
-      "Form removed",
-      `${submissionToRemove.name} is deleted.`,
-    );
+    notify("success", "Form removed", `${submissionToRemove.name} is deleted.`);
     closeSubmissionRemoveModal();
     loadSubmissionForms();
   }
@@ -842,9 +879,7 @@ ${bodyStr}
 }
 
 function copyNlApiToken() {
-  clipboardWrite(
-    document.getElementById("nlApiToken").textContent,
-  );
+  clipboardWrite(document.getElementById("nlApiToken").textContent);
   notify("success", "API token copied");
 }
 
@@ -926,13 +961,16 @@ function showPreview(id, mode) {
     form.action = actionUrl;
     if (!disableRedirects) form.target = "_self";
     form.className = "preview-form";
-    paint(form, html`
+    paint(
+      form,
+      html`
       ${collectName ? html`<input type="text" name="name" placeholder=${nameLabel} aria-label=${nameLabel} autocomplete="name">` : nothing}
       <input type="email" name="email" placeholder="you@example.com" aria-label="Email" required>
       ${disableRedirects ? nothing : html`<input type="hidden" name="redirect_success" value="about:blank#success"><input type="hidden" name="redirect_error" value="about:blank#error">`}
       ${consentRequired ? html`<label class="pv-consent"><input type="checkbox" name="consent" value="true" required><span>${consentText}</span></label>` : nothing}
       ${/^https?:\/\//i.test(privacyUrl || "") ? html`<p class="pv-privacy"><a href=${privacyUrl} target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>` : nothing}
-      <button type="submit" class="btn btn-primary btn-block">Subscribe</button>`);
+      <button type="submit" class="btn btn-primary btn-block">Subscribe</button>`,
+    );
     if (disableRedirects) {
       const msg = document.createElement("div");
       msg.className = "preview-message";

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Beacon.Core.Services;
@@ -100,28 +102,40 @@ public sealed class SystemConfig
 
     // Data Policies
     [JsonPropertyName("dataPoliciesEnabled")]
-    public bool DataPoliciesEnabled { get; set; }
+    public bool DataPoliciesEnabled { get; set; } = true;
 
     [JsonPropertyName("dataPolicyCron")]
     public string DataPolicyCron { get; set; } = "0 0 * * *";
 
     [JsonPropertyName("retentionPurgeEnabled")]
-    public bool RetentionPurgeEnabled { get; set; }
+    public bool RetentionPurgeEnabled { get; set; } = true;
 
     [JsonPropertyName("retentionPurgeDays")]
     public int RetentionPurgeDays { get; set; } = 1095;
 
     [JsonPropertyName("pendingConfirmationPurgeEnabled")]
-    public bool PendingConfirmationPurgeEnabled { get; set; }
+    public bool PendingConfirmationPurgeEnabled { get; set; } = true;
 
     [JsonPropertyName("pendingConfirmationPurgeDays")]
     public int PendingConfirmationPurgeDays { get; set; } = 30;
 
     [JsonPropertyName("retentionPurgeRequireApproval")]
-    public bool RetentionPurgeRequireApproval { get; set; }
+    public bool RetentionPurgeRequireApproval { get; set; } = true;
 
     [JsonPropertyName("pendingConfirmationPurgeRequireApproval")]
-    public bool PendingConfirmationPurgeRequireApproval { get; set; }
+    public bool PendingConfirmationPurgeRequireApproval { get; set; } = true;
+
+    [JsonPropertyName("requireUserSignIn")]
+    public bool RequireUserSignIn { get; set; }
+
+    [JsonPropertyName("webhooksEnabled")]
+    public bool WebhooksEnabled { get; set; } = true;
+
+    [JsonPropertyName("erasureNoticeEnabled")]
+    public bool ErasureNoticeEnabled { get; set; } = true;
+
+    [JsonPropertyName("erasureNoticeIncludeEmail")]
+    public bool ErasureNoticeIncludeEmail { get; set; }
 
     // Performance / Caching
     [JsonPropertyName("enableCaching")]
@@ -158,6 +172,24 @@ public sealed class SystemConfig
 
     [JsonPropertyName("promoBarShowOnLogin")]
     public bool PromoBarShowOnLogin { get; set; } = false;
+}
+
+public static class SystemConfigStore
+{
+    public static SystemConfig Read(string json)
+    {
+        var config = JsonSerializer.Deserialize<SystemConfig>(json) ?? new SystemConfig();
+        var predatesDefaults = JsonNode.Parse(json) is JsonObject stored && !stored.ContainsKey("erasureNoticeEnabled");
+        if (predatesDefaults && config is { DataPoliciesEnabled: false, RetentionPurgeEnabled: false, PendingConfirmationPurgeEnabled: false })
+        {
+            config.DataPoliciesEnabled = true;
+            config.RetentionPurgeEnabled = true;
+            config.PendingConfirmationPurgeEnabled = true;
+            config.RetentionPurgeRequireApproval = true;
+            config.PendingConfirmationPurgeRequireApproval = true;
+        }
+        return config;
+    }
 }
 
 public interface ISystemConfigurationService

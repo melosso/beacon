@@ -93,9 +93,9 @@
       <input
         type="text"
         id="renameUserInput"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore="true"
+        data-bwignore
+        data-1p-ignore
+        data-lpignore="true"
         placeholder="e.g., user@domain.local"
         autocomplete="off"
         maxlength="100"
@@ -149,9 +149,7 @@
         </svg>
       </button>
     </div>
-    <p >
-      Minimum 12 characters.
-    </p>
+    <p>Minimum 12 characters.</p>
     <div id="accountCurrentPasswordGroup" class="form-group">
       <label
         >Current password
@@ -373,13 +371,13 @@
 </dialog>
 
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="addUserModal"
   aria-labelledby="addUserModalTitle"
   data-self
   data-click="closeAddUserModal"
 >
-  <div class="modal">
+  <div class="modal" data-guard>
     <div class="modal-header">
       <h3 id="addUserModalTitle">Add user</h3>
       <button
@@ -404,20 +402,24 @@
       </button>
     </div>
     <div class="form-group">
-      <label for="newUserUsername">Username <span class="required" title="Required">*</span></label>
+      <label for="newUserUsername"
+        >Username <span class="required" title="Required">*</span></label
+      >
       <input
         type="text"
         id="newUserUsername"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore="true"
+        data-bwignore
+        data-1p-ignore
+        data-lpignore="true"
         placeholder="e.g., user@domain.local"
         autocomplete="off"
         maxlength="100"
       />
     </div>
     <div class="form-group">
-      <label for="newUserPassword">Password <span class="required" title="Required">*</span></label>
+      <label for="newUserPassword"
+        >Password <span class="required" title="Required">*</span></label
+      >
       <div class="input-reveal-wrapper">
         <input
           type="password"
@@ -456,9 +458,9 @@
       <input
         type="password"
         id="newUserConfirmPassword"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore="true"
+        data-bwignore
+        data-1p-ignore
+        data-lpignore="true"
         placeholder="Repeat password"
         autocomplete="new-password"
       />
@@ -492,13 +494,13 @@
 
 <!-- Add API Key modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="addApiKeyModal"
   aria-labelledby="addApiKeyModalTitle"
   data-self
   data-click="closeAddApiKeyModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="addApiKeyModalTitle">Add API key</h3>
       <button
@@ -523,7 +525,9 @@
       </button>
     </div>
     <div class="form-group">
-      <label for="newApiKeyName">Name <span class="required" title="Required">*</span></label>
+      <label for="newApiKeyName"
+        >Name <span class="required" title="Required">*</span></label
+      >
       <input
         type="text"
         id="newApiKeyName"
@@ -536,9 +540,7 @@
       <label
         >Permissions <span class="required" title="Required">*</span></label
       >
-      <div class="field-box"
-        id="newApiKeyPermissions"
-      ></div>
+      <div class="field-box" id="newApiKeyPermissions"></div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -572,7 +574,8 @@
         id="addApiKeyBtn"
         data-click="createApiKey"
       >
-        <span class="btn-label">Create API key</span><span class="spinner"></span>
+        <span class="btn-label">Create API key</span
+        ><span class="spinner"></span>
       </button>
     </div>
   </div>
@@ -627,13 +630,13 @@
 
 <!-- Edit API Key permissions modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="editApiKeyPermissionsModal"
   aria-labelledby="editApiKeyPermissionsModalTitle"
   data-self
   data-click="closeEditApiKeyPermissionsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="editApiKeyPermissionsModalTitle">Edit permissions</h3>
       <button
@@ -658,9 +661,7 @@
       </button>
     </div>
     <p id="editApiKeyPermissionsDesc"></p>
-    <div class="field-box mb-5"
-      id="editApiKeyPermissionsList"
-    ></div>
+    <div class="field-box mb-5" id="editApiKeyPermissionsList"></div>
     <div class="modal-actions">
       <button
         class="btn btn-outline"
@@ -770,7 +771,8 @@
       </button>
     </div>
     <p>
-      Opted-out records past the time limit are wiped of personal info, keeping only an irreversible email hash on the suppression list.
+      Opted-out records past the time limit are wiped of personal info, keeping
+      only an irreversible email hash on the suppression list.
     </p>
     <div class="form-group">
       <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
@@ -825,7 +827,8 @@
       </button>
     </div>
     <p>
-      Expired opt-ins are opted out and wiped of personal info, keeping only an irreversible email hash to block future messages.
+      Expired opt-ins are opted out and wiped of personal info, keeping only an
+      irreversible email hash to block future messages.
     </p>
     <div class="form-group">
       <label for="setting-pendingConfirmationPurgeDays"
@@ -854,4 +857,124 @@
       </button>
     </div>
   </div>
+</dialog>
+
+<dialog
+  class="modal-backdrop sheet"
+  id="oidcProviderSheet"
+  aria-labelledby="oidcProviderTitle"
+  data-self
+  data-click="closeOidcProviderSheet"
+>
+  <form class="modal modal--lg" data-guard data-submit="saveOidcProvider">
+    <div class="modal-header">
+      <h3 id="oidcProviderTitle">Add provider</h3>
+      <button type="button" class="btn btn-icon" data-click="closeOidcProviderSheet" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>Lets users sign in through an OpenID Connect provider, such as Authelia, Authentik, Pocket ID or Keycloak.</p>
+    <div class="form-group">
+      <label for="oidcName">Name</label>
+      <input type="text" id="oidcName" maxlength="100" placeholder="Company SSO" required />
+    </div>
+    <div class="form-group">
+      <label for="oidcSlug">Key</label>
+      <input type="text" id="oidcSlug" maxlength="32" pattern="[a-z0-9-]+" placeholder="company-sso" required data-input="updateOidcRedirectUri" />
+      <div class="field-hint">Lowercase letters, numbers and hyphens. Part of the redirect URI.</div>
+    </div>
+    <div class="form-group">
+      <label for="oidcRedirectUri">Redirect URI</label>
+      <div class="input-row">
+        <input type="text" id="oidcRedirectUri" class="input mono" readonly data-instant />
+        <button type="button" class="btn btn-outline" data-click="copyInput oidcRedirectUri">Copy</button>
+      </div>
+      <div class="field-hint">Register this address at the provider.</div>
+    </div>
+    <div class="form-group">
+      <label for="oidcAuthority">Issuer URL</label>
+      <input type="url" id="oidcAuthority" maxlength="500" placeholder="https://auth.example.com" required />
+    </div>
+    <div class="form-group">
+      <label for="oidcClientId">Client ID</label>
+      <input type="text" id="oidcClientId" maxlength="255" required autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label for="oidcClientSecret">Client secret</label>
+      <input type="password" id="oidcClientSecret" autocomplete="new-password" />
+      <div class="field-hint" id="oidcSecretHint">Leave empty for a public client.</div>
+    </div>
+    <details class="advanced">
+      <summary>Scopes and claims</summary>
+      <div class="form-group">
+        <label for="oidcScopes">Scopes</label>
+        <input type="text" id="oidcScopes" placeholder="openid profile email" />
+      </div>
+      <div class="form-group">
+        <label for="oidcUsernameClaim">Username claim</label>
+        <input type="text" id="oidcUsernameClaim" placeholder="preferred_username" />
+      </div>
+      <div class="form-group">
+        <label for="oidcEmailClaim">Email claim</label>
+        <input type="text" id="oidcEmailClaim" placeholder="email" />
+      </div>
+    </details>
+    <div class="form-group">
+      <label class="checkbox-toggle">
+        <div>
+          <div class="checkbox-toggle-label select-none">Enabled</div>
+          <div class="checkbox-toggle-desc">Shows the sign-in button on the sign-in page.</div>
+        </div>
+        <input type="checkbox" id="oidcEnabled" />
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="checkbox-toggle">
+        <div>
+          <div class="checkbox-toggle-label select-none">Create accounts</div>
+          <div class="checkbox-toggle-desc">Off: only users whose email address matches a verified email at the provider can sign in.</div>
+        </div>
+        <input type="checkbox" id="oidcCreateAccounts" />
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label for="oidcCreatedRole">Role for new accounts</label>
+      <select id="oidcCreatedRole">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-destructive" id="oidcDeleteBtn" data-click="deleteOidcProvider" hidden>Delete</button>
+      <button type="submit" class="btn btn-primary">Save provider</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog
+  class="modal-backdrop"
+  id="ssoPasswordModal"
+  aria-labelledby="ssoPasswordTitle"
+  data-self
+  data-click="closeSsoPasswordModal"
+>
+  <form class="modal modal--sm" data-submit="confirmSsoPassword">
+    <div class="modal-header">
+      <h3 id="ssoPasswordTitle">Confirm your password</h3>
+      <button type="button" class="btn btn-icon" data-click="closeSsoPasswordModal" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p id="ssoPasswordDesc"></p>
+    <div class="form-group">
+      <label for="ssoPasswordInput">Current password</label>
+      <input type="password" id="ssoPasswordInput" autocomplete="current-password" required />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-click="closeSsoPasswordModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="ssoPasswordBtn">Continue</button>
+    </div>
+  </form>
 </dialog>

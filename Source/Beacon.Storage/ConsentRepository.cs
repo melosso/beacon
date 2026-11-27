@@ -1,7 +1,9 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Beacon.Storage;
 
@@ -87,7 +89,6 @@ public sealed class ConsentRepository : IConsentRepository
             Source = record.Source,
             ActorId = actorId,
             ChangedAt = record.ChangedAt,
-            IpAddress = record.IpAddress,
             CustomFields = record.CustomFields
         };
 
@@ -303,6 +304,10 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> DeleteBucketAsync(string bucket)
     {
+        await _context.EmailQueueEntries
+            .Where(e => e.Bucket == bucket)
+            .ExecuteDeleteAsync();
+
         await _context.ConsentAuditEntries
             .Where(e => e.Bucket == bucket)
             .ExecuteDeleteAsync();
@@ -319,16 +324,49 @@ public sealed class ConsentRepository : IConsentRepository
             .ExecuteDeleteAsync();
     }
 
-    public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
+    public async Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null)
     {
+        await using var tx = _context.Database.CurrentTransaction is null ? await _context.Database.BeginTransactionAsync() : null;
+        var erased = await _context.ConsentRecords.AsNoTracking()
+            .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
+            .Select(r => new { r.Permission, r.Status })
+            .ToListAsync();
+
+        await _context.EmailQueueEntries
+            .Where(e => e.Bucket == bucket && e.EmailHash == emailHash)
+            .ExecuteDeleteAsync();
+
         await _context.ConsentAuditEntries
             .Where(e => e.EmailHash == emailHash && e.Bucket == bucket)
             .ExecuteDeleteAsync();
 
-        return await _context.ConsentRecords
+        var deleted = await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
             .ExecuteDeleteAsync();
+
+        var now = DateTime.UtcNow;
+        _context.ConsentAuditEntries.AddRange(erased.Select(r => new ConsentAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            Bucket = bucket,
+            EmailHash = emailHash,
+            Permission = r.Permission,
+            OldStatus = r.Status,
+            NewStatus = ConsentStatus.OptedOut,
+            Source = ConsentSource.Erasure,
+            ActorId = actorId,
+            ChangedAt = now
+        }));
+        await _context.SaveChangesAsync();
+        if (tx is not null) await tx.CommitAsync();
+
+        return deleted;
     }
+
+    public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) =>
+        _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.EncryptedName, encryptedName));
 
     public async Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash)
     {
@@ -524,6 +562,15 @@ public sealed class ConsentRepository : IConsentRepository
         };
     }
 
+    public async Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .AsNoTracking()
+            .Where(r => emailHashes.Contains(r.EmailHash))
+            .OrderBy(r => r.EmailHash).ThenBy(r => r.Bucket).ThenBy(r => r.Permission)
+            .ToListAsync(ct);
+    }
+
     public async Task<IDisposable> BeginTransactionAsync()
     {
         return await _context.Database.BeginTransactionAsync();
@@ -539,15 +586,15 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default)
     {
-        return await _context.ConsentRecords
-            .Where(r => r.Status == ConsentStatus.OptedOut
-                     && r.ChangedAt < cutoff
-                     && r.EncryptedEmail != null)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.EncryptedEmail, (string?)null)
-                .SetProperty(r => r.IpAddress, (string?)null)
-                .SetProperty(r => r.CustomFields, (string?)null)
-                .SetProperty(r => r.ConsentText, (string?)null), ct);
+        await using var tx = _context.Database.CurrentTransaction is null ? await _context.Database.BeginTransactionAsync(ct) : null;
+        var affected = await CountOptedOutToAnonymiseAsync(cutoff, ct);
+        await _context.ConsentRecords
+            .Where(r => r.Status == ConsentStatus.OptedOut && r.ChangedAt < cutoff)
+            .Where(HasPersonalData)
+            .ExecuteUpdateAsync(ScrubPersonalData, ct);
+        await ScrubAuditAsync(cutoff, ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return affected;
     }
 
     public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default)
@@ -565,14 +612,11 @@ public sealed class ConsentRepository : IConsentRepository
             // Per-row guard: a confirmation or renewal committed after the read keeps its record.
             var rows = await _context.ConsentRecords
                 .Where(x => x.Id == r.Id && x.Status == ConsentStatus.PendingConfirmation && x.ChangedAt < cutoff)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.Status, ConsentStatus.OptedOut)
-                    .SetProperty(x => x.ChangedAt, now)
-                    .SetProperty(x => x.EncryptedEmail, (string?)null)
-                    .SetProperty(x => x.EncryptedName, (string?)null)
-                    .SetProperty(x => x.IpAddress, (string?)null)
-                    .SetProperty(x => x.CustomFields, (string?)null)
-                    .SetProperty(x => x.ConsentText, (string?)null), ct);
+                .ExecuteUpdateAsync(s =>
+                {
+                    ScrubPersonalData(s);
+                    s.SetProperty(x => x.Status, ConsentStatus.OptedOut).SetProperty(x => x.ChangedAt, now);
+                }, ct);
             if (rows == 0) continue;
 
             purged++;
@@ -591,16 +635,39 @@ public sealed class ConsentRepository : IConsentRepository
         }
 
         await _context.SaveChangesAsync(ct);
+        await ScrubAuditAsync(cutoff, ct);
         if (tx is not null) await tx.CommitAsync(ct);
         return purged;
     }
 
     public async Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)
     {
-        return await _context.ConsentRecords
-            .CountAsync(r => r.Status == ConsentStatus.OptedOut
-                          && r.ChangedAt < cutoff
-                          && r.EncryptedEmail != null, ct);
+        var optedOut = _context.ConsentRecords.Where(r => r.Status == ConsentStatus.OptedOut && r.ChangedAt < cutoff);
+        var auditLeft = _context.ConsentAuditEntries.Where(e => e.CustomFields != null && e.ChangedAt < cutoff);
+        return await optedOut.Where(HasPersonalData).CountAsync(ct)
+             + await optedOut.Where(NoPersonalData)
+                 .CountAsync(r => auditLeft.Any(e => e.Bucket == r.Bucket && e.EmailHash == r.EmailHash && e.Permission == r.Permission), ct);
+    }
+
+    private static readonly Expression<Func<ConsentRecord, bool>> HasPersonalData = r =>
+        r.EncryptedEmail != null || r.EncryptedName != null || r.CustomFields != null || r.ConsentText != null;
+
+    private static readonly Expression<Func<ConsentRecord, bool>> NoPersonalData =
+        Expression.Lambda<Func<ConsentRecord, bool>>(Expression.Not(HasPersonalData.Body), HasPersonalData.Parameters);
+
+    private static void ScrubPersonalData(UpdateSettersBuilder<ConsentRecord> s) => s
+        .SetProperty(r => r.EncryptedEmail, (string?)null)
+        .SetProperty(r => r.EncryptedName, (string?)null)
+        .SetProperty(r => r.CustomFields, (string?)null)
+        .SetProperty(r => r.ConsentText, (string?)null);
+
+    private Task<int> ScrubAuditAsync(DateTime cutoff, CancellationToken ct)
+    {
+        var scrubbed = _context.ConsentRecords.Where(r => r.Status == ConsentStatus.OptedOut).Where(NoPersonalData);
+        return _context.ConsentAuditEntries
+            .Where(e => e.CustomFields != null && e.ChangedAt < cutoff
+                     && scrubbed.Any(r => r.Bucket == e.Bucket && r.EmailHash == e.EmailHash && r.Permission == e.Permission))
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.CustomFields, (string?)null), ct);
     }
 
     public async Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default)

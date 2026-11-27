@@ -1,15 +1,37 @@
-<!-- Tokens View -->
-<div id="view-new-token" class="view view--scroll">
-  <section class="header-container">
-    <div>
-      <h1>New token</h1>
-      <span class="status-badge">Token management</span>
+<dialog
+  class="modal-backdrop sheet"
+  id="newTokenSheet"
+  aria-labelledby="newTokenTitle"
+  data-self
+  data-click="closeNewTokenSheet"
+>
+  <div class="modal modal--lg" data-guard>
+    <div class="modal-header">
+      <h3 id="newTokenTitle">Add identity</h3>
+      <button
+        class="btn btn-icon"
+        data-click="closeNewTokenSheet"
+        aria-label="Close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
-  </section>
-  <div class="panel">
-    <h3>Consent record</h3>
     <p>
-      Generates a signed token for the preference page. The record is stored in the selected bucket.
+      Creates a consent record in the chosen bucket and a signed link to its
+      preference page.
     </p>
 
     <div id="tokenFormFields">
@@ -52,7 +74,8 @@
         <label for="newPermissionInput">Permissions</label>
         <div
           id="tokenDoubleOptInNotice"
-          class="field-hint select-none mb-2" hidden
+          class="field-hint select-none mb-2"
+          hidden
         >
           <svg
             class="icon-inline"
@@ -221,4 +244,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

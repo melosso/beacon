@@ -15,25 +15,47 @@ public sealed class WebhookService : IWebhookService
     private readonly IWebhookRepository _repository;
     private readonly Encryptor _encryptor;
     private readonly WebhookDeliveryQueue _deliveryQueue;
+    private readonly ISystemConfigurationService? _config;
 
     public WebhookService(
         IWebhookRepository repository,
         Encryptor encryptor,
-        WebhookDeliveryQueue deliveryQueue)
+        WebhookDeliveryQueue deliveryQueue,
+        ISystemConfigurationService? config = null)
     {
         _repository = repository;
         _encryptor = encryptor;
         _deliveryQueue = deliveryQueue;
+        _config = config;
     }
 
-    public async Task<WebhookConfig?> GetWebhookConfigAsync(string bucket)
+    public async Task<WebhookConfig?> GetWebhookConfigAsync(string bucket) =>
+        Decrypt(await _repository.GetByBucketAsync(bucket));
+
+    public async Task<IReadOnlyList<WebhookConfig>> GetWebhookConfigsAsync() =>
+        (await _repository.GetAllAsync()).Select(Decrypt).OfType<WebhookConfig>().OrderBy(c => c.Bucket).ToList();
+
+    public async Task<bool> SetWebhookEnabledAsync(string bucket, bool enabled)
     {
-        var config = await _repository.GetByBucketAsync(bucket);
+        var config = await _repository.GetByBucketAsync(bucket.Trim().ToLowerInvariant());
+        if (config is null)
+        {
+            return false;
+        }
+
+        config.IsEnabled = enabled;
+        await _repository.UpsertAsync(config);
+        return true;
+    }
+
+    private WebhookConfig? Decrypt(WebhookConfig? config)
+    {
         if (config == null)
         {
             return null;
         }
 
+        var bucket = config.Bucket;
         try
         {
             var decryptedConfig = new WebhookConfig
@@ -61,7 +83,7 @@ public sealed class WebhookService : IWebhookService
         }
     }
 
-    public async Task<string> SaveWebhookConfigAsync(
+    public async Task<string?> SaveWebhookConfigAsync(
         string bucket,
         string url,
         string method,
@@ -70,9 +92,10 @@ public sealed class WebhookService : IWebhookService
     {
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
 
-        // Generate a signing secret for HMAC verification
-        var secretBytes = RandomNumberGenerator.GetBytes(32);
-        var secret = Convert.ToBase64String(secretBytes);
+        var existing = await _repository.GetByBucketAsync(normalizedBucket);
+        string? secret = existing is null
+            ? Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            : null;
 
         var config = new WebhookConfig
         {
@@ -83,14 +106,27 @@ public sealed class WebhookService : IWebhookService
             EncryptedHeaders = headers != null && headers.Count > 0
                 ? _encryptor.Encrypt(JsonSerializer.Serialize(headers))
                 : null,
-            EncryptedSecret = _encryptor.Encrypt(secret),
+            EncryptedSecret = secret is null ? null : _encryptor.Encrypt(secret),
             BodyTemplate = bodyTemplate,
-            IsEnabled = true
+            IsEnabled = existing?.IsEnabled ?? true
         };
 
         await _repository.UpsertAsync(config);
 
-        // Return the plaintext secret so the user can configure their receiver
+        return secret;
+    }
+
+    public async Task<string?> RotateWebhookSecretAsync(string bucket)
+    {
+        var config = await _repository.GetByBucketAsync(bucket.Trim().ToLowerInvariant());
+        if (config is null)
+        {
+            return null;
+        }
+
+        var secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        config.EncryptedSecret = _encryptor.Encrypt(secret);
+        await _repository.UpsertAsync(config);
         return secret;
     }
 
@@ -102,6 +138,11 @@ public sealed class WebhookService : IWebhookService
 
     public async Task TriggerWebhookAsync(string bucket, WebhookTriggerData data)
     {
+        if (_config?.Get().WebhooksEnabled == false)
+        {
+            return;
+        }
+
         var config = await _repository.GetByBucketAsync(bucket);
         if (config == null || !config.IsEnabled)
         {

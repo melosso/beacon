@@ -1,12 +1,12 @@
 <!-- Email Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="emailSettingsModal"
   aria-labelledby="emailSettingsModalTitle"
   data-self
   data-click="closeEmailSettingsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="emailSettingsModalTitle">Email notifications</h3>
       <button
@@ -35,10 +35,7 @@
     </p>
     <div class="form-group">
       <label for="emailProvider">Provider</label>
-      <select
-        id="emailProvider"
-        data-change="showEmailProviderFields $value"
-      >
+      <select id="emailProvider" data-change="showEmailProviderFields $value">
         <option value="none">None</option>
         <option value="resend">Resend</option>
         <option value="smtp">SMTP</option>
@@ -145,13 +142,9 @@
           </div>
         </div>
       </div>
-      <label
-        class="settings-item-card mb-3"
-        for="emailSmtpUseTls"
-      >
+      <label class="settings-item-card mb-3" for="emailSmtpUseTls">
         <div class="settings-item-info">
-          <span
-            class="settings-item-title select-none"
+          <span class="settings-item-title select-none"
             >Use TLS / STARTTLS</span
           >
           <p class="settings-item-desc">
@@ -194,8 +187,7 @@
       <hr class="settings-sep" />
       <label class="settings-item-card" for="emailQueueEnabled">
         <div class="settings-item-info">
-          <span
-            class="settings-item-title select-none"
+          <span class="settings-item-title select-none"
             >Built-in email queue</span
           >
           <p class="settings-item-desc">

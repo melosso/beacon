@@ -1,11 +1,22 @@
 // Shared by the login page and the admin shell. Requires /js/lit.js (html, render, nothing).
 
-// The admin UI is English: numbers and dates follow it, day-first with a 24-hour clock, regardless of the browser locale
+// The admin UI is English: dates follow it, day-first with a 24-hour clock, regardless of the browser locale
 const UI_LOCALE = "en-GB";
 
-// "1–10 of 2,080"; "0 of 0" when empty
+// Server stores UTC but may serialize without Z suffix to ensure UTC parsing
+function parseServerDate(value) {
+  const zoned = /(Z|[+-]\d{2}:?\d{2})$/.test(value);
+  return new Date(zoned ? value : `${value}Z`);
+}
+
+const NUMBER_FORMAT = new Intl.NumberFormat();
+
+function formatNumber(value) {
+  return NUMBER_FORMAT.format(value);
+}
+
 function pageRangeText(start, end, total) {
-  const n = (v) => v.toLocaleString(UI_LOCALE);
+  const n = formatNumber;
   return total === 0 ? "0 of 0" : `${n(start)}–${n(end)} of ${n(total)}`;
 }
 
@@ -69,7 +80,9 @@ function bindActions(root = document) {
 document.addEventListener(
   "cancel",
   (e) => {
-    const close = e.target.matches?.("dialog[data-click]") && e.target.dataset.click.split(" ")[0];
+    const close =
+      e.target.matches?.("dialog[data-click]") &&
+      e.target.dataset.click.split(" ")[0];
     if (!close) return;
     e.preventDefault();
     window[close]();
@@ -77,13 +90,78 @@ document.addEventListener(
   true,
 );
 
-function openModal(id) {
-  const dialog = document.getElementById(id);
-  if (!dialog.open) dialog.showModal();
+document.addEventListener("input", (e) => {
+  if (e.target.closest?.("[data-guard]") && !e.target.hasAttribute("data-instant"))
+    e.target.closest("dialog")?.setAttribute("data-dirty", "");
+});
+window.addEventListener("beforeunload", (e) => {
+  if (
+    document.querySelector(
+      "dialog[open][data-dirty], dialog[open] [data-uncopied]:not([hidden])",
+    )
+  )
+    e.preventDefault();
+});
+
+document.addEventListener(
+  "change",
+  (e) => {
+    const box = e.target;
+    if (!box.matches?.("input[type=checkbox]")) return;
+    const turningOn = box.checked;
+    const feature = turningOn ? box.dataset.confirmOn : box.dataset.confirmOff;
+    if (!feature) return;
+    if (box.hasAttribute("data-confirmed")) {
+      box.removeAttribute("data-confirmed");
+      return;
+    }
+    e.stopImmediatePropagation();
+    box.checked = !turningOn;
+    openConfirmModal(
+      `Turn ${turningOn ? "on" : "off"} ${feature}?`,
+      box.dataset.confirmMessage ||
+        "This stops the feature for every bucket and user until someone turns it back on.",
+      turningOn ? "Turn on" : "Turn off",
+      () => {
+        box.checked = turningOn;
+        box.setAttribute("data-confirmed", "");
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+    );
+  },
+  true,
+);
+
+function markClean(id) {
+  document.getElementById(id)?.removeAttribute("data-dirty");
 }
 
-function closeModal(id) {
-  document.getElementById(id)?.close();
+function openModal(id) {
+  const dialog = document.getElementById(id);
+  if (dialog.open) return;
+  dialog.removeAttribute("data-dirty");
+  dialog.showModal();
+}
+
+function closeModal(id, force = false) {
+  const dialog = document.getElementById(id);
+  const uncopied = dialog?.querySelector("[data-uncopied]:not([hidden])");
+  if (!force && (uncopied || dialog?.hasAttribute("data-dirty"))) {
+    const closer = window[dialog.dataset.click?.split(" ")[0]];
+    openConfirmModal(
+      uncopied ? "Close without copying?" : "Discard changes?",
+      uncopied
+        ? "The secret is shown once and cannot be shown again."
+        : "Edits in this panel are not saved.",
+      uncopied ? "Close" : "Discard",
+      () => (closer ? closer(true) : closeModal(id, true)),
+    );
+    return false;
+  }
+  uncopied?.removeAttribute("data-uncopied");
+  dialog?.removeAttribute("data-dirty");
+  dialog?.close();
+  return true;
 }
 
 function isModalOpen(id) {
@@ -104,7 +182,8 @@ function applyVars(root) {
     for (const decl of el.dataset.vars.split(";")) {
       const i = decl.indexOf(":");
       const name = decl.slice(0, i).trim();
-      if (i > 0 && name.startsWith("--")) el.style.setProperty(name, decl.slice(i + 1).trim());
+      if (i > 0 && name.startsWith("--"))
+        el.style.setProperty(name, decl.slice(i + 1).trim());
     }
   }
 }
@@ -192,23 +271,21 @@ function _applyAuthFormMode(isPassword) {
   const secret = document.getElementById("apiKeyInput");
   document.getElementById("usernameGroup").hidden = !isPassword;
   username.disabled = !isPassword;
-  document.getElementById("apiKeyLabel").textContent = isPassword ? "Password" : "API key";
+  document.getElementById("apiKeyLabel").textContent = isPassword
+    ? "Password"
+    : "API key";
   secret.autocomplete = isPassword ? "current-password" : "off";
   document.getElementById("authOverlayDesc").textContent = isPassword
-    ? "Enter your username and password to sign in."
+    ? "Enter your credentials to sign in."
     : "Enter your API key to sign in.";
-  document.getElementById("authToggleBtn").textContent = isPassword ? "Use API key" : "Use password";
+  document.getElementById("authToggleBtn").textContent = isPassword
+    ? "Use API key"
+    : "Use password";
 }
 
 function setupAuthOverlay() {
   const isBoth = AUTH_METHOD === "both";
-  if (isBoth) {
-    const saved = localStorage.getItem("beacon_auth_preference");
-    if (saved === "password" || saved === "apikey") _authFormMode = saved;
-    _applyAuthFormMode(_authFormMode === "password");
-  } else if (AUTH_METHOD === "user" || AUTH_METHOD === "api") {
-    _applyAuthFormMode(AUTH_METHOD === "user");
-  }
+  _applyAuthFormMode(isBoth || AUTH_METHOD === "user");
   document.getElementById("authToggleBtn").hidden = !isBoth;
   document.getElementById("authToggleSep").hidden = !isBoth;
 }
@@ -221,7 +298,6 @@ function showAuthError(message) {
 
 function toggleAuthMode() {
   _authFormMode = _authFormMode === "password" ? "apikey" : "password";
-  localStorage.setItem("beacon_auth_preference", _authFormMode);
   showAuthError("");
   document.getElementById("apiKeyInput").value = "";
   _applyAuthFormMode(_authFormMode === "password");
@@ -283,10 +359,38 @@ async function logout() {
   window.location.href = "/admin/logout";
 }
 
+const SSO_ERRORS = {
+  failed: "Sign-in failed. Retry, or ask an admin to check the provider settings.",
+  denied: "Sign-in was cancelled at the provider.",
+  no_account: "No account matches this sign-in. Ask an admin to add your email address as a user.",
+  inactive: "This account is disabled. Ask an admin to enable it.",
+};
+
+async function loadSsoProviders() {
+  const reason = new URLSearchParams(location.search).get("sso");
+  if (reason) showAuthError(SSO_ERRORS[reason] || SSO_ERRORS.failed);
+  try {
+    const res = await fetch("/api/admin/auth/providers");
+    const providers = res.ok ? await res.json() : [];
+    const el = document.getElementById("ssoProviders");
+    if (!providers.length) return;
+    render(
+      html`${document.getElementById("authToggleSep").hidden ? html`<div class="auth-divider">Or</div>` : nothing}
+        ${providers.map(
+          (p) =>
+            html`<a class="btn btn-outline btn-block" href="/api/admin/auth/oidc/${encodeURIComponent(p.slug)}/start">Continue with ${p.name}</a>`,
+        )}`,
+      el,
+    );
+    el.hidden = false;
+  } catch {}
+}
+
 function initLoginPage() {
   const overlay = document.getElementById("loginOverlay");
   if (!overlay) return;
   setupAuthOverlay();
+  loadSsoProviders();
   if (location.pathname === "/admin/logout") {
     const expired =
       new URLSearchParams(location.search).get("reason") === "expired";
@@ -308,20 +412,28 @@ function showPromoBar() {
   const bar = document.getElementById("promoBar");
   if (!bar) return;
   let dismissed = null;
-  try { dismissed = localStorage.getItem(PROMO_DISMISSED_KEY); } catch {}
+  try {
+    dismissed = localStorage.getItem(PROMO_DISMISSED_KEY);
+  } catch {}
   bar.classList.toggle("is-visible", dismissed !== bar.textContent.trim());
 }
 
 function dismissPromoBar() {
   const bar = document.getElementById("promoBar");
   if (!bar) return;
-  try { localStorage.setItem(PROMO_DISMISSED_KEY, bar.textContent.trim()); } catch {}
+  try {
+    localStorage.setItem(PROMO_DISMISSED_KEY, bar.textContent.trim());
+  } catch {}
   bar.classList.remove("is-visible");
 }
 
 // Same beacon_settings.theme value as the admin Appearance setting and js/theme.js.
 function readSettings() {
-  try { return JSON.parse(localStorage.getItem("beacon_settings") || "{}"); } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem("beacon_settings") || "{}");
+  } catch {
+    return {};
+  }
 }
 
 // data-theme is the applied choice, valid without storage. No attribute: the system preference decides.
@@ -335,7 +447,9 @@ function cycleTheme() {
   const settings = readSettings();
   settings.theme = effectiveTheme() === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", settings.theme);
-  try { localStorage.setItem("beacon_settings", JSON.stringify(settings)); } catch {}
+  try {
+    localStorage.setItem("beacon_settings", JSON.stringify(settings));
+  } catch {}
   syncThemeToggle();
 }
 
@@ -344,11 +458,17 @@ function syncThemeToggle() {
   if (!btn) return;
   const theme = effectiveTheme();
   btn.dataset.mode = theme;
-  btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+  btn.setAttribute(
+    "aria-label",
+    theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+  );
   btn.title = btn.getAttribute("aria-label");
 }
 
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeToggle);
+matchMedia("(prefers-color-scheme: dark)").addEventListener(
+  "change",
+  syncThemeToggle,
+);
 
 function isoDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -359,7 +479,12 @@ function enhanceDateFields() {
     const field = document.createElement("div");
     field.className = "date-field";
     input.replaceWith(field);
-    Object.assign(input, { type: "text", inputMode: "numeric", placeholder: "YYYY-MM-DD", autocomplete: "off" });
+    Object.assign(input, {
+      type: "text",
+      inputMode: "numeric",
+      placeholder: "YYYY-MM-DD",
+      autocomplete: "off",
+    });
     input.pattern = "\\d{4}-\\d{2}-\\d{2}";
     const pickerId = `${input.id}-picker`;
     const close = () => document.getElementById(pickerId).hidePopover();
@@ -382,9 +507,11 @@ function enhanceDateFields() {
       setHeading(cal, new Date(`${cal.focusedDate}T00:00`));
     };
     const setHeading = (cal, date) => {
-      cal.querySelector('[slot="heading"]').textContent = date.toLocaleDateString(UI_LOCALE, { month: "long", year: "numeric" });
+      cal.querySelector('[slot="heading"]').textContent =
+        date.toLocaleDateString(UI_LOCALE, { month: "long", year: "numeric" });
     };
-    render(html`
+    render(
+      html`
       ${input}
       <button type="button" class="date-field-btn" popovertarget=${pickerId} aria-label="Choose date">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -400,7 +527,9 @@ function enhanceDateFields() {
           <button type="button" class="btn btn-outline btn-sm" @click=${() => set(isoDate(new Date()))}>Today</button>
           <button type="button" class="btn btn-outline btn-sm" @click=${() => set("")}>Clear</button>
         </div>
-      </div>`, field);
+      </div>`,
+      field,
+    );
   }
 }
 

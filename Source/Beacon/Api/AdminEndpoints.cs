@@ -123,6 +123,18 @@ public static class AdminEndpoints
             .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
+        routes.MapDelete("/api/admin/identities/{emailHash}", DeleteIdentity)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/identities/delete", DeleteIdentities)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/identities/{emailHash}/name", UpdateIdentityName)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
         routes.MapPost("/api/admin/identities/export", ExportIdentities)
             .RequireAuthorization("ConsentExport")
             .RequireRateLimiting("export")
@@ -141,6 +153,18 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/buckets/{bucket}/webhook", SaveWebhookConfig)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/webhooks", GetWebhooks)
+            .RequireAuthorization("WebhooksRead")
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/buckets/{bucket}/webhook/enabled", SetWebhookEnabled)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapPost("/api/admin/buckets/{bucket}/webhook/secret", RotateWebhookSecret)
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
@@ -680,12 +704,11 @@ public static class AdminEndpoints
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
 
-        if (sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)))
+        var contactSearch = !string.IsNullOrWhiteSpace(search) && searchType is "email" or "name";
+        if (contactSearch || IsContactSort(sortBy))
             return Results.Ok(await GetBucketRecordsSortedByContactAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search, searchType, repository!, encryptor!));
 
-        // For ID search, pass to repository. For email search, we filter after decryption.
-        var idSearch = searchType == "email" ? null : search;
-        var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, idSearch);
+        var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search);
 
         // Decrypt emails and names for admin display
         foreach (var record in result.Records)
@@ -696,28 +719,24 @@ public static class AdminEndpoints
                 try { record.Name = encryptor!.Decrypt(record.EncryptedName); } catch { }
         }
 
-        // If searching by email, filter after decryption
-        var records = result.Records;
-        var total = result.Total;
-        if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLowerInvariant();
-            records = records.Where(r => MatchesWildcard(r.Email, searchLower)).ToList();
-            total = records.Count;
-        }
-
         return Results.Ok(new
         {
-            records,
-            total,
+            records = result.Records,
+            total = result.Total,
             page = result.Page,
             pageSize = result.PageSize
         });
     }
 
+    private static bool IsContactSort(string? sortBy) =>
+        sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase));
+
+    private static string? SearchField(string? searchType, string? email, string? name, string hash) =>
+        searchType switch { "email" => email, "name" => name, _ => hash };
+
     // Email and name are encrypted: load the bucket, decrypt, sort and page in memory.
-    private static async Task<object> GetBucketRecordsSortedByContactAsync(
-        string bucket, int page, int pageSize, string sortBy, string? sortDir, string? search, string? searchType,
+    internal static async Task<object> GetBucketRecordsSortedByContactAsync(
+        string bucket, int page, int pageSize, string? sortBy, string? sortDir, string? search, string? searchType,
         IConsentRepository repository, Encryptor encryptor)
     {
         var all = await repository.GetAllBucketRecordsAsync(bucket);
@@ -731,19 +750,26 @@ public static class AdminEndpoints
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
-            filtered = searchType == "email"
-                ? all.Where(r => MatchesWildcard(r.Email, searchLower))
-                : all.Where(r => MatchesWildcard(r.EmailHash, searchLower));
+            filtered = all.Where(r => MatchesWildcard(SearchField(searchType, r.Email, r.Name, r.EmailHash), searchLower));
         }
 
-        Func<EmailPermissions, string> key = sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)
-            ? r => r.Name ?? string.Empty
-            : r => r.Email ?? string.Empty;
-        // Records without a value sort last in both directions.
-        var withValueFirst = filtered.OrderBy(r => key(r).Length == 0);
-        var sorted = (sortDir?.ToLowerInvariant() == "asc"
-            ? withValueFirst.ThenBy(key, StringComparer.OrdinalIgnoreCase)
-            : withValueFirst.ThenByDescending(key, StringComparer.OrdinalIgnoreCase)).ToList();
+        var ascending = sortDir?.ToLowerInvariant() == "asc";
+        List<EmailPermissions> sorted;
+        if (IsContactSort(sortBy))
+        {
+            Func<EmailPermissions, string> key = sortBy!.Equals("name", StringComparison.OrdinalIgnoreCase)
+                ? r => r.Name ?? string.Empty
+                : r => r.Email ?? string.Empty;
+            // Records without a value sort last in both directions.
+            var withValueFirst = filtered.OrderBy(r => key(r).Length == 0);
+            sorted = (ascending
+                ? withValueFirst.ThenBy(key, StringComparer.OrdinalIgnoreCase)
+                : withValueFirst.ThenByDescending(key, StringComparer.OrdinalIgnoreCase)).ToList();
+        }
+        else
+        {
+            sorted = (ascending ? filtered.OrderBy(r => r.LastChanged) : filtered.OrderByDescending(r => r.LastChanged)).ToList();
+        }
 
         return new
         {
@@ -794,9 +820,12 @@ public static class AdminEndpoints
     private static async Task<IResult> DeleteRecord(
         string bucket,
         string emailHash,
+        HttpContext context,
         [FromServices] IConsentRepository repository,
-        [FromServices] EmailQueueRepository emailQueueRepository,
         [FromServices] AdminNotificationService notifications,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -818,11 +847,39 @@ public static class AdminEndpoints
             emailHash[..Math.Min(12, emailHash.Length)],
             DateTime.UtcNow);
 
-        await emailQueueRepository.DeleteForRecordAsync(normalizedBucket, emailHash);
-        var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
+        var erased = await repository.GetByEmailAsync(normalizedBucket, emailHash);
+        var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash, context.User.Identity?.Name);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
+        await SendErasureNoticeAsync(webhookService, configService.Get(), encryptor, logger, normalizedBucket, emailHash, erased);
 
         return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });
+    }
+
+    internal static async Task SendErasureNoticeAsync(
+        IWebhookService webhookService,
+        SystemConfig config,
+        Encryptor encryptor,
+        ILogger logger,
+        string bucket,
+        string emailHash,
+        IReadOnlyList<ConsentRecord> erased)
+    {
+        if (!config.ErasureNoticeEnabled || erased.Count == 0) return;
+        try
+        {
+            var encryptedEmail = erased.FirstOrDefault(r => r.EncryptedEmail is not null)?.EncryptedEmail;
+            await webhookService.TriggerWebhookAsync(bucket, new WebhookTriggerData
+            {
+                Bucket = bucket,
+                Email = config.ErasureNoticeIncludeEmail && encryptedEmail is not null ? encryptor.Decrypt(encryptedEmail) : string.Empty,
+                EmailHash = emailHash,
+                Permissions = erased.Select(r => new PermissionState { Permission = r.Permission, Status = ConsentStatus.OptedOut }).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Erasure notice failed for bucket {Bucket}", bucket);
+        }
     }
 
     private static async Task<IResult> DeletePermission(
@@ -1127,6 +1184,80 @@ public static class AdminEndpoints
         });
     }
 
+    internal static async Task<IResult> GetWebhooks(
+        HttpContext context,
+        [FromServices] IWebhookService webhookService)
+    {
+        var reveal = context.User.IsInRole("admin");
+        var configs = await webhookService.GetWebhookConfigsAsync();
+        return Results.Ok(configs.Select(c => new
+        {
+            bucket = c.Bucket,
+            url = reveal ? c.EncryptedUrl : MaskUrl(c.EncryptedUrl),
+            method = c.EncryptedMethod,
+            isEnabled = c.IsEnabled,
+            lastTriggeredAt = c.LastTriggeredAt,
+            triggerCount = c.TriggerCount
+        }));
+    }
+
+    internal sealed record WebhookEnabledRequest(bool Enabled);
+
+    internal static async Task<IResult> SetWebhookEnabled(
+        string bucket,
+        [FromBody] WebhookEnabledRequest request,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] BucketRepository bucketRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        if (await bucketRepository.IsArchivedAsync(normalizedBucket))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
+        }
+
+        return await webhookService.SetWebhookEnabledAsync(normalizedBucket, request.Enabled)
+            ? Results.Ok(new { isEnabled = request.Enabled })
+            : Results.NotFound(new { error = "Webhook is not configured" });
+    }
+
+    internal static async Task<string?> RequireUserSignInProblemAsync(BeaconDbContext db, string? userAuthentication)
+    {
+        if (userAuthentication is not ("user" or "both"))
+            return "Password sign-in is off. Set USER_AUTHENTICATION to user or both first.";
+        if (!await db.Users.AnyAsync(u => u.IsEnabled && u.Role == "admin"))
+            return "Add an enabled admin user first, or no one can sign in to the admin panel.";
+        return null;
+    }
+
+    private static async Task<IResult> RotateWebhookSecret(
+        string bucket,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] BucketRepository bucketRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        if (await bucketRepository.IsArchivedAsync(normalizedBucket))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
+        }
+
+        var secret = await webhookService.RotateWebhookSecretAsync(normalizedBucket);
+        return secret is null
+            ? Results.NotFound(new { error = "Webhook is not configured" })
+            : Results.Ok(new { signingSecret = secret });
+    }
+
     private static async Task<IResult> DeleteWebhookConfig(
         string bucket,
         [FromServices] IWebhookService webhookService,
@@ -1317,7 +1448,7 @@ public static class AdminEndpoints
 
         if (search != null && search.Length > 200)
             return Results.BadRequest(new { error = "Search query too long" });
-        if (searchType != null && searchType is not ("id" or "email"))
+        if (searchType != null && searchType is not ("id" or "email" or "name"))
             return Results.BadRequest(new { error = "Invalid searchType" });
         if (sortDir != null && sortDir is not ("asc" or "desc"))
             return Results.BadRequest(new { error = "Invalid sortDir" });
@@ -1326,13 +1457,13 @@ public static class AdminEndpoints
 
         PagedResult<IdentityInfo> result;
 
-        if (sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)))
+        if (IsContactSort(sortBy))
         {
             // Encrypted columns: decrypt in parallel, sort in memory, then paginate.
             result = await GetIdentitiesSortedByContactAsync(
-                page, pageSize, sortBy, sortDir, search, searchType, repository, encryptor, ct);
+                page, pageSize, sortBy!, sortDir, search, searchType, repository, encryptor, ct);
         }
-        else if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
+        else if (searchType is "email" or "name" && !string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
             var mappings = await repository.GetEmailHashMappingsAsync();
@@ -1341,14 +1472,9 @@ public static class AdminEndpoints
                 new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
                 (mapping, token) =>
                 {
-                    if (mapping.EncryptedEmail is null) return ValueTask.CompletedTask;
-                    try
-                    {
-                        var email = encryptor.Decrypt(mapping.EncryptedEmail);
-                        if (email.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
-                            matchingHashes.Add(mapping.EmailHash);
-                    }
-                    catch { }
+                    var value = TryDecrypt(encryptor, searchType == "name" ? mapping.EncryptedName : mapping.EncryptedEmail);
+                    if (MatchesWildcard(value, searchLower))
+                        matchingHashes.Add(mapping.EmailHash);
                     return ValueTask.CompletedTask;
                 });
             result = await repository.GetIdentitiesByHashesAsync([.. matchingHashes], page, pageSize, sortBy, sortDir);
@@ -1396,9 +1522,7 @@ public static class AdminEndpoints
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
-            filtered = searchType == "email"
-                ? decrypted.Where(x => MatchesWildcard(x.Email, searchLower))
-                : decrypted.Where(x => MatchesWildcard(x.Hash, searchLower));
+            filtered = decrypted.Where(x => MatchesWildcard(SearchField(searchType, x.Email, x.Name, x.Hash), searchLower));
         }
 
         Func<(string Hash, string? Email, string? Name), string> key = sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)
@@ -1513,6 +1637,16 @@ public static class AdminEndpoints
                 });
         }
 
+        if (request?.Full == true)
+        {
+            var contactsByHash = records.ToDictionary(r => r.EmailHash);
+            var consent = await repository.GetByEmailHashesAsync([.. contactsByHash.Keys], ct);
+            var parsed = consent.Select(c => (Record: c, Fields: string.IsNullOrEmpty(c.CustomFields) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(c.CustomFields))).ToList();
+            var fieldKeys = parsed.SelectMany(p => p.Fields?.Keys ?? (IEnumerable<string>)[]).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+            var fullRows = parsed.Select(p => FullCopyRow(p.Record, contactsByHash[p.Record.EmailHash], p.Fields, fieldKeys)).ToList();
+            return ExportWriter.Write(context, $"beacon-subscribers-full-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "permission", fullRows);
+        }
+
         var rows = records.Select(r => new ExportWriter.Row
         {
             { "beaconId", r.EmailHash },
@@ -1523,6 +1657,123 @@ public static class AdminEndpoints
             { "updatedAt", ExportWriter.Timestamp(r.LastChanged) }
         }).ToList();
         return ExportWriter.Write(context, $"beacon-subscribers-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "subscriber", rows);
+    }
+
+    internal static async Task<IResult> DeleteIdentity(
+        string emailHash,
+        HttpContext context,
+        [FromServices] IConsentRepository repository,
+        [FromServices] AdminNotificationService notifications,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor,
+        ILogger<Program> logger)
+    {
+        var validation = InputValidator.ValidateEmailHash(emailHash);
+        if (!validation.IsValid)
+            return Results.BadRequest(new { error = validation.Error });
+
+        var result = await EraseIdentityAsync(emailHash.ToLowerInvariant(), context.User.Identity?.Name,
+            repository, notifications, webhookService, configService, encryptor, logger);
+        return result is null
+            ? Results.NotFound()
+            : Results.Ok(new { bucketsDeleted = result.Value.Buckets, permissionsDeleted = result.Value.Permissions });
+    }
+
+    internal sealed record DeleteIdentitiesRequest(IReadOnlyList<string>? Hashes);
+
+    internal static async Task<IResult> DeleteIdentities(
+        [FromBody] DeleteIdentitiesRequest request,
+        HttpContext context,
+        [FromServices] IConsentRepository repository,
+        [FromServices] AdminNotificationService notifications,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor,
+        ILogger<Program> logger)
+    {
+        if (request.Hashes is not { Count: > 0 })
+            return Results.BadRequest(new { error = "Select at least one subscriber" });
+        if (request.Hashes.Count > 1000)
+            return Results.BadRequest(new { error = "Too many subscribers selected. Maximum is 1,000." });
+        foreach (var h in request.Hashes)
+        {
+            var v = InputValidator.ValidateEmailHash(h);
+            if (!v.IsValid) return Results.BadRequest(new { error = $"Invalid hash: {v.Error}" });
+        }
+
+        var identities = 0;
+        foreach (var hash in request.Hashes.Select(h => h.ToLowerInvariant()).Distinct())
+        {
+            if (await EraseIdentityAsync(hash, context.User.Identity?.Name,
+                    repository, notifications, webhookService, configService, encryptor, logger) is not null)
+                identities++;
+        }
+        return Results.Ok(new { identitiesDeleted = identities });
+    }
+
+    private static async Task<(int Buckets, int Permissions)?> EraseIdentityAsync(
+        string hash,
+        string? actorId,
+        IConsentRepository repository,
+        AdminNotificationService notifications,
+        IWebhookService webhookService,
+        ISystemConfigurationService configService,
+        Encryptor encryptor,
+        ILogger logger)
+    {
+        var details = await repository.GetIdentityDetailsAsync(hash);
+        if (details is null)
+            return null;
+
+        var erased = new List<(string Bucket, IReadOnlyList<ConsentRecord> Records)>();
+        var deleted = 0;
+        using (await repository.BeginTransactionAsync())
+        {
+            foreach (var bucket in details.Subscriptions.Select(s => s.Bucket).Distinct())
+            {
+                erased.Add((bucket, await repository.GetByEmailAsync(bucket, hash)));
+                deleted += await repository.DeleteRecordAsync(bucket, hash, actorId);
+            }
+            await repository.CommitTransactionAsync();
+        }
+
+        logger.LogInformation(
+            "Identity deletion: id={EmailId}, buckets={Buckets}, timestamp={Timestamp}",
+            hash[..Math.Min(12, hash.Length)],
+            erased.Count,
+            DateTime.UtcNow);
+
+        var config = configService.Get();
+        foreach (var (bucket, records) in erased)
+        {
+            await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(bucket));
+            await SendErasureNoticeAsync(webhookService, config, encryptor, logger, bucket, hash, records);
+        }
+
+        return (erased.Count, deleted);
+    }
+
+    internal sealed record IdentityNameRequest(string? Name);
+
+    internal static async Task<IResult> UpdateIdentityName(
+        string emailHash,
+        [FromBody] IdentityNameRequest request,
+        [FromServices] IConsentRepository repository,
+        [FromServices] Encryptor encryptor)
+    {
+        var validation = InputValidator.ValidateEmailHash(emailHash);
+        if (!validation.IsValid)
+            return Results.BadRequest(new { error = validation.Error });
+
+        var name = request.Name?.Trim();
+        if (name is { Length: > 250 })
+            return Results.BadRequest(new { error = "Name must be 250 characters or fewer" });
+
+        var updated = await repository.UpdateNameAsync(
+            emailHash.ToLowerInvariant(),
+            string.IsNullOrEmpty(name) ? null : encryptor.Encrypt(name));
+        return updated == 0 ? Results.NotFound() : Results.Ok(new { recordsUpdated = updated });
     }
 
     private static async Task<IResult> GetIdentityDetails(
@@ -1568,24 +1819,32 @@ public static class AdminEndpoints
             ?.Split('+')[0]
         ?? "unknown";
 
-    private static IResult GetSystemConfiguration(
+    internal static IResult GetSystemConfiguration(
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] Encryptor encryptor)
+        [FromServices] Encryptor encryptor) => Results.Ok(Masked(configService.Get(), encryptor));
+
+    private static SystemConfig Masked(SystemConfig source, Encryptor encryptor)
     {
-        var config = configService.Get();
+        var config = JsonSerializer.Deserialize<SystemConfig>(JsonSerializer.Serialize(source))!;
         config.EmailResendApiKey = MaskSecret(encryptor.Decrypt(config.EmailResendApiKey));
         config.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(config.EmailSmtpPassword));
         config.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageAccessKey));
         config.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(config.ObjectStorageSecretKey));
         config.Version = _assemblyVersion;
-        return Results.Ok(config);
+        return config;
     }
 
     private static async Task<IResult> SaveSystemConfiguration(
         [FromBody] SystemConfig config,
         [FromServices] ISystemConfigurationService configService,
-        [FromServices] Encryptor encryptor)
+        [FromServices] Encryptor encryptor,
+        [FromServices] BeaconDbContext db,
+        [FromServices] Microsoft.Extensions.Options.IOptionsMonitor<Beacon.Security.ApiKeyAuthOptions> apiKeyOptions)
     {
+        if (config.RequireUserSignIn && !configService.Get().RequireUserSignIn
+            && await RequireUserSignInProblemAsync(db, apiKeyOptions.Get(Beacon.Security.ApiKeyAuthExtensions.SchemeName).UserAuthentication) is { } signInProblem)
+            return Results.BadRequest(new { error = signInProblem });
+
         if (config.LoginFooter != null && config.LoginFooter.Length > 500)
             return Results.BadRequest(new { error = "Login footer must be 500 characters or less." });
         if (config.PromoBar != null && config.PromoBar.Length > 500)
@@ -1606,13 +1865,7 @@ public static class AdminEndpoints
 
         await configService.SaveAsync(config);
 
-        var saved = configService.Get();
-        saved.EmailResendApiKey = MaskSecret(encryptor.Decrypt(saved.EmailResendApiKey));
-        saved.EmailSmtpPassword = MaskSecret(encryptor.Decrypt(saved.EmailSmtpPassword));
-        saved.ObjectStorageAccessKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageAccessKey));
-        saved.ObjectStorageSecretKey = MaskSecret(encryptor.Decrypt(saved.ObjectStorageSecretKey));
-
-        return Results.Ok(saved);
+        return Results.Ok(Masked(configService.Get(), encryptor));
     }
 
     internal static string? ValidateObjectStorage(SystemConfig c, SystemConfig? existing = null)
@@ -1647,17 +1900,18 @@ public static class AdminEndpoints
 
     private static async Task<IResult> TestObjectStorageConnection(
         [FromBody] ObjectStorageTestRequest request,
+        [FromServices] Beacon.Security.OutboundNetwork network,
         CancellationToken ct)
     {
         // A custom endpoint is an arbitrary URL; without this the probe is an internal port scanner
         // whose results are read back through the error message.
-        if (!string.IsNullOrWhiteSpace(request.Endpoint) &&
+        if (!network.AllowPrivateNetwork && !string.IsNullOrWhiteSpace(request.Endpoint) &&
             await Beacon.Security.SsrfGuard.ResolveAndValidateAsync(request.Endpoint, ct) is null)
         {
             return Results.Ok(new
             {
                 success = false,
-                message = "Endpoint must be an http(s) URL that resolves to a public address.",
+                message = "Endpoint must be an http(s) URL that resolves to a public address. Set ALLOW_PRIVATE_NETWORK=true to allow storage on your own network.",
                 latencyMs = 0
             });
         }
@@ -1665,7 +1919,7 @@ public static class AdminEndpoints
         try
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            using var client = BuildTestS3Client(request);
+            using var client = BuildTestS3Client(request, network.AllowPrivateNetwork);
             await client.GetBucketLocationAsync(request.Bucket, ct);
             sw.Stop();
 
@@ -1687,9 +1941,9 @@ public static class AdminEndpoints
         }
     }
 
-    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req) =>
+    private static Amazon.S3.AmazonS3Client BuildTestS3Client(ObjectStorageTestRequest req, bool allowPrivateNetwork) =>
         S3ObjectStorageService.CreateClient(
-            req.Provider, req.Endpoint, req.Region, req.AccessKey, req.SecretKey);
+            req.Provider, req.Endpoint, req.Region, req.AccessKey, req.SecretKey, allowPrivateNetwork);
 
     private static async Task<IResult> FlushCache(
         [FromServices] IBeaconCacheService cache,
@@ -1869,7 +2123,31 @@ public static class AdminEndpoints
 
     internal sealed record ExportIdentitiesRequest(
         IReadOnlyList<string>? Hashes = null,
-        string Format = "csv");
+        string Format = "csv",
+        bool Full = false);
+
+    internal static ExportWriter.Row FullCopyRow(ConsentRecord record, IdentityInfo contact, IReadOnlyDictionary<string, string>? fields, IReadOnlyList<string> fieldKeys)
+    {
+        var row = new ExportWriter.Row
+        {
+            { "beaconId", record.EmailHash },
+            { "email", contact.Email },
+            { "name", contact.Name },
+            { "bucket", record.Bucket },
+            { "permission", record.Permission },
+            { "status", JsonNamingPolicy.CamelCase.ConvertName(record.Status.ToString()) },
+            { "source", JsonNamingPolicy.CamelCase.ConvertName(record.Source.ToString()) },
+            { "consentText", record.ConsentText },
+            { "changedAt", ExportWriter.Timestamp(record.ChangedAt) }
+        };
+        if (fieldKeys.Count > 0)
+        {
+            var group = new ExportWriter.Row();
+            foreach (var key in fieldKeys) group.Add(key, fields?.GetValueOrDefault(key));
+            row.Add("customFields", group);
+        }
+        return row;
+    }
 
     internal sealed record ExportBucketRecordsRequest(
         IReadOnlyList<string>? Hashes = null,

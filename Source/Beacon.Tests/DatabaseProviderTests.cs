@@ -1,6 +1,7 @@
 using Beacon.Core.Models;
 using Beacon.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Testcontainers.MsSql;
 using Testcontainers.MySql;
 using Testcontainers.PostgreSql;
@@ -37,6 +38,89 @@ public abstract class DatabaseProviderTests
         using var db = CreateDbContext();
         // Non-SQLite providers return after EnsureCreated; SQLite runs the full migrator.
         DatabaseMigrator.Initialize(db);
+    }
+
+    [Fact]
+    public async Task Cli_AccountsRoundTrip()
+    {
+        await using var db = CreateDbContext();
+        DatabaseMigrator.Initialize(db);
+        var name = $"cli-{Guid.NewGuid():N}"[..20];
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "create", name, "user"], new StringReader("correct-horse-battery"), output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "disable", name], TextReader.Null, output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "list"], TextReader.Null, output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "delete", name], TextReader.Null, output, error, TestContext.Current.CancellationToken));
+
+        Assert.Contains($"{name}", output.ToString());
+        Assert.Equal("", error.ToString());
+        Assert.False(await db.Users.AnyAsync(u => u.Username == name, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task OidcClaim_TwoInstancesRacing_ExactlyOneWins()
+    {
+        await using (var db = CreateDbContext())
+            DatabaseMigrator.Initialize(db);
+
+        for (var round = 0; round < 10; round++)
+        {
+            var state = Guid.NewGuid().ToString("N");
+            await using (var db = CreateDbContext())
+            {
+                db.OidcPendingFlows.Add(new OidcPendingFlow
+                {
+                    State = state, ProviderId = Guid.NewGuid(), Verifier = "v", Nonce = "n", RedirectUri = "https://beacon.example.test/cb",
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(5)
+                });
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            await using var a = CreateDbContext();
+            await using var b = CreateDbContext();
+            var results = a.Database.IsSqlite()
+                ? [await Beacon.Security.OidcFlow.ClaimAsync(a, state), await Beacon.Security.OidcFlow.ClaimAsync(b, state)]
+                : await Task.WhenAll(Beacon.Security.OidcFlow.ClaimAsync(a, state), Beacon.Security.OidcFlow.ClaimAsync(b, state));
+
+            Assert.Single(results, r => r is not null);
+        }
+    }
+
+    [Fact]
+    public async Task DatabaseMigrator_RestoresMissingTableAndColumn()
+    {
+        await using (var db = CreateDbContext())
+        {
+            DatabaseMigrator.Initialize(db);
+            var users = db.Model.FindEntityType(typeof(User))!.GetTableName();
+            var providers = db.Model.FindEntityType(typeof(OidcProvider))!.GetTableName();
+            var sql = db.GetService<Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper>();
+#pragma warning disable EF1002
+            await db.Database.ExecuteSqlRawAsync($"DROP TABLE {sql.DelimitIdentifier(providers!)}", TestContext.Current.CancellationToken);
+            await db.Database.ExecuteSqlRawAsync($"ALTER TABLE {sql.DelimitIdentifier(users!)} DROP COLUMN {sql.DelimitIdentifier("Email")}", TestContext.Current.CancellationToken);
+#pragma warning restore EF1002
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            DatabaseMigrator.Initialize(db);
+            var id = Guid.NewGuid().ToString("N")[..8];
+            db.OidcProviders.Add(new OidcProvider { Slug = $"p-{id}", Name = "P", Authority = "https://idp.example.test", ClientId = "c" });
+            db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(), Username = $"u-{id}", PasswordHash = "h", Salt = "s",
+                ApiKeyHash = id + new string('0', 56), CreatedAt = DateTime.UtcNow, Email = $"{id}@example.com"
+            });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            Assert.True(await db.OidcProviders.AnyAsync(TestContext.Current.CancellationToken));
+            Assert.True(await db.Users.AnyAsync(u => u.Email != null, TestContext.Current.CancellationToken));
+        }
     }
 
     [Fact]
@@ -167,6 +251,27 @@ public abstract class DatabaseProviderTests
         Assert.Null(record.EncryptedEmail);
         Assert.Null(record.EncryptedName);
         Assert.True(await db.ConsentAuditEntries.AnyAsync(a => a.Bucket == bucket && a.NewStatus == ConsentStatus.OptedOut, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AnonymiseOptedOutAsync_WipesRecordAndAuditCustomFields()
+    {
+        var bucket = $"anon-{Guid.NewGuid():N}"[..20];
+        await using var db = CreateDbContext();
+        var repo = new ConsentRepository(db);
+        var seeded = MakeRecord(bucket, "h", "email", ConsentStatus.OptedOut, "enc", "name");
+        seeded.CustomFields = """{"city":"Utrecht"}""";
+        await repo.UpsertAsync(seeded);
+        db.ChangeTracker.Clear();
+
+        Assert.True(await repo.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken) >= 1);
+        db.ChangeTracker.Clear();
+
+        var record = await repo.GetAsync(bucket, "h", "email");
+        Assert.Equal(ConsentStatus.OptedOut, record!.Status);
+        Assert.Null(record.EncryptedName);
+        Assert.Null(record.CustomFields);
+        Assert.False(await db.ConsentAuditEntries.AnyAsync(a => a.Bucket == bucket && a.CustomFields != null, TestContext.Current.CancellationToken));
     }
 
     [Fact]

@@ -8,9 +8,11 @@ public static class DatabaseMigrator
     {
         db.Database.EnsureCreated();
 
-        // Manual migration only applies to SQLite; other providers rely on EnsureCreated schema.
         if (!db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) ?? true)
+        {
+            SchemaReconciler.Apply(db);
             return;
+        }
 
         MigrateConsentRecords(db);
         MigrateWebhookConfigs(db);
@@ -52,7 +54,6 @@ public static class DatabaseMigrator
     private static void MigrateConsentRecords(BeaconDbContext db)
     {
         AddColumnIfMissing(db, "ConsentRecords", "CustomFields", "TEXT NULL");
-        AddColumnIfMissing(db, "ConsentRecords", "IpAddress", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "ConsentText", "TEXT NULL");
         AddColumnIfMissing(db, "ConsentRecords", "EncryptedName", "TEXT NULL");
     }
@@ -220,6 +221,55 @@ public static class DatabaseMigrator
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_Username ON Users (Username COLLATE NOCASE)");
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_ApiKeyHash ON Users (ApiKeyHash)");
         }
+
+        AddColumnIfMissing(db, "Users", "Provider", "TEXT NULL");
+        AddColumnIfMissing(db, "Users", "ExternalId", "TEXT NULL");
+        AddColumnIfMissing(db, "Users", "Email", "TEXT NULL");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Users_Provider_ExternalId ON Users (Provider, ExternalId)");
+
+        if (TableExists(db, "OidcProviders") && db.Database.SqlQuery<string>($"SELECT type AS Value FROM pragma_table_info('OidcProviders') WHERE name = 'Id'").AsEnumerable().FirstOrDefault() == "INTEGER")
+        {
+            db.Database.ExecuteSqlRaw("DROP TABLE IF EXISTS OidcPendingFlows");
+            db.Database.ExecuteSqlRaw("DROP TABLE OidcProviders");
+        }
+
+        if (!TableExists(db, "OidcProviders"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE OidcProviders (
+                    Id TEXT NOT NULL PRIMARY KEY,
+                    Slug TEXT NOT NULL,
+                    Name TEXT NOT NULL,
+                    Authority TEXT NOT NULL,
+                    ClientId TEXT NOT NULL,
+                    EncryptedClientSecret TEXT NOT NULL DEFAULT '',
+                    Scopes TEXT NOT NULL DEFAULT 'openid profile email',
+                    UsernameClaim TEXT NOT NULL DEFAULT 'preferred_username',
+                    EmailClaim TEXT NOT NULL DEFAULT 'email',
+                    IsEnabled INTEGER NOT NULL DEFAULT 0,
+                    CreateAccounts INTEGER NOT NULL DEFAULT 0,
+                    CreatedRole TEXT NOT NULL DEFAULT 'user',
+                    CreatedAt TEXT NOT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_OidcProviders_Slug ON OidcProviders (Slug)");
+        }
+
+        if (!TableExists(db, "OidcPendingFlows"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE OidcPendingFlows (
+                    State TEXT NOT NULL PRIMARY KEY,
+                    ProviderId TEXT NOT NULL,
+                    Verifier TEXT NOT NULL,
+                    Nonce TEXT NOT NULL,
+                    RedirectUri TEXT NOT NULL,
+                    ExpiresAt TEXT NOT NULL,
+                    LinkUserId TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_OidcPendingFlows_ExpiresAt ON OidcPendingFlows (ExpiresAt)");
+        }
     }
 
     private static void MigrateWorkflowTasks(BeaconDbContext db)
@@ -263,8 +313,7 @@ public static class DatabaseMigrator
                     NewStatus INTEGER NOT NULL,
                     Source INTEGER NOT NULL,
                     ActorId TEXT NULL,
-                    ChangedAt TEXT NOT NULL,
-                    IpAddress TEXT NULL
+                    ChangedAt TEXT NOT NULL
                 )
                 """);
             db.Database.ExecuteSqlRaw(

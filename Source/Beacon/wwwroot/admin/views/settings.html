@@ -129,7 +129,7 @@
                   <p class="settings-item-desc">Preference pages show each subscriber's saved choices, not the defaults stored in their link.</p>
                 </div>
                 <div class="settings-item-control">
-                  <input type="checkbox" id="setting-allowDbLookup" data-change="saveSettingImmediate allowDbLookup $checked">
+                  <input type="checkbox" id="setting-allowDbLookup" data-confirm-off="saved choices" data-change="saveSettingImmediate allowDbLookup $checked">
                   <span class="toggle-track"></span>
                 </div>
               </label>
@@ -155,7 +155,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableSubmissionForms" data-change="saveSettingImmediate enableSubmissionForms $checked">
+                      <input type="checkbox" id="setting-enableSubmissionForms" data-confirm-off="submission forms" data-change="saveSettingImmediate enableSubmissionForms $checked">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -174,7 +174,7 @@
                     <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active. Requires email notifications to be configured.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableDoubleOptIn" data-change="saveSettingImmediate enableDoubleOptIn $checked">
+                    <input type="checkbox" id="setting-enableDoubleOptIn" data-confirm-off="double opt-in" data-change="saveSettingImmediate enableDoubleOptIn $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -192,7 +192,7 @@
                     <p class="settings-item-desc">Saves campaign tags from preference links with each consent change. Mention this in your privacy policy first.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableUtmTracking" data-change="saveSettingImmediate enableUtmTracking $checked">
+                    <input type="checkbox" id="setting-enableUtmTracking" data-confirm-off="UTM tracking" data-change="saveSettingImmediate enableUtmTracking $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -215,7 +215,7 @@
                     <p class="settings-item-desc">Run automated data lifecycle rules on a scheduled basis. Disabling this pauses all policies without changing their configuration.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-dataPoliciesEnabled" data-change="toggleDataPoliciesEnabled $checked">
+                    <input type="checkbox" id="setting-dataPoliciesEnabled" data-confirm-off="data policies" data-change="toggleDataPoliciesEnabled $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -243,17 +243,17 @@
                     <label for="setting-retentionPurgeEnabled">
                       <div class="settings-item-info">
                         <span class="settings-item-title select-none">Opted-out anonymisation</span>
-                        <p class="settings-item-desc">Removes personal data from opted-out records after a set period. The email hash and opt-out status are retained for suppression.</p>
+                        <p class="settings-item-desc">Opted-out records past the time limit are wiped of personal info, keeping only an irreversible email hash on the suppression list.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeEnabled" data-change="saveSettingImmediate retentionPurgeEnabled $checked">
+                        <input type="checkbox" id="setting-retentionPurgeEnabled" data-confirm-off="opted-out anonymisation" data-change="saveSettingImmediate retentionPurgeEnabled $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-retentionPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" data-change="saveSettingImmediate retentionPurgeRequireApproval $checked">
+                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" data-confirm-off="manual approval" data-change="saveSettingImmediate retentionPurgeRequireApproval $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
@@ -268,17 +268,17 @@
                     <label for="setting-pendingConfirmationPurgeEnabled">
                       <div class="settings-item-info">
                         <span class="settings-item-title select-none">Pending confirmation cleanup</span>
-                        <p class="settings-item-desc">Opts out and anonymises unconfirmed double opt-in attempts after a set period.</p>
+                        <p class="settings-item-desc">Expired opt-ins are opted out and wiped of personal info, keeping only an irreversible email hash to block future messages.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" data-change="saveSettingImmediate pendingConfirmationPurgeEnabled $checked">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" data-confirm-off="pending confirmation cleanup" data-change="saveSettingImmediate pendingConfirmationPurgeEnabled $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-pendingConfirmationPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" data-change="saveSettingImmediate pendingConfirmationPurgeRequireApproval $checked">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" data-confirm-off="manual approval" data-change="saveSettingImmediate pendingConfirmationPurgeRequireApproval $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
@@ -450,7 +450,7 @@
                     <p class="settings-item-desc">Send outgoing emails via a configured provider, e.g. for opt-in confirmations.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-emailNotifications" data-change="onEmailNotificationsToggle $el">
+                    <input type="checkbox" id="setting-emailNotifications" data-confirm-off="email notifications" data-change="onEmailNotificationsToggle $el">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -469,7 +469,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-objectStorage" data-change="onObjectStorageToggle $el">
+                      <input type="checkbox" id="setting-objectStorage" data-confirm-off="object storage" data-change="onObjectStorageToggle $el">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -532,6 +532,13 @@
                 <button class="btn btn-outline" id="usersPrevBtn" data-click="changeUsersPage -1">Previous</button>
                 <button class="btn btn-outline" id="usersNextBtn" data-click="changeUsersPage 1">Next</button>
               </div>
+            </div>
+            <div class="mt-6">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="settings-item-title select-none">Sign-in providers</h4>
+                <button class="btn btn-outline btn-sm" data-click="openOidcProviderSheet">Add provider</button>
+              </div>
+              <div id="oidcProvidersList"></div>
             </div>
           </div>
 
@@ -622,9 +629,16 @@
                 <div class="settings-item-block items-center">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">API Key</span>
-                    <p class="settings-item-desc">Programmatic access key. Regenerating revokes the previous key immediately.</p>
+                    <p class="settings-item-desc">Regenerating immediately invalidates your active key.</p>
                   </div>
                   <button class="btn btn-outline" data-click="regenerateOwnApiKey">Regenerate key</button>
+                </div>
+                <div class="settings-item-block items-center" id="accountSsoItem" hidden>
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Single sign-on</span>
+                    <p class="settings-item-desc" id="accountSsoDesc"></p>
+                  </div>
+                  <div class="flex gap-2 shrink-0" id="accountSsoActions"></div>
                 </div>
               </div>
               <p id="accountGlobalAdminNotice" class="field-hint select-none" hidden>
@@ -678,7 +692,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableCaching" data-change="saveSettingImmediate enableCaching $checked">
+                      <input type="checkbox" id="setting-enableCaching" data-confirm-off="caching" data-change="saveSettingImmediate enableCaching $checked">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -690,6 +704,16 @@
                   </svg>
                 </button>
               </div>
+              <label class="settings-item-card" for="setting-requireUserSignIn">
+                <div class="settings-item-info">
+                  <span class="settings-item-title select-none">Require user sign-in</span>
+                  <p class="settings-item-desc">Only user accounts can sign in to the admin panel. API keys keep working for the API. Current API key sessions end.</p>
+                </div>
+                <div class="settings-item-control">
+                  <input type="checkbox" id="setting-requireUserSignIn" data-confirm-on="user sign-in" data-confirm-message="Anyone signed in to the admin panel with an API key is signed out. API keys keep working for the API." data-change="saveSettingImmediate requireUserSignIn $checked">
+                  <span class="toggle-track"></span>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -700,23 +724,52 @@
             </div>
             <hr class="settings-sep">
             <div class="settings-items">
-              <div class="settings-item-card settings-item-card--static">
-                <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Webhooks</span>
-                  <p class="settings-item-desc">Send every consent change to your own system. Set the address under each bucket's Options.</p>
-                </div>
-                <span class="status-badge select-none">Per bucket</span>
-              </div>
               <div class="settings-item-card settings-item-card--split">
                 <div class="settings-item-card-label settings-item-card-label--static">
                   <div class="settings-item-info">
                     <span class="settings-item-title select-none">REST API</span>
-                    <p class="settings-item-desc">Read and update consent from other systems with a scoped API key.</p>
+                    <p class="settings-item-desc">Read and update consent from connected systems using a scoped API key.</p>
                   </div>
                 </div>
                 <button class="btn-settings-gear" data-click="showSettingsSection api-keys" aria-label="Manage API keys">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-webhooksEnabled">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Webhooks</span>
+                    <p class="settings-item-desc">Send consent changes to connected systems. Set the endpoint URL under each bucket's Options.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-webhooksEnabled" data-confirm-off="webhooks" data-change="saveSettingImmediate webhooksEnabled $checked">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" data-click="openWebhooksSheet" aria-label="Manage webhooks">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-erasureNoticeEnabled">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Erasure notices</span>
+                    <p class="settings-item-desc">Send opt-out webhooks when subscribers are deleted so connected systems can remove them.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-erasureNoticeEnabled" data-confirm-off="erasure notices" data-change="saveSettingImmediate erasureNoticeEnabled $checked">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" data-click="openErasureNoticeModal" aria-label="Erasure notice settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                   </svg>
                 </button>
               </div>

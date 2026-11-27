@@ -45,17 +45,28 @@ let appSettings = (() => {
   try {
     const saved = localStorage.getItem("beacon_settings");
     return saved
-      ? { ...settingsDefaults, ...JSON.parse(saved) }
-      : { ...settingsDefaults };
+      ? {
+          ...settingsDefaults,
+          ...JSON.parse(saved),
+        }
+      : {
+          ...settingsDefaults,
+        };
   } catch {
-    return { ...settingsDefaults };
+    return {
+      ...settingsDefaults,
+    };
   }
 })();
 
 function loadSettings() {
   try {
     const saved = localStorage.getItem("beacon_settings");
-    if (saved) appSettings = { ...settingsDefaults, ...JSON.parse(saved) };
+    if (saved)
+      appSettings = {
+        ...settingsDefaults,
+        ...JSON.parse(saved),
+      };
   } catch {}
   document.getElementById("setting-enableCaching").checked =
     appSettings.enableCaching;
@@ -107,7 +118,9 @@ function applyInstanceConstraints() {
   const emailToggle = document.getElementById("setting-emailNotifications");
   if (emailToggle) {
     emailToggle.disabled = true;
-    emailToggle.closest(".settings-item-card-label")?.classList.add("is-disabled");
+    emailToggle
+      .closest(".settings-item-card-label")
+      ?.classList.add("is-disabled");
   }
   const emailGear = document.querySelector(
     "#email-settings-items .btn-settings-gear",
@@ -187,19 +200,31 @@ async function loadServerSettings() {
     appSettings.emailQueueCron = res.data.emailQueueCron ?? "*/5 * * * *";
     const cronEl = document.getElementById("setting-emailQueueCron");
     if (cronEl) cronEl.value = appSettings.emailQueueCron;
+    appSettings.emailQueueRetentionDays = res.data.emailQueueRetentionDays ?? 90;
+    appSettings.requireUserSignIn = res.data.requireUserSignIn ?? false;
+    document.getElementById("setting-requireUserSignIn").checked =
+      appSettings.requireUserSignIn;
+    appSettings.webhooksEnabled = res.data.webhooksEnabled ?? true;
+    document.getElementById("setting-webhooksEnabled").checked =
+      appSettings.webhooksEnabled;
+    appSettings.erasureNoticeEnabled = res.data.erasureNoticeEnabled ?? true;
+    appSettings.erasureNoticeIncludeEmail =
+      res.data.erasureNoticeIncludeEmail ?? false;
+    document.getElementById("setting-erasureNoticeEnabled").checked =
+      appSettings.erasureNoticeEnabled;
     // Data Policies
-    appSettings.dataPoliciesEnabled = res.data.dataPoliciesEnabled ?? false;
+    appSettings.dataPoliciesEnabled = res.data.dataPoliciesEnabled ?? true;
     appSettings.dataPolicyCron = res.data.dataPolicyCron ?? "0 0 * * *";
-    appSettings.retentionPurgeEnabled = res.data.retentionPurgeEnabled ?? false;
+    appSettings.retentionPurgeEnabled = res.data.retentionPurgeEnabled ?? true;
     appSettings.retentionPurgeDays = res.data.retentionPurgeDays ?? 1095;
     appSettings.pendingConfirmationPurgeEnabled =
-      res.data.pendingConfirmationPurgeEnabled ?? false;
+      res.data.pendingConfirmationPurgeEnabled ?? true;
     appSettings.pendingConfirmationPurgeDays =
       res.data.pendingConfirmationPurgeDays ?? 30;
     appSettings.retentionPurgeRequireApproval =
-      res.data.retentionPurgeRequireApproval ?? false;
+      res.data.retentionPurgeRequireApproval ?? true;
     appSettings.pendingConfirmationPurgeRequireApproval =
-      res.data.pendingConfirmationPurgeRequireApproval ?? false;
+      res.data.pendingConfirmationPurgeRequireApproval ?? true;
     appSettings.loginFooterEnabled = res.data.loginFooterEnabled ?? false;
     appSettings.loginFooter = res.data.loginFooter ?? "";
     const footerToggle = document.getElementById("setting-loginFooterEnabled");
@@ -212,6 +237,8 @@ async function loadServerSettings() {
     if (promoToggle) promoToggle.checked = appSettings.promoBarEnabled;
     initPromoBar();
     if (res.data.version) {
+      document.getElementById("sidebarVersion").textContent =
+        `v${res.data.version}`;
       const sysHd = document.querySelector(
         "#settings-section-system .settings-content-hd h3",
       );
@@ -221,7 +248,10 @@ async function loadServerSettings() {
 }
 
 function applyAppearance() {
-  document.documentElement.style.setProperty("--app-font", APP_FONTS[appSettings.font] || APP_FONTS.plex);
+  document.documentElement.style.setProperty(
+    "--app-font",
+    APP_FONTS[appSettings.font] || APP_FONTS.plex,
+  );
   const theme = appSettings.theme || "system";
   if (theme === "system") {
     document.documentElement.removeAttribute("data-theme");
@@ -261,7 +291,11 @@ function showSettingsSection(section, pushState = true) {
   document
     .getElementById(`settings-section-${section}`)
     ?.classList.add("active");
-  if (pushState) updateUrl({ view: "settings", section });
+  if (pushState)
+    updateUrl({
+      view: "settings",
+      section,
+    });
   if (section === "users") loadUsers();
   if (section === "api-keys") loadApiKeys();
   if (section === "account") loadAccount();
@@ -271,6 +305,58 @@ function showSettingsSection(section, pushState = true) {
 
 function saveSetting(key, value) {
   appSettings[key] = value;
+}
+
+function openWebhooksSheet() {
+  openModal("webhooksSheet");
+  loadWebhooksOverview();
+}
+
+function closeWebhooksSheet() {
+  closeModal("webhooksSheet");
+}
+
+async function loadWebhooksOverview() {
+  const el = document.getElementById("webhooksOverview");
+  const result = await apiRequest("/api/admin/webhooks");
+  if (!result.ok) return;
+  const hooks = result.data || [];
+  if (!hooks.length) {
+    paint(
+      el,
+      html`<p class="settings-empty-state">No webhooks. Add an endpoint URL in a bucket's Options.</p>`,
+    );
+    return;
+  }
+  paint(
+    el,
+    html`<div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr><th>Bucket</th><th>Endpoint</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${hooks.map(
+            (h) => html`<tr class="cursor-pointer" @click=${() => openBucketWebhook(h.bucket)}>
+              <td><strong>${h.bucket}</strong><span class="cell-sub">${
+                h.lastTriggeredAt
+                  ? html`${formatNumber(h.triggerCount)} sent · last ${formatRelativeTime(h.lastTriggeredAt)}`
+                  : "Never sent"
+              }</span></td>
+              <td class="text-sm break-all">${h.method} ${h.url}</td>
+              <td><span class="status-chip ${h.isEnabled ? "opted-in" : "pending"}">${h.isEnabled ? "Enabled" : "Disabled"}</span></td>
+            </tr>`,
+          )}
+        </tbody>
+      </table>
+    </div>`,
+  );
+}
+
+function openBucketWebhook(bucket) {
+  closeWebhooksSheet();
+  showBucket(bucket);
+  showOptionsModal();
 }
 
 async function saveSettingImmediate(key, value) {
@@ -346,6 +432,11 @@ async function saveCurrentSettings() {
       enableUtmTracking: appSettings.enableUtmTracking,
       perPermissionEmail: appSettings.perPermissionEmail,
       emailQueueCron: appSettings.emailQueueCron,
+      emailQueueRetentionDays: appSettings.emailQueueRetentionDays,
+      webhooksEnabled: appSettings.webhooksEnabled,
+      requireUserSignIn: appSettings.requireUserSignIn,
+      erasureNoticeEnabled: appSettings.erasureNoticeEnabled,
+      erasureNoticeIncludeEmail: appSettings.erasureNoticeIncludeEmail,
       dataPoliciesEnabled: appSettings.dataPoliciesEnabled,
       dataPolicyCron: appSettings.dataPolicyCron,
       retentionPurgeEnabled: appSettings.retentionPurgeEnabled,
@@ -366,6 +457,8 @@ async function saveCurrentSettings() {
   });
   if (res.ok) {
     notify("success", "Settings saved");
+  } else {
+    await loadServerSettings();
   }
 }
 
@@ -379,54 +472,132 @@ function validateCronInput(input) {
 }
 
 const DATA_POLICY_CRON_PRESETS = [
-  { expr: "0 0 * * *", label: "Once a day (00:00 UTC)" },
-  { expr: "0 2 * * *", label: "Once a day (02:00 UTC)" },
-  { expr: "0 9 * * *", label: "Once a day (09:00 UTC)" },
-  { expr: "0 0 * * 0", label: "Once a week (Sunday 00:00 UTC)" },
-  { expr: "0 0 1 * *", label: "Once a month (1st at 00:00 UTC)" },
+  {
+    expr: "0 0 * * *",
+    label: "Once a day (00:00 UTC)",
+  },
+  {
+    expr: "0 2 * * *",
+    label: "Once a day (02:00 UTC)",
+  },
+  {
+    expr: "0 9 * * *",
+    label: "Once a day (09:00 UTC)",
+  },
+  {
+    expr: "0 0 * * 0",
+    label: "Once a week (Sunday 00:00 UTC)",
+  },
+  {
+    expr: "0 0 1 * *",
+    label: "Once a month (1st at 00:00 UTC)",
+  },
 ];
 
 const CRON_PRESETS = [
-  { expr: "* * * * *", label: "Every minute" },
-  { expr: "*/2 * * * *", label: "Every 2 minutes" },
-  { expr: "*/5 * * * *", label: "Every 5 minutes" },
-  { expr: "*/10 * * * *", label: "Every 10 minutes" },
-  { expr: "*/15 * * * *", label: "Every 15 minutes" },
-  { expr: "*/30 * * * *", label: "Every 30 minutes" },
-  { expr: "0 * * * *", label: "Every hour" },
-  { expr: "0 */2 * * *", label: "Every 2 hours" },
-  { expr: "0 */6 * * *", label: "Every 6 hours" },
-  { expr: "0 */12 * * *", label: "Every 12 hours" },
-  { expr: "0 0 * * *", label: "Once a day (00:00 UTC)" },
-  { expr: "0 9 * * *", label: "Once a day (09:00 UTC)" },
-  { expr: "0 0 * * 0", label: "Once a week (Sunday 00:00 UTC)" },
+  {
+    expr: "* * * * *",
+    label: "Every minute",
+  },
+  {
+    expr: "*/2 * * * *",
+    label: "Every 2 minutes",
+  },
+  {
+    expr: "*/5 * * * *",
+    label: "Every 5 minutes",
+  },
+  {
+    expr: "*/10 * * * *",
+    label: "Every 10 minutes",
+  },
+  {
+    expr: "*/15 * * * *",
+    label: "Every 15 minutes",
+  },
+  {
+    expr: "*/30 * * * *",
+    label: "Every 30 minutes",
+  },
+  {
+    expr: "0 * * * *",
+    label: "Every hour",
+  },
+  {
+    expr: "0 */2 * * *",
+    label: "Every 2 hours",
+  },
+  {
+    expr: "0 */6 * * *",
+    label: "Every 6 hours",
+  },
+  {
+    expr: "0 */12 * * *",
+    label: "Every 12 hours",
+  },
+  {
+    expr: "0 0 * * *",
+    label: "Once a day (00:00 UTC)",
+  },
+  {
+    expr: "0 9 * * *",
+    label: "Once a day (09:00 UTC)",
+  },
+  {
+    expr: "0 0 * * 0",
+    label: "Once a week (Sunday 00:00 UTC)",
+  },
 ];
 
 // Cron inputs with a preset dropdown, keyed by input id.
 const CRON_FIELDS = {
-  "setting-emailQueueCron": { dropdown: "cronAutocomplete", presets: CRON_PRESETS, key: "emailQueueCron" },
-  "setting-dataPolicyCron": { dropdown: "dataPolicyCronAutocomplete", presets: DATA_POLICY_CRON_PRESETS, key: "dataPolicyCron" },
+  "setting-emailQueueCron": {
+    dropdown: "cronAutocomplete",
+    presets: CRON_PRESETS,
+    key: "emailQueueCron",
+  },
+  "setting-dataPolicyCron": {
+    dropdown: "dataPolicyCronAutocomplete",
+    presets: DATA_POLICY_CRON_PRESETS,
+    key: "dataPolicyCron",
+  },
 };
 let selectedCronIndex = -1;
 
-function showCronSuggestions(force = false, inputId = "setting-emailQueueCron") {
+function showCronSuggestions(
+  force = false,
+  inputId = "setting-emailQueueCron",
+) {
   const field = CRON_FIELDS[inputId];
   const input = document.getElementById(inputId);
   const dropdown = document.getElementById(field.dropdown);
   const query = input.value.trim().toLowerCase();
-  const matches = force || !query
-    ? field.presets
-    : field.presets.filter((p) => p.expr.includes(query) || p.label.toLowerCase().includes(query));
-  if (!force && (matches.length === 0 || (matches.length === 1 && matches[0].expr === query))) {
+  const matches =
+    force || !query
+      ? field.presets
+      : field.presets.filter(
+          (p) =>
+            p.expr.includes(query) || p.label.toLowerCase().includes(query),
+        );
+  if (
+    !force &&
+    (matches.length === 0 ||
+      (matches.length === 1 && matches[0].expr === query))
+  ) {
     dropdown.classList.remove("open");
     return;
   }
   selectedCronIndex = -1;
-  paint(dropdown, html`${matches.map((p, idx) => html`
+  paint(
+    dropdown,
+    html`${matches.map(
+      (p, idx) => html`
     <div class="autocomplete-item" data-index=${idx} @click=${() => selectCronPreset(inputId, p.expr)} @mouseenter=${() => highlightCron(dropdown, idx)}>
       <div class="bucket-name">${p.expr}</div>
       <div class="bucket-info">${p.label}</div>
-    </div>`)}`);
+    </div>`,
+    )}`,
+  );
   positionDropdown(input, dropdown);
   dropdown.classList.add("open");
 }
@@ -451,12 +622,15 @@ async function saveCronField(input) {
 }
 
 function hideCronSuggestions() {
-  for (const field of Object.values(CRON_FIELDS)) document.getElementById(field.dropdown)?.classList.remove("open");
+  for (const field of Object.values(CRON_FIELDS))
+    document.getElementById(field.dropdown)?.classList.remove("open");
   selectedCronIndex = -1;
 }
 
 function highlightCron(dropdown, index) {
-  dropdown.querySelectorAll(".autocomplete-item").forEach((item, i) => item.classList.toggle("selected", i === index));
+  dropdown
+    .querySelectorAll(".autocomplete-item")
+    .forEach((item, i) => item.classList.toggle("selected", i === index));
   selectedCronIndex = index;
 }
 
@@ -472,7 +646,10 @@ for (const [inputId, field] of Object.entries(CRON_FIELDS)) {
       highlightCron(dropdown, Math.max(0, Math.min(next, items.length - 1)));
     } else if (e.key === "Enter" && selectedCronIndex >= 0) {
       e.preventDefault();
-      selectCronPreset(inputId, items[selectedCronIndex].querySelector(".bucket-name").textContent);
+      selectCronPreset(
+        inputId,
+        items[selectedCronIndex].querySelector(".bucket-name").textContent,
+      );
     } else if (e.key === "Escape") {
       hideCronSuggestions();
     }
@@ -485,7 +662,7 @@ function saveAppearance(key, value) {
 }
 
 function openSettingsSection(section) {
-  if (isModalOpen("optionsModal")) closeOptionsModal();
+  if (isModalOpen("optionsModal") && !closeOptionsModal()) return;
   showView("settings");
   showSettingsSection(section);
 }

@@ -1,4 +1,7 @@
 using Beacon.Api;
+using Beacon.Storage;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
@@ -20,7 +23,7 @@ public class WebhookTests
 
         var secret = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, null);
 
-        Assert.NotEmpty(secret);
+        Assert.False(string.IsNullOrEmpty(secret));
 
         var config = await service.GetWebhookConfigAsync(TestBucket);
 
@@ -162,6 +165,138 @@ public class WebhookTests
         Assert.NotNull(message.SignatureHeader);
         Assert.StartsWith("sha256=", message.SignatureHeader);
     }
+
+    [Fact]
+    public async Task WebhookService_Update_KeepsIssuedSigningSecret()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        var (service, queue) = CreateSqliteWebhookService(connection);
+
+        var issued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, """{"v":1}""");
+        var reissued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook2", "PUT", null, """{"v":2}""");
+
+        Assert.NotNull(issued);
+        Assert.Null(reissued);
+
+        var message = await TriggerAndDequeueAsync(service, queue);
+        Assert.Equal("https://example.com/hook2", message.Url);
+        Assert.Equal(Sign(issued, message.Body!), message.SignatureHeader);
+    }
+
+    [Fact]
+    public async Task WebhookService_Rotate_SignsWithNewSecret()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        var (service, queue) = CreateSqliteWebhookService(connection);
+
+        Assert.Null(await service.RotateWebhookSecretAsync(TestBucket));
+
+        var issued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, """{"v":1}""");
+        var rotated = await service.RotateWebhookSecretAsync(TestBucket);
+
+        Assert.NotNull(issued);
+        Assert.NotNull(rotated);
+        Assert.NotEqual(issued, rotated);
+
+        var message = await TriggerAndDequeueAsync(service, queue);
+        Assert.Equal(Sign(rotated, message.Body!), message.SignatureHeader);
+    }
+
+    [Fact]
+    public async Task WebhookService_Disabled_SkipsDeliveryAndSurvivesSave()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        var (service, queue) = CreateSqliteWebhookService(connection);
+        await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, null);
+
+        Assert.True(await service.SetWebhookEnabledAsync(TestBucket, false));
+        await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook2", "POST", null, null);
+        await service.TriggerWebhookAsync(TestBucket, CreateTriggerData());
+
+        Assert.False((await service.GetWebhookConfigAsync(TestBucket))!.IsEnabled);
+        Assert.False(await service.SetWebhookEnabledAsync("missing", true));
+        Assert.False(await HasMessageAsync(queue));
+    }
+
+    [Fact]
+    public async Task WebhookService_GloballyDisabled_SkipsDelivery()
+    {
+        var repo = new InMemoryWebhookRepository();
+        var queue = new WebhookDeliveryQueue();
+        var service = new WebhookService(repo, new Encryptor(TestEncryptionKey), queue,
+            new Beacon.Tests.Fakes.StubSystemConfigurationService(new SystemConfig { WebhooksEnabled = false }));
+        await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, null);
+
+        await service.TriggerWebhookAsync(TestBucket, CreateTriggerData());
+
+        Assert.False(await HasMessageAsync(queue));
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/admin/webhooks", "WebhooksRead")]
+    [InlineData("PUT", "/api/admin/buckets/{bucket}/webhook/enabled", "Admin")]
+    public void WebhookToggleEndpoints_RequirePolicy(string method, string route, string policy)
+    {
+        var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
+        app.MapAdminEndpoints();
+
+        var endpoint = ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources
+            .SelectMany(d => d.Endpoints)
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Single(e => e.RoutePattern.RawText == route
+                && e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Contains(method));
+
+        Assert.Equal([policy], endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Select(a => a.Policy));
+    }
+
+    [Fact]
+    public void RotateSecretEndpoint_RequiresAdminPolicy()
+    {
+        var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
+        app.MapAdminEndpoints();
+
+        var endpoint = ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources
+            .SelectMany(d => d.Endpoints)
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Single(e => e.RoutePattern.RawText == "/api/admin/buckets/{bucket}/webhook/secret");
+
+        var policies = endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Select(a => a.Policy);
+        Assert.Equal(["Admin"], policies);
+    }
+
+    private static (WebhookService service, WebhookDeliveryQueue queue) CreateSqliteWebhookService(SqliteConnection connection)
+    {
+        connection.Open();
+        var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(connection).Options);
+        db.Database.EnsureCreated();
+        var queue = new WebhookDeliveryQueue();
+        return (new WebhookService(new WebhookRepository(db), new Encryptor(TestEncryptionKey), queue), queue);
+    }
+
+    private static async Task<WebhookDeliveryMessage> TriggerAndDequeueAsync(WebhookService service, WebhookDeliveryQueue queue)
+    {
+        await service.TriggerWebhookAsync(TestBucket, CreateTriggerData());
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        return await queue.DequeueAllAsync(cts.Token).FirstAsync(cts.Token);
+    }
+
+    private static async Task<bool> HasMessageAsync(WebhookDeliveryQueue queue)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        try
+        {
+            await queue.DequeueAllAsync(cts.Token).FirstAsync(cts.Token);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
+    private static string Sign(string secret, string body) =>
+        "sha256=" + Convert.ToHexString(System.Security.Cryptography.HMACSHA256.HashData(
+            Convert.FromBase64String(secret), System.Text.Encoding.UTF8.GetBytes(body))).ToLowerInvariant();
 
     // SubstituteVariables
 
@@ -631,6 +766,7 @@ public class WebhookTests
 
         public Task UpsertAsync(WebhookConfig config)
         {
+            config.EncryptedSecret ??= _configs.Find(c => c.Bucket == config.Bucket)?.EncryptedSecret;
             _configs.RemoveAll(c => c.Bucket == config.Bucket);
             _configs.Add(config);
             return Task.CompletedTask;
@@ -686,5 +822,40 @@ public class WebhookTests
             _errors.RemoveAll(e => e.OccurredAt < cutoff);
             return Task.CompletedTask;
         }
+    }
+
+    private static readonly Encryptor ErasureEncryptor = new("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+
+    private static IReadOnlyList<ConsentRecord> Erased() =>
+    [
+        new() { Bucket = "b", EmailHash = "h", Permission = "news", Status = ConsentStatus.OptedIn, EncryptedEmail = ErasureEncryptor.Encrypt("a@b.nl") },
+        new() { Bucket = "b", EmailHash = "h", Permission = "offers", Status = ConsentStatus.PendingConfirmation }
+    ];
+
+    [Theory]
+    [InlineData(false, "")]
+    [InlineData(true, "a@b.nl")]
+    public async Task ErasureNotice_OptsOutEveryPermission(bool includeEmail, string expectedEmail)
+    {
+        var webhooks = new SubmissionFormServiceTests.InMemoryWebhookService();
+        var config = new SystemConfig { ErasureNoticeEnabled = true, ErasureNoticeIncludeEmail = includeEmail };
+
+        await AdminEndpoints.SendErasureNoticeAsync(webhooks, config, ErasureEncryptor, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, "b", "h", Erased());
+
+        var sent = Assert.Single(webhooks.TriggeredWebhooks);
+        Assert.Equal(expectedEmail, sent.Email);
+        Assert.Equal("h", sent.EmailHash);
+        Assert.All(sent.Permissions, p => Assert.Equal(ConsentStatus.OptedOut, p.Status));
+        Assert.Equal(["news", "offers"], sent.Permissions.Select(p => p.Permission));
+    }
+
+    [Fact]
+    public async Task ErasureNotice_Disabled_SendsNothing()
+    {
+        var webhooks = new SubmissionFormServiceTests.InMemoryWebhookService();
+
+        await AdminEndpoints.SendErasureNoticeAsync(webhooks, new SystemConfig { ErasureNoticeEnabled = false }, ErasureEncryptor, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, "b", "h", Erased());
+
+        Assert.Empty(webhooks.TriggeredWebhooks);
     }
 }

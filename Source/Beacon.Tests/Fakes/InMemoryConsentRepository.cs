@@ -115,7 +115,9 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
         return Task.FromResult<IReadOnlyList<EmailPermissions>>(emailGroups);
     }
 
-    public Task<int> DeleteRecordAsync(string bucket, string emailHash)
+    public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) => Task.FromResult(0);
+
+    public Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null)
     {
         var keysToRemove = _records
             .Where(kv => kv.Value.Bucket == bucket && kv.Value.EmailHash == emailHash)
@@ -176,6 +178,9 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
     public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null)
         => throw new NotImplementedException();
 
+    public Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ConsentRecord>>(_records.Values.Where(r => emailHashes.Contains(r.EmailHash)).ToList());
+
     public Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
     {
         var subs = _records.Values
@@ -208,10 +213,8 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
 
     public Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default) => Task.CompletedTask;
     public Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-    public Task<int> AnonymiseIpAddressesAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
     public Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
     public Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-    public Task<int> CountIpAddressesToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
     public Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
 
     private sealed class NoOpDisposable : IDisposable

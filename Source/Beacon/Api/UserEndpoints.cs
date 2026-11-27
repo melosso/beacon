@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
@@ -214,7 +215,7 @@ public static class UserEndpoints
         });
     }
 
-    internal static bool ValidateUsername(string? username, out string error)
+    internal static bool ValidateUsername([NotNullWhen(true)] string? username, out string error)
     {
         error = "";
         if (string.IsNullOrWhiteSpace(username))
@@ -240,7 +241,7 @@ public static class UserEndpoints
         return true;
     }
 
-    private static bool ValidatePassword(string? password, out string error)
+    internal static bool ValidatePassword([NotNullWhen(true)] string? password, out string error)
     {
         error = "";
         if (string.IsNullOrEmpty(password))

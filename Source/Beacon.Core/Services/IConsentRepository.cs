@@ -17,7 +17,8 @@ public interface IConsentRepository
     Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket);
     Task<int> DeleteBucketAsync(string bucket);
     Task<int> DeletePermissionAsync(string bucket, string permission);
-    Task<int> DeleteRecordAsync(string bucket, string emailHash);
+    Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null);
+    Task<int> UpdateNameAsync(string emailHash, string? encryptedName);
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);
     Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
@@ -25,6 +26,7 @@ public interface IConsentRepository
     Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null);
     Task<Dictionary<string, EncryptedContact>> GetEncryptedEmailsForHashesAsync(IReadOnlyList<string> hashes, CancellationToken ct = default);
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
+    Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default);
     Task<IDisposable> BeginTransactionAsync();
     Task CommitTransactionAsync();
 

@@ -38,10 +38,14 @@ try
     var version = typeof(Program).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
         ?.InformationalVersion?.Split('+')[0] ?? "0.0.0";
-    Log.Information("");
-    Log.Information("Beacon {Version} - Consent and opt-out management built on .NET", version);
-    Log.Information("");
-    Log.Debug("Host {Host} ({OS}, .NET {DotNet})", Environment.MachineName, Environment.OSVersion.Platform, Environment.Version);
+    var isCli = Beacon.Cli.BeaconCli.IsCommand(args);
+    if (!isCli)
+    {
+        Log.Information("");
+        Log.Information("Beacon {Version} - Consent and opt-out management built on .NET", version);
+        Log.Information("");
+        Log.Debug("Host {Host} ({OS}, .NET {DotNet})", Environment.MachineName, Environment.OSVersion.Platform, Environment.Version);
+    }
 
     // Real environment variables win over .env; .env wins over appsettings.json.
     foreach (var dir in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }.Distinct())
@@ -62,6 +66,8 @@ try
     // Read configuration values (use decrypted values where available)
     var databaseProvider = config["DatabaseProvider"] ?? "sqlite";
     var connectionString = decryptedConfig.GetValueOrDefault("ConnectionString", config["ConnectionString"] ?? "Data Source=Beacon.db");
+    if (isCli)
+        return await Beacon.Cli.BeaconCli.RunAsync(args, databaseProvider, connectionString);
     var signingKey = decryptedConfig.GetValueOrDefault("SigningKey") ?? throw new InvalidOperationException("SIGNING_KEY is not set.");
     var encryptionKey = decryptedConfig.GetValueOrDefault("EncryptionKey") ?? throw new InvalidOperationException("ENCRYPTION_KEY is not set.");
     var pepper = decryptedConfig.GetValueOrDefault("Pepper") ?? throw new InvalidOperationException("PEPPER is not set.");
@@ -136,6 +142,7 @@ try
             builder.Environment.ContentRootPath, encryptionService, decryptedConfig);
 
     var normalizedSigningKey = NormalizeKey(signingKey, 32);
+    JwtAuthHandler.UseInstanceCookieName(Convert.FromBase64String(normalizedSigningKey), !builder.Environment.IsDevelopment());
     var normalizedEncryptionKey = NormalizeKey(encryptionKey, 32);
 
     builder.Services.Configure<Microsoft.Extensions.Hosting.HostOptions>(o =>
@@ -176,16 +183,20 @@ try
     builder.Services.AddScoped<SubmissionFormService>();
     builder.Services.AddSingleton<SubmissionRateLimiter>();
     builder.Services.AddSingleton<LoginLockout>();
+    var outboundNetwork = new OutboundNetwork(config.GetValue<bool>("AllowPrivateNetwork", false));
+    builder.Services.AddSingleton(outboundNetwork);
+    builder.Services.AddSingleton(new OidcClient(outboundNetwork.AllowPrivateNetwork));
 
     // Keyed on RemoteIpAddress, which UseForwardedHeaders resolves from trusted proxies only.
     // Reading X-Forwarded-For here would let any client pick its own bucket.
+    var requestsPerMinute = config.GetValue("RateLimitPerMinute", 1500) is > 0 and var limit ? limit : 1500;
     builder.Services.AddRateLimiter(rateLimiter =>
     {
         rateLimiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
         rateLimiter.GlobalLimiter = PartitionedRateLimiter.CreateChained(
             PartitionedRateLimiter.Create<HttpContext, string>(context =>
-                Partition(context, "global", 1500)),
+                Partition(context, "global", requestsPerMinute)),
             PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 context.Request.Path.StartsWithSegments("/api/admin/auth", StringComparison.OrdinalIgnoreCase)
                     ? Partition(context, "auth", 10)
@@ -227,7 +238,7 @@ try
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         var entity = db.SystemConfigurations.Find(1);
         var systemConfig = entity is not null
-            ? JsonSerializer.Deserialize<SystemConfig>(entity.Configuration) ?? new SystemConfig()
+            ? SystemConfigStore.Read(entity.Configuration)
             : new SystemConfig();
         return new SystemConfigurationService(sp.GetRequiredService<IServiceScopeFactory>(), systemConfig);
     });
@@ -546,6 +557,7 @@ try
     app.UseHostRouting();
     app.UseStaticFiles(new StaticFileOptions
     {
+        ContentTypeProvider = Beacon.Middleware.StaticAssets.ContentTypes,
         OnPrepareResponse = ctx =>
         {
             var ext = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
@@ -567,6 +579,7 @@ try
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
     app.MapAuthEndpoints();
+    app.MapOidcEndpoints();
     app.MapUserEndpoints();
     app.MapApiKeyEndpoints();
     app.MapSubmissionEndpoints();
@@ -590,6 +603,8 @@ try
     var jwtSigningKeyBytes = Convert.FromBase64String(normalizedSigningKey);
 
     var webRoot = app.Environment.WebRootPath;
+    app.MapGet("/robots.txt", () => Results.File(Path.Combine(webRoot, "robots.txt"), "text/plain"))
+        .ExcludeFromDescription();
 
     // UI Endpoints (access controlled by HostRoutingMiddleware)
     app.MapGet("/admin", async context =>
@@ -668,12 +683,13 @@ try
     app.MapGet("/admin/config.js", (HttpContext context) =>
     {
         var (apiBase, publicUrl) = ResolveApiOrigins(context);
+        var requireUserSignIn = context.RequestServices.GetRequiredService<ISystemConfigurationService>().Get().RequireUserSignIn;
         var js = string.Join("\n", [
             $"const API_BASE = {JsonSerializer.Serialize(apiBase)};",
             $"const PUBLIC_URL = {JsonSerializer.Serialize(publicUrl)};",
             $"const DEFAULT_EXPIRY_DAYS = {tokenExpiryDays};",
             $"const DISABLE_EMAIL_NOTIFICATIONS = {(disableEmailNotifications ? "true" : "false")};",
-            $"const USER_AUTH_METHOD = {JsonSerializer.Serialize(userAuthentication)};"
+            $"const USER_AUTH_METHOD = {JsonSerializer.Serialize(requireUserSignIn && userAuthentication == "both" ? "user" : userAuthentication)};"
         ]);
 
         context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");

@@ -3,6 +3,8 @@ using System.Net.Sockets;
 
 namespace Beacon.Security;
 
+public sealed record OutboundNetwork(bool AllowPrivateNetwork);
+
 /// <summary>
 /// Shared guard for outbound requests to operator-supplied URLs. Resolves the host once and returns the
 /// validated address so callers can pin the connection to it, closing the DNS-rebinding window between
@@ -36,6 +38,30 @@ public static class SsrfGuard
         }
     }
 
+    public static SocketsHttpHandler CreateGuardedHandler(bool allowPrivateNetwork) => new()
+    {
+        AllowAutoRedirect = false,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectCallback = async (context, ct) =>
+        {
+            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct);
+            if (addresses.Length == 0 || (!allowPrivateNetwork && addresses.Any(IsPrivateOrReserved)))
+                throw new HttpRequestException($"{context.DnsEndPoint.Host} resolves to a private or reserved address.");
+
+            var socket = new Socket(addresses[0].AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(addresses[0], context.DnsEndPoint.Port), ct);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+    };
+
     public static bool IsPrivateOrReserved(IPAddress address)
     {
         if (IPAddress.IsLoopback(address))
@@ -56,17 +82,26 @@ public static class SsrfGuard
                 192 when bytes[1] == 168 => true,                    // 192.168.0.0/16
                 0 => true,                                           // 0.0.0.0/8
                 100 when bytes[1] >= 64 && bytes[1] <= 127 => true,  // 100.64.0.0/10 (CGNAT)
+                192 when bytes[1] == 0 && bytes[2] == 0 => true,
+                198 when bytes[1] is 18 or 19 => true,
+                >= 224 => true,
                 _ => false
             };
         }
 
         if (address.AddressFamily == AddressFamily.InterNetworkV6)
         {
-            if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6UniqueLocal)
+            if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6UniqueLocal || address.IsIPv6Multicast)
+                return true;
+
+            var bytes = address.GetAddressBytes();
+            if (bytes[0] == 0x00 && bytes[1] == 0x64 && bytes[2] == 0xff && bytes[3] == 0x9b)
+                return true;
+            if (bytes[0] == 0x20 && bytes[1] == 0x02)
                 return true;
 
             // :: and ::1
-            return address.GetAddressBytes().Take(15).All(b => b == 0);
+            return bytes.Take(15).All(b => b == 0);
         }
 
         return false;

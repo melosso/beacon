@@ -1,5 +1,6 @@
 // Subset of Markdown (bold, italic, links) mirrored from LoginFooterParser; returns lit parts, never raw HTML.
-const PROMO_TOKEN = /\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_|\[(.*?)\]\(([^)]*)\)/;
+const PROMO_TOKEN =
+  /\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_|\[(.*?)\]\(([^)]*)\)/;
 
 function promoMarkdown(text) {
   const parts = [];
@@ -11,8 +12,10 @@ function promoMarkdown(text) {
     }
     const [token, bold1, bold2, em1, em2, linkText, url] = m;
     parts.push(text.slice(0, m.index));
-    if (bold1 ?? bold2) parts.push(html`<strong>${promoMarkdown(bold1 ?? bold2)}</strong>`);
-    else if (em1 ?? em2) parts.push(html`<em>${promoMarkdown(em1 ?? em2)}</em>`);
+    if (bold1 ?? bold2)
+      parts.push(html`<strong>${promoMarkdown(bold1 ?? bold2)}</strong>`);
+    else if (em1 ?? em2)
+      parts.push(html`<em>${promoMarkdown(em1 ?? em2)}</em>`);
     else parts.push(promoLink(linkText, url));
     text = text.slice(m.index + token.length);
   }
@@ -20,8 +23,10 @@ function promoMarkdown(text) {
 }
 
 function promoLink(text, url) {
-  if (/^(https?:\/\/|\/\/)/i.test(url)) return html`<a href=${url} target="_blank" rel="noopener noreferrer">${text}</a>`;
-  if (/^(\/|#|mailto:|tel:)/i.test(url)) return html`<a href=${url}>${text}</a>`;
+  if (/^(https?:\/\/|\/\/)/i.test(url))
+    return html`<a href=${url} target="_blank" rel="noopener noreferrer">${text}</a>`;
+  if (/^(\/|#|mailto:|tel:)/i.test(url))
+    return html`<a href=${url}>${text}</a>`;
   return text;
 }
 
@@ -43,9 +48,14 @@ function updatePromoBar() {
     bar.setAttribute("aria-label", "Announcement");
     document.body.insertBefore(bar, document.querySelector(".app-shell"));
   }
-  paint(bar, html`<div class="promo-bar-inner"><div class="promo-bar-content">${promoMarkdown(appSettings.promoBar)}</div>${(appSettings.promoBarDismissable ?? true)
-    ? html`<button type="button" class="promo-bar-close" aria-label="Dismiss announcement" @click=${dismissPromoBar}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
-    : nothing}</div>`);
+  paint(
+    bar,
+    html`<div class="promo-bar-inner"><div class="promo-bar-content">${promoMarkdown(appSettings.promoBar)}</div>${
+      (appSettings.promoBarDismissable ?? true)
+        ? html`<button type="button" class="promo-bar-close" aria-label="Dismiss announcement" @click=${dismissPromoBar}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`
+        : nothing
+    }</div>`,
+  );
   requestAnimationFrame(showPromoBar);
 }
 
@@ -75,8 +85,8 @@ function openPromoBarModal() {
   openModal("promoBarModal");
 }
 
-function closePromoBarModal() {
-  closeModal("promoBarModal");
+function closePromoBarModal(force) {
+  closeModal("promoBarModal", force);
 }
 
 async function savePromoBarSettings() {
@@ -93,7 +103,7 @@ async function savePromoBarSettings() {
   if (toggle) toggle.checked = appSettings.promoBarEnabled;
   await saveCurrentSettings();
   updatePromoBar();
-  closePromoBarModal();
+  closePromoBarModal(true);
 }
 
 async function onLoginFooterToggle(checkbox) {
@@ -111,7 +121,8 @@ async function onLoginFooterToggle(checkbox) {
 }
 
 function updateCharCount(textarea) {
-  document.getElementById(`${textarea.id}-count`).textContent = `${textarea.value.length} / 500`;
+  document.getElementById(`${textarea.id}-count`).textContent =
+    `${textarea.value.length} / 500`;
 }
 
 async function savePerPermissionEmail(value) {
@@ -125,8 +136,8 @@ function openLoginFooterModal() {
   openModal("loginFooterModal");
 }
 
-function closeLoginFooterModal() {
-  closeModal("loginFooterModal");
+function closeLoginFooterModal(force) {
+  closeModal("loginFooterModal", force);
 }
 
 async function saveLoginFooterSettings() {
@@ -136,7 +147,7 @@ async function saveLoginFooterSettings() {
   const toggle = document.getElementById("setting-loginFooterEnabled");
   if (toggle) toggle.checked = appSettings.loginFooterEnabled;
   await saveCurrentSettings();
-  closeLoginFooterModal();
+  closeLoginFooterModal(true);
 }
 
 function openCacheSettingsModal() {
@@ -151,8 +162,8 @@ function openCacheSettingsModal() {
   loadCacheStats();
 }
 
-function closeCacheSettingsModal() {
-  closeModal("cacheSettingsModal");
+function closeCacheSettingsModal(force) {
+  closeModal("cacheSettingsModal", force);
 }
 
 async function saveCacheSettings() {
@@ -166,19 +177,18 @@ async function saveCacheSettings() {
     "setting-cacheBucketData",
   ).checked;
   await saveCurrentSettings();
-  closeCacheSettingsModal();
+  closeCacheSettingsModal(true);
 }
 
 async function flushCache() {
   const btn = document.getElementById("btnFlushCache");
   if (btn) btn.disabled = true;
   try {
-    const res = await apiRequest("/api/admin/cache", { method: "DELETE" });
+    const res = await apiRequest("/api/admin/cache", {
+      method: "DELETE",
+    });
     if (res.ok) {
-      notify(
-        "success",
-        "Cache flushed",
-      );
+      notify("success", "Cache flushed");
       loadCacheStats();
     } else {
       notify("error", "Flush failed", "The cache was not flushed. Retry.");
@@ -231,13 +241,15 @@ function openEmailSettingsModal() {
   openModal("emailSettingsModal");
 }
 
-function closeEmailSettingsModal() {
-  closeModal("emailSettingsModal");
+function closeEmailSettingsModal(force) {
+  closeModal("emailSettingsModal", force);
 }
 
 function showEmailProviderFields(provider) {
   const isConfigured = provider === "resend" || provider === "smtp";
-  document.getElementById("email-fields-resend").hidden = !(provider === "resend");
+  document.getElementById("email-fields-resend").hidden = !(
+    provider === "resend"
+  );
   document.getElementById("email-fields-smtp").hidden = !(provider === "smtp");
   document.getElementById("email-fields-sender").hidden = !isConfigured;
   document.getElementById("email-fields-queue").hidden = !isConfigured;
@@ -314,7 +326,7 @@ async function saveEmailSettings() {
 
   Object.assign(appSettings, draft);
   await saveCurrentSettings();
-  closeEmailSettingsModal();
+  closeEmailSettingsModal(true);
 }
 
 function openDoubleOptInSettingsModal() {
@@ -325,6 +337,16 @@ function openDoubleOptInSettingsModal() {
 
 function closeDoubleOptInSettingsModal() {
   closeModal("doubleOptInSettingsModal");
+}
+
+function openErasureNoticeModal() {
+  document.getElementById("setting-erasureNoticeIncludeEmail").checked =
+    !!appSettings.erasureNoticeIncludeEmail;
+  openModal("erasureNoticeModal");
+}
+
+function closeErasureNoticeModal() {
+  closeModal("erasureNoticeModal");
 }
 
 function toggleReveal(inputId, btn) {
@@ -354,8 +376,8 @@ function openObjectStorageModal() {
   openModal("objectStorageModal");
 }
 
-function closeObjectStorageModal() {
-  closeModal("objectStorageModal");
+function closeObjectStorageModal(force) {
+  closeModal("objectStorageModal", force);
 }
 
 function showObjectStorageProviderFields(provider) {
@@ -363,8 +385,7 @@ function showObjectStorageProviderFields(provider) {
   const regionRow = document.getElementById("objectStorageRegionRow");
   if (endpointRow)
     endpointRow.hidden = provider === "s3" || provider === "none";
-  if (regionRow)
-    regionRow.hidden = provider === "r2" || provider === "none";
+  if (regionRow) regionRow.hidden = provider === "r2" || provider === "none";
 }
 
 async function testObjectStorageConnection() {
@@ -431,7 +452,7 @@ async function saveObjectStorageSettings() {
   ).value;
   appSettings.objectStoragePublicUrl = publicUrl;
   await saveCurrentSettings();
-  closeObjectStorageModal();
+  closeObjectStorageModal(true);
 }
 
 function openSubmissionFormsSettingsModal() {
@@ -444,8 +465,8 @@ function openSubmissionFormsSettingsModal() {
   openModal("submissionFormsSettingsModal");
 }
 
-function closeSubmissionFormsSettingsModal() {
-  closeModal("submissionFormsSettingsModal");
+function closeSubmissionFormsSettingsModal(force) {
+  closeModal("submissionFormsSettingsModal", force);
 }
 
 async function saveSubmissionFormsSettings() {
@@ -462,7 +483,7 @@ async function saveSubmissionFormsSettings() {
     "setting-submissionDefaultConsentRequired",
   ).checked;
   await saveCurrentSettings();
-  closeSubmissionFormsSettingsModal();
+  closeSubmissionFormsSettingsModal(true);
 }
 
 function updateSidebarUser() {

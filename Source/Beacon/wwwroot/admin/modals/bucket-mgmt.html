@@ -102,9 +102,7 @@
         </svg>
       </button>
     </div>
-    <p>
-      Removing the bucket permanently deletes all of its consent records.
-    </p>
+    <p>Removing the bucket permanently deletes all of its consent records.</p>
     <p class="confirm-label">Type the passphrase to confirm.</p>
     <div class="passphrase-box select-none" id="passphraseDisplay">-</div>
     <input
@@ -117,15 +115,15 @@
     />
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeRemoveModal">
-          Cancel
-        </button>
+        Cancel
+      </button>
       <button
-          class="btn btn-confirm"
-          id="confirmRemoveBtn"
-          data-click="confirmRemoval"
-        >
-          Remove bucket
-        </button>
+        class="btn btn-confirm"
+        id="confirmRemoveBtn"
+        data-click="confirmRemoval"
+      >
+        Remove bucket
+      </button>
     </div>
   </div>
 </dialog>
@@ -180,15 +178,15 @@
     />
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeSubmissionRemoveModal">
-          Cancel
-        </button>
+        Cancel
+      </button>
       <button
-          class="btn btn-confirm"
-          id="confirmSubmissionRemoveBtn"
-          data-click="confirmSubmissionRemoval"
-        >
-          Remove form
-        </button>
+        class="btn btn-confirm"
+        id="confirmSubmissionRemoveBtn"
+        data-click="confirmSubmissionRemoval"
+      >
+        Remove form
+      </button>
     </div>
   </div>
 </dialog>
@@ -307,7 +305,9 @@
 >
   <div class="modal">
     <div class="modal-header">
-      <h3 id="permissionRemoveModalTitle" class="select-none">Remove permission</h3>
+      <h3 id="permissionRemoveModalTitle" class="select-none">
+        Remove permission
+      </h3>
       <button
         class="btn btn-icon"
         data-click="closePermRemoveModal"
@@ -345,22 +345,22 @@
     />
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closePermRemoveModal">
-          Cancel
-        </button>
+        Cancel
+      </button>
       <button
-          class="btn btn-confirm"
-          id="confirmPermRemoveBtn"
-          data-click="confirmPermRemoval"
-        >
-          Remove permission
-        </button>
+        class="btn btn-confirm"
+        id="confirmPermRemoveBtn"
+        data-click="confirmPermRemoval"
+      >
+        Remove permission
+      </button>
     </div>
   </div>
 </dialog>
 
 <!-- Bucket Options Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="optionsModal"
   aria-labelledby="optionsModalTitle"
   data-self
@@ -429,8 +429,7 @@
       </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          The bucket ID identifies the bucket in all API calls. The ID is
-          fixed.
+          The bucket ID identifies the bucket in all API calls. The ID is fixed.
         </p>
         <div class="form-group mb-0">
           <label for="optionsBucketId">Bucket ID</label>
@@ -450,6 +449,15 @@
               Copy
             </button>
           </div>
+        </div>
+        <div class="section-actions">
+          <button
+            type="button"
+            class="btn btn-outline"
+            data-click="addIdentityFromOptions"
+          >
+            Add identity to this bucket
+          </button>
         </div>
       </div>
     </details>
@@ -511,7 +519,7 @@
       </div>
     </details>
 
-    <details class="options-section">
+    <details class="options-section" data-guard>
       <summary class="options-section-header">
         <svg
           class="options-section-icon"
@@ -551,9 +559,27 @@
       </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          Sends a signed HTTP request to an external service when a consent
-          record in this bucket is created or updated.
+          Sends a signed request to your service each time a subscriber in
+          this bucket opts in, opts out or changes preferences.
         </p>
+
+        <label class="checkbox-toggle mb-4" id="webhookEnabledRow" hidden>
+          <div>
+            <div class="checkbox-toggle-label select-none">Send requests</div>
+            <div class="checkbox-toggle-desc">
+              Off: consent changes in this bucket are not sent. The endpoint and
+              signing secret are kept.
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            id="webhookEnabled"
+            data-instant
+            data-confirm-off="this webhook"
+            data-change="setWebhookEnabled $checked"
+          />
+          <span class="toggle-track"></span>
+        </label>
 
         <div class="form-group">
           <label for="webhookUrl">Endpoint URL</label>
@@ -565,135 +591,155 @@
           />
         </div>
 
-        <div class="webhook-request-row">
-          <div class="form-group webhook-method">
-            <label for="webhookMethod">Method</label>
-            <select id="webhookMethod">
-              <option value="POST">POST</option>
-              <option value="PUT">PUT</option>
-              <option value="PATCH">PATCH</option>
-              <option value="GET">GET</option>
-              <option value="DELETE">DELETE</option>
-            </select>
-          </div>
-          <div class="form-group grow">
-            <label for="newHeaderKey">Headers</label>
-            <div class="custom-fields-list" id="webhookHeadersGrid"></div>
-            <div class="input-row">
-              <input
-                type="text"
-                class="input"
-                id="newHeaderKey"
-                placeholder="Name"
-                aria-label="Header name"
-                data-enter="addWebhookHeader"
-              />
-              <input
-                type="text"
-                class="input"
-                id="newHeaderValue"
-                placeholder="Value"
-                aria-label="Header value"
-                data-enter="addWebhookHeader"
-              />
-              <button
-                type="button"
-                class="btn btn-outline"
-                data-click="addWebhookHeader"
-              >
-                Add
-              </button>
+        <details class="advanced" id="webhookAdvanced">
+          <summary>Method, headers and body</summary>
+          <div class="webhook-request-row">
+            <div class="form-group webhook-method">
+              <label for="webhookMethod">Method</label>
+              <select id="webhookMethod">
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="GET">GET</option>
+                <option value="DELETE">DELETE</option>
+              </select>
             </div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <div class="label-row">
-            <label for="webhookBody">Body template</label>
-            <div class="relative">
-              <button
-                type="button"
-                class="btn btn-outline btn-xs"
-                data-stop
-                data-click="toggleWebhookTemplateMenu $el"
-              >
-                Reset to default
-              </button>
-              <div class="dropdown-menu" id="webhookTemplateMenu">
+            <div class="form-group grow">
+              <label for="newHeaderKey">Headers</label>
+              <div class="custom-fields-list" id="webhookHeadersGrid"></div>
+              <div class="input-row">
+                <input
+                  type="text"
+                  class="input"
+                  id="newHeaderKey"
+                  placeholder="Name"
+                  aria-label="Header name"
+                  data-enter="addWebhookHeader"
+                />
+                <input
+                  type="text"
+                  class="input"
+                  id="newHeaderValue"
+                  placeholder="Value"
+                  aria-label="Header value"
+                  data-enter="addWebhookHeader"
+                />
                 <button
-                  class="dropdown-item"
-                  data-click="resetWebhookBodyTemplate"
+                  type="button"
+                  class="btn btn-outline"
+                  data-click="addWebhookHeader"
                 >
-                  Default template
+                  Add
                 </button>
               </div>
             </div>
           </div>
-          <textarea
-            id="webhookBody"
-            class="input mono code-input"
-            rows="8"
-            data-input="checkWebhookEmailVar $value"
-            data-blur="checkWebhookEmailVar $value"
-          ></textarea>
-          <div class="notice notice--danger mt-2" id="webhookEmailWarning" hidden>
-            <strong>Data processing notice.</strong> The template includes
-            <code>{{email}}</code>, the plaintext address. A Data Processing
-            Agreement with the recipient and a privacy policy disclosure are
-            required. <code>{{emailHash}}</code> sends no personal data.
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="webhookBody">Body template</label>
+              <div class="relative">
+                <button
+                  type="button"
+                  class="btn btn-outline btn-xs"
+                  data-stop
+                  data-click="toggleWebhookTemplateMenu $el"
+                >
+                  Reset to default
+                </button>
+                <div class="dropdown-menu" id="webhookTemplateMenu">
+                  <button
+                    class="dropdown-item"
+                    data-click="resetWebhookBodyTemplate"
+                  >
+                    Default template
+                  </button>
+                </div>
+              </div>
+            </div>
+            <textarea
+              id="webhookBody"
+              class="input mono code-input"
+              rows="8"
+              data-input="checkWebhookEmailVar $value"
+              data-blur="checkWebhookEmailVar $value"
+            ></textarea>
+            <div
+              class="notice notice--danger mt-2"
+              id="webhookEmailWarning"
+              hidden
+            >
+              <strong>Data processing notice.</strong> The template includes
+              <code>{{email}}</code>, the plaintext address. A Data Processing
+              Agreement with the recipient and a privacy policy disclosure are
+              required. <code>{{emailHash}}</code> sends no personal data.
+            </div>
+            <div class="chip-row">
+              <span class="text-xs text-muted">Insert:</span>
+              <button
+                type="button"
+                class="btn btn-outline btn-xs mono"
+                data-click="insertWebhookVar bucket"
+              >
+                bucket
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline btn-xs mono"
+                data-click="insertWebhookVar email"
+              >
+                email
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline btn-xs mono"
+                data-click="insertWebhookVar emailHash"
+              >
+                emailHash
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline btn-xs mono"
+                data-click="insertWebhookVar permissions"
+              >
+                permissions
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline btn-xs mono"
+                data-click="insertWebhookVar timestamp"
+              >
+                timestamp
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline btn-xs mono"
+                data-click="insertWebhookVar customFields"
+              >
+                customFields
+              </button>
+            </div>
           </div>
-          <div class="chip-row">
-            <span class="text-xs text-muted">Insert:</span>
-            <button
-              type="button"
-              class="btn btn-outline btn-xs mono"
-              data-click="insertWebhookVar bucket"
-            >
-              bucket
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline btn-xs mono"
-              data-click="insertWebhookVar email"
-            >
-              email
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline btn-xs mono"
-              data-click="insertWebhookVar emailHash"
-            >
-              emailHash
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline btn-xs mono"
-              data-click="insertWebhookVar permissions"
-            >
-              permissions
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline btn-xs mono"
-              data-click="insertWebhookVar timestamp"
-            >
-              timestamp
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline btn-xs mono"
-              data-click="insertWebhookVar customFields"
-            >
-              customFields
-            </button>
-          </div>
+        </details>
+
+        <div class="label-row" id="webhookSecretKept" hidden>
+          <span class="text-xs text-muted">
+            Saving keeps the signing secret, so connected services keep working.
+          </span>
+          <button
+            type="button"
+            class="btn btn-outline btn-xs"
+            data-click="rotateWebhookSecret"
+          >
+            Rotate secret
+          </button>
         </div>
 
         <div class="secret-box" id="webhookSecretSection" hidden>
           <label for="webhookSecretValue">Signing secret</label>
           <p>
-            Verifies the <code>X-Beacon-Signature</code> header (HMAC-SHA256).
-            The secret is shown once.
+            Copy it now: it is shown once. Your service uses it to check the
+            <code>X-Beacon-Signature</code> header on each request.
           </p>
           <div class="input-row">
             <input
@@ -775,13 +821,18 @@
               global setting.
             </p>
           </div>
-          <span class="settings-item-control">
+          <span class="settings-item-control tooltip-wrapper">
             <input
               type="checkbox"
               id="bucketDoubleOptIn"
               data-change="saveBucketDoubleOptIn $checked"
             />
             <span class="toggle-track"></span>
+            <span
+              class="tooltip tooltip-above tooltip-right"
+              id="bucketDoubleOptInReason"
+              hidden
+            ></span>
           </span>
         </label>
         <div class="form-group mt-3 mb-0">
@@ -822,7 +873,11 @@
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
         </svg>
         <span class="options-section-label">Brand identity</span>
-        <span class="options-section-badge" id="optionsBrandBadge" hidden></span>
+        <span
+          class="options-section-badge"
+          id="optionsBrandBadge"
+          hidden
+        ></span>
         <svg
           class="options-chevron"
           width="16"
@@ -913,10 +968,5 @@
       </div>
     </details>
 
-    <div class="options-close">
-      <button class="btn btn-outline" data-click="closeOptionsModal">
-        Close
-      </button>
-    </div>
   </div>
 </dialog>

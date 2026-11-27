@@ -27,13 +27,14 @@ public static class AuthEndpoints
             .ExcludeFromDescription();
     }
 
-    private static async Task<IResult> Login(
+    internal static async Task<IResult> Login(
         LoginRequest request,
         HttpContext httpContext,
         IWebHostEnvironment env,
         IOptionsMonitor<ApiKeyAuthOptions> apiKeyOptions,
         IOptionsMonitor<JwtAuthOptions> jwtOptions,
         LoginLockout lockout,
+        ISystemConfigurationService configService,
         UserRepository? userRepo = null)
     {
         var opts = apiKeyOptions.Get(ApiKeyAuthExtensions.SchemeName);
@@ -59,10 +60,17 @@ public static class AuthEndpoints
             return Results.Json(new { error }, statusCode: statusCode);
         }
 
-        IResult Granted(string subject, string role, bool adminKey = false)
+        IResult Granted(string subject, string role, bool adminKey = false, bool keyLogin = false)
         {
             lockout.Reset(lockKey);
-            return OkWithCookie(httpContext, env, signingKey, subject, expiresAt, role, adminKey);
+            return OkWithCookie(httpContext, env, signingKey, subject, expiresAt, role, adminKey, keyLogin: keyLogin);
+        }
+
+        if (configService.Get().RequireUserSignIn && userAuthentication is "user" or "both")
+        {
+            if (string.IsNullOrEmpty(request.Username))
+                return Denied("Sign in with a username and password.", 403);
+            request = request with { ApiKey = null };
         }
 
         if (userAuthentication == "user")
@@ -98,7 +106,7 @@ public static class AuthEndpoints
                 if (user != null && user.IsEnabled)
                 {
                     await userRepo.SetLastLoginAsync(user.Id);
-                    return Granted(user.Username, user.Role);
+                    return Granted(user.Username, user.Role, keyLogin: true);
                 }
             }
 
@@ -132,7 +140,7 @@ public static class AuthEndpoints
                 if (userByKey != null && userByKey.IsEnabled)
                 {
                     await userRepo.SetLastLoginAsync(userByKey.Id);
-                    return Granted(userByKey.Username, userByKey.Role);
+                    return Granted(userByKey.Username, userByKey.Role, keyLogin: true);
                 }
             }
 
@@ -164,6 +172,7 @@ public static class AuthEndpoints
         var sub = httpContext.User.FindFirstValue(ClaimTypes.Name) ?? "admin";
         var role = httpContext.User.FindFirstValue(ClaimTypes.Role) ?? "admin";
         var adminKey = httpContext.User.HasClaim(JwtAuthHandler.AdminKeyClaim, "true");
+        var keyLogin = httpContext.User.HasClaim(JwtAuthHandler.KeyLoginClaim, "true");
         if (!long.TryParse(httpContext.User.FindFirstValue(JwtAuthHandler.AuthTimeClaim), out var authSeconds))
             return Results.Unauthorized();
         var authTime = DateTimeOffset.FromUnixTimeSeconds(authSeconds);
@@ -172,7 +181,7 @@ public static class AuthEndpoints
         // One live token per session: a concurrent refresh that lost the revocation claim gets no replacement.
         if (!await JwtAuthHandler.RevokeAsync(tokenUsage, signingKey, JwtAuthHandler.ReadToken(httpContext.Request)))
             return Results.Conflict();
-        return OkWithCookie(httpContext, env, signingKey, sub, expiresAt, role, adminKey, authTime);
+        return OkWithCookie(httpContext, env, signingKey, sub, expiresAt, role, adminKey, authTime, keyLogin);
     }
 
     private static async Task<IResult> Logout(HttpContext httpContext, IOptionsMonitor<JwtAuthOptions> jwtOptions, TokenUsageRepository tokenUsage)
@@ -215,9 +224,25 @@ public static class AuthEndpoints
         DateTimeOffset expiresAt,
         string role,
         bool adminKey = false,
-        DateTimeOffset? authTime = null)
+        DateTimeOffset? authTime = null,
+        bool keyLogin = false)
     {
-        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey, authTime);
+        AppendSessionCookie(httpContext, env, signingKey, subject, expiresAt, role, adminKey, authTime, keyLogin);
+        return Results.Ok(new { role, username = subject, expiresAt = expiresAt.ToString("o") });
+    }
+
+    internal static void AppendSessionCookie(
+        HttpContext httpContext,
+        IWebHostEnvironment env,
+        byte[] signingKey,
+        string subject,
+        DateTimeOffset expiresAt,
+        string role,
+        bool adminKey = false,
+        DateTimeOffset? authTime = null,
+        bool keyLogin = false)
+    {
+        var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey, authTime, keyLogin);
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
             HttpOnly = true,
@@ -226,8 +251,7 @@ public static class AuthEndpoints
             Path = "/",
             Expires = expiresAt
         });
-        return Results.Ok(new { role, username = subject, expiresAt = expiresAt.ToString("o") });
     }
 
-    private record LoginRequest(string? ApiKey = null, string? Username = null, string? Password = null);
+    internal sealed record LoginRequest(string? ApiKey = null, string? Username = null, string? Password = null);
 }

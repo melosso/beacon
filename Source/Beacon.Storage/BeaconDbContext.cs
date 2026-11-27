@@ -20,6 +20,8 @@ public class BeaconDbContext : DbContext
     public DbSet<EmailQueueEntry> EmailQueueEntries => Set<EmailQueueEntry>();
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<OidcProvider> OidcProviders => Set<OidcProvider>();
+    public DbSet<OidcPendingFlow> OidcPendingFlows => Set<OidcPendingFlow>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
     public DbSet<ConsentAuditEntry> ConsentAuditEntries => Set<ConsentAuditEntry>();
@@ -46,9 +48,6 @@ public class BeaconDbContext : DbContext
 
             entity.Property(e => e.TokenHash)
                 .HasMaxLength(64);
-
-            entity.Property(e => e.IpAddress)
-                .HasMaxLength(45);
 
             entity.Property(e => e.ConsentText);
 
@@ -184,6 +183,35 @@ public class BeaconDbContext : DbContext
 
             entity.HasIndex(e => e.ApiKeyHash)
                 .IsUnique();
+
+            entity.Property(e => e.Provider).HasMaxLength(32);
+            entity.Property(e => e.ExternalId).HasMaxLength(255);
+            entity.Property(e => e.Email).HasMaxLength(320);
+            entity.HasIndex(e => new { e.Provider, e.ExternalId });
+        });
+
+        modelBuilder.Entity<OidcProvider>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Slug).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Authority).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ClientId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Scopes).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.UsernameClaim).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EmailClaim).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedRole).HasMaxLength(20).IsRequired();
+            entity.HasIndex(e => e.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<OidcPendingFlow>(entity =>
+        {
+            entity.HasKey(e => e.State);
+            entity.Property(e => e.State).HasMaxLength(64);
+            entity.Property(e => e.Verifier).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.Nonce).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.RedirectUri).HasMaxLength(500).IsRequired();
+            entity.HasIndex(e => e.ExpiresAt);
         });
 
         modelBuilder.Entity<ApiKey>(entity =>
@@ -222,7 +250,6 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.EmailHash).HasMaxLength(64).IsRequired();
             entity.Property(e => e.Permission).HasMaxLength(100).IsRequired();
             entity.Property(e => e.ActorId).HasMaxLength(100);
-            entity.Property(e => e.IpAddress).HasMaxLength(45);
             entity.HasIndex(e => e.EmailHash);
             entity.HasIndex(e => e.ChangedAt);
             entity.HasIndex(e => new { e.Bucket, e.ChangedAt });

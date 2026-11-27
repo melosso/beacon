@@ -356,12 +356,25 @@ public class EmailQueueRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteForRecord_KeepsOtherBuckets()
+    public async Task DeleteRecord_DeletesQueueOfThatBucketOnly()
     {
         await _repository.EnqueueAsync(MakeEntry("tk1", bucket: "a", emailHash: "h"));
         await _repository.EnqueueAsync(MakeEntry("tk2", bucket: "b", emailHash: "h"));
 
-        await _repository.DeleteForRecordAsync("a", "h", TestContext.Current.CancellationToken);
+        await new ConsentRepository(_db).DeleteRecordAsync("a", "h");
+        _db.ChangeTracker.Clear();
+
+        Assert.Equal(["b"], await _db.EmailQueueEntries.Select(e => e.Bucket).ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteBucket_DeletesQueueOfThatBucketOnly()
+    {
+        await _repository.EnqueueAsync(MakeEntry("tk1", bucket: "a", emailHash: "h1"));
+        await _repository.EnqueueAsync(MakeEntry("tk2", bucket: "a", emailHash: "h2"));
+        await _repository.EnqueueAsync(MakeEntry("tk3", bucket: "b", emailHash: "h1"));
+
+        await new ConsentRepository(_db).DeleteBucketAsync("a");
         _db.ChangeTracker.Clear();
 
         Assert.Equal(["b"], await _db.EmailQueueEntries.Select(e => e.Bucket).ToListAsync(TestContext.Current.CancellationToken));

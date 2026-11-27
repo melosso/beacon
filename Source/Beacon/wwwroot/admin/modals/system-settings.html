@@ -1,6 +1,6 @@
 <!-- Error Detail Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="errorDetailModal"
   aria-labelledby="errorDetailModalTitle"
   data-self
@@ -60,7 +60,7 @@
 
 <!-- Double Opt-In Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="doubleOptInSettingsModal"
   aria-labelledby="doubleOptInSettingsModalTitle"
   data-self
@@ -91,7 +91,8 @@
       </button>
     </div>
     <p>
-      Choose how confirmation emails go out when subscribers must confirm by email.
+      Choose how confirmation emails go out when subscribers must confirm by
+      email.
     </p>
 
     <div class="settings-items">
@@ -125,15 +126,84 @@
   </div>
 </dialog>
 
+<!-- Erasure Notice Settings Modal -->
+<dialog
+  class="modal-backdrop sheet"
+  id="erasureNoticeModal"
+  aria-labelledby="erasureNoticeModalTitle"
+  data-self
+  data-click="closeErasureNoticeModal"
+>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="erasureNoticeModalTitle">Erasure notice settings</h3>
+      <button
+        class="btn btn-icon"
+        data-click="closeErasureNoticeModal"
+        aria-label="Close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <p>Choose what your webhooks receive when a subscriber is deleted.</p>
+
+    <div class="settings-items">
+      <div class="settings-item-card">
+        <label
+          class="settings-item-card-label"
+          for="setting-erasureNoticeIncludeEmail"
+        >
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none"
+              >Include email address</span
+            >
+            <p class="settings-item-desc">
+              Adds the email address for systems that do not store the Beacon
+              ID. Off keeps wiped personal info out of your webhooks.
+            </p>
+          </div>
+          <div class="settings-item-control">
+            <input
+              type="checkbox"
+              id="setting-erasureNoticeIncludeEmail"
+              data-change="saveSettingImmediate erasureNoticeIncludeEmail $checked"
+            />
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-click="closeErasureNoticeModal">
+        Done
+      </button>
+    </div>
+  </div>
+</dialog>
+
 <!-- Submission Forms Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="submissionFormsSettingsModal"
   aria-labelledby="submissionFormsSettingsModalTitle"
   data-self
   data-click="closeSubmissionFormsSettingsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="submissionFormsSettingsModalTitle">Submission form defaults</h3>
       <button
@@ -236,13 +306,13 @@
 
 <!-- Object Storage Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="objectStorageModal"
   aria-labelledby="objectStorageModalTitle"
   data-self
   data-click="closeObjectStorageModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="objectStorageModalTitle">Object storage</h3>
       <button
@@ -361,7 +431,9 @@
     <div class="form-group">
       <label for="objectStoragePublicUrl"
         >Public URL
-        <span class="font-normal text-muted">(bucket or CDN base URL)</span></label
+        <span class="font-normal text-muted"
+          >(bucket or CDN base URL)</span
+        ></label
       >
       <input
         type="url"
@@ -395,13 +467,13 @@
 
 <!-- Promo Bar Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="promoBarModal"
   aria-labelledby="promoBarModalTitle"
   data-self
   data-click="closePromoBarModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="promoBarModalTitle">Admin announcement bar</h3>
       <button
@@ -439,9 +511,7 @@
         placeholder="e.g. Scheduled maintenance on [Saturday 14:00 UTC](https://status.example.com)."
         data-input="updateCharCount $el"
       ></textarea>
-      <p class="field-hint" id="modal-promoBar-count">
-        0 / 500
-      </p>
+      <p class="field-hint" id="modal-promoBar-count">0 / 500</p>
     </div>
 
     <label
@@ -490,13 +560,13 @@
 
 <!-- Login Footer Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="loginFooterModal"
   aria-labelledby="loginFooterModalTitle"
   data-self
   data-click="closeLoginFooterModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="loginFooterModalTitle">Login page footer</h3>
       <button
@@ -521,8 +591,8 @@
       </button>
     </div>
     <p>
-      Message shown below the sign-in box. Supports <strong>**bold**</strong>, <em>_italic_</em>, and
-      <code>[text](url)</code> links. Max 500 characters.
+      Message shown below the sign-in box. Supports <strong>**bold**</strong>,
+      <em>_italic_</em>, and <code>[text](url)</code> links. Max 500 characters.
     </p>
 
     <div class="form-group">
@@ -533,9 +603,7 @@
         placeholder="e.g. Contact your [administrator](mailto:admin@example.com) for access."
         data-input="updateCharCount $el"
       ></textarea>
-      <p class="field-hint" id="modal-loginFooter-count">
-        0 / 500
-      </p>
+      <p class="field-hint" id="modal-loginFooter-count">0 / 500</p>
     </div>
 
     <div class="modal-actions">
@@ -551,13 +619,13 @@
 
 <!-- Cache Settings Modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="cacheSettingsModal"
   aria-labelledby="cacheSettingsModalTitle"
   data-self
   data-click="closeCacheSettingsModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="cacheSettingsModalTitle">Cache settings</h3>
       <button
@@ -655,6 +723,28 @@
       <button class="btn btn-primary" data-click="saveCacheSettings">
         Save changes
       </button>
+    </div>
+  </div>
+</dialog>
+
+<dialog
+  class="modal-backdrop sheet"
+  id="webhooksSheet"
+  aria-labelledby="webhooksSheetTitle"
+  data-self
+  data-click="closeWebhooksSheet"
+>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="webhooksSheetTitle">Webhooks</h3>
+      <button class="btn btn-icon" data-click="closeWebhooksSheet" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>Webhooks per bucket. Select a bucket to change its endpoint or switch it off.</p>
+    <div id="webhooksOverview"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-click="closeWebhooksSheet">Done</button>
     </div>
   </div>
 </dialog>

@@ -3,7 +3,7 @@
 # Configuration
 API_URL="http://localhost:5000/api/tokens/generate"
 # Key: $ADMIN_API_KEY, else ADMIN_API_KEY from Source/Beacon/.env.
-API_KEY="${ADMIN_API_KEY:-$(grep -s '^ADMIN_API_KEY=' "$(dirname "$0")/Source/Beacon/.env" | cut -d= -f2-)}"
+API_KEY="${ADMIN_API_KEY:-$(grep -s '^ADMIN_API_KEY=' "$(dirname "$0")/../Source/Beacon/.env" | cut -d= -f2-)}"
 
 AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Api-Key: $API_KEY" "http://localhost:5001/api/admin/auth/me")
 case "$AUTH_STATUS" in
@@ -11,6 +11,20 @@ case "$AUTH_STATUS" in
   000) echo "Beacon is not reachable on localhost:5001. Start it with: dotnet run --project Source/Beacon"; exit 1 ;;
   *)   echo "API key rejected (HTTP $AUTH_STATUS). Set ADMIN_API_KEY or add it to Source/Beacon/.env."; exit 1 ;;
 esac
+
+ADMIN="http://localhost:5001/api/admin"
+admin_call() {
+    curl -s -X "$1" "$ADMIN$2" -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" ${3:+-d "$3"}
+}
+
+echo "Creating users..."
+for user in "admin-dev:beacon-dev-password:admin" "analyst@melosso.example:Populate-password-2026:user" "operations@melosso.example:Populate-password-2026:admin"; do
+    IFS=: read -r name password role <<< "$user"
+    printf '  %s ' "$name"
+    admin_call POST /users "{\"username\": \"$name\", \"password\": \"$password\", \"role\": \"$role\"}" \
+        | grep -o '"role":"[a-z]*"' || echo "(exists)"
+done
+echo "--------------------------------------"
 
 MIN_EMAILS_PER_BUCKET=${MIN_EMAILS:-5}
 MAX_EMAILS_PER_BUCKET=${MAX_EMAILS:-300}
@@ -137,8 +151,18 @@ generate_email_permissions() {
 }
 
 
+SHARED_COUNT=${SHARED_IDENTITIES:-40}
+SHARED_EMAILS=()
+SHARED_NAMES=()
+for (( n=0; n<SHARED_COUNT; n++ )); do
+    DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
+    NAME=$(generate_name "$DOMAIN")
+    SHARED_NAMES+=("$NAME")
+    SHARED_EMAILS+=("$(tr ' ' '.' <<< "${NAME,,}")$(( n + 10 ))@${DOMAIN}")
+done
+
 # Processing
-echo "Initialization: Generating ${#BUCKETS[@]} buckets..."
+echo "Initialization: Generating ${#BUCKETS[@]} buckets with $SHARED_COUNT shared identities..."
 
 for BUCKET_NAME in "${BUCKETS[@]}"; do
 
@@ -155,10 +179,16 @@ for BUCKET_NAME in "${BUCKETS[@]}"; do
     echo "Processing [$BUCKET_NAME]: $NUM_EMAILS users with $NUM_BUCKET_PERMS available permissions..."
 
     for (( i=1; i<=NUM_EMAILS; i++ )); do
-        USER_ID=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
-        DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
-        EMAIL="${USER_ID}@${DOMAIN}"
-        NAME=$(generate_name "$DOMAIN")
+        if (( SHARED_COUNT > 0 && RANDOM % 100 < ${SHARED_PERCENT:-15} )); then
+            SHARED=$(( RANDOM % SHARED_COUNT ))
+            EMAIL=${SHARED_EMAILS[$SHARED]}
+            NAME=${SHARED_NAMES[$SHARED]}
+        else
+            USER_ID=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
+            DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
+            EMAIL="${USER_ID}@${DOMAIN}"
+            NAME=$(generate_name "$DOMAIN")
+        fi
 
         PERMISSIONS_JSON=$(generate_email_permissions "${BUCKET_PERMISSIONS[@]}")
 
@@ -303,6 +333,139 @@ if [[ -n "$FR_FORM_ID" ]]; then
             -H "Origin: http://localhost:8070" \
             -d "{\"email\": \"$email\", \"name\": \"${FR_NAMES[$email]}\", \"consent\": \"true\"}"
     done
+fi
+
+echo "--------------------------------------"
+# v1.9.0 examples
+
+echo "Creating the Melosso brand identity..."
+MELOSSO_ID=$(admin_call GET /brand-identities | grep -o '"id":[0-9]*,"name":"Melosso"' | head -1 | grep -o '[0-9]\+' | head -1)
+[[ -z "$MELOSSO_ID" ]] && MELOSSO_ID=$(admin_call POST /brand-identities '{"name": "Melosso"}' | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+if [[ -n "$MELOSSO_ID" ]]; then
+    admin_call PUT "/brand-identities/$MELOSSO_ID" '{
+        "name": "Melosso",
+        "settings": {
+            "primaryAccent": "#059669",
+            "surfaceColour": "#F8FAFC",
+            "theme": "system",
+            "browserTitle": "Melosso preferences",
+            "pageTitle": "Your Melosso preferences",
+            "pageBody": "Choose which updates you receive from Melosso.",
+            "emailTitle": "Confirm your subscription",
+            "emailBody": "Confirm your email address to start receiving updates from Melosso.",
+            "confirmTitle": "Subscription confirmed",
+            "confirmMsg": "Thanks. Your preferences are saved.",
+            "footer": "Melosso, Europe"
+        }
+    }' > /dev/null
+    admin_call PUT "/brand-identities/$MELOSSO_ID/buckets" \
+        '{"buckets": ["customer_loyalty_programme_eu", "partner_enablement_network_eu", "early_access_programme_eu"]}' > /dev/null
+    echo "  Melosso identity $MELOSSO_ID on 3 buckets"
+fi
+
+echo "Creating webhooks..."
+admin_call POST /buckets/customer_loyalty_programme_eu/webhook \
+    '{"url": "https://httpbin.org/post", "method": "POST"}' > /dev/null && echo "  customer_loyalty_programme_eu: enabled"
+admin_call POST /buckets/partner_enablement_network_eu/webhook \
+    '{"url": "https://httpbin.org/post", "method": "POST", "headers": {"X-Source": "beacon"}}' > /dev/null
+admin_call PUT /buckets/partner_enablement_network_eu/webhook/enabled '{"enabled": false}' > /dev/null && echo "  partner_enablement_network_eu: disabled"
+
+echo "Adding the OIDC stub as a sign-in provider..."
+if curl -s -o /dev/null --max-time 2 http://127.0.0.1:9555/.well-known/openid-configuration; then
+    RESULT=$(admin_call POST /oidc/providers '{"slug": "dev-stub", "name": "Dev stub", "authority": "http://127.0.0.1:9555", "clientId": "beacon", "clientSecret": "beacon-dev-secret", "isEnabled": true, "createAccounts": true, "createdRole": "user"}')
+    case "$RESULT" in
+        *'"id"'*) echo "  dev-stub added" ;;
+        *"already in use"*) echo "  dev-stub exists" ;;
+        *) echo "  skipped: $RESULT" ;;
+    esac
+else
+    echo "  skipped: start the stub with  dotnet run Scripts/oidc-stub.cs  and run Beacon with ALLOW_PRIVATE_NETWORK=true"
+fi
+
+echo "Pointing object storage at the S3 stub..."
+if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:9556/beacon?location"; then
+    SETTINGS=$(admin_call GET /settings | python3 -I -c '
+import json, sys
+c = json.load(sys.stdin)
+c.update(objectStorage=True, objectStorageProvider="minio", objectStorageBucket="beacon", objectStorageRegion="us-east-1",
+         objectStorageEndpoint="http://127.0.0.1:9556", objectStorageAccessKey="beacon-dev",
+         objectStorageSecretKey="beacon-dev-secret", objectStoragePublicUrl="http://127.0.0.1:9556/beacon")
+print(json.dumps(c))')
+    RESULT=$(admin_call PUT /settings "$SETTINGS")
+    case "$RESULT" in
+        *'"objectStorage":true'*) echo "  object storage set (restart Beacon if it ran with local storage)" ;;
+        *) echo "  skipped: $RESULT" ;;
+    esac
+else
+    echo "  skipped: start the stub with  dotnet run Scripts/s3-stub.cs"
+fi
+
+echo "Renaming and erasing a subscriber..."
+identity_hash() {
+    admin_call GET "/identities?page=1&pageSize=1&search=$1&searchType=email" | grep -o '"emailHash":"[a-f0-9]*"' | head -1 | cut -d'"' -f4
+}
+RENAME_HASH=$(identity_hash "jan.devries@organisatie.nl")
+[[ -n "$RENAME_HASH" ]] && admin_call PUT "/identities/$RENAME_HASH/name" '{"name": "Jan de Vries-Bakker"}' > /dev/null && echo "  renamed jan.devries@organisatie.nl"
+ERASE_HASH=$(identity_hash "marie.curie@societe.fr")
+[[ -n "$ERASE_HASH" ]] && admin_call DELETE "/identities/$ERASE_HASH" > /dev/null && echo "  erased marie.curie@societe.fr (see Audit, source Erasure)"
+
+echo "Backdating records for the data policies..."
+ENV_FILE="$(dirname "$0")/../Source/Beacon/.env"
+DB_PROVIDER="${DATABASE_PROVIDER:-$(grep -s '^DATABASE_PROVIDER=' "$ENV_FILE" | cut -d= -f2-)}"
+DB_SOURCE="${CONNECTION_STRING:-$(grep -s '^CONNECTION_STRING=' "$ENV_FILE" | cut -d= -f2-)}"
+DB_SOURCE="${DB_SOURCE:-Data Source=Beacon.db}"
+DB_FILE=$(sed -n 's/.*Data Source=\([^;]*\).*/\1/Ip' <<< "$DB_SOURCE")
+[[ -n "$DB_FILE" && "$DB_FILE" != /* ]] && DB_FILE="$(dirname "$0")/../Source/Beacon/$DB_FILE"
+if [[ "${DB_PROVIDER:-sqlite}" != "sqlite" ]] || ! command -v python3 > /dev/null || [[ ! -f "$DB_FILE" ]]; then
+    echo "  skipped: needs python3 and the SQLite database file (${DB_FILE:-not found})"
+else
+    python3 -I - "$DB_FILE" <<'EOF'
+import random, sqlite3, sys
+db = sqlite3.connect(sys.argv[1], timeout=30)
+rng = random.Random(190)
+
+def shift(rows, days, base="ChangedAt"):
+    stamp = f"strftime('%Y-%m-%d %H:%M:%f', {base}, ?)"
+    for rid, bucket, email_hash, permission in rows:
+        delta = f"-{days()} days"
+        db.execute(f"update ConsentRecords set ChangedAt = {stamp} where Id = ?", (delta, rid))
+        db.execute(f"update ConsentAuditEntries set ChangedAt = {stamp} where Bucket = ? and EmailHash = ? and Permission = ?",
+                   (delta, bucket, email_hash, permission))
+    return len(rows)
+
+def pick(where, limit):
+    return db.execute(f"select Id, Bucket, EmailHash, Permission from ConsentRecords where {where} order by random() limit {limit}").fetchall()
+
+spread = shift(pick("ChangedAt > datetime('now', '-1 day')", -1), lambda: rng.randint(0, 179))
+stale_optout = 0
+if not db.execute("select 1 from ConsentRecords where Status = 1 and ChangedAt < datetime('now', '-1095 days')").fetchone():
+    stale_optout = shift(pick("Status = 1 and EncryptedEmail is not null", 40), lambda: rng.randint(1100, 1500))
+pending_old = pending_new = 0
+if not db.execute("select 1 from ConsentRecords where Status = 2").fetchone():
+    old, new = pick("Status = 0", 30), pick("Status = 0", 12)
+    new = [r for r in new if r not in old]
+    for rid, *_ in old + new:
+        db.execute("update ConsentRecords set Status = 2 where Id = ?", (rid,))
+    pending_old = shift(old, lambda: rng.randint(31, 70), base="'now'")
+    pending_new = shift(new, lambda: rng.randint(1, 20), base="'now'")
+db.commit()
+print(f"  {spread} records spread over 180 days")
+print(f"  {stale_optout} opted-out records older than 3 years (retention purge)")
+print(f"  {pending_old} pending confirmations older than 30 days (pending confirmation purge), {pending_new} recent")
+EOF
+    admin_call DELETE /cache > /dev/null
+    admin_call POST /data-policies/run > /dev/null
+    sleep 3
+    PENDING_TASK=$(admin_call GET "/data-policies/tasks?limit=20" | python3 -I -c '
+import json, sys
+tasks = json.load(sys.stdin)
+print(next((t["id"] for t in tasks if t["taskType"] in ("PendingConfirmationPurge", 1) and t["status"] in ("PendingApproval", 0)), ""))')
+    if [[ -n "$PENDING_TASK" ]]; then
+        admin_call POST "/data-policies/tasks/$PENDING_TASK/approve" > /dev/null
+        echo "  pending confirmation purge approved; retention purge awaits approval under Workflow"
+    else
+        echo "  no policy task queued (see Workflow)"
+    fi
 fi
 
 echo "--------------------------------------"

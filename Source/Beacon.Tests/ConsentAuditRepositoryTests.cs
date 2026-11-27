@@ -133,6 +133,72 @@ public class ConsentAuditRepositoryTests : IDisposable
         Assert.Equal("hash2", result.Records[0].EmailHash);
     }
 
+    [Fact]
+    public async Task AnonymiseOptedOut_WipesNameAndAuditCustomFields()
+    {
+        var record = MakeRecord("bucket-a", "hash1", "newsletter", ConsentStatus.OptedOut);
+        record.EncryptedEmail = "enc-email";
+        record.EncryptedName = "enc-name";
+        record.CustomFields = """{"city":"Utrecht"}""";
+        await _repository.UpsertAsync(record);
+        _db.ChangeTracker.Clear();
+
+        var cutoff = DateTime.UtcNow.AddMinutes(1);
+        Assert.Equal(1, await _repository.CountOptedOutToAnonymiseAsync(cutoff, TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _repository.AnonymiseOptedOutAsync(cutoff, TestContext.Current.CancellationToken));
+        _db.ChangeTracker.Clear();
+
+        var stored = await _db.ConsentRecords.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Null(stored.EncryptedName);
+        Assert.Null(stored.EncryptedEmail);
+        Assert.Equal(ConsentStatus.OptedOut, stored.Status);
+        Assert.All(await _db.ConsentAuditEntries.ToListAsync(TestContext.Current.CancellationToken), e => Assert.Null(e.CustomFields));
+        Assert.Equal(0, await _repository.CountOptedOutToAnonymiseAsync(cutoff, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AnonymiseOptedOut_KeepsOptedInAuditCustomFields()
+    {
+        var record = MakeRecord("bucket-a", "hash1", "newsletter", ConsentStatus.OptedIn);
+        record.EncryptedEmail = "enc-email";
+        record.CustomFields = """{"city":"Utrecht"}""";
+        await _repository.UpsertAsync(record);
+        _db.ChangeTracker.Clear();
+
+        Assert.Equal(0, await _repository.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken));
+        _db.ChangeTracker.Clear();
+
+        Assert.NotNull((await _db.ConsentAuditEntries.SingleAsync(TestContext.Current.CancellationToken)).CustomFields);
+    }
+
+    [Fact]
+    public async Task DeleteRecordAsync_FailedErasureAudit_KeepsRecord()
+    {
+        await _repository.UpsertAsync(MakeRecord("bucket-a", "hash1", "newsletter", ConsentStatus.OptedIn));
+        _db.ChangeTracker.Clear();
+
+        var failing = new FailingSaveInterceptor();
+        await using (var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).AddInterceptors(failing).Options))
+        {
+            failing.Armed = true;
+            await Assert.ThrowsAsync<DbUpdateException>(() => new ConsentRepository(db).DeleteRecordAsync("bucket-a", "hash1", "ops"));
+        }
+
+        Assert.Equal(1, await _db.ConsentRecords.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _db.ConsentAuditEntries.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    private sealed class FailingSaveInterceptor : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+            Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) =>
+            Armed ? throw new DbUpdateException("Simulated audit write failure.") : base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
     private static ConsentRecord MakeRecord(string bucket, string emailHash, string permission, ConsentStatus status) =>
         new()
         {

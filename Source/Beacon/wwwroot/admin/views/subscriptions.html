@@ -4,17 +4,48 @@
     <div>
       <h1 class="select-none" id="subTitle">Subscribers</h1>
       <span class="status-badge select-none" id="subBadge" hidden></span>
-      <span class="text-sm text-muted mt-0-5"
-        id="subDetailName" hidden
-      ></span>
     </div>
     <div class="bucket-actions">
       <button
         class="btn btn-outline"
         id="subBackBtn"
-        data-click="loadIdentities" hidden
+        data-click="loadIdentities"
+        hidden
       >
         Back
+      </button>
+      <span class="relative" id="subIdentityActions" hidden>
+        <button
+          class="btn btn-outline"
+          data-stop
+          data-click="toggleMenu subIdentityMenu $el"
+          aria-haspopup="menu"
+          aria-controls="subIdentityMenu"
+        >
+          Manage
+        </button>
+        <div class="dropdown-menu" id="subIdentityMenu" role="menu">
+          <button class="dropdown-item" role="menuitem" data-click="openIdentityNameModal">
+            Edit name
+          </button>
+          <button class="dropdown-item" role="menuitem" data-click="openSubExportModal">
+            Export data
+          </button>
+          <button
+            class="dropdown-item dropdown-item--destructive"
+            role="menuitem"
+            data-click="openIdentityDeleteModal"
+          >
+            Delete all data
+          </button>
+        </div>
+      </span>
+      <button
+        class="btn btn-primary"
+        id="subAddBtn"
+        data-click="showView new-token"
+      >
+        Add identity
       </button>
     </div>
   </section>
@@ -28,6 +59,12 @@
       data-admin-only
     >
       Export
+    </button>
+    <button
+      class="btn btn-outline btn-sm"
+      data-click="openIdentityDeleteModal"
+    >
+      Delete
     </button>
     <button
       class="btn btn-outline btn-sm ml-auto"
@@ -130,10 +167,17 @@
         </svg>
       </button>
     </div>
-    <p>
-      Export <strong id="subExportCount">0</strong> subscriber(s). Each row
-      includes email, Beacon ID, list count, created date, and last updated.
-    </p>
+    <p>Export <strong id="subExportCount">0</strong> subscriber(s).</p>
+    <div class="form-group">
+      <label for="subExportContents">Contents</label>
+      <select id="subExportContents">
+        <option value="summary">Summary: one row per subscriber</option>
+        <option value="full">
+          Full copy for access requests: one row per permission, with consent
+          text and custom fields
+        </option>
+      </select>
+    </div>
     <div class="form-group">
       <label for="subExportFormat">Format</label>
       <select id="subExportFormat">
@@ -156,4 +200,61 @@
       </button>
     </div>
   </div>
+</dialog>
+
+<dialog
+  class="modal-backdrop"
+  id="identityNameModal"
+  aria-labelledby="identityNameTitle"
+  data-self
+  data-click="closeIdentityNameModal"
+>
+  <form class="modal modal--sm" data-submit="saveIdentityName">
+    <div class="modal-header">
+      <h3 id="identityNameTitle">Edit name</h3>
+      <button type="button" class="btn btn-icon" data-click="closeIdentityNameModal" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>The name is updated in every bucket this subscriber is in.</p>
+    <div class="form-group">
+      <label for="identityNameInput">Full name</label>
+      <input type="text" id="identityNameInput" maxlength="250" autocomplete="off" />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-click="closeIdentityNameModal">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save name</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog
+  class="modal-backdrop"
+  id="identityDeleteModal"
+  aria-labelledby="identityDeleteTitle"
+  data-self
+  data-click="closeIdentityDeleteModal"
+>
+  <form class="modal modal--sm" data-submit="deleteIdentity">
+    <div class="modal-header">
+      <h3 id="identityDeleteTitle">Delete all data?</h3>
+      <button type="button" class="btn btn-icon" data-click="closeIdentityDeleteModal" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p id="identityDeleteDesc"></p>
+    <div class="form-group">
+      <label for="identityDeleteInput" id="identityDeleteLabel">Type the email address to confirm.</label>
+      <input
+        type="text"
+        id="identityDeleteInput"
+        autocomplete="off"
+        data-input="checkIdentityDeleteInput $value"
+      />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-click="closeIdentityDeleteModal">Cancel</button>
+      <button type="submit" class="btn btn-destructive" id="identityDeleteBtn" disabled>Delete all data</button>
+    </div>
+  </form>
 </dialog>

@@ -1,16 +1,35 @@
-<!-- New Bucket View -->
-<div id="view-new-bucket" class="view view--scroll">
-  <section class="header-container">
-    <div>
-      <h1>New bucket</h1>
-      <span class="status-badge">Bucket management</span>
+<dialog
+  class="modal-backdrop sheet"
+  id="newBucketSheet"
+  aria-labelledby="newBucketTitle"
+  data-self
+  data-click="closeNewBucketSheet"
+>
+  <div class="modal" data-guard>
+    <div class="modal-header">
+      <h3 id="newBucketTitle">Add bucket</h3>
+      <button
+        class="btn btn-icon"
+        data-click="closeNewBucketSheet"
+        aria-label="Close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
-  </section>
-  <div class="panel">
-    <h3>Bucket details</h3>
-    <p>
-      A bucket groups consent records. Add at least one permission.
-    </p>
+    <p>A bucket groups consent records. Add at least one permission.</p>
 
     <div class="form-group">
       <label for="newBucketName"
@@ -53,4 +72,4 @@
       </button>
     </div>
   </div>
-</div>
+</dialog>

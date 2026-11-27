@@ -66,6 +66,15 @@ public class SsrfGuardTests
     [InlineData("fd00::1")]
     [InlineData("fe80::1")]
     [InlineData("::ffff:127.0.0.1")]
+    [InlineData("192.0.0.170")]
+    [InlineData("198.18.0.1")]
+    [InlineData("224.0.0.1")]
+    [InlineData("240.0.0.1")]
+    [InlineData("255.255.255.255")]
+    [InlineData("64:ff9b::a9fe:a9fe")]
+    [InlineData("64:ff9b:1::a00:1")]
+    [InlineData("2002:a9fe:a9fe::1")]
+    [InlineData("ff02::1")]
     public void BlocksPrivateAndReserved(string address)
     {
         Assert.True(SsrfGuard.IsPrivateOrReserved(IPAddress.Parse(address)));
@@ -74,6 +83,8 @@ public class SsrfGuardTests
     [Theory]
     [InlineData("8.8.8.8")]
     [InlineData("1.1.1.1")]
+    [InlineData("192.0.1.1")]
+    [InlineData("223.255.255.1")]
     [InlineData("2606:4700:4700::1111")]
     public void AllowsPublic(string address)
     {
@@ -127,7 +138,7 @@ public class S3ClientFactoryTests
     public void ConstructsForEveryConfiguredCombination(string provider, string? endpoint, string? region)
     {
         using var client = Beacon.Storage.S3ObjectStorageService.CreateClient(
-            provider, endpoint, region, "access", "secret");
+            provider, endpoint, region, "access", "secret", allowPrivateNetwork: false);
 
         Assert.NotNull(client.Config.RegionEndpoint ?? (object?)client.Config.ServiceURL);
     }
@@ -135,11 +146,65 @@ public class S3ClientFactoryTests
     [Fact]
     public void PathStyleIsForcedOnlyForR2AndMinio()
     {
-        using var s3 = Beacon.Storage.S3ObjectStorageService.CreateClient("s3", null, null, "a", "b");
-        using var r2 = Beacon.Storage.S3ObjectStorageService.CreateClient("r2", "https://x.example", null, "a", "b");
+        using var s3 = Beacon.Storage.S3ObjectStorageService.CreateClient("s3", null, null, "a", "b", allowPrivateNetwork: false);
+        using var r2 = Beacon.Storage.S3ObjectStorageService.CreateClient("r2", "https://x.example", null, "a", "b", allowPrivateNetwork: false);
 
         Assert.False(((Amazon.S3.AmazonS3Config)s3.Config).ForcePathStyle);
         Assert.True(((Amazon.S3.AmazonS3Config)r2.Config).ForcePathStyle);
+    }
+
+    [Fact]
+    public async Task StorageClientRefusesPrivateEndpointAtConnect()
+    {
+        using var client = Beacon.Storage.S3ObjectStorageService.CreateClient("minio", "http://127.0.0.1:9", null, "a", "b", allowPrivateNetwork: false);
+        using var http = client.Config.HttpClientFactory.CreateHttpClient(client.Config);
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("http://127.0.0.1:9/", TestContext.Current.CancellationToken));
+        Assert.Contains("private or reserved", ex.Message + ex.InnerException?.Message);
+    }
+
+    [Fact]
+    public void SettingsResponseMasksSecretsWithoutChangingTheLiveConfig()
+    {
+        var encryptor = new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+        var stored = encryptor.Encrypt("secret-plain-value");
+        var configService = new Beacon.Tests.Fakes.StubSystemConfigurationService(new Beacon.Core.Services.SystemConfig
+        {
+            EmailSmtpPassword = stored,
+            ObjectStorageSecretKey = stored
+        });
+
+        var response = (Microsoft.AspNetCore.Http.HttpResults.Ok<Beacon.Core.Services.SystemConfig>)
+            Beacon.Api.AdminEndpoints.GetSystemConfiguration(configService, encryptor);
+
+        Assert.Equal("secr********alue", response.Value!.ObjectStorageSecretKey);
+        Assert.Equal(stored, configService.Get().EmailSmtpPassword);
+        Assert.Equal(stored, configService.Get().ObjectStorageSecretKey);
+    }
+
+    [Fact]
+    public void SignsWithDecryptedStorageCredentials()
+    {
+        var encryptor = new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+        var config = new Beacon.Core.Services.SystemConfig
+        {
+            ObjectStorage = true,
+            ObjectStorageProvider = "minio",
+            ObjectStorageEndpoint = "https://minio.example.com",
+            ObjectStorageBucket = "beacon",
+            ObjectStorageAccessKey = encryptor.Encrypt("access-plain"),
+            ObjectStorageSecretKey = encryptor.Encrypt("secret-plain")
+        };
+        var service = new Beacon.Storage.S3ObjectStorageService(new Beacon.Tests.Fakes.StubSystemConfigurationService(config), encryptor, new Beacon.Security.OutboundNetwork(false));
+
+        var client = typeof(Beacon.Storage.S3ObjectStorageService)
+            .GetField("_client", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(service)!;
+        var credentials = (Amazon.Runtime.AWSCredentials)typeof(Amazon.Runtime.AmazonServiceClient)
+            .GetProperty("ExplicitAWSCredentials", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)!.GetValue(client)!;
+        var plain = credentials.GetCredentials();
+
+        Assert.Equal("access-plain", plain.AccessKey);
+        Assert.Equal("secret-plain", plain.SecretKey);
     }
 
     [Theory]
