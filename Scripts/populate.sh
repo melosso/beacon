@@ -12,6 +12,20 @@ case "$AUTH_STATUS" in
   *)   echo "API key rejected (HTTP $AUTH_STATUS). Set ADMIN_API_KEY or add it to Source/Beacon/.env."; exit 1 ;;
 esac
 
+ADMIN="http://localhost:5001/api/admin"
+admin_call() {
+    curl -s -X "$1" "$ADMIN$2" -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" ${3:+-d "$3"}
+}
+
+echo "Creating users..."
+for user in "admin-dev:beacon-dev-password:admin" "analyst@melosso.example:Populate-password-2026:user" "operations@melosso.example:Populate-password-2026:admin"; do
+    IFS=: read -r name password role <<< "$user"
+    printf '  %s ' "$name"
+    admin_call POST /users "{\"username\": \"$name\", \"password\": \"$password\", \"role\": \"$role\"}" \
+        | grep -o '"role":"[a-z]*"' || echo "(exists)"
+done
+echo "--------------------------------------"
+
 MIN_EMAILS_PER_BUCKET=${MIN_EMAILS:-5}
 MAX_EMAILS_PER_BUCKET=${MAX_EMAILS:-300}
 
@@ -308,11 +322,6 @@ fi
 echo "--------------------------------------"
 # v1.9.0 examples
 
-ADMIN="http://localhost:5001/api/admin"
-admin_call() {
-    curl -s -X "$1" "$ADMIN$2" -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" ${3:+-d "$3"}
-}
-
 echo "Creating the Melosso brand identity..."
 MELOSSO_ID=$(admin_call GET /brand-identities | grep -o '"id":[0-9]*,"name":"Melosso"' | head -1 | grep -o '[0-9]\+' | head -1)
 [[ -z "$MELOSSO_ID" ]] && MELOSSO_ID=$(admin_call POST /brand-identities '{"name": "Melosso"}' | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
@@ -337,14 +346,6 @@ if [[ -n "$MELOSSO_ID" ]]; then
         '{"buckets": ["customer_loyalty_programme_eu", "partner_enablement_network_eu", "early_access_programme_eu"]}' > /dev/null
     echo "  Melosso identity $MELOSSO_ID on 3 buckets"
 fi
-
-echo "Creating users..."
-for user in "admin-dev:beacon-dev-password:admin" "analyst@melosso.example:Populate-password-2026:user" "operations@melosso.example:Populate-password-2026:admin"; do
-    IFS=: read -r name password role <<< "$user"
-    printf '  %s ' "$name"
-    admin_call POST /users "{\"username\": \"$name\", \"password\": \"$password\", \"role\": \"$role\"}" \
-        | grep -o '"role":"[a-z]*"' || echo "(exists)"
-done
 
 echo "Creating webhooks..."
 admin_call POST /buckets/customer_loyalty_programme_eu/webhook \
