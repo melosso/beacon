@@ -339,6 +339,11 @@ public sealed class ConsentRepository : IConsentRepository
             .ExecuteDeleteAsync();
     }
 
+    public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) =>
+        _context.ConsentRecords
+            .Where(r => r.EmailHash == emailHash)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.EncryptedName, encryptedName));
+
     public async Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash)
     {
         return await _context.ConsentRecords

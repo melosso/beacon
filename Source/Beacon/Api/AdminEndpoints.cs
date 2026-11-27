@@ -123,6 +123,14 @@ public static class AdminEndpoints
             .RequireAuthorization("ConsentRead")
             .ExcludeFromDescription();
 
+        routes.MapDelete("/api/admin/identities/{emailHash}", DeleteIdentity)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
+        routes.MapPut("/api/admin/identities/{emailHash}/name", UpdateIdentityName)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
         routes.MapPost("/api/admin/identities/export", ExportIdentities)
             .RequireAuthorization("ConsentExport")
             .RequireRateLimiting("export")
@@ -1585,6 +1593,74 @@ public static class AdminEndpoints
             { "updatedAt", ExportWriter.Timestamp(r.LastChanged) }
         }).ToList();
         return ExportWriter.Write(context, $"beacon-subscribers-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "subscriber", rows);
+    }
+
+    internal static async Task<IResult> DeleteIdentity(
+        string emailHash,
+        [FromServices] IConsentRepository repository,
+        [FromServices] AdminNotificationService notifications,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor,
+        ILogger<Program> logger)
+    {
+        var validation = InputValidator.ValidateEmailHash(emailHash);
+        if (!validation.IsValid)
+            return Results.BadRequest(new { error = validation.Error });
+
+        var hash = emailHash.ToLowerInvariant();
+        var details = await repository.GetIdentityDetailsAsync(hash);
+        if (details is null)
+            return Results.NotFound();
+
+        var erased = new List<(string Bucket, IReadOnlyList<ConsentRecord> Records)>();
+        var deleted = 0;
+        using (await repository.BeginTransactionAsync())
+        {
+            foreach (var bucket in details.Subscriptions.Select(s => s.Bucket).Distinct())
+            {
+                erased.Add((bucket, await repository.GetByEmailAsync(bucket, hash)));
+                deleted += await repository.DeleteRecordAsync(bucket, hash);
+            }
+            await repository.CommitTransactionAsync();
+        }
+
+        logger.LogInformation(
+            "Identity deletion: id={EmailId}, buckets={Buckets}, timestamp={Timestamp}",
+            hash[..Math.Min(12, hash.Length)],
+            erased.Count,
+            DateTime.UtcNow);
+
+        var config = configService.Get();
+        foreach (var (bucket, records) in erased)
+        {
+            await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(bucket));
+            await SendErasureNoticeAsync(webhookService, config, encryptor, logger, bucket, hash, records);
+        }
+
+        return Results.Ok(new { bucketsDeleted = erased.Count, permissionsDeleted = deleted });
+    }
+
+    internal sealed record IdentityNameRequest(string? Name);
+
+    internal static async Task<IResult> UpdateIdentityName(
+        string emailHash,
+        [FromBody] IdentityNameRequest request,
+        [FromServices] IConsentRepository repository,
+        [FromServices] Encryptor encryptor)
+    {
+        var validation = InputValidator.ValidateEmailHash(emailHash);
+        if (!validation.IsValid)
+            return Results.BadRequest(new { error = validation.Error });
+
+        var name = request.Name?.Trim();
+        if (name is { Length: > 250 })
+            return Results.BadRequest(new { error = "Name must be 250 characters or fewer" });
+
+        var updated = await repository.UpdateNameAsync(
+            emailHash.ToLowerInvariant(),
+            string.IsNullOrEmpty(name) ? null : encryptor.Encrypt(name));
+        return updated == 0 ? Results.NotFound() : Results.Ok(new { recordsUpdated = updated });
     }
 
     private static async Task<IResult> GetIdentityDetails(

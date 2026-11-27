@@ -115,6 +115,8 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
         return Task.FromResult<IReadOnlyList<EmailPermissions>>(emailGroups);
     }
 
+    public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) => Task.FromResult(0);
+
     public Task<int> DeleteRecordAsync(string bucket, string emailHash)
     {
         var keysToRemove = _records
