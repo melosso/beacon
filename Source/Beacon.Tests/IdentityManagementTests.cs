@@ -46,7 +46,7 @@ public sealed class IdentityManagementTests : IDisposable
         await webhooks.SaveWebhookConfigAsync("bucket-a", "https://example.com/a", "POST", null, null);
         await webhooks.SaveWebhookConfigAsync("bucket-b", "https://example.com/b", "POST", null, null);
 
-        var result = await AdminEndpoints.DeleteIdentity(Hash, _repository, new AdminNotificationService(), webhooks,
+        var result = await AdminEndpoints.DeleteIdentity(Hash, Admin(), _repository, new AdminNotificationService(), webhooks,
             new StubSystemConfigurationService(), _encryptor, NullLogger<Program>.Instance);
 
         Assert.Equal(StatusCodes.Status200OK, ((IStatusCodeHttpResult)result).StatusCode);
@@ -63,9 +63,35 @@ public sealed class IdentityManagementTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteIdentity_ReplacesHistoryWithErasureEntries()
+    {
+        await Seed(Hash, "bucket-a", "newsletter", "alerts");
+        await _repository.UpsertAsync(new ConsentRecord
+        {
+            Id = Guid.NewGuid(), Bucket = "bucket-a", EmailHash = Hash, Permission = "newsletter",
+            Status = ConsentStatus.OptedOut, Source = ConsentSource.Url, ChangedAt = DateTime.UtcNow
+        });
+
+        await AdminEndpoints.DeleteIdentity(Hash, Admin(), _repository, new AdminNotificationService(),
+            new WebhookService(new WebhookRepository(_db), _encryptor, new WebhookDeliveryQueue()),
+            new StubSystemConfigurationService(), _encryptor, NullLogger<Program>.Instance);
+
+        var audit = await _db.ConsentAuditEntries.AsNoTracking().Where(e => e.EmailHash == Hash).OrderBy(e => e.Permission).ToListAsync();
+        Assert.Equal(["alerts", "newsletter"], audit.Select(e => e.Permission));
+        Assert.All(audit, e =>
+        {
+            Assert.Equal(ConsentSource.Erasure, e.Source);
+            Assert.Equal(ConsentStatus.OptedOut, e.NewStatus);
+            Assert.Equal("alice", e.ActorId);
+            Assert.Null(e.CustomFields);
+        });
+        Assert.Equal(ConsentStatus.OptedOut, audit.Single(e => e.Permission == "newsletter").OldStatus);
+    }
+
+    [Fact]
     public async Task DeleteIdentity_UnknownHash_ReturnsNotFound()
     {
-        var result = await AdminEndpoints.DeleteIdentity(Hash, _repository, new AdminNotificationService(),
+        var result = await AdminEndpoints.DeleteIdentity(Hash, Admin(), _repository, new AdminNotificationService(),
             new WebhookService(new WebhookRepository(_db), _encryptor, new WebhookDeliveryQueue()),
             new StubSystemConfigurationService(), _encryptor, NullLogger<Program>.Instance);
 
@@ -115,6 +141,11 @@ public sealed class IdentityManagementTests : IDisposable
         var policies = endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Select(a => a.Policy);
         Assert.Equal(["ConsentWrite"], policies);
     }
+
+    private static DefaultHttpContext Admin() => new()
+    {
+        User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "alice")], "test"))
+    };
 
     private async Task Seed(string hash, string bucket, params string[] permissions)
     {

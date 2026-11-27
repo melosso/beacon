@@ -808,6 +808,7 @@ public static class AdminEndpoints
     private static async Task<IResult> DeleteRecord(
         string bucket,
         string emailHash,
+        HttpContext context,
         [FromServices] IConsentRepository repository,
         [FromServices] AdminNotificationService notifications,
         [FromServices] IWebhookService webhookService,
@@ -835,7 +836,7 @@ public static class AdminEndpoints
             DateTime.UtcNow);
 
         var erased = await repository.GetByEmailAsync(normalizedBucket, emailHash);
-        var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
+        var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash, context.User.Identity?.Name);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
         await SendErasureNoticeAsync(webhookService, configService.Get(), encryptor, logger, normalizedBucket, emailHash, erased);
 
@@ -1597,6 +1598,7 @@ public static class AdminEndpoints
 
     internal static async Task<IResult> DeleteIdentity(
         string emailHash,
+        HttpContext context,
         [FromServices] IConsentRepository repository,
         [FromServices] AdminNotificationService notifications,
         [FromServices] IWebhookService webhookService,
@@ -1620,7 +1622,7 @@ public static class AdminEndpoints
             foreach (var bucket in details.Subscriptions.Select(s => s.Bucket).Distinct())
             {
                 erased.Add((bucket, await repository.GetByEmailAsync(bucket, hash)));
-                deleted += await repository.DeleteRecordAsync(bucket, hash);
+                deleted += await repository.DeleteRecordAsync(bucket, hash, context.User.Identity?.Name);
             }
             await repository.CommitTransactionAsync();
         }

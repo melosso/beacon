@@ -117,7 +117,7 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
 
     public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) => Task.FromResult(0);
 
-    public Task<int> DeleteRecordAsync(string bucket, string emailHash)
+    public Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null)
     {
         var keysToRemove = _records
             .Where(kv => kv.Value.Bucket == bucket && kv.Value.EmailHash == emailHash)

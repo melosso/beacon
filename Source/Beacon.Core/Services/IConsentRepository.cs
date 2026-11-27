@@ -17,7 +17,8 @@ public interface IConsentRepository
     Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket);
     Task<int> DeleteBucketAsync(string bucket);
     Task<int> DeletePermissionAsync(string bucket, string permission);
-    Task<int> DeleteRecordAsync(string bucket, string emailHash);
+    /// <summary>Deletes the subscriber's records, queued emails and audit history in the bucket, then logs one erasure entry per deleted permission.</summary>
+    Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null);
     Task<int> UpdateNameAsync(string emailHash, string? encryptedName);
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);

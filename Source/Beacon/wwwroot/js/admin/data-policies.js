@@ -249,7 +249,7 @@ function auditStatusChip(status) {
 
 function renderAuditRow(e) {
   const sourceLabel =
-    { Url: "User", Api: "API", Admin: "Administrator" }[e.source] || e.source;
+    { Url: "User", Api: "API", Admin: "Administrator", Erasure: "Erasure" }[e.source] || e.source;
   return html`
     <tr>
       <td>${formatDate(e.changedAt)}</td>

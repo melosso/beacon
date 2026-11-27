@@ -324,8 +324,13 @@ public sealed class ConsentRepository : IConsentRepository
             .ExecuteDeleteAsync();
     }
 
-    public async Task<int> DeleteRecordAsync(string bucket, string emailHash)
+    public async Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null)
     {
+        var erased = await _context.ConsentRecords.AsNoTracking()
+            .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
+            .Select(r => new { r.Permission, r.Status })
+            .ToListAsync();
+
         await _context.EmailQueueEntries
             .Where(e => e.Bucket == bucket && e.EmailHash == emailHash)
             .ExecuteDeleteAsync();
@@ -334,9 +339,26 @@ public sealed class ConsentRepository : IConsentRepository
             .Where(e => e.EmailHash == emailHash && e.Bucket == bucket)
             .ExecuteDeleteAsync();
 
-        return await _context.ConsentRecords
+        var deleted = await _context.ConsentRecords
             .Where(r => r.Bucket == bucket && r.EmailHash == emailHash)
             .ExecuteDeleteAsync();
+
+        var now = DateTime.UtcNow;
+        _context.ConsentAuditEntries.AddRange(erased.Select(r => new ConsentAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            Bucket = bucket,
+            EmailHash = emailHash,
+            Permission = r.Permission,
+            OldStatus = r.Status,
+            NewStatus = ConsentStatus.OptedOut,
+            Source = ConsentSource.Erasure,
+            ActorId = actorId,
+            ChangedAt = now
+        }));
+        await _context.SaveChangesAsync();
+
+        return deleted;
     }
 
     public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) =>

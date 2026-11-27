@@ -806,7 +806,7 @@ public class SubmissionFormServiceTests
             return Task.FromResult<IReadOnlyList<EmailPermissions>>(new List<EmailPermissions>());
         }
 
-        public Task<int> DeleteRecordAsync(string bucket, string emailHash) => Task.FromResult(0);
+        public Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null) => Task.FromResult(0);
         public Task<int> UpdateNameAsync(string emailHash, string? encryptedName) => Task.FromResult(0);
         public Task<int> DeleteBucketAsync(string bucket) => Task.FromResult(0);
         public Task<int> DeletePermissionAsync(string bucket, string permission) => Task.FromResult(0);
