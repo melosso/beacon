@@ -9,6 +9,122 @@ async function loadUsers() {
   _usersAll = result.data || [];
   _usersPage = 1;
   renderUsersPage();
+  loadOidcProviders();
+}
+
+let _oidcProviders = [];
+let _editingOidcId = null;
+
+async function loadOidcProviders() {
+  const result = await apiRequest("/api/admin/oidc/providers");
+  if (!result.ok) return;
+  _oidcProviders = result.data || [];
+  const el = document.getElementById("oidcProvidersList");
+  if (!_oidcProviders.length) {
+    paint(
+      el,
+      html`<p class="settings-empty-state">No sign-in providers. Add one to let users sign in with single sign-on.</p>`,
+    );
+    return;
+  }
+  paint(
+    el,
+    html`<div class="table-wrapper">
+      <table class="table">
+        <thead><tr><th>Provider</th><th>Issuer</th><th>Status</th></tr></thead>
+        <tbody>
+          ${_oidcProviders.map(
+            (p) => html`<tr class="cursor-pointer" @click=${() => openOidcProviderSheet(p.id)}>
+              <td><strong>${p.name}</strong><span class="cell-sub">${p.slug}</span></td>
+              <td class="text-sm break-all">${p.authority}</td>
+              <td><span class="status-chip ${p.isEnabled ? "opted-in" : "pending"}">${p.isEnabled ? "Enabled" : "Disabled"}</span></td>
+            </tr>`,
+          )}
+        </tbody>
+      </table>
+    </div>`,
+  );
+}
+
+function updateOidcRedirectUri() {
+  const slug = document.getElementById("oidcSlug").value.trim();
+  document.getElementById("oidcRedirectUri").value = slug
+    ? `${location.origin}/api/admin/auth/oidc/${slug}/callback`
+    : "";
+}
+
+function openOidcProviderSheet(id) {
+  const p = typeof id === "number" ? _oidcProviders.find((x) => x.id === id) : null;
+  _editingOidcId = p ? p.id : null;
+  const set = (field, value) => (document.getElementById(field).value = value ?? "");
+  document.getElementById("oidcProviderTitle").textContent = p ? "Edit provider" : "Add provider";
+  set("oidcName", p?.name);
+  set("oidcSlug", p?.slug);
+  set("oidcAuthority", p?.authority);
+  set("oidcClientId", p?.clientId);
+  set("oidcClientSecret", "");
+  set("oidcScopes", p?.scopes);
+  set("oidcUsernameClaim", p?.usernameClaim);
+  set("oidcEmailClaim", p?.emailClaim);
+  set("oidcCreatedRole", p?.createdRole || "user");
+  document.getElementById("oidcEnabled").checked = p ? p.isEnabled : true;
+  document.getElementById("oidcCreateAccounts").checked = !!p?.createAccounts;
+  document.getElementById("oidcSecretHint").textContent = p?.hasClientSecret
+    ? "A secret is saved. Leave empty to keep it."
+    : "Leave empty for a public client.";
+  document.getElementById("oidcDeleteBtn").hidden = !p;
+  updateOidcRedirectUri();
+  openModal("oidcProviderSheet");
+}
+
+function closeOidcProviderSheet(force) {
+  closeModal("oidcProviderSheet", force);
+}
+
+async function saveOidcProvider() {
+  const value = (field) => document.getElementById(field).value.trim();
+  const secret = document.getElementById("oidcClientSecret").value;
+  const body = {
+    name: value("oidcName"),
+    slug: value("oidcSlug"),
+    authority: value("oidcAuthority"),
+    clientId: value("oidcClientId"),
+    clientSecret: secret || (_editingOidcId ? undefined : ""),
+    scopes: value("oidcScopes"),
+    usernameClaim: value("oidcUsernameClaim"),
+    emailClaim: value("oidcEmailClaim"),
+    isEnabled: document.getElementById("oidcEnabled").checked,
+    createAccounts: document.getElementById("oidcCreateAccounts").checked,
+    createdRole: value("oidcCreatedRole"),
+  };
+  const result = await apiRequest(
+    _editingOidcId
+      ? `/api/admin/oidc/providers/${_editingOidcId}`
+      : "/api/admin/oidc/providers",
+    { method: _editingOidcId ? "PUT" : "POST", body },
+  );
+  if (!result.ok) return;
+  closeOidcProviderSheet(true);
+  notify("success", "Provider saved");
+  loadOidcProviders();
+}
+
+function deleteOidcProvider() {
+  const id = _editingOidcId;
+  openConfirmModal(
+    "Delete provider?",
+    "Users who signed in through it are unlinked. Accounts it created have no usable password until an admin sets one.",
+    "Delete provider",
+    async () => {
+      const result = await apiRequest(`/api/admin/oidc/providers/${id}`, {
+        method: "DELETE",
+      });
+      if (!result.ok) return;
+      closeOidcProviderSheet(true);
+      notify("success", "Provider deleted");
+      loadOidcProviders();
+    },
+  );
 }
 
 function renderUsersPage() {

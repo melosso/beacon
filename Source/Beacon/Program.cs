@@ -569,6 +569,7 @@ try
     app.MapConsentEndpoints();
     app.MapAdminEndpoints();
     app.MapAuthEndpoints();
+    app.MapOidcEndpoints();
     app.MapUserEndpoints();
     app.MapApiKeyEndpoints();
     app.MapSubmissionEndpoints();

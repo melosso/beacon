@@ -219,6 +219,33 @@ public static class DatabaseMigrator
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_Username ON Users (Username COLLATE NOCASE)");
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_Users_ApiKeyHash ON Users (ApiKeyHash)");
         }
+
+        AddColumnIfMissing(db, "Users", "Provider", "TEXT NULL");
+        AddColumnIfMissing(db, "Users", "ExternalId", "TEXT NULL");
+        AddColumnIfMissing(db, "Users", "Email", "TEXT NULL");
+        db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_Users_Provider_ExternalId ON Users (Provider, ExternalId)");
+
+        if (!TableExists(db, "OidcProviders"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE OidcProviders (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    Slug TEXT NOT NULL,
+                    Name TEXT NOT NULL,
+                    Authority TEXT NOT NULL,
+                    ClientId TEXT NOT NULL,
+                    EncryptedClientSecret TEXT NOT NULL DEFAULT '',
+                    Scopes TEXT NOT NULL DEFAULT 'openid profile email',
+                    UsernameClaim TEXT NOT NULL DEFAULT 'preferred_username',
+                    EmailClaim TEXT NOT NULL DEFAULT 'email',
+                    IsEnabled INTEGER NOT NULL DEFAULT 0,
+                    CreateAccounts INTEGER NOT NULL DEFAULT 0,
+                    CreatedRole TEXT NOT NULL DEFAULT 'user',
+                    CreatedAt TEXT NOT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_OidcProviders_Slug ON OidcProviders (Slug)");
+        }
     }
 
     private static void MigrateWorkflowTasks(BeaconDbContext db)

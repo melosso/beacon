@@ -858,3 +858,97 @@
     </div>
   </div>
 </dialog>
+
+<dialog
+  class="modal-backdrop sheet"
+  id="oidcProviderSheet"
+  aria-labelledby="oidcProviderTitle"
+  data-self
+  data-click="closeOidcProviderSheet"
+>
+  <form class="modal modal--lg" data-guard data-submit="saveOidcProvider">
+    <div class="modal-header">
+      <h3 id="oidcProviderTitle">Add provider</h3>
+      <button type="button" class="btn btn-icon" data-click="closeOidcProviderSheet" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>Lets users sign in through an OpenID Connect provider, such as Authelia, Authentik, Pocket ID or Keycloak.</p>
+    <div class="form-group">
+      <label for="oidcName">Name</label>
+      <input type="text" id="oidcName" maxlength="100" placeholder="Company SSO" required />
+    </div>
+    <div class="form-group">
+      <label for="oidcSlug">Key</label>
+      <input type="text" id="oidcSlug" maxlength="32" pattern="[a-z0-9-]+" placeholder="company-sso" required data-input="updateOidcRedirectUri" />
+      <div class="field-hint">Lowercase letters, numbers and hyphens. Part of the redirect URI.</div>
+    </div>
+    <div class="form-group">
+      <label for="oidcRedirectUri">Redirect URI</label>
+      <div class="input-row">
+        <input type="text" id="oidcRedirectUri" class="input mono" readonly data-instant />
+        <button type="button" class="btn btn-outline" data-click="copyInput oidcRedirectUri">Copy</button>
+      </div>
+      <div class="field-hint">Register this address at the provider.</div>
+    </div>
+    <div class="form-group">
+      <label for="oidcAuthority">Issuer URL</label>
+      <input type="url" id="oidcAuthority" maxlength="500" placeholder="https://auth.example.com" required />
+    </div>
+    <div class="form-group">
+      <label for="oidcClientId">Client ID</label>
+      <input type="text" id="oidcClientId" maxlength="255" required autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label for="oidcClientSecret">Client secret</label>
+      <input type="password" id="oidcClientSecret" autocomplete="new-password" />
+      <div class="field-hint" id="oidcSecretHint">Leave empty for a public client.</div>
+    </div>
+    <details class="advanced">
+      <summary>Scopes and claims</summary>
+      <div class="form-group">
+        <label for="oidcScopes">Scopes</label>
+        <input type="text" id="oidcScopes" placeholder="openid profile email" />
+      </div>
+      <div class="form-group">
+        <label for="oidcUsernameClaim">Username claim</label>
+        <input type="text" id="oidcUsernameClaim" placeholder="preferred_username" />
+      </div>
+      <div class="form-group">
+        <label for="oidcEmailClaim">Email claim</label>
+        <input type="text" id="oidcEmailClaim" placeholder="email" />
+      </div>
+    </details>
+    <div class="form-group">
+      <label class="checkbox-toggle">
+        <div>
+          <div class="checkbox-toggle-label select-none">Enabled</div>
+          <div class="checkbox-toggle-desc">Shows the sign-in button on the sign-in page.</div>
+        </div>
+        <input type="checkbox" id="oidcEnabled" />
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label class="checkbox-toggle">
+        <div>
+          <div class="checkbox-toggle-label select-none">Create accounts</div>
+          <div class="checkbox-toggle-desc">Off: only users whose email address matches a verified email at the provider can sign in.</div>
+        </div>
+        <input type="checkbox" id="oidcCreateAccounts" />
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    <div class="form-group">
+      <label for="oidcCreatedRole">Role for new accounts</label>
+      <select id="oidcCreatedRole">
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-destructive" id="oidcDeleteBtn" data-click="deleteOidcProvider" hidden>Delete</button>
+      <button type="submit" class="btn btn-primary">Save provider</button>
+    </div>
+  </form>
+</dialog>

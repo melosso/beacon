@@ -349,10 +349,38 @@ async function logout() {
   window.location.href = "/admin/logout";
 }
 
+const SSO_ERRORS = {
+  failed: "Sign-in failed. Retry, or ask an admin to check the provider settings.",
+  denied: "Sign-in was cancelled at the provider.",
+  no_account: "No account matches this sign-in. Ask an admin to add your email address as a user.",
+  inactive: "This account is disabled. Ask an admin to enable it.",
+};
+
+async function loadSsoProviders() {
+  const reason = new URLSearchParams(location.search).get("sso");
+  if (reason) showAuthError(SSO_ERRORS[reason] || SSO_ERRORS.failed);
+  try {
+    const res = await fetch("/api/admin/auth/providers");
+    const providers = res.ok ? await res.json() : [];
+    const el = document.getElementById("ssoProviders");
+    if (!providers.length) return;
+    render(
+      html`${document.getElementById("authToggleSep").hidden ? html`<div class="auth-divider">Or</div>` : nothing}
+        ${providers.map(
+          (p) =>
+            html`<a class="btn btn-outline btn-block" href="/api/admin/auth/oidc/${encodeURIComponent(p.slug)}/start">Continue with ${p.name}</a>`,
+        )}`,
+      el,
+    );
+    el.hidden = false;
+  } catch {}
+}
+
 function initLoginPage() {
   const overlay = document.getElementById("loginOverlay");
   if (!overlay) return;
   setupAuthOverlay();
+  loadSsoProviders();
   if (location.pathname === "/admin/logout") {
     const expired =
       new URLSearchParams(location.search).get("reason") === "expired";

@@ -12,4 +12,10 @@ public sealed class User
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
+
+    public string? Provider { get; set; }
+
+    public string? ExternalId { get; set; }
+
+    public string? Email { get; set; }
 }

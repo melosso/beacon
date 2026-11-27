@@ -217,6 +217,20 @@ public static class AuthEndpoints
         bool adminKey = false,
         DateTimeOffset? authTime = null)
     {
+        AppendSessionCookie(httpContext, env, signingKey, subject, expiresAt, role, adminKey, authTime);
+        return Results.Ok(new { role, username = subject, expiresAt = expiresAt.ToString("o") });
+    }
+
+    internal static void AppendSessionCookie(
+        HttpContext httpContext,
+        IWebHostEnvironment env,
+        byte[] signingKey,
+        string subject,
+        DateTimeOffset expiresAt,
+        string role,
+        bool adminKey = false,
+        DateTimeOffset? authTime = null)
+    {
         var token = JwtAuthHandler.CreateToken(signingKey, subject, expiresAt, role, adminKey, authTime);
         httpContext.Response.Cookies.Append(JwtAuthHandler.CookieName, token, new CookieOptions
         {
@@ -226,7 +240,6 @@ public static class AuthEndpoints
             Path = "/",
             Expires = expiresAt
         });
-        return Results.Ok(new { role, username = subject, expiresAt = expiresAt.ToString("o") });
     }
 
     private record LoginRequest(string? ApiKey = null, string? Username = null, string? Password = null);

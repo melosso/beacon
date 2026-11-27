@@ -20,6 +20,7 @@ public class BeaconDbContext : DbContext
     public DbSet<EmailQueueEntry> EmailQueueEntries => Set<EmailQueueEntry>();
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<OidcProvider> OidcProviders => Set<OidcProvider>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
     public DbSet<ConsentAuditEntry> ConsentAuditEntries => Set<ConsentAuditEntry>();
@@ -181,6 +182,25 @@ public class BeaconDbContext : DbContext
 
             entity.HasIndex(e => e.ApiKeyHash)
                 .IsUnique();
+
+            entity.Property(e => e.Provider).HasMaxLength(32);
+            entity.Property(e => e.ExternalId).HasMaxLength(255);
+            entity.Property(e => e.Email).HasMaxLength(320);
+            entity.HasIndex(e => new { e.Provider, e.ExternalId });
+        });
+
+        modelBuilder.Entity<OidcProvider>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Slug).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Authority).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ClientId).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Scopes).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.UsernameClaim).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.EmailClaim).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedRole).HasMaxLength(20).IsRequired();
+            entity.HasIndex(e => e.Slug).IsUnique();
         });
 
         modelBuilder.Entity<ApiKey>(entity =>

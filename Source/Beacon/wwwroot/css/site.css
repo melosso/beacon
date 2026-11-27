@@ -317,6 +317,16 @@ td {
   margin-bottom: var(--space-4);
 }
 
+.sso-providers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.sso-providers a {
+  text-decoration: none;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;
