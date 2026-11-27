@@ -66,6 +66,15 @@ public sealed class OidcTests : IDisposable
         Assert.Equal(expected, OidcEndpoints.StateMatches(context.Request, state));
     }
 
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("http://idp.example.test/authorize")]
+    [InlineData("/authorize")]
+    [InlineData("")]
+    public void Begin_RefusesNonHttpsAuthorizationEndpoint(string authorizationEndpoint) =>
+        Assert.Throws<InvalidOperationException>(() =>
+            OidcFlow.Begin(new OpenIdConnectConfiguration { AuthorizationEndpoint = authorizationEndpoint }, _provider, Redirect, DateTime.UtcNow));
+
     [Fact]
     public async Task Claim_ExpiredFlow_ReturnsNullAndPruneRemovesIt()
     {

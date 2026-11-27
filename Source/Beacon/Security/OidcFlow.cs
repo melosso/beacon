@@ -37,8 +37,9 @@ public static class OidcFlow
 
     internal static (Start Start, OidcPendingFlow Flow) Begin(OpenIdConnectConfiguration document, OidcProvider provider, string redirectUri, DateTime now, Guid? linkUserId = null)
     {
-        if (string.IsNullOrEmpty(document.AuthorizationEndpoint))
-            throw new InvalidOperationException("The provider's discovery document declares no authorization endpoint.");
+        if (!Uri.TryCreate(document.AuthorizationEndpoint, UriKind.Absolute, out var endpoint)
+            || !(endpoint.Scheme == Uri.UriSchemeHttps || (endpoint.Scheme == Uri.UriSchemeHttp && endpoint.IsLoopback)))
+            throw new InvalidOperationException("The provider's discovery document declares no https authorization endpoint.");
 
         var state = Token(32);
         var nonce = Token(32);
