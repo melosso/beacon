@@ -614,14 +614,19 @@ async function saveIdentityName() {
 }
 
 function identityDeleteKey() {
+  if (!subDetailHash) return String(subSelectedHashes.size);
   return subDetailEmail || subDetailHash.slice(0, 12);
 }
 
 function openIdentityDeleteModal() {
   closeAllMenus();
-  document.getElementById("identityDeleteLabel").textContent = subDetailEmail
-    ? `Type ${subDetailEmail} to confirm.`
-    : `Type ${identityDeleteKey()} to confirm.`;
+  const count = subDetailHash ? 1 : subSelectedHashes.size;
+  document.getElementById("identityDeleteDesc").textContent =
+    count === 1
+      ? "Wipes this subscriber from every bucket, with their consent history and queued emails. Connected webhooks get an erasure notice. This cannot be undone."
+      : `Wipes ${formatNumber(count)} subscribers from every bucket, with their consent history and queued emails. Connected webhooks get an erasure notice. This cannot be undone.`;
+  document.getElementById("identityDeleteLabel").textContent =
+    `Type ${identityDeleteKey()} to confirm.`;
   document.getElementById("identityDeleteInput").value = "";
   document.getElementById("identityDeleteBtn").disabled = true;
   openModal("identityDeleteModal");
@@ -639,17 +644,25 @@ function checkIdentityDeleteInput(value) {
 
 async function deleteIdentity() {
   if (document.getElementById("identityDeleteBtn").disabled) return;
-  const result = await apiRequest(
-    `/api/admin/identities/${encodeURIComponent(subDetailHash)}`,
-    { method: "DELETE" },
-  );
+  const result = subDetailHash
+    ? await apiRequest(
+        `/api/admin/identities/${encodeURIComponent(subDetailHash)}`,
+        { method: "DELETE" },
+      )
+    : await apiRequest("/api/admin/identities/delete", {
+        method: "POST",
+        body: { hashes: [...subSelectedHashes] },
+      });
   if (!result.ok) return;
   closeIdentityDeleteModal();
   notify(
     "success",
-    "Subscriber deleted",
-    `Wiped from ${formatNumber(result.data.bucketsDeleted)} bucket(s).`,
+    subDetailHash ? "Subscriber deleted" : "Subscribers deleted",
+    subDetailHash
+      ? `Wiped from ${formatNumber(result.data.bucketsDeleted)} bucket(s).`
+      : `${formatNumber(result.data.identitiesDeleted)} subscriber(s) wiped.`,
   );
+  clearSubSelection();
   loadIdentities();
 }
 
@@ -884,6 +897,11 @@ async function loadIdentities(pushState = true) {
   updateSubPagination();
 }
 
+function openSubscriber(emailHash) {
+  showView("subscriptions", false, true);
+  showIdentityDetails(emailHash);
+}
+
 async function showIdentityDetails(emailHash, pushState = true) {
   // Update chrome synchronously before the fetch so there is no flash of stale content
   document.getElementById("subTitle").textContent = "Identity details";
@@ -897,11 +915,6 @@ async function showIdentityDetails(emailHash, pushState = true) {
   badge.ondblclick = () => copyTextNow(badge.dataset.hash);
   paint(
     badge,
-function openSubscriber(emailHash) {
-  showView("subscriptions", false, true);
-  showIdentityDetails(emailHash);
-}
-
     html`<span class="email-hash text-inherit"
         >${emailHash.substring(0, 16)}…</span
       ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,

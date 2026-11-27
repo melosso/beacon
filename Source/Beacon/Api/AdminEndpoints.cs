@@ -127,6 +127,10 @@ public static class AdminEndpoints
             .RequireAuthorization("ConsentWrite")
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/identities/delete", DeleteIdentities)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
         routes.MapPut("/api/admin/identities/{emailHash}/name", UpdateIdentityName)
             .RequireAuthorization("ConsentWrite")
             .ExcludeFromDescription();
@@ -1610,10 +1614,58 @@ public static class AdminEndpoints
         if (!validation.IsValid)
             return Results.BadRequest(new { error = validation.Error });
 
-        var hash = emailHash.ToLowerInvariant();
+        var result = await EraseIdentityAsync(emailHash.ToLowerInvariant(), context.User.Identity?.Name,
+            repository, notifications, webhookService, configService, encryptor, logger);
+        return result is null
+            ? Results.NotFound()
+            : Results.Ok(new { bucketsDeleted = result.Value.Buckets, permissionsDeleted = result.Value.Permissions });
+    }
+
+    internal sealed record DeleteIdentitiesRequest(IReadOnlyList<string>? Hashes);
+
+    internal static async Task<IResult> DeleteIdentities(
+        [FromBody] DeleteIdentitiesRequest request,
+        HttpContext context,
+        [FromServices] IConsentRepository repository,
+        [FromServices] AdminNotificationService notifications,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor,
+        ILogger<Program> logger)
+    {
+        if (request.Hashes is not { Count: > 0 })
+            return Results.BadRequest(new { error = "Select at least one subscriber" });
+        if (request.Hashes.Count > 1000)
+            return Results.BadRequest(new { error = "Too many subscribers selected. Maximum is 1,000." });
+        foreach (var h in request.Hashes)
+        {
+            var v = InputValidator.ValidateEmailHash(h);
+            if (!v.IsValid) return Results.BadRequest(new { error = $"Invalid hash: {v.Error}" });
+        }
+
+        var identities = 0;
+        foreach (var hash in request.Hashes.Select(h => h.ToLowerInvariant()).Distinct())
+        {
+            if (await EraseIdentityAsync(hash, context.User.Identity?.Name,
+                    repository, notifications, webhookService, configService, encryptor, logger) is not null)
+                identities++;
+        }
+        return Results.Ok(new { identitiesDeleted = identities });
+    }
+
+    private static async Task<(int Buckets, int Permissions)?> EraseIdentityAsync(
+        string hash,
+        string? actorId,
+        IConsentRepository repository,
+        AdminNotificationService notifications,
+        IWebhookService webhookService,
+        ISystemConfigurationService configService,
+        Encryptor encryptor,
+        ILogger logger)
+    {
         var details = await repository.GetIdentityDetailsAsync(hash);
         if (details is null)
-            return Results.NotFound();
+            return null;
 
         var erased = new List<(string Bucket, IReadOnlyList<ConsentRecord> Records)>();
         var deleted = 0;
@@ -1622,7 +1674,7 @@ public static class AdminEndpoints
             foreach (var bucket in details.Subscriptions.Select(s => s.Bucket).Distinct())
             {
                 erased.Add((bucket, await repository.GetByEmailAsync(bucket, hash)));
-                deleted += await repository.DeleteRecordAsync(bucket, hash, context.User.Identity?.Name);
+                deleted += await repository.DeleteRecordAsync(bucket, hash, actorId);
             }
             await repository.CommitTransactionAsync();
         }
@@ -1640,7 +1692,7 @@ public static class AdminEndpoints
             await SendErasureNoticeAsync(webhookService, config, encryptor, logger, bucket, hash, records);
         }
 
-        return Results.Ok(new { bucketsDeleted = erased.Count, permissionsDeleted = deleted });
+        return (erased.Count, deleted);
     }
 
     internal sealed record IdentityNameRequest(string? Name);

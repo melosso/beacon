@@ -99,6 +99,26 @@ public sealed class IdentityManagementTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteIdentities_DeletesSelectedOnlyAndValidates()
+    {
+        await Seed(Hash, "bucket-a", "newsletter");
+        await Seed(OtherHash, "bucket-b", "newsletter");
+        const string Third = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+        await Seed(Third, "bucket-a", "newsletter");
+        var webhooks = new WebhookService(new WebhookRepository(_db), _encryptor, new WebhookDeliveryQueue());
+
+        var result = await AdminEndpoints.DeleteIdentities(new AdminEndpoints.DeleteIdentitiesRequest([Hash, OtherHash, Hash]), Admin(), _repository,
+            new AdminNotificationService(), webhooks, new StubSystemConfigurationService(), _encryptor, NullLogger<Program>.Instance);
+        var invalid = await AdminEndpoints.DeleteIdentities(new AdminEndpoints.DeleteIdentitiesRequest(["not-a-hash"]), Admin(), _repository,
+            new AdminNotificationService(), webhooks, new StubSystemConfigurationService(), _encryptor, NullLogger<Program>.Instance);
+
+        Assert.Equal(StatusCodes.Status200OK, ((IStatusCodeHttpResult)result).StatusCode);
+        Assert.Equal(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)invalid).StatusCode);
+        Assert.Equal(0, await _db.ConsentRecords.CountAsync(r => r.EmailHash == Hash || r.EmailHash == OtherHash));
+        Assert.Equal(1, await _db.ConsentRecords.CountAsync(r => r.EmailHash == Third));
+    }
+
+    [Fact]
     public async Task UpdateIdentityName_SetsNameInEveryBucketOnly()
     {
         await Seed(Hash, "bucket-a", "newsletter");
@@ -127,6 +147,7 @@ public sealed class IdentityManagementTests : IDisposable
     [Theory]
     [InlineData("DELETE", "/api/admin/identities/{emailHash}")]
     [InlineData("PUT", "/api/admin/identities/{emailHash}/name")]
+    [InlineData("POST", "/api/admin/identities/delete")]
     public void IdentityWriteEndpoints_RequireConsentWrite(string method, string route)
     {
         var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
