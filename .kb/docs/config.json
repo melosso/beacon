@@ -31,7 +31,8 @@
         "collapsed": false,
         "items": [
           { "title": "API", "path": "guide/api" },
-          { "title": "Configuration", "path": "guide/configuration" }
+          { "title": "Configuration", "path": "guide/configuration" },
+          { "title": "Command line", "path": "guide/cli" }
         ]
       }
     ]
