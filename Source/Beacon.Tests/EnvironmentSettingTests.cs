@@ -18,6 +18,7 @@ public class EnvironmentSettingTests
     [InlineData("AdminHosts", "ADMIN_HOSTS")]
     [InlineData("TrustForwardedHeaders", "TRUST_FORWARDED_HEADERS")]
     [InlineData("KnownProxies", "KNOWN_PROXIES")]
+    [InlineData("AllowPrivateNetwork", "ALLOW_PRIVATE_NETWORK")]
     public void Names_IncludesUnprefixedSnake(string key, string snake) =>
         Assert.Equal(
             [$"Beacon__{key}", $"BEACON_{snake}", snake, key],
