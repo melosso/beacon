@@ -853,6 +853,7 @@ h1 {
   color: hsl(var(--muted-foreground));
   font-size: var(--text-xs);
   padding: var(--space-1) var(--space-2);
+  margin-block: var(--space-0-5);
   border-radius: var(--radius-xs);
   font-weight: 500;
   line-height: var(--leading-tight);
