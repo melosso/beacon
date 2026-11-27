@@ -503,6 +503,15 @@ function renderOverview() {
               </button>
               <button
                 class="dropdown-item"
+                @click=${() => {
+                  showBucket(b.name);
+                  showOptionsModal();
+                }}
+              >
+                Edit settings
+              </button>
+              <button
+                class="dropdown-item"
                 @click=${() =>
                   b.isArchived
                     ? showUnarchiveModal(b.name)
