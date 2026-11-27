@@ -1,6 +1,7 @@
 using Beacon.Core.Models;
 using Beacon.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Testcontainers.MsSql;
 using Testcontainers.MySql;
 using Testcontainers.PostgreSql;
@@ -37,6 +38,41 @@ public abstract class DatabaseProviderTests
         using var db = CreateDbContext();
         // Non-SQLite providers return after EnsureCreated; SQLite runs the full migrator.
         DatabaseMigrator.Initialize(db);
+    }
+
+    [Fact]
+    public async Task DatabaseMigrator_RestoresMissingTableAndColumn()
+    {
+        await using (var db = CreateDbContext())
+        {
+            DatabaseMigrator.Initialize(db);
+            var users = db.Model.FindEntityType(typeof(User))!.GetTableName();
+            var providers = db.Model.FindEntityType(typeof(OidcProvider))!.GetTableName();
+            var sql = db.GetService<Microsoft.EntityFrameworkCore.Storage.ISqlGenerationHelper>();
+#pragma warning disable EF1002
+            await db.Database.ExecuteSqlRawAsync($"DROP TABLE {sql.DelimitIdentifier(providers!)}", TestContext.Current.CancellationToken);
+            await db.Database.ExecuteSqlRawAsync($"ALTER TABLE {sql.DelimitIdentifier(users!)} DROP COLUMN {sql.DelimitIdentifier("Email")}", TestContext.Current.CancellationToken);
+#pragma warning restore EF1002
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            DatabaseMigrator.Initialize(db);
+            var id = Guid.NewGuid().ToString("N")[..8];
+            db.OidcProviders.Add(new OidcProvider { Slug = $"p-{id}", Name = "P", Authority = "https://idp.example.test", ClientId = "c" });
+            db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(), Username = $"u-{id}", PasswordHash = "h", Salt = "s",
+                ApiKeyHash = id + new string('0', 56), CreatedAt = DateTime.UtcNow, Email = $"{id}@example.com"
+            });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using (var db = CreateDbContext())
+        {
+            Assert.True(await db.OidcProviders.AnyAsync(TestContext.Current.CancellationToken));
+            Assert.True(await db.Users.AnyAsync(u => u.Email != null, TestContext.Current.CancellationToken));
+        }
     }
 
     [Fact]

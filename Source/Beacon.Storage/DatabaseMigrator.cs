@@ -8,9 +8,11 @@ public static class DatabaseMigrator
     {
         db.Database.EnsureCreated();
 
-        // Manual migration only applies to SQLite; other providers rely on EnsureCreated schema.
         if (!db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) ?? true)
+        {
+            SchemaReconciler.Apply(db);
             return;
+        }
 
         MigrateConsentRecords(db);
         MigrateWebhookConfigs(db);
