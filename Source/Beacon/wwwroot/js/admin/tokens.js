@@ -33,7 +33,7 @@ function prefillTokenFromIdentity() {
 }
 
 function openNewTokenSheet(pushState = true) {
-  if (!isModalOpen("newTokenSheet"))
+  if (!isModalOpen("newTokenSheet")) {
     document.getElementById("tokenLanguage").value =
       appSettings.uiLanguage || "en";
     prefillTokenFromIdentity();
@@ -41,8 +41,8 @@ function openNewTokenSheet(pushState = true) {
   openUrlSheet("newTokenSheet", "new-token", pushState);
 }
 
-function closeNewTokenSheet() {
-  if (!closeUrlSheet("newTokenSheet")) return false;
+function closeNewTokenSheet(force) {
+  if (!closeUrlSheet("newTokenSheet", force)) return false;
   clearTokenForm();
   return true;
 }

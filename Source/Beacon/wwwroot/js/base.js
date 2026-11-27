@@ -111,10 +111,18 @@ function openModal(id) {
 function closeModal(id, force = false) {
   const dialog = document.getElementById(id);
   const uncopied = dialog?.querySelector("[data-uncopied]:not([hidden])");
-  const warning = uncopied
-    ? "Close without copying? The secret is shown once."
-    : dialog?.hasAttribute("data-dirty") && "Discard unsaved changes?";
-  if (!force && warning && !confirm(warning)) return false;
+  if (!force && (uncopied || dialog?.hasAttribute("data-dirty"))) {
+    const closer = window[dialog.dataset.click?.split(" ")[0]];
+    openConfirmModal(
+      uncopied ? "Close without copying?" : "Discard changes?",
+      uncopied
+        ? "The secret is shown once and cannot be shown again."
+        : "Edits in this panel are not saved.",
+      uncopied ? "Close" : "Discard",
+      () => (closer ? closer(true) : closeModal(id, true)),
+    );
+    return false;
+  }
   uncopied?.removeAttribute("data-uncopied");
   dialog?.removeAttribute("data-dirty");
   dialog?.close();

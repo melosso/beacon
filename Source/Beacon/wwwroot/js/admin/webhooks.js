@@ -175,8 +175,8 @@ async function showOptionsModal(pushState = true) {
   }
 }
 
-function closeOptionsModal() {
-  if (!closeModal("optionsModal")) return false;
+function closeOptionsModal(force) {
+  if (!closeModal("optionsModal", force)) return false;
   webhookHeaders = {};
   bucketPermsData = [];
   document.getElementById("newBucketPermInput").value = "";
@@ -356,13 +356,16 @@ function showWebhookSecret(secret) {
   document.getElementById("webhookSecretKept").hidden = true;
 }
 
-async function rotateWebhookSecret() {
-  if (
-    !confirm(
-      "Rotate the signing secret? Connected services reject requests until they use the new secret.",
-    )
-  )
-    return;
+function rotateWebhookSecret() {
+  openConfirmModal(
+    "Rotate signing secret?",
+    "Connected services reject requests until they use the new secret.",
+    "Rotate secret",
+    confirmRotateWebhookSecret,
+  );
+}
+
+async function confirmRotateWebhookSecret() {
   const result = await apiRequest(
     `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/secret`,
     { method: "POST" },
@@ -376,11 +379,16 @@ async function rotateWebhookSecret() {
   );
 }
 
-async function deleteWebhook() {
-  if (!confirm("Delete webhook configuration? This cannot be undone.")) {
-    return;
-  }
+function deleteWebhook() {
+  openConfirmModal(
+    "Delete webhook?",
+    "Consent changes in this bucket are no longer sent to the endpoint. This cannot be undone.",
+    "Delete webhook",
+    confirmDeleteWebhook,
+  );
+}
 
+async function confirmDeleteWebhook() {
   const result = await apiRequest(
     `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`,
     { method: "DELETE" },

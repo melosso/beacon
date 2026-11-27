@@ -334,8 +334,8 @@ async function rotateApiKey(id, name) {
   );
 }
 
-function closeApiKeyRevealModal() {
-  closeModal("apiKeyRevealModal");
+function closeApiKeyRevealModal(force) {
+  closeModal("apiKeyRevealModal", force);
 }
 
 function copyRotatedApiKey() {

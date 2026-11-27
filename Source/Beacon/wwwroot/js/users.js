@@ -274,8 +274,8 @@ async function regenerateUserApiKey(id, username) {
   );
 }
 
-function closeUserApiKeyRevealModal() {
-  closeModal("userApiKeyRevealModal");
+function closeUserApiKeyRevealModal(force) {
+  closeModal("userApiKeyRevealModal", force);
 }
 
 function copyUserApiKey() {
