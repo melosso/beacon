@@ -18,6 +18,10 @@ function handleGenerateToken() {
   }
 }
 
+function addIdentityFromOptions() {
+  if (closeOptionsModal()) newTokenForBucket(currentBucket);
+}
+
 function newTokenForBucket(bucket = currentBucket) {
   clearTokenForm();
   showView("new-token");
