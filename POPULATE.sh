@@ -306,4 +306,61 @@ if [[ -n "$FR_FORM_ID" ]]; then
 fi
 
 echo "--------------------------------------"
+# v1.9.0 examples
+
+ADMIN="http://localhost:5001/api/admin"
+admin_call() {
+    curl -s -X "$1" "$ADMIN$2" -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" ${3:+-d "$3"}
+}
+
+echo "Creating the Melosso brand identity..."
+MELOSSO_ID=$(admin_call GET /brand-identities | grep -o '"id":[0-9]*,"name":"Melosso"' | head -1 | grep -o '[0-9]\+' | head -1)
+[[ -z "$MELOSSO_ID" ]] && MELOSSO_ID=$(admin_call POST /brand-identities '{"name": "Melosso"}' | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+if [[ -n "$MELOSSO_ID" ]]; then
+    admin_call PUT "/brand-identities/$MELOSSO_ID" '{
+        "name": "Melosso",
+        "settings": {
+            "primaryAccent": "#059669",
+            "surfaceColour": "#F8FAFC",
+            "theme": "system",
+            "browserTitle": "Melosso preferences",
+            "pageTitle": "Your Melosso preferences",
+            "pageBody": "Choose which updates you receive from Melosso.",
+            "emailTitle": "Confirm your subscription",
+            "emailBody": "Confirm your email address to start receiving updates from Melosso.",
+            "confirmTitle": "Subscription confirmed",
+            "confirmMsg": "Thanks. Your preferences are saved.",
+            "footer": "Melosso, Europe"
+        }
+    }' > /dev/null
+    admin_call PUT "/brand-identities/$MELOSSO_ID/buckets" \
+        '{"buckets": ["customer_loyalty_programme_eu", "partner_enablement_network_eu", "early_access_programme_eu"]}' > /dev/null
+    echo "  Melosso identity $MELOSSO_ID on 3 buckets"
+fi
+
+echo "Creating users..."
+for user in "admin-dev:beacon-dev-password:admin" "analyst@melosso.example:Populate-password-2026:user" "operations@melosso.example:Populate-password-2026:admin"; do
+    IFS=: read -r name password role <<< "$user"
+    printf '  %s ' "$name"
+    admin_call POST /users "{\"username\": \"$name\", \"password\": \"$password\", \"role\": \"$role\"}" \
+        | grep -o '"role":"[a-z]*"' || echo "(exists)"
+done
+
+echo "Creating webhooks..."
+admin_call POST /buckets/customer_loyalty_programme_eu/webhook \
+    '{"url": "https://example.com/hooks/beacon", "method": "POST"}' > /dev/null && echo "  customer_loyalty_programme_eu: enabled"
+admin_call POST /buckets/partner_enablement_network_eu/webhook \
+    '{"url": "https://example.com/hooks/partners", "method": "POST", "headers": {"X-Source": "beacon"}}' > /dev/null
+admin_call PUT /buckets/partner_enablement_network_eu/webhook/enabled '{"enabled": false}' > /dev/null && echo "  partner_enablement_network_eu: disabled"
+
+echo "Renaming and erasing a subscriber..."
+identity_hash() {
+    admin_call GET "/identities?page=1&pageSize=1&search=$1&searchType=email" | grep -o '"emailHash":"[a-f0-9]*"' | head -1 | cut -d'"' -f4
+}
+RENAME_HASH=$(identity_hash "jan.devries@organisatie.nl")
+[[ -n "$RENAME_HASH" ]] && admin_call PUT "/identities/$RENAME_HASH/name" '{"name": "Jan de Vries-Bakker"}' > /dev/null && echo "  renamed jan.devries@organisatie.nl"
+ERASE_HASH=$(identity_hash "marie.curie@societe.fr")
+[[ -n "$ERASE_HASH" ]] && admin_call DELETE "/identities/$ERASE_HASH" > /dev/null && echo "  erased marie.curie@societe.fr (see Audit, source Erasure)"
+
+echo "--------------------------------------"
 echo "Operation complete."
