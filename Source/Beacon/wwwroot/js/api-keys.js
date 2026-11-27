@@ -30,9 +30,20 @@ let _rotatedApiKey = "";
 let _newRawApiKey = "";
 
 async function loadApiKeys() {
-  const result = await apiRequest("/api/admin/api-keys");
+  const [result, users] = await Promise.all([
+    apiRequest("/api/admin/api-keys"),
+    apiRequest("/api/admin/users"),
+  ]);
   if (!result.ok) return;
-  _apiKeysAll = result.data || [];
+  const userKeys = (users.ok ? users.data : []).map((u) => ({
+    id: `user-${u.id}`,
+    user: u,
+    name: u.username,
+    permissions: [u.role === "admin" ? "_all" : "user role"],
+    isEnabled: u.isEnabled,
+    createdAt: u.createdAt,
+  }));
+  _apiKeysAll = [...(result.data || []), ...userKeys];
   _apiKeysPage = 1;
   renderApiKeysPage();
 }
@@ -112,13 +123,15 @@ function renderApiKeysTable(keys) {
       const st = apiKeyStatus(k);
       return html`
         <tr>
-          <td><strong>${k.name}</strong></td>
+          <td><strong>${k.name}</strong>${k.user ? html` <span class="status-badge status-badge--sm status-badge-muted">User key</span>` : nothing}</td>
           <td>${renderPermissionBadges(k.permissions)}</td>
           <td><span class=${st.tone}>${st.label}</span></td>
           <td>${k.activeUntil ? new Date(k.activeUntil).toLocaleDateString(UI_LOCALE) : html`<span class="text-muted">—</span>`}</td>
           <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
-          <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">Never</span>`}</td>
-          <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, [
+          <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">${k.user ? "—" : "Never"}</span>`}</td>
+          <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, k.user ? [
+            ["Regenerate key", () => regenerateUserApiKey(k.user.id, k.user.username)],
+          ] : [
             [
               "Edit permissions",
               () =>
