@@ -2,6 +2,7 @@ using System.Text.Json;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace Beacon.Tests;
@@ -614,6 +615,74 @@ public class SubmissionFormServiceTests
         form.AllowedOrigins = JsonSerializer.Serialize(new[] { "https://example.com" });
 
         Assert.False(Beacon.Api.SubmissionEndpoints.IsRedirectAllowedForForm(form, "javascript:alert(1)"));
+    }
+
+    // --- Embed output ---
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task EmbedScript_StylesViaAdoptedSheetWithSingleStyleFallback(bool enabled, bool exists)
+    {
+        var (service, formRepo, _, _) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.IsEnabled = enabled;
+        if (exists) formRepo.Forms.Add(form);
+
+        var result = await Beacon.Api.SubmissionEndpoints.GetEmbedScript(form.Id, new DefaultHttpContext(), service, new Beacon.Tests.Fakes.StubSystemConfigurationService());
+        var js = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ContentHttpResult>(result).ResponseContent!;
+
+        Assert.Contains("adoptedStyleSheets=[sh]", js);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(js, @"createElement\('style'\)"));
+    }
+
+    [Fact]
+    public async Task EmbedPage_DisabledForm_AllowsFramingFromFormOrigins()
+    {
+        var (service, formRepo, _, _) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.IsEnabled = false;
+        formRepo.Forms.Add(form);
+        var context = new DefaultHttpContext();
+        context.Response.Headers.XFrameOptions = "DENY";
+
+        await Beacon.Api.SubmissionEndpoints.GetEmbedPage(form.Id, context, service, new Beacon.Tests.Fakes.StubSystemConfigurationService());
+
+        Assert.Equal("frame-ancestors https://example.com", context.Response.Headers.ContentSecurityPolicy.ToString());
+        Assert.False(context.Response.Headers.ContainsKey("X-Frame-Options"));
+    }
+
+    [Fact]
+    public async Task EmbedPage_DisabledForm_DropsUnsafeStoredColors()
+    {
+        var (service, formRepo, _, _) = CreateFullService();
+        var form = CreateTestForm();
+        form.Id = Guid.NewGuid();
+        form.IsEnabled = false;
+        form.FormConfig = JsonSerializer.Serialize(new Beacon.Api.FormConfigDto { BackgroundColor = "red;} body{background:url(//evil)}", TextColor = "#123456" });
+        formRepo.Forms.Add(form);
+
+        var result = await Beacon.Api.SubmissionEndpoints.GetEmbedPage(form.Id, new DefaultHttpContext(), service, new Beacon.Tests.Fakes.StubSystemConfigurationService());
+        var html = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ContentHttpResult>(result).ResponseContent!;
+
+        Assert.DoesNotContain("evil", html);
+        Assert.Contains("#123456", html);
+    }
+
+    [Fact]
+    public async Task EmbedPage_UnknownForm_KeepsFramingDenied()
+    {
+        var (service, _, _, _) = CreateFullService();
+        var context = new DefaultHttpContext();
+        context.Response.Headers.XFrameOptions = "DENY";
+
+        await Beacon.Api.SubmissionEndpoints.GetEmbedPage(Guid.NewGuid(), context, service, new Beacon.Tests.Fakes.StubSystemConfigurationService());
+
+        Assert.Equal("DENY", context.Response.Headers.XFrameOptions.ToString());
+        Assert.False(context.Response.Headers.ContainsKey("Content-Security-Policy"));
     }
 
     // --- Helpers ---

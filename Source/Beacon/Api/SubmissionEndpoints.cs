@@ -449,7 +449,7 @@ public static class SubmissionEndpoints
 
     // Public endpoints
 
-    private static async Task<IResult> GetEmbedPage(
+    internal static async Task<IResult> GetEmbedPage(
         Guid id,
         HttpContext context,
         [FromServices] SubmissionFormService service,
@@ -461,8 +461,6 @@ public static class SubmissionEndpoints
         var form = await service.GetFormAsync(id);
         if (form == null)
             return Results.Content(Minify(FormUnavailableHtml("en", null)), "text/html");
-        if (!form.IsEnabled)
-            return Results.Content(Minify(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig))), "text/html");
 
         var origins = DeserializeOrigins(form.AllowedOrigins);
         // An empty frame-ancestors list is invalid CSS-wise and browsers ignore it; fail closed instead.
@@ -472,6 +470,9 @@ public static class SubmissionEndpoints
         // DENY alongside it would block the embedding this page exists for.
         context.Response.Headers["Content-Security-Policy"] = $"frame-ancestors {cspOrigins}";
         context.Response.Headers.Remove("X-Frame-Options");
+
+        if (!form.IsEnabled)
+            return Results.Content(Minify(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig))), "text/html");
 
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var formIdStr = form.Id.ToString();
@@ -621,7 +622,10 @@ public static class SubmissionEndpoints
         return Results.Content(Minify(html), "text/html");
     }
 
-    private static async Task<IResult> GetEmbedScript(
+    private const string EmbedStyleJs =
+        "function applyStyle(root,css){if('adoptedStyleSheets' in root&&'replaceSync' in CSSStyleSheet.prototype){var sh=new CSSStyleSheet();sh.replaceSync(css);root.adoptedStyleSheets=[sh];}else{var st=document.createElement('style');st.textContent=css;root.appendChild(st);}}";
+
+    internal static async Task<IResult> GetEmbedScript(
         Guid id,
         HttpContext context,
         [FromServices] SubmissionFormService service,
@@ -641,9 +645,8 @@ public static class SubmissionEndpoints
                   var c = document.getElementById(id);
                   if (!c) return;
                   var s = c.attachShadow({mode:'closed'});
-                  var style = document.createElement('style');
-                  style.textContent = ':host{display:block} .unavailable{display:flex;align-items:center;justify-content:center;min-height:100%;padding:1.5rem;font-family:system-ui,-apple-system,sans-serif;color:color-mix(in srgb,currentColor 50%,transparent);font-size:0.9rem;text-align:center}';
-                  s.appendChild(style);
+                  {{EmbedStyleJs}}
+                  applyStyle(s, ':host{display:block} .unavailable{display:flex;align-items:center;justify-content:center;min-height:100%;padding:1.5rem;font-family:system-ui,-apple-system,sans-serif;color:color-mix(in srgb,currentColor 50%,transparent);font-size:0.9rem;text-align:center}');
                   var d = document.createElement('div');
                   d.className = 'unavailable';
                   d.textContent = '{{WebUtility.HtmlEncode(msg)}}';
@@ -700,8 +703,8 @@ public static class SubmissionEndpoints
               var container = document.getElementById(containerId);
               if (!container) return;
               var shadow = container.attachShadow({mode:'closed'});
-              var style = document.createElement('style');
-              style.textContent = `
+              {{EmbedStyleJs}}
+              applyStyle(shadow, `
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 :host { display: block; font: inherit; color: inherit; color-scheme: light dark; }
                 .container { background: {{containerBg}}; color: {{containerFg}}; padding: 16px; }
@@ -723,8 +726,7 @@ public static class SubmissionEndpoints
                 .consent-row a { color: inherit; text-decoration: underline; }
                 .privacy-link { margin-top: 6px; font-size: 0.8rem; opacity: 0.65; }
                 .privacy-link a { color: inherit; text-decoration: underline; }
-              `;
-              shadow.appendChild(style);
+              `);
               var wrapper = document.createElement('div');
               wrapper.className = 'container';
               if (cfg.title) { var h = document.createElement('h2'); h.textContent = cfg.title; wrapper.appendChild(h); }
@@ -1130,8 +1132,8 @@ public static class SubmissionEndpoints
     private static string FormUnavailableHtml(string language, FormConfigDto? config)
     {
         var lang = WebUtility.HtmlEncode(language);
-        var bg = WebUtility.HtmlEncode(config?.BackgroundColor ?? "transparent");
-        var text = WebUtility.HtmlEncode(config?.TextColor ?? "inherit");
+        var bg = InputValidator.SanitizeCssColor(config?.BackgroundColor, "transparent");
+        var text = InputValidator.SanitizeCssColor(config?.TextColor, "inherit");
         var msg = WebUtility.HtmlEncode(GetUnavailableMessage(language));
 
         return $$"""
