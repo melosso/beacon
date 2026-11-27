@@ -546,6 +546,7 @@ try
     app.UseHostRouting();
     app.UseStaticFiles(new StaticFileOptions
     {
+        ContentTypeProvider = Beacon.Middleware.StaticAssets.ContentTypes,
         OnPrepareResponse = ctx =>
         {
             var ext = Path.GetExtension(ctx.File.Name).ToLowerInvariant();
@@ -590,6 +591,8 @@ try
     var jwtSigningKeyBytes = Convert.FromBase64String(normalizedSigningKey);
 
     var webRoot = app.Environment.WebRootPath;
+    app.MapGet("/robots.txt", () => Results.File(Path.Combine(webRoot, "robots.txt"), "text/plain"))
+        .ExcludeFromDescription();
 
     // UI Endpoints (access controlled by HostRoutingMiddleware)
     app.MapGet("/admin", async context =>
