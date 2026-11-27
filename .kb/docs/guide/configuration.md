@@ -12,12 +12,12 @@ Settings are read from environment variables, `.env` and `appsettings.json`.
 Precedence, highest first:
 
 1. Environment variables
-2. `.env` in the binary folder, then `.env` in the working directory
+2. `.env` in the binary folder, then `.env` in the working directory. Beacon skips a `.env` line if the variable is already set
 3. .NET user secrets (Development)
 4. `appsettings.{Environment}.json`
 5. `appsettings.json`
 
-Each setting accepts four names. If more than one name is set: the lowest number applies.
+Each setting accepts four names. If more than one name is set: the lowest number applies. Empty values are ignored.
 
 | Style | Example | Precedence |
 |---|---|---|
@@ -25,6 +25,8 @@ Each setting accepts four names. If more than one name is set: the lowest number
 | Prefixed screaming snake | `BEACON_SIGNING_KEY` | 2 |
 | Screaming snake | `SIGNING_KEY` | 3 |
 | Bare | `SigningKey` | 4 |
+
+Beacon rejects unprefixed names that equal a .NET host name (`URLS`, `PORT`, `HTTP_PORTS`, `HTTPS_PORTS`, `ASPNETCORE_*`, `DOTNET_*`). Use a prefixed name on hosts with name collisions.
 
 :::warning
 Use one spelling per setting. Name precedence applies after sources merge: `SIGNING_KEY` from `.env` overrides `SigningKey` in `appsettings.json`.
@@ -52,7 +54,7 @@ Host-based routing separates public API and admin traffic by subdomain. Use host
 |---|---|---|
 | `API_HOSTS` | Hosts for the public API | `beacon-api.example.com` |
 | `ADMIN_HOSTS` | Hosts for the admin panel | `beacon-admin.example.com` |
-| `ALLOWED_ORIGINS` | Additional CORS origins | `https://app.example.com` |
+| `ALLOWED_ORIGINS` | Additional CORS origins. `API_HOSTS` and `ADMIN_HOSTS` add `https://` origins. Outside Development, plain-http origins require an entry | `https://app.example.com` |
 | `TRUST_FORWARDED_HEADERS` | Trust `X-Forwarded-*` headers | `true` |
 | `KNOWN_PROXIES` | Trusted proxy IPs or CIDRs. Defaults to private and loopback ranges | `10.0.0.0/8` |
 | `PUBLIC_URL` | Base URL of confirmation email links. Defaults to `https://` plus the first `API_HOSTS` entry | `https://beacon-api.example.com` |
@@ -72,13 +74,13 @@ If `API_HOSTS` and `ADMIN_HOSTS` are not set: Beacon routes by port.
 |---|---|---|
 | `USER_AUTHENTICATION` | `user`, `api` or `both`. Empty: `ADMIN_API_KEY` is the sole credential | `both` |
 | `ENFORCE_HTTPS` | Redirect HTTP to HTTPS and send HSTS headers. Set if Beacon terminates TLS | `false` |
-| `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email | `false` |
+| `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email. Not editable in the admin panel | `false` |
 | `DEMO_MODE` | Block non-admin users from changing their own password or API key. Not editable in the admin panel | `false` |
 | `OIDC_ALLOW_PRIVATE_NETWORK` | Allow sign-in providers on private, loopback or link-local addresses. Off: Beacon refuses to contact a provider that resolves to such an address | `false` |
 
 ## Data protection
 
-Data protection settings are defined in the admin panel (Settings, Data policies and Connectors).
+Data protection settings are defined in the admin panel (Settings, Data policies and Connectors). Values are stored in the database.
 
 | Setting | Behavior | Default |
 |---|---|---|
@@ -88,8 +90,10 @@ Data protection settings are defined in the admin panel (Settings, Data policies
 | Erasure notices | Sends a deleted subscriber to the bucket webhook with every permission as opted out | on |
 | Include email address | Adds the plaintext email to erasure notices. Off: the notice contains the Beacon ID (`{{emailHash}}`) | off |
 
+If a configuration stored before version 1.9.0 has every policy off: Beacon reads it with every policy on and approval required.
+
 The settings apply as follows:
 
-- Anonymisation keeps the email hash and status. An anonymised record stays opted out until the subscriber subscribes again.
+- Anonymisation retains the email hash and status. An anonymised record stays opted out until the subscriber subscribes again.
 - Erasure notices are sent on record deletion in the admin panel. Purges and bucket deletion send no erasure notice.
 - Access requests: export the subscriber with Contents set to Full copy.

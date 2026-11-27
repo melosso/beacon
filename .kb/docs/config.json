@@ -3,6 +3,35 @@
   "titleTemplate": ":title · :siteName",
   "description": "Lightweight email consent and opt-out management",
   "lang": "en",
+  "versions": {
+    "items": [
+      { "text": "Latest", "link": "/" },
+      {
+        "text": "v1.8",
+        "link": "/v1.8/",
+        "sidebar": {
+          "/guide/": [
+            {
+              "title": "Introduction",
+              "collapsed": false,
+              "items": [
+                { "title": "What is Beacon?", "path": "guide/" },
+                { "title": "Install", "path": "guide/install" }
+              ]
+            },
+            {
+              "title": "Usage",
+              "collapsed": false,
+              "items": [
+                { "title": "API", "path": "guide/api" },
+                { "title": "Configuration", "path": "guide/configuration" }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
   "theme": "default",
   "brand": "Beacon",
   "favicon": "/favicon.ico",

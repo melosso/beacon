@@ -9,18 +9,18 @@ The Beacon binary runs management commands in place of the web server. Commands 
 
 | Command | Action |
 |---|---|
-| `accounts list` | Lists accounts with role, state, linked provider and last sign-in |
+| `accounts list` | Returns accounts with role, state, linked provider and last sign-in |
 | `accounts create <username> <password> [admin\|user]` | Creates an account. Default role: `admin`. Prints the account API key once |
 | `accounts password <username> <password>` | Sets a password. Minimum 12 characters |
 | `accounts promote\|demote <username>` | Sets the role to `admin` or `user` |
 | `accounts enable\|disable <username>` | Allows or blocks sign-in |
 | `accounts delete <username>` | Deletes the account |
 | `accounts apikey <username>` | Replaces the account API key. Prints the new key once |
-| `accounts providers` | Lists single sign-on providers |
+| `accounts providers` | Returns single sign-on providers |
 | `accounts providers enable\|disable\|delete <key>` | Changes a provider. Delete unlinks its accounts |
-| `apikeys list` | Lists API keys with state, permissions and last use |
+| `apikeys list` | Returns API keys with state, permissions and last use |
 | `apikeys enable\|disable\|delete <name or id>` | Changes an API key. Duplicate names require the ID |
-| `webhooks list` | Lists webhooks per bucket |
+| `webhooks list` | Returns webhooks per bucket |
 | `webhooks enable\|disable <bucket>` | Starts or stops webhook requests for a bucket |
 | `migrate` | Applies schema changes and exits |
 
@@ -38,4 +38,4 @@ docker compose exec beacon dotnet Beacon.dll accounts list
 dotnet Beacon.dll accounts password alice "a-new-long-password"
 ```
 
-Exit code `0` means success. Exit code `1` means the command failed; the reason is written to standard error.
+Exit code `0` means success. Exit code `1` means the command failed. Standard error contains the reason.
