@@ -129,7 +129,7 @@
                   <p class="settings-item-desc">Preference pages show each subscriber's saved choices, not the defaults stored in their link.</p>
                 </div>
                 <div class="settings-item-control">
-                  <input type="checkbox" id="setting-allowDbLookup" data-change="saveSettingImmediate allowDbLookup $checked">
+                  <input type="checkbox" id="setting-allowDbLookup" data-confirm-off="saved choices" data-change="saveSettingImmediate allowDbLookup $checked">
                   <span class="toggle-track"></span>
                 </div>
               </label>
@@ -155,7 +155,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableSubmissionForms" data-change="saveSettingImmediate enableSubmissionForms $checked">
+                      <input type="checkbox" id="setting-enableSubmissionForms" data-confirm-off="submission forms" data-change="saveSettingImmediate enableSubmissionForms $checked">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -174,7 +174,7 @@
                     <p class="settings-item-desc">When enabled, subscribers receive a confirmation email and must verify their subscription before it becomes active. Requires email notifications to be configured.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableDoubleOptIn" data-change="saveSettingImmediate enableDoubleOptIn $checked">
+                    <input type="checkbox" id="setting-enableDoubleOptIn" data-confirm-off="double opt-in" data-change="saveSettingImmediate enableDoubleOptIn $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -192,7 +192,7 @@
                     <p class="settings-item-desc">Saves campaign tags from preference links with each consent change. Mention this in your privacy policy first.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-enableUtmTracking" data-change="saveSettingImmediate enableUtmTracking $checked">
+                    <input type="checkbox" id="setting-enableUtmTracking" data-confirm-off="UTM tracking" data-change="saveSettingImmediate enableUtmTracking $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -215,7 +215,7 @@
                     <p class="settings-item-desc">Run automated data lifecycle rules on a scheduled basis. Disabling this pauses all policies without changing their configuration.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-dataPoliciesEnabled" data-change="toggleDataPoliciesEnabled $checked">
+                    <input type="checkbox" id="setting-dataPoliciesEnabled" data-confirm-off="data policies" data-change="toggleDataPoliciesEnabled $checked">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -246,14 +246,14 @@
                         <p class="settings-item-desc">Opted-out records past the time limit are wiped of personal info, keeping only an irreversible email hash on the suppression list.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeEnabled" data-change="saveSettingImmediate retentionPurgeEnabled $checked">
+                        <input type="checkbox" id="setting-retentionPurgeEnabled" data-confirm-off="opted-out anonymisation" data-change="saveSettingImmediate retentionPurgeEnabled $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-retentionPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" data-change="saveSettingImmediate retentionPurgeRequireApproval $checked">
+                        <input type="checkbox" id="setting-retentionPurgeRequireApproval" data-confirm-off="manual approval" data-change="saveSettingImmediate retentionPurgeRequireApproval $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
@@ -271,14 +271,14 @@
                         <p class="settings-item-desc">Expired opt-ins are opted out and wiped of personal info, keeping only an irreversible email hash to block future messages.</p>
                       </div>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" data-change="saveSettingImmediate pendingConfirmationPurgeEnabled $checked">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" data-confirm-off="pending confirmation cleanup" data-change="saveSettingImmediate pendingConfirmationPurgeEnabled $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
                     <label class="settings-item-sub-toggle" for="setting-pendingConfirmationPurgeRequireApproval">
                       <span>Require manual approval</span>
                       <div class="settings-item-control">
-                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" data-change="saveSettingImmediate pendingConfirmationPurgeRequireApproval $checked">
+                        <input type="checkbox" id="setting-pendingConfirmationPurgeRequireApproval" data-confirm-off="manual approval" data-change="saveSettingImmediate pendingConfirmationPurgeRequireApproval $checked">
                         <span class="toggle-track"></span>
                       </div>
                     </label>
@@ -450,7 +450,7 @@
                     <p class="settings-item-desc">Send outgoing emails via a configured provider, e.g. for opt-in confirmations.</p>
                   </div>
                   <div class="settings-item-control">
-                    <input type="checkbox" id="setting-emailNotifications" data-change="onEmailNotificationsToggle $el">
+                    <input type="checkbox" id="setting-emailNotifications" data-confirm-off="email notifications" data-change="onEmailNotificationsToggle $el">
                     <span class="toggle-track"></span>
                   </div>
                 </label>
@@ -469,7 +469,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-objectStorage" data-change="onObjectStorageToggle $el">
+                      <input type="checkbox" id="setting-objectStorage" data-confirm-off="object storage" data-change="onObjectStorageToggle $el">
                       <span class="toggle-track"></span>
                     </div>
                   </span>
@@ -678,7 +678,7 @@
                   </div>
                   <span class="tooltip-wrapper">
                     <div class="settings-item-control">
-                      <input type="checkbox" id="setting-enableCaching" data-change="saveSettingImmediate enableCaching $checked">
+                      <input type="checkbox" id="setting-enableCaching" data-confirm-off="caching" data-change="saveSettingImmediate enableCaching $checked">
                       <span class="toggle-track"></span>
                     </div>
                   </span>

@@ -97,6 +97,31 @@ window.addEventListener("beforeunload", (e) => {
     e.preventDefault();
 });
 
+document.addEventListener(
+  "change",
+  (e) => {
+    const box = e.target;
+    if (!box.matches?.("input[type=checkbox][data-confirm-off]")) return;
+    if (box.checked || box.hasAttribute("data-confirmed")) {
+      box.removeAttribute("data-confirmed");
+      return;
+    }
+    e.stopImmediatePropagation();
+    box.checked = true;
+    openConfirmModal(
+      `Turn off ${box.dataset.confirmOff}?`,
+      "This stops the feature for every bucket and user until someone turns it back on.",
+      "Turn off",
+      () => {
+        box.checked = false;
+        box.setAttribute("data-confirmed", "");
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+    );
+  },
+  true,
+);
+
 function markClean(id) {
   document.getElementById(id)?.removeAttribute("data-dirty");
 }
