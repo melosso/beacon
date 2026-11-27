@@ -870,4 +870,5 @@ async function showIdentityDetails(emailHash, pushState = true) {
   subDetailEmail = details.email || null;
   subDetailLoaded = true;
   renderDetailSubscriptions();
+  if (isModalOpen("newTokenSheet")) prefillTokenFromIdentity();
 }

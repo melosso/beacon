@@ -24,10 +24,20 @@ function newTokenForBucket(bucket = currentBucket) {
   selectBucket(bucket);
 }
 
+function prefillTokenFromIdentity() {
+  if (currentView !== "subscriptions" || !subDetailHash || !subDetailEmail) return;
+  const email = document.getElementById("tokenEmail");
+  const name = document.getElementById("tokenName");
+  if (!email.value) email.value = subDetailEmail;
+  if (!name.value) name.value = subDetailName || "";
+}
+
 function openNewTokenSheet(pushState = true) {
   if (!isModalOpen("newTokenSheet"))
     document.getElementById("tokenLanguage").value =
       appSettings.uiLanguage || "en";
+    prefillTokenFromIdentity();
+  }
   openUrlSheet("newTokenSheet", "new-token", pushState);
 }
 
