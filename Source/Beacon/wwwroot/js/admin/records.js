@@ -365,8 +365,8 @@ function renderOverview() {
       const brandStroke =
         brandId?.settings?.primaryAccent || "hsl(var(--muted-foreground))";
       return html` <tr>
-        <td class="cursor-pointer" @click=${() => showBucket(b.name)}>
-          <strong>${formatPermission(b.name) || "N/A"}</strong>${
+        <td class="cursor-pointer cell-clip" @click=${() => showBucket(b.name)}>
+          <strong title=${formatPermission(b.name) || "N/A"}>${formatPermission(b.name) || "N/A"}</strong>${
             b.isArchived
               ? html` <span class="status-badge status-badge--sm">Archived</span>`
               : nothing

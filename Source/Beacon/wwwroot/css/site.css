@@ -1393,6 +1393,23 @@ tbody tr:hover td.table-empty {
   white-space: nowrap;
 }
 
+.cell-clip {
+  max-width: 20rem;
+}
+
+.cell-clip > strong,
+.cell-clip > .cell-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-clip > strong {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
 .email-hash {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
