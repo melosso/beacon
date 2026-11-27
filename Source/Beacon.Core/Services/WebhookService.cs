@@ -61,7 +61,7 @@ public sealed class WebhookService : IWebhookService
         }
     }
 
-    public async Task<string> SaveWebhookConfigAsync(
+    public async Task<string?> SaveWebhookConfigAsync(
         string bucket,
         string url,
         string method,
@@ -70,9 +70,9 @@ public sealed class WebhookService : IWebhookService
     {
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
 
-        // Generate a signing secret for HMAC verification
-        var secretBytes = RandomNumberGenerator.GetBytes(32);
-        var secret = Convert.ToBase64String(secretBytes);
+        string? secret = await _repository.GetByBucketAsync(normalizedBucket) is null
+            ? Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            : null;
 
         var config = new WebhookConfig
         {
@@ -83,14 +83,13 @@ public sealed class WebhookService : IWebhookService
             EncryptedHeaders = headers != null && headers.Count > 0
                 ? _encryptor.Encrypt(JsonSerializer.Serialize(headers))
                 : null,
-            EncryptedSecret = _encryptor.Encrypt(secret),
+            EncryptedSecret = secret is null ? null : _encryptor.Encrypt(secret),
             BodyTemplate = bodyTemplate,
             IsEnabled = true
         };
 
         await _repository.UpsertAsync(config);
 
-        // Return the plaintext secret so the user can configure their receiver
         return secret;
     }
 

@@ -1,4 +1,7 @@
 using Beacon.Api;
+using Beacon.Storage;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Beacon.Core.Models;
 using Beacon.Core.Security;
 using Beacon.Core.Services;
@@ -20,7 +23,7 @@ public class WebhookTests
 
         var secret = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, null);
 
-        Assert.NotEmpty(secret);
+        Assert.False(string.IsNullOrEmpty(secret));
 
         var config = await service.GetWebhookConfigAsync(TestBucket);
 
@@ -161,6 +164,32 @@ public class WebhookTests
 
         Assert.NotNull(message.SignatureHeader);
         Assert.StartsWith("sha256=", message.SignatureHeader);
+    }
+
+    [Fact]
+    public async Task WebhookService_Update_KeepsIssuedSigningSecret()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        using var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(connection).Options);
+        db.Database.EnsureCreated();
+        var queue = new WebhookDeliveryQueue();
+        var service = new WebhookService(new WebhookRepository(db), new Encryptor(TestEncryptionKey), queue);
+
+        var issued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, """{"v":1}""");
+        var reissued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook2", "PUT", null, """{"v":2}""");
+
+        Assert.NotNull(issued);
+        Assert.Null(reissued);
+
+        await service.TriggerWebhookAsync(TestBucket, CreateTriggerData());
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        var message = await queue.DequeueAllAsync(cts.Token).FirstAsync(cts.Token);
+
+        var expected = "sha256=" + Convert.ToHexString(
+            System.Security.Cryptography.HMACSHA256.HashData(Convert.FromBase64String(issued), System.Text.Encoding.UTF8.GetBytes(message.Body!))).ToLowerInvariant();
+        Assert.Equal("https://example.com/hook2", message.Url);
+        Assert.Equal(expected, message.SignatureHeader);
     }
 
     // SubstituteVariables
@@ -631,6 +660,7 @@ public class WebhookTests
 
         public Task UpsertAsync(WebhookConfig config)
         {
+            config.EncryptedSecret ??= _configs.Find(c => c.Bucket == config.Bucket)?.EncryptedSecret;
             _configs.RemoveAll(c => c.Bucket == config.Bucket);
             _configs.Add(config);
             return Task.CompletedTask;

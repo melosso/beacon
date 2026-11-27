@@ -876,9 +876,9 @@ public class SubmissionFormServiceTests
             return Task.FromResult<WebhookConfig?>(null);
         }
 
-        public Task<string> SaveWebhookConfigAsync(string bucket, string url, string method, Dictionary<string, string>? headers, string? bodyTemplate)
+        public Task<string?> SaveWebhookConfigAsync(string bucket, string url, string method, Dictionary<string, string>? headers, string? bodyTemplate)
         {
-            return Task.FromResult("test-id");
+            return Task.FromResult<string?>("test-id");
         }
 
         public Task DeleteWebhookConfigAsync(string bucket) => Task.CompletedTask;
