@@ -225,7 +225,7 @@ public static partial class OidcEndpoints
         {
             var email = identity.Email.ToLowerInvariant();
             account = await db.Users.FirstOrDefaultAsync(u =>
-                (u.Provider == null || u.Provider == provider.Slug)
+                u.Provider == null
                 && ((u.Email != null && u.Email.ToLower() == email) || u.Username.ToLower() == email), ct);
             if (account is not null)
             {

@@ -143,6 +143,19 @@ public sealed class OidcTests : IDisposable
     }
 
     [Fact]
+    public async Task Resolve_VerifiedEmail_KeepsAccountBoundToOtherSubject()
+    {
+        var bound = await AddUser("alice@example.com", provider: "idp", externalId: "sub-1");
+
+        var (account, problem) = await OidcEndpoints.ResolveAccountAsync(_db, _provider, new OidcIdentity("sub-2", "alice", "alice@example.com", true));
+
+        Assert.Null(account);
+        Assert.Equal(OidcFlow.NoAccount, problem);
+        await _db.Entry(bound).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("sub-1", bound.ExternalId);
+    }
+
+    [Fact]
     public async Task Resolve_CreateAccounts_ProvisionsUniqueUserWithRole()
     {
         await AddUser("alice");
