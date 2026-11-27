@@ -113,7 +113,7 @@ Store the API key in a secure location. The API key grants access to the admin p
 
 ---
 
-Please continue to the [Configuration guide](CONFIGURATION.md) for more information, as it describes host-based routing and other optimizations for production deployments.
+Please continue to the [Configuration guide](https://melosso.github.io/beacon/guide/configuration) for more information, as it describes host-based routing and other optimizations for production deployments.
 
 ## How to Use
 
@@ -214,7 +214,7 @@ curl -X POST http://localhost:5000/api/tokens/generate \
 
 ## Configuration
 
-Settings are read from `.env`, `docker-compose.yml`, or `appsettings.json`. Check out the [Configuration](CONFIGURATION.md) page which contains all settings.
+Settings are read from `.env`, `docker-compose.yml`, or `appsettings.json`. Check out the [Configuration](https://melosso.github.io/beacon/guide/configuration) page which contains all settings.
 
 ## License
 
