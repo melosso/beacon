@@ -353,6 +353,36 @@ admin_call POST /buckets/partner_enablement_network_eu/webhook \
     '{"url": "https://httpbin.org/post", "method": "POST", "headers": {"X-Source": "beacon"}}' > /dev/null
 admin_call PUT /buckets/partner_enablement_network_eu/webhook/enabled '{"enabled": false}' > /dev/null && echo "  partner_enablement_network_eu: disabled"
 
+echo "Adding the OIDC stub as a sign-in provider..."
+if curl -s -o /dev/null --max-time 2 http://127.0.0.1:9555/.well-known/openid-configuration; then
+    RESULT=$(admin_call POST /oidc/providers '{"slug": "dev-stub", "name": "Dev stub", "authority": "http://127.0.0.1:9555", "clientId": "beacon", "clientSecret": "beacon-dev-secret", "isEnabled": true, "createAccounts": true, "createdRole": "user"}')
+    case "$RESULT" in
+        *'"id"'*) echo "  dev-stub added" ;;
+        *"already in use"*) echo "  dev-stub exists" ;;
+        *) echo "  skipped: $RESULT" ;;
+    esac
+else
+    echo "  skipped: start the stub with  dotnet run Scripts/oidc-stub.cs  and run Beacon with OIDC_ALLOW_PRIVATE_NETWORK=true"
+fi
+
+echo "Pointing object storage at the S3 stub..."
+if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:9556/beacon?location"; then
+    SETTINGS=$(admin_call GET /settings | python3 -I -c '
+import json, sys
+c = json.load(sys.stdin)
+c.update(objectStorage=True, objectStorageProvider="minio", objectStorageBucket="beacon", objectStorageRegion="us-east-1",
+         objectStorageEndpoint="http://127.0.0.1:9556", objectStorageAccessKey="beacon-dev",
+         objectStorageSecretKey="beacon-dev-secret", objectStoragePublicUrl="http://127.0.0.1:9556/beacon")
+print(json.dumps(c))')
+    RESULT=$(admin_call PUT /settings "$SETTINGS")
+    case "$RESULT" in
+        *'"objectStorage":true'*) echo "  object storage set (restart Beacon if it ran with local storage)" ;;
+        *) echo "  skipped: $RESULT" ;;
+    esac
+else
+    echo "  skipped: start the stub with  dotnet run Scripts/s3-stub.cs"
+fi
+
 echo "Renaming and erasing a subscriber..."
 identity_hash() {
     admin_call GET "/identities?page=1&pageSize=1&search=$1&searchType=email" | grep -o '"emailHash":"[a-f0-9]*"' | head -1 | cut -d'"' -f4
