@@ -332,9 +332,7 @@ async function saveWebhook() {
   if (result.ok) {
     markClean("optionsModal");
     if (result.data?.signingSecret) {
-      document.getElementById("webhookSecretValue").value =
-        result.data.signingSecret;
-      document.getElementById("webhookSecretSection").hidden = false;
+      showWebhookSecret(result.data.signingSecret);
       document.getElementById("deleteWebhookBtn").hidden = false;
       setWebhookBadge(true);
       notify(
@@ -348,6 +346,34 @@ async function saveWebhook() {
       closeOptionsModal();
     }
   }
+}
+
+function showWebhookSecret(secret) {
+  document.getElementById("webhookSecretValue").value = secret;
+  const box = document.getElementById("webhookSecretSection");
+  box.hidden = false;
+  box.setAttribute("data-uncopied", "");
+  document.getElementById("webhookSecretKept").hidden = true;
+}
+
+async function rotateWebhookSecret() {
+  if (
+    !confirm(
+      "Rotate the signing secret? Connected services reject requests until they use the new secret.",
+    )
+  )
+    return;
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook/secret`,
+    { method: "POST" },
+  );
+  if (!result.ok) return;
+  showWebhookSecret(result.data.signingSecret);
+  notify(
+    "success",
+    "Secret rotated",
+    "Copy the new signing secret now. The secret is shown once.",
+  );
 }
 
 async function deleteWebhook() {
@@ -962,6 +988,11 @@ function handleSSEEvent(type, data) {
 }
 
 // START
+const URL_SHEETS = {
+  options: ["optionsModal", () => closeOptionsModal()],
+  "new-token": ["newTokenSheet", () => closeNewTokenSheet()],
+};
+
 window.addEventListener("popstate", () => {
   const modal = new URLSearchParams(window.location.search).get("modal");
   for (const [key, [id, close]] of Object.entries(URL_SHEETS)) {
@@ -975,8 +1006,3 @@ window.addEventListener("popstate", () => {
   }
   restoreViewFromUrl();
 });
-const URL_SHEETS = {
-  options: ["optionsModal", () => closeOptionsModal()],
-  "new-token": ["newTokenSheet", () => closeNewTokenSheet()],
-};
-

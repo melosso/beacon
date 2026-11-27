@@ -98,6 +98,9 @@ async function regenerateOwnApiKey() {
           "Copy your new API key now, it won't be shown again. Your old key is now revoked.";
         document.getElementById("userApiKeyRevealOutput").textContent =
           result.data.apiKey;
+        document
+          .getElementById("userApiKeyRevealOutput")
+          .setAttribute("data-uncopied", "");
         openModal("userApiKeyRevealModal");
       }
     },

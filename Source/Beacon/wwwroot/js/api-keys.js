@@ -325,6 +325,7 @@ async function rotateApiKey(id, name) {
           `New key for "${name}". Copy it now — it won't be shown again.`;
         const revealOut = document.getElementById("apiKeyRevealOutput");
         revealOut.textContent = _rotatedApiKey;
+        revealOut.setAttribute("data-uncopied", "");
         openModal("apiKeyRevealModal");
         triggerClass(revealOut, "key-new", 1200);
         loadApiKeys();
@@ -339,6 +340,7 @@ function closeApiKeyRevealModal() {
 
 function copyRotatedApiKey() {
   if (!_rotatedApiKey) return;
+  document.getElementById("apiKeyRevealOutput").removeAttribute("data-uncopied");
   clipboardWrite(_rotatedApiKey).then(() => {
     triggerClass(
       document.getElementById("apiKeyRevealOutput"),

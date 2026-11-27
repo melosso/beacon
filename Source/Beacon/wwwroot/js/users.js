@@ -265,6 +265,9 @@ async function regenerateUserApiKey(id, username) {
           `New API key for ${username} — copy it now, it will not be shown again.`;
         document.getElementById("userApiKeyRevealOutput").textContent =
           result.data.apiKey;
+        document
+          .getElementById("userApiKeyRevealOutput")
+          .setAttribute("data-uncopied", "");
         openModal("userApiKeyRevealModal");
       }
     },
@@ -278,6 +281,9 @@ function closeUserApiKeyRevealModal() {
 function copyUserApiKey() {
   const key = document.getElementById("userApiKeyRevealOutput").textContent;
   if (!key) return;
+  document
+    .getElementById("userApiKeyRevealOutput")
+    .removeAttribute("data-uncopied");
   clipboardWrite(key).then(() => notify("success", "API key copied"));
 }
 

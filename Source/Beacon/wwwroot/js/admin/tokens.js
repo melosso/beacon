@@ -236,7 +236,9 @@ function copyTextNow(text) {
 }
 
 function copyInput(id) {
-  clipboardWrite(document.getElementById(id).value);
+  const input = document.getElementById(id);
+  clipboardWrite(input.value);
+  input.closest("[data-uncopied]")?.removeAttribute("data-uncopied");
   notify("success", "Copied");
 }
 

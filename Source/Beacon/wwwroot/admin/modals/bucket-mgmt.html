@@ -695,9 +695,18 @@
           </div>
         </details>
 
-        <p class="text-xs text-muted" id="webhookSecretKept" hidden>
-          Saving keeps the signing secret, so connected services keep working.
-        </p>
+        <div class="label-row" id="webhookSecretKept" hidden>
+          <span class="text-xs text-muted">
+            Saving keeps the signing secret, so connected services keep working.
+          </span>
+          <button
+            type="button"
+            class="btn btn-outline btn-xs"
+            data-click="rotateWebhookSecret"
+          >
+            Rotate secret
+          </button>
+        </div>
 
         <div class="secret-box" id="webhookSecretSection" hidden>
           <label for="webhookSecretValue">Signing secret</label>
