@@ -40,8 +40,8 @@ async function loadAccountSso() {
   item.hidden = !data?.available || (!data.linked && !data.providers.length);
   if (item.hidden) return;
   document.getElementById("accountSsoDesc").textContent = data.linked
-    ? `Linked to ${data.linked}. Sign in with it in place of your password.`
-    : "Link a provider to sign in with it in place of your password.";
+    ? `Linked to ${data.linked}.`
+    : "Link your account to a sign-in provider.";
   paint(
     document.getElementById("accountSsoActions"),
     data.linked
