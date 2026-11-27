@@ -897,6 +897,11 @@ async function showIdentityDetails(emailHash, pushState = true) {
   badge.ondblclick = () => copyTextNow(badge.dataset.hash);
   paint(
     badge,
+function openSubscriber(emailHash) {
+  showView("subscriptions", false, true);
+  showIdentityDetails(emailHash);
+}
+
     html`<span class="email-hash text-inherit"
         >${emailHash.substring(0, 16)}…</span
       ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,

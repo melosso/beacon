@@ -269,6 +269,16 @@ function renderAuditRow(e) {
       <td>${sourceLabel}</td>
       <td>${e.actorId || html`<span class="muted">—</span>`}</td>
       <td><div class="row-actions">
+        ${
+          e.email
+            ? html`<span class="tooltip-wrapper">
+          <button class="btn-actions" aria-label="Open subscriber" @click=${() => openSubscriber(e.emailHash)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+          </button>
+          <span class="tooltip tooltip-above tooltip-right">Open subscriber</span>
+        </span>`
+            : nothing
+        }
         <span class="tooltip-wrapper">
           <button class="btn-actions" aria-label="Custom fields" @click=${() => openAuditCustomFields(e.customFields)}>:</button>
           <span class="tooltip tooltip-above tooltip-right">Custom fields</span>
