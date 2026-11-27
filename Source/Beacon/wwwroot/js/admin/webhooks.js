@@ -704,34 +704,6 @@ function closeEditPermissionsModal(force) {
   editingBucket = "";
 }
 
-function toggleBucketSubmenu(e) {
-  if (e) e.stopPropagation();
-  const submenu = document.getElementById("bucketSubmenu");
-  const wasOpen = submenu.classList.contains("open");
-  closeAllSubmenus();
-  if (!wasOpen) submenu.classList.add("open");
-}
-
-function toggleModulesSubmenu(e) {
-  if (e) e.stopPropagation();
-  const submenu = document.getElementById("modulesSubmenu");
-  const wasOpen = submenu.classList.contains("open");
-  closeAllSubmenus();
-  if (!wasOpen) submenu.classList.add("open");
-}
-
-function closeAllSubmenus() {
-  document
-    .querySelectorAll(".submenu.open")
-    .forEach((el) => el.classList.remove("open"));
-}
-
-document.addEventListener("click", function (e) {
-  if (!e.target.closest(".submenu, .btn-plus")) {
-    closeAllSubmenus();
-  }
-});
-
 function showPermissionsConfirmModal() {
   if (!editingRecord || !editingRecord.email) {
     notify(
@@ -963,7 +935,6 @@ function _flushConsentUpdates() {
 
     // Refresh subscriptions view if active
     if (currentView === "subscriptions") {
-  "new-bucket": ["newBucketSheet", () => closeNewBucketSheet()],
       if (subDetailHash) showIdentityDetails(subDetailHash, false);
       else loadIdentities(false);
     }
@@ -992,6 +963,7 @@ function handleSSEEvent(type, data) {
 const URL_SHEETS = {
   options: ["optionsModal", () => closeOptionsModal()],
   "new-token": ["newTokenSheet", () => closeNewTokenSheet()],
+  "new-bucket": ["newBucketSheet", () => closeNewBucketSheet()],
 };
 
 window.addEventListener("popstate", () => {

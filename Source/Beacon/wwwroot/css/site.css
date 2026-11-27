@@ -707,7 +707,6 @@ td {
   gap: 1px;
 }
 
-.btn-plus,
 .btn-sidebar {
   background: transparent;
   border: none;
@@ -719,7 +718,6 @@ td {
   border-radius: var(--radius-xs);
 }
 
-.btn-plus:hover,
 .btn-sidebar:hover {
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));
@@ -727,18 +725,6 @@ td {
 
 .btn-sidebar.active {
   color: hsl(var(--foreground));
-}
-
-.submenu {
-  display: none;
-  margin-bottom: var(--space-2);
-  border-left: 1px solid hsl(var(--border));
-  margin-left: var(--space-3);
-  padding-left: var(--space-1);
-}
-
-.submenu.open {
-  display: block;
 }
 
 .nav-item.unavailable {
@@ -4045,7 +4031,6 @@ input.appearance-select {
   .btn-icon,
   .btn-actions,
   .btn-sidebar,
-  .btn-plus,
   .btn-reveal,
   .github-link {
     min-width: 44px;
