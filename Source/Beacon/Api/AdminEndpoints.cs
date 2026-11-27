@@ -684,12 +684,11 @@ public static class AdminEndpoints
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
 
-        if (sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)))
+        var contactSearch = !string.IsNullOrWhiteSpace(search) && searchType is "email" or "name";
+        if (contactSearch || IsContactSort(sortBy))
             return Results.Ok(await GetBucketRecordsSortedByContactAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search, searchType, repository!, encryptor!));
 
-        // For ID search, pass to repository. For email search, we filter after decryption.
-        var idSearch = searchType == "email" ? null : search;
-        var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, idSearch);
+        var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search);
 
         // Decrypt emails and names for admin display
         foreach (var record in result.Records)
@@ -700,28 +699,24 @@ public static class AdminEndpoints
                 try { record.Name = encryptor!.Decrypt(record.EncryptedName); } catch { }
         }
 
-        // If searching by email, filter after decryption
-        var records = result.Records;
-        var total = result.Total;
-        if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLowerInvariant();
-            records = records.Where(r => MatchesWildcard(r.Email, searchLower)).ToList();
-            total = records.Count;
-        }
-
         return Results.Ok(new
         {
-            records,
-            total,
+            records = result.Records,
+            total = result.Total,
             page = result.Page,
             pageSize = result.PageSize
         });
     }
 
+    private static bool IsContactSort(string? sortBy) =>
+        sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase));
+
+    private static string? SearchField(string? searchType, string? email, string? name, string hash) =>
+        searchType switch { "email" => email, "name" => name, _ => hash };
+
     // Email and name are encrypted: load the bucket, decrypt, sort and page in memory.
-    private static async Task<object> GetBucketRecordsSortedByContactAsync(
-        string bucket, int page, int pageSize, string sortBy, string? sortDir, string? search, string? searchType,
+    internal static async Task<object> GetBucketRecordsSortedByContactAsync(
+        string bucket, int page, int pageSize, string? sortBy, string? sortDir, string? search, string? searchType,
         IConsentRepository repository, Encryptor encryptor)
     {
         var all = await repository.GetAllBucketRecordsAsync(bucket);
@@ -735,19 +730,26 @@ public static class AdminEndpoints
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
-            filtered = searchType == "email"
-                ? all.Where(r => MatchesWildcard(r.Email, searchLower))
-                : all.Where(r => MatchesWildcard(r.EmailHash, searchLower));
+            filtered = all.Where(r => MatchesWildcard(SearchField(searchType, r.Email, r.Name, r.EmailHash), searchLower));
         }
 
-        Func<EmailPermissions, string> key = sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)
-            ? r => r.Name ?? string.Empty
-            : r => r.Email ?? string.Empty;
-        // Records without a value sort last in both directions.
-        var withValueFirst = filtered.OrderBy(r => key(r).Length == 0);
-        var sorted = (sortDir?.ToLowerInvariant() == "asc"
-            ? withValueFirst.ThenBy(key, StringComparer.OrdinalIgnoreCase)
-            : withValueFirst.ThenByDescending(key, StringComparer.OrdinalIgnoreCase)).ToList();
+        var ascending = sortDir?.ToLowerInvariant() == "asc";
+        List<EmailPermissions> sorted;
+        if (IsContactSort(sortBy))
+        {
+            Func<EmailPermissions, string> key = sortBy!.Equals("name", StringComparison.OrdinalIgnoreCase)
+                ? r => r.Name ?? string.Empty
+                : r => r.Email ?? string.Empty;
+            // Records without a value sort last in both directions.
+            var withValueFirst = filtered.OrderBy(r => key(r).Length == 0);
+            sorted = (ascending
+                ? withValueFirst.ThenBy(key, StringComparer.OrdinalIgnoreCase)
+                : withValueFirst.ThenByDescending(key, StringComparer.OrdinalIgnoreCase)).ToList();
+        }
+        else
+        {
+            sorted = (ascending ? filtered.OrderBy(r => r.LastChanged) : filtered.OrderByDescending(r => r.LastChanged)).ToList();
+        }
 
         return new
         {
@@ -1374,7 +1376,7 @@ public static class AdminEndpoints
 
         if (search != null && search.Length > 200)
             return Results.BadRequest(new { error = "Search query too long" });
-        if (searchType != null && searchType is not ("id" or "email"))
+        if (searchType != null && searchType is not ("id" or "email" or "name"))
             return Results.BadRequest(new { error = "Invalid searchType" });
         if (sortDir != null && sortDir is not ("asc" or "desc"))
             return Results.BadRequest(new { error = "Invalid sortDir" });
@@ -1383,13 +1385,13 @@ public static class AdminEndpoints
 
         PagedResult<IdentityInfo> result;
 
-        if (sortBy is not null && (sortBy.Equals("email", StringComparison.OrdinalIgnoreCase) || sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)))
+        if (IsContactSort(sortBy))
         {
             // Encrypted columns: decrypt in parallel, sort in memory, then paginate.
             result = await GetIdentitiesSortedByContactAsync(
-                page, pageSize, sortBy, sortDir, search, searchType, repository, encryptor, ct);
+                page, pageSize, sortBy!, sortDir, search, searchType, repository, encryptor, ct);
         }
-        else if (searchType == "email" && !string.IsNullOrWhiteSpace(search))
+        else if (searchType is "email" or "name" && !string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
             var mappings = await repository.GetEmailHashMappingsAsync();
@@ -1398,14 +1400,9 @@ public static class AdminEndpoints
                 new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = ct },
                 (mapping, token) =>
                 {
-                    if (mapping.EncryptedEmail is null) return ValueTask.CompletedTask;
-                    try
-                    {
-                        var email = encryptor.Decrypt(mapping.EncryptedEmail);
-                        if (email.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
-                            matchingHashes.Add(mapping.EmailHash);
-                    }
-                    catch { }
+                    var value = TryDecrypt(encryptor, searchType == "name" ? mapping.EncryptedName : mapping.EncryptedEmail);
+                    if (MatchesWildcard(value, searchLower))
+                        matchingHashes.Add(mapping.EmailHash);
                     return ValueTask.CompletedTask;
                 });
             result = await repository.GetIdentitiesByHashesAsync([.. matchingHashes], page, pageSize, sortBy, sortDir);
@@ -1453,9 +1450,7 @@ public static class AdminEndpoints
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.Trim().ToLowerInvariant();
-            filtered = searchType == "email"
-                ? decrypted.Where(x => MatchesWildcard(x.Email, searchLower))
-                : decrypted.Where(x => MatchesWildcard(x.Hash, searchLower));
+            filtered = decrypted.Where(x => MatchesWildcard(SearchField(searchType, x.Email, x.Name, x.Hash), searchLower));
         }
 
         Func<(string Hash, string? Email, string? Name), string> key = sortBy.Equals("name", StringComparison.OrdinalIgnoreCase)

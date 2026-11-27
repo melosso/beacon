@@ -217,22 +217,26 @@ const SEARCH_ICON = html`<svg
 
 // Column header with an optional sort toggle and a search popover; used by records, subscribers and audit.
 function searchColumn(o) {
-  const labelText = o.onType
-    ? o.type === "id"
-      ? o.idLabel
-      : o.emailLabel || "Enter email — use * as wildcard"
-    : o.fixedLabel;
-  const placeholder =
-    o.placeholder || (o.type === "id" ? "e.g., a1b2*" : "e.g., *@gmail.com");
-  const typeBtn = (type, text) =>
+  const types = {
+    email: ["By email", o.emailLabel || "Enter email — use * as wildcard", "e.g., *@gmail.com"],
+    name: ["By name", "Enter name — use * as wildcard", "e.g., Jane*"],
+    id: ["By ID", o.idLabel, "e.g., a1b2*"],
+  };
+  const [, labelText, placeholder] = o.onType
+    ? types[o.type]
+    : [, o.fixedLabel, o.placeholder];
+  const typeBtn = (type) =>
     html`<button
       class="search-type-btn ${o.type === type ? "active" : ""}"
+      data-type=${type}
+      data-label=${types[type][1]}
+      data-placeholder=${types[type][2]}
       @click=${(e) => {
         e.stopPropagation();
         o.onType(type);
       }}
     >
-      ${text}
+      ${types[type][0]}
     </button>`;
   return html` <div class="column-search">
     ${
@@ -260,7 +264,7 @@ function searchColumn(o) {
       ${
         o.onType
           ? html`<div class="search-type-toggle">
-            ${typeBtn("email", "By email")}${typeBtn("id", "By ID")}
+            ${(o.types || ["email", "id"]).map(typeBtn)}
           </div>`
           : nothing
       }
@@ -481,28 +485,24 @@ function clearSubSearch() {
   document.getElementById("subSearchTrigger")?.classList.remove("active");
 }
 
+function applySearchType(popoverId, type) {
+  const popover = document.getElementById(popoverId);
+  if (!popover) return null;
+  let active = null;
+  for (const btn of popover.querySelectorAll(".search-type-btn")) {
+    btn.classList.toggle("active", btn.dataset.type === type);
+    if (btn.dataset.type === type) active = btn;
+  }
+  popover.querySelector("label").textContent = active.dataset.label;
+  const input = popover.querySelector("input");
+  input.placeholder = active.dataset.placeholder;
+  input.focus();
+  return input;
+}
+
 function setSubSearchType(type) {
   subSearchType = type;
-  // Update toggle, label, placeholder in-place
-  document
-    .querySelectorAll("#subSearchPopover .search-type-btn")
-    .forEach((btn) => {
-      btn.classList.toggle(
-        "active",
-        btn.textContent.trim() === (type === "id" ? "By ID" : "By email"),
-      );
-    });
-  const label = document.querySelector("#subSearchPopover label");
-  if (label)
-    label.textContent =
-      type === "id"
-        ? "Enter ID from logs (partial hash)"
-        : "Enter email — use * as wildcard";
-  const input = document.getElementById("subSearchInput");
-  if (input) {
-    input.placeholder = type === "id" ? "e.g., a1b2*" : "e.g., *@gmail.com";
-    input.focus();
-  }
+  applySearchType("subSearchPopover", type);
 }
 
 function updateSubBulkBar() {
@@ -642,6 +642,7 @@ async function loadIdentities(pushState = true) {
             input: "subSearchInput",
           },
           type: subSearchType,
+          types: ["email", "name", "id"],
           query: subSearchQuery,
           idLabel: "Enter ID from logs (partial hash)",
           onToggle: toggleSubSearchPopover,

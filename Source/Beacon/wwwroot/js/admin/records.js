@@ -615,6 +615,7 @@ async function loadBucket(bucket = currentBucket) {
             input: "searchInput",
           },
           type: searchType,
+          types: ["email", "name", "id"],
           query: searchQuery,
           idLabel: "Enter ID from logs (e.g., a1b2c3d4e5f6)",
           onToggle: toggleSearchPopover,
@@ -862,26 +863,7 @@ function toggleSearchPopover(event) {
 
 function setSearchType(type) {
   searchType = type;
-  // Update toggle, label, placeholder in-place, no re-render or data refetch
-  document
-    .querySelectorAll("#searchPopover .search-type-btn")
-    .forEach((btn) => {
-      btn.classList.toggle(
-        "active",
-        btn.textContent.trim() === (type === "id" ? "By ID" : "By email"),
-      );
-    });
-  const label = document.querySelector("#searchPopover label");
-  if (label)
-    label.textContent =
-      type === "id"
-        ? "Enter ID from logs (e.g., a1b2c3d4e5f6)"
-        : "Enter email — use * as wildcard";
-  const input = document.getElementById("searchInput");
-  if (input) {
-    input.placeholder = type === "id" ? "e.g., a1b2*" : "e.g., *@gmail.com";
-    input.focus();
-  }
+  applySearchType("searchPopover", type);
 }
 
 function searchRecords() {

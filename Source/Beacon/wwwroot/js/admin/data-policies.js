@@ -183,26 +183,8 @@ function toggleAuditBucketPopover(event) {
 
 function setAuditFilterType(type) {
   auditFilterType = type;
-  document
-    .querySelectorAll("#auditIdentityPopover .search-type-btn")
-    .forEach((btn) => {
-      btn.classList.toggle(
-        "active",
-        btn.textContent.trim() === (type === "id" ? "By ID" : "By email"),
-      );
-    });
-  const label = document.querySelector("#auditIdentityPopover label");
-  if (label)
-    label.textContent =
-      type === "id"
-        ? "Filter by identity hash (partial)"
-        : "Filter by email — use * as wildcard";
-  const input = document.getElementById("auditIdentityInput");
-  if (input) {
-    input.placeholder = type === "id" ? "e.g., a1b2*" : "e.g., *@gmail.com";
-    input.value = "";
-    input.focus();
-  }
+  const input = applySearchType("auditIdentityPopover", type);
+  if (input) input.value = "";
 }
 
 function applyAuditIdentityFilter() {
