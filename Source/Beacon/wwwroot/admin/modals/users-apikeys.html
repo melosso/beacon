@@ -371,13 +371,13 @@
 </dialog>
 
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="addUserModal"
   aria-labelledby="addUserModalTitle"
   data-self
   data-click="closeAddUserModal"
 >
-  <div class="modal">
+  <div class="modal" data-guard>
     <div class="modal-header">
       <h3 id="addUserModalTitle">Add user</h3>
       <button
@@ -494,13 +494,13 @@
 
 <!-- Add API Key modal -->
 <dialog
-  class="modal-backdrop"
+  class="modal-backdrop sheet"
   id="addApiKeyModal"
   aria-labelledby="addApiKeyModalTitle"
   data-self
   data-click="closeAddApiKeyModal"
 >
-  <div class="modal modal--lg">
+  <div class="modal modal--lg" data-guard>
     <div class="modal-header">
       <h3 id="addApiKeyModalTitle">Add API key</h3>
       <button

@@ -219,8 +219,8 @@ function openAddApiKeyModal() {
   setTimeout(() => document.getElementById("newApiKeyName")?.focus(), 50);
 }
 
-function closeAddApiKeyModal() {
-  closeModal("addApiKeyModal");
+function closeAddApiKeyModal(force) {
+  closeModal("addApiKeyModal", force);
 }
 
 async function createApiKey() {
@@ -283,6 +283,8 @@ async function createApiKey() {
     const newKeyOut = document.getElementById("newApiKeyOutput");
     newKeyOut.textContent = _newRawApiKey;
     document.getElementById("newApiKeyRevealSection").hidden = false;
+    document.getElementById("newApiKeyRevealSection").setAttribute("data-uncopied", "");
+    markClean("addApiKeyModal");
     triggerClass(newKeyOut, "key-new", 1200);
     btn.querySelector(".btn-label").textContent = "Done";
     document.getElementById("addApiKeyCancelBtn").hidden = true;
@@ -292,6 +294,7 @@ async function createApiKey() {
 
 function copyNewApiKey() {
   if (!_newRawApiKey) return;
+  document.getElementById("newApiKeyRevealSection").removeAttribute("data-uncopied");
   clipboardWrite(_newRawApiKey).then(() => {
     triggerClass(document.getElementById("newApiKeyOutput"), "key-copied", 700);
     notify("success", "API key copied");

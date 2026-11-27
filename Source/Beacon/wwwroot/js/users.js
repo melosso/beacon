@@ -448,8 +448,8 @@ function openAddUserModal() {
   openModal("addUserModal");
 }
 
-function closeAddUserModal() {
-  closeModal("addUserModal");
+function closeAddUserModal(force) {
+  closeModal("addUserModal", force);
 }
 
 async function createUser() {
@@ -483,6 +483,8 @@ async function createUser() {
     _newUserApiKey = result.data.apiKey;
     document.getElementById("newUserApiKeyOutput").textContent = _newUserApiKey;
     document.getElementById("newUserApiKeySection").hidden = false;
+    document.getElementById("newUserApiKeySection").setAttribute("data-uncopied", "");
+    markClean("addUserModal");
     document.querySelector(
       "#addUserModal .modal-actions .btn-outline",
     ).textContent = "Done";
@@ -498,6 +500,7 @@ async function createUser() {
 
 function copyNewUserApiKey() {
   if (!_newUserApiKey) return;
+  document.getElementById("newUserApiKeySection").removeAttribute("data-uncopied");
   clipboardWrite(_newUserApiKey).then(() =>
     notify("success", "API key copied"),
   );
