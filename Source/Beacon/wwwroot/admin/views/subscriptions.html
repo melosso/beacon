@@ -131,9 +131,15 @@
       </button>
     </div>
     <p>
-      Export <strong id="subExportCount">0</strong> subscriber(s). Each row
-      includes email, Beacon ID, list count, created date, and last updated.
+      Export <strong id="subExportCount">0</strong> subscriber(s).
     </p>
+    <div class="form-group">
+      <label for="subExportContents">Contents</label>
+      <select id="subExportContents">
+        <option value="summary">Summary: one row per subscriber</option>
+        <option value="full">Full copy for access requests: one row per permission, with consent text and custom fields</option>
+      </select>
+    </div>
     <div class="form-group">
       <label for="subExportFormat">Format</label>
       <select id="subExportFormat">

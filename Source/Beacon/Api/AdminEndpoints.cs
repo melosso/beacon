@@ -1543,6 +1543,16 @@ public static class AdminEndpoints
                 });
         }
 
+        if (request?.Full == true)
+        {
+            var contactsByHash = records.ToDictionary(r => r.EmailHash);
+            var consent = await repository.GetByEmailHashesAsync([.. contactsByHash.Keys], ct);
+            var parsed = consent.Select(c => (Record: c, Fields: string.IsNullOrEmpty(c.CustomFields) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(c.CustomFields))).ToList();
+            var fieldKeys = parsed.SelectMany(p => p.Fields?.Keys ?? (IEnumerable<string>)[]).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+            var fullRows = parsed.Select(p => FullCopyRow(p.Record, contactsByHash[p.Record.EmailHash], p.Fields, fieldKeys)).ToList();
+            return ExportWriter.Write(context, $"beacon-subscribers-full-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "permission", fullRows);
+        }
+
         var rows = records.Select(r => new ExportWriter.Row
         {
             { "beaconId", r.EmailHash },
@@ -1899,7 +1909,31 @@ public static class AdminEndpoints
 
     internal sealed record ExportIdentitiesRequest(
         IReadOnlyList<string>? Hashes = null,
-        string Format = "csv");
+        string Format = "csv",
+        bool Full = false);
+
+    internal static ExportWriter.Row FullCopyRow(ConsentRecord record, IdentityInfo contact, IReadOnlyDictionary<string, string>? fields, IReadOnlyList<string> fieldKeys)
+    {
+        var row = new ExportWriter.Row
+        {
+            { "beaconId", record.EmailHash },
+            { "email", contact.Email },
+            { "name", contact.Name },
+            { "bucket", record.Bucket },
+            { "permission", record.Permission },
+            { "status", JsonNamingPolicy.CamelCase.ConvertName(record.Status.ToString()) },
+            { "source", JsonNamingPolicy.CamelCase.ConvertName(record.Source.ToString()) },
+            { "consentText", record.ConsentText },
+            { "changedAt", ExportWriter.Timestamp(record.ChangedAt) }
+        };
+        if (fieldKeys.Count > 0)
+        {
+            var group = new ExportWriter.Row();
+            foreach (var key in fieldKeys) group.Add(key, fields?.GetValueOrDefault(key));
+            row.Add("customFields", group);
+        }
+        return row;
+    }
 
     internal sealed record ExportBucketRecordsRequest(
         IReadOnlyList<string>? Hashes = null,

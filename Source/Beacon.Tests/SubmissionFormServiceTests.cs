@@ -823,6 +823,9 @@ public class SubmissionFormServiceTests
         public Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail, string? EncryptedName)>> GetEmailHashMappingsAsync() => throw new NotImplementedException();
         public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null) => throw new NotImplementedException();
 
+        public Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ConsentRecord>>([]);
+
         public Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
         {
             var subs = _records.Values

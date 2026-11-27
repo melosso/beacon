@@ -322,6 +322,22 @@ public class SecurityAuditTests : IDisposable
     }
 
     [Fact]
+    public void FullCopyRow_IncludesConsentProofAndCustomFields()
+    {
+        var record = new ConsentRecord
+        {
+            Bucket = "b", EmailHash = "h", Permission = "news", Status = ConsentStatus.PendingConfirmation,
+            Source = ConsentSource.Url, ConsentText = "I agree", ChangedAt = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc)
+        };
+        var contact = new IdentityInfo { EmailHash = "h", Email = "a@x.com", Name = "A" };
+
+        var csv = ExportWriter.ToCsv([AdminEndpoints.FullCopyRow(record, contact, new Dictionary<string, string> { ["city"] = "Utrecht" }, ["city", "zip"])]);
+
+        Assert.StartsWith("beaconId,email,name,bucket,permission,status,source,consentText,changedAt,customFields.city,customFields.zip\r\n", csv);
+        Assert.Contains("h,a@x.com,A,b,news,pendingConfirmation,url,I agree,2026-01-02T03:04:05Z,Utrecht,\r\n", csv);
+    }
+
+    [Fact]
     public void ExportWriter_TimestampIsUtcIso8601() =>
         Assert.Equal("2026-10-18T20:01:41Z", ExportWriter.Timestamp(new DateTime(2026, 10, 18, 20, 1, 41, 123, DateTimeKind.Unspecified)));
 

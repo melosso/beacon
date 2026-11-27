@@ -176,6 +176,9 @@ internal sealed class InMemoryConsentRepository : IConsentRepository
     public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null)
         => throw new NotImplementedException();
 
+    public Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ConsentRecord>>(_records.Values.Where(r => emailHashes.Contains(r.EmailHash)).ToList());
+
     public Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash)
     {
         var subs = _records.Values

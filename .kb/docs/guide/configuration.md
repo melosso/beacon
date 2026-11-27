@@ -74,3 +74,21 @@ If `API_HOSTS` and `ADMIN_HOSTS` are not set: Beacon routes by port.
 | `ENFORCE_HTTPS` | Redirect HTTP to HTTPS and send HSTS headers. Set if Beacon terminates TLS | `false` |
 | `DISABLE_EMAIL_NOTIFICATIONS` | Disable all outgoing email | `false` |
 | `DEMO_MODE` | Block non-admin users from changing their own password or API key. Not editable in the admin panel | `false` |
+
+## Data protection
+
+Data protection settings are defined in the admin panel (Settings, Data policies and Connectors).
+
+| Setting | Behavior | Default |
+|---|---|---|
+| Data policies | Runs enabled policies on the schedule (`dataPolicyCron`) | on, daily at 00:00 UTC |
+| Opted-out anonymisation | Wipes personal data from opted-out records older than `retentionPurgeDays` | on, 1095 days, approval required |
+| Pending confirmation cleanup | Opts out and wipes unconfirmed opt-ins older than `pendingConfirmationPurgeDays` | on, 30 days, approval required |
+| Erasure notices | Sends a deleted subscriber to the bucket webhook with every permission as opted out | on |
+| Include email address | Adds the plaintext email to erasure notices. Off: the notice contains the Beacon ID (`{{emailHash}}`) | off |
+
+The settings apply as follows:
+
+- Anonymisation keeps the email hash and status. An anonymised record stays opted out until the subscriber subscribes again.
+- Erasure notices are sent on record deletion in the admin panel. Purges and bucket deletion send no erasure notice.
+- Access requests: export the subscriber with Contents set to Full copy.

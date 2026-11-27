@@ -562,17 +562,18 @@ function closeSubExportModal() {
 
 async function confirmSubExport() {
   const format = document.getElementById("subExportFormat").value;
+  const full = document.getElementById("subExportContents").value === "full";
   const btn = document.getElementById("subExportConfirmBtn");
   btn.disabled = true;
   btn.textContent = "Exporting…";
 
   const body =
     subSelectedHashes.size > 0
-      ? { hashes: [...subSelectedHashes], format }
-      : { format };
+      ? { hashes: [...subSelectedHashes], format, full }
+      : { format, full };
 
   try {
-    if (await downloadExport(`${window.location.origin}/api/admin/identities/export`, body, `beacon-subscribers.${format}`))
+    if (await downloadExport(`${window.location.origin}/api/admin/identities/export`, body, `beacon-subscribers${full ? "-full" : ""}.${format}`))
       closeSubExportModal();
   } finally {
     btn.disabled = false;

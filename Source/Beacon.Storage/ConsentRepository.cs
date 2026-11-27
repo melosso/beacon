@@ -533,6 +533,15 @@ public sealed class ConsentRepository : IConsentRepository
         };
     }
 
+    public async Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
+    {
+        return await _context.ConsentRecords
+            .AsNoTracking()
+            .Where(r => emailHashes.Contains(r.EmailHash))
+            .OrderBy(r => r.EmailHash).ThenBy(r => r.Bucket).ThenBy(r => r.Permission)
+            .ToListAsync(ct);
+    }
+
     public async Task<IDisposable> BeginTransactionAsync()
     {
         return await _context.Database.BeginTransactionAsync();
