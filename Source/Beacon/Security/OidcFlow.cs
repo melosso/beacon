@@ -4,6 +4,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Beacon.Core.Models;
+using Beacon.Storage;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -20,16 +22,10 @@ public static class OidcFlow
     public const string Denied = "denied";
     public const string NoAccount = "no_account";
     public const string Inactive = "inactive";
+    public const string Linked = "linked";
+    public const string NotLinked = "not_linked";
 
     public static readonly TimeSpan FlowLifetime = TimeSpan.FromMinutes(10);
-
-    internal const int PruneThreshold = 1024;
-
-    private static readonly ConcurrentDictionary<string, PendingFlow> Pending = new(StringComparer.Ordinal);
-
-    private static readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> Documents = new(StringComparer.Ordinal);
-
-    public sealed record PendingFlow(int ProviderId, string Verifier, string Nonce, string RedirectUri, DateTime ExpiresAt);
 
     public sealed record Start(string AuthorizeUrl, string State);
 
@@ -39,23 +35,7 @@ public static class OidcFlow
     public static bool AllowsPlainHttp(string authority) =>
         Uri.TryCreate(authority, UriKind.Absolute, out var uri) && uri.IsLoopback;
 
-    public static Task<OpenIdConnectConfiguration> DocumentAsync(OidcProvider provider, CancellationToken token) =>
-        Documents.GetOrAdd($"{provider.Id}|{provider.Authority}", _ => new ConfigurationManager<OpenIdConnectConfiguration>(
-            MetadataAddress(provider.Authority),
-            new OpenIdConnectConfigurationRetriever(),
-            new HttpDocumentRetriever { RequireHttps = !AllowsPlainHttp(provider.Authority) })).GetConfigurationAsync(token);
-
-    public static void Forget(int providerId)
-    {
-        foreach (var key in Documents.Keys)
-            if (key.StartsWith(providerId + "|", StringComparison.Ordinal))
-                Documents.TryRemove(key, out _);
-    }
-
-    public static async Task<Start> BeginAsync(OidcProvider provider, string redirectUri, CancellationToken token) =>
-        Begin(await DocumentAsync(provider, token), provider, redirectUri, DateTime.UtcNow);
-
-    internal static Start Begin(OpenIdConnectConfiguration document, OidcProvider provider, string redirectUri, DateTime now)
+    internal static (Start Start, OidcPendingFlow Flow) Begin(OpenIdConnectConfiguration document, OidcProvider provider, string redirectUri, DateTime now, Guid? linkUserId = null)
     {
         if (string.IsNullOrEmpty(document.AuthorizationEndpoint))
             throw new InvalidOperationException("The provider's discovery document declares no authorization endpoint.");
@@ -65,10 +45,16 @@ public static class OidcFlow
         var verifier = Token(64);
         var challenge = Base64Url.EncodeToString(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
 
-        if (Pending.Count >= PruneThreshold)
-            Prune(now);
-
-        Pending[state] = new PendingFlow(provider.Id, verifier, nonce, redirectUri, now.Add(FlowLifetime));
+        var flow = new OidcPendingFlow
+        {
+            State = state,
+            ProviderId = provider.Id,
+            Verifier = verifier,
+            Nonce = nonce,
+            RedirectUri = redirectUri,
+            ExpiresAt = now.Add(FlowLifetime),
+            LinkUserId = linkUserId
+        };
 
         var query = new Dictionary<string, string?>
         {
@@ -82,19 +68,57 @@ public static class OidcFlow
             ["code_challenge_method"] = "S256"
         };
 
-        return new Start(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(document.AuthorizationEndpoint, query), state);
+        return (new Start(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(document.AuthorizationEndpoint, query), state), flow);
     }
 
-    public static PendingFlow? Claim(string? state)
+    internal static Task<int> PruneAsync(BeaconDbContext db, DateTime now, CancellationToken ct = default) =>
+        db.OidcPendingFlows.Where(f => f.ExpiresAt <= now).ExecuteDeleteAsync(ct);
+
+    public static async Task<OidcPendingFlow?> ClaimAsync(BeaconDbContext db, string? state, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(state) || !Pending.TryRemove(state, out var flow)) return null;
+        if (string.IsNullOrEmpty(state) || state.Length > 64) return null;
+        var flow = await db.OidcPendingFlows.AsNoTracking().FirstOrDefaultAsync(f => f.State == state, ct);
+        if (flow is null) return null;
+        if (await db.OidcPendingFlows.Where(f => f.State == state).ExecuteDeleteAsync(ct) != 1) return null;
         return flow.ExpiresAt <= DateTime.UtcNow ? null : flow;
     }
 
-    public static async Task<OidcIdentity?> CompleteAsync(
-        OidcProvider provider, string clientSecret, PendingFlow flow, string code, HttpClient http, CancellationToken token)
+    private static string Token(int bytes) => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(bytes));
+}
+
+public sealed class OidcClient(bool allowPrivateNetwork) : IDisposable
+{
+    private readonly HttpClient _http = new(SsrfGuard.CreateGuardedHandler(allowPrivateNetwork)) { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly ConcurrentDictionary<string, ConfigurationManager<OpenIdConnectConfiguration>> _documents = new(StringComparer.Ordinal);
+
+    public bool AllowPrivateNetwork { get; } = allowPrivateNetwork;
+
+    public Task<OpenIdConnectConfiguration> DocumentAsync(OidcProvider provider, CancellationToken ct) =>
+        _documents.GetOrAdd($"{provider.Id}|{provider.Authority}", _ => new ConfigurationManager<OpenIdConnectConfiguration>(
+            OidcFlow.MetadataAddress(provider.Authority),
+            new OpenIdConnectConfigurationRetriever(),
+            new HttpDocumentRetriever(_http) { RequireHttps = !OidcFlow.AllowsPlainHttp(provider.Authority) })).GetConfigurationAsync(ct);
+
+    public void Forget(int providerId)
     {
-        var document = await DocumentAsync(provider, token);
+        foreach (var key in _documents.Keys)
+            if (key.StartsWith(providerId + "|", StringComparison.Ordinal))
+                _documents.TryRemove(key, out _);
+    }
+
+    public async Task<OidcFlow.Start> BeginAsync(BeaconDbContext db, OidcProvider provider, string redirectUri, Guid? linkUserId, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var (start, flow) = OidcFlow.Begin(await DocumentAsync(provider, ct), provider, redirectUri, now, linkUserId);
+        await OidcFlow.PruneAsync(db, now, ct);
+        db.OidcPendingFlows.Add(flow);
+        await db.SaveChangesAsync(ct);
+        return start;
+    }
+
+    public async Task<OidcIdentity?> CompleteAsync(OidcProvider provider, string clientSecret, OidcPendingFlow flow, string code, CancellationToken ct)
+    {
+        var document = await DocumentAsync(provider, ct);
         if (string.IsNullOrEmpty(document.TokenEndpoint)) return null;
 
         var form = new Dictionary<string, string>
@@ -117,8 +141,8 @@ public static class OidcFlow
                 "Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials)));
         }
 
-        using var response = await http.SendAsync(request, token);
-        var payload = await response.Content.ReadAsStringAsync(token);
+        using var response = await _http.SendAsync(request, ct);
+        var payload = await response.Content.ReadAsStringAsync(ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -170,6 +194,8 @@ public static class OidcFlow
         return new OidcIdentity(subject, Text(result.Claims, provider.UsernameClaim), Text(result.Claims, provider.EmailClaim), verified);
     }
 
+    public void Dispose() => _http.Dispose();
+
     private static bool PrefersBasic(OpenIdConnectConfiguration document)
     {
         var methods = document.TokenEndpointAuthMethodsSupported;
@@ -178,18 +204,6 @@ public static class OidcFlow
         return !methods.Contains("client_secret_post");
     }
 
-    public static int Prune(DateTime now)
-    {
-        var removed = 0;
-        foreach (var (key, flow) in Pending)
-            if (flow.ExpiresAt <= now && Pending.TryRemove(key, out _)) removed++;
-        return removed;
-    }
-
-    private static string Token(int bytes) => Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(bytes));
-
     private static string Text(IDictionary<string, object> claims, string name) =>
         claims.TryGetValue(name, out var value) ? value as string ?? value.ToString() ?? "" : "";
-
-    internal static bool IsPending(string state) => Pending.ContainsKey(state);
 }

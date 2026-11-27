@@ -41,6 +41,35 @@ public abstract class DatabaseProviderTests
     }
 
     [Fact]
+    public async Task OidcClaim_TwoInstancesRacing_ExactlyOneWins()
+    {
+        await using (var db = CreateDbContext())
+            DatabaseMigrator.Initialize(db);
+
+        for (var round = 0; round < 10; round++)
+        {
+            var state = Guid.NewGuid().ToString("N");
+            await using (var db = CreateDbContext())
+            {
+                db.OidcPendingFlows.Add(new OidcPendingFlow
+                {
+                    State = state, ProviderId = 1, Verifier = "v", Nonce = "n", RedirectUri = "https://beacon.example.test/cb",
+                    ExpiresAt = DateTime.UtcNow.AddMinutes(5)
+                });
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            await using var a = CreateDbContext();
+            await using var b = CreateDbContext();
+            var results = a.Database.IsSqlite()
+                ? [await Beacon.Security.OidcFlow.ClaimAsync(a, state), await Beacon.Security.OidcFlow.ClaimAsync(b, state)]
+                : await Task.WhenAll(Beacon.Security.OidcFlow.ClaimAsync(a, state), Beacon.Security.OidcFlow.ClaimAsync(b, state));
+
+            Assert.Single(results, r => r is not null);
+        }
+    }
+
+    [Fact]
     public async Task DatabaseMigrator_RestoresMissingTableAndColumn()
     {
         await using (var db = CreateDbContext())

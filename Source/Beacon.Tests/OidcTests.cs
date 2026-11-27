@@ -34,24 +34,75 @@ public sealed class OidcTests : IDisposable
     }
 
     [Fact]
-    public void Begin_SendsPkceAndSpendsStateOnce()
+    public async Task Begin_SendsPkceAndClaimSpendsStateOnce()
     {
-        var start = OidcFlow.Begin(Document, _provider, Redirect, DateTime.UtcNow);
+        var (start, flow) = OidcFlow.Begin(Document, _provider, Redirect, DateTime.UtcNow);
         var query = QueryHelpers.ParseQuery(new Uri(start.AuthorizeUrl).Query);
+        var challenge = System.Buffers.Text.Base64Url.EncodeToString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(flow.Verifier)));
 
         Assert.Equal("S256", query["code_challenge_method"]);
-        Assert.Equal(start.State, query["state"]);
-        Assert.Equal(Redirect, query["redirect_uri"]);
-        Assert.NotNull(OidcFlow.Claim(start.State));
-        Assert.Null(OidcFlow.Claim(start.State));
+        Assert.Equal(challenge, query["code_challenge"]);
+        Assert.Equal(flow.Nonce, query["nonce"]);
+        Assert.Equal(start.State, flow.State);
+
+        _db.OidcPendingFlows.Add(flow);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.NotNull(await OidcFlow.ClaimAsync(_db, start.State, TestContext.Current.CancellationToken));
+        Assert.Null(await OidcFlow.ClaimAsync(_db, start.State, TestContext.Current.CancellationToken));
+        Assert.Null(await OidcFlow.ClaimAsync(_db, "forged", TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public void Claim_ExpiredFlow_ReturnsNull()
+    public async Task Claim_ExpiredFlow_ReturnsNullAndPruneRemovesIt()
     {
-        var start = OidcFlow.Begin(Document, _provider, Redirect, DateTime.UtcNow - OidcFlow.FlowLifetime - TimeSpan.FromMinutes(1));
+        var now = DateTime.UtcNow;
+        var (expired, expiredFlow) = OidcFlow.Begin(Document, _provider, Redirect, now - OidcFlow.FlowLifetime - TimeSpan.FromMinutes(1));
+        var (_, liveFlow) = OidcFlow.Begin(Document, _provider, Redirect, now);
+        var (_, staleFlow) = OidcFlow.Begin(Document, _provider, Redirect, now - OidcFlow.FlowLifetime - TimeSpan.FromMinutes(1));
+        _db.OidcPendingFlows.AddRange(expiredFlow, liveFlow, staleFlow);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        Assert.Null(OidcFlow.Claim(start.State));
+        Assert.Null(await OidcFlow.ClaimAsync(_db, expired.State, TestContext.Current.CancellationToken));
+        Assert.Equal(1, await OidcFlow.PruneAsync(_db, now, TestContext.Current.CancellationToken));
+        Assert.Equal([liveFlow.State], await _db.OidcPendingFlows.Select(f => f.State).ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Link_BindsSignedInAccountUnlessSubjectTaken()
+    {
+        var alice = await AddUser("alice");
+        var bob = await AddUser("bob", provider: "idp", externalId: "sub-bob");
+
+        Assert.Equal(OidcFlow.Linked, await OidcEndpoints.LinkAsync(_db, _provider, new OidcIdentity("sub-alice", "a", "alice@example.com", true), alice.Id));
+        Assert.Equal(OidcFlow.NotLinked, await OidcEndpoints.LinkAsync(_db, _provider, new OidcIdentity("sub-bob", "b", "", false), alice.Id));
+        Assert.Equal(OidcFlow.NotLinked, await OidcEndpoints.LinkAsync(_db, _provider, new OidcIdentity("sub-x", "x", "", false), Guid.NewGuid()));
+
+        await _db.Entry(alice).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(("idp", "sub-alice", "alice@example.com"), (alice.Provider, alice.ExternalId, alice.Email));
+        Assert.Equal("sub-bob", bob.ExternalId);
+    }
+
+    [Fact]
+    public async Task IssuerProblem_RejectsPrivateAddressesByDefault()
+    {
+        using var strict = new OidcClient(allowPrivateNetwork: false);
+        using var open = new OidcClient(allowPrivateNetwork: true);
+
+        Assert.NotNull(await OidcEndpoints.IssuerProblemAsync(strict, "https://127.0.0.1", TestContext.Current.CancellationToken));
+        Assert.NotNull(await OidcEndpoints.IssuerProblemAsync(strict, "https://169.254.169.254", TestContext.Current.CancellationToken));
+        Assert.NotNull(await OidcEndpoints.IssuerProblemAsync(strict, "https://10.0.0.5", TestContext.Current.CancellationToken));
+        Assert.Null(await OidcEndpoints.IssuerProblemAsync(strict, "https://1.1.1.1", TestContext.Current.CancellationToken));
+        Assert.Null(await OidcEndpoints.IssuerProblemAsync(open, "https://10.0.0.5", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GuardedHandler_RefusesPrivateTargetAtConnect()
+    {
+        using var client = new HttpClient(SsrfGuard.CreateGuardedHandler(allowPrivateNetwork: false));
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetAsync("http://127.0.0.1:9/", TestContext.Current.CancellationToken));
+        Assert.Contains("private or reserved", ex.Message + ex.InnerException?.Message);
     }
 
     [Fact]
@@ -151,6 +202,11 @@ public sealed class OidcTests : IDisposable
     [InlineData("PUT", "/api/admin/oidc/providers/{id:int}", "Admin")]
     [InlineData("DELETE", "/api/admin/oidc/providers/{id:int}", "Admin")]
     [InlineData("GET", "/api/admin/auth/oidc/{slug}/callback", null)]
+    [InlineData("GET", "/api/admin/auth/oidc/{slug}/start", null)]
+    [InlineData("GET", "/api/admin/auth/providers", null)]
+    [InlineData("GET", "/api/admin/oidc/link", "")]
+    [InlineData("POST", "/api/admin/oidc/link/{slug}", "")]
+    [InlineData("DELETE", "/api/admin/oidc/link", "")]
     public void Endpoints_HaveExpectedPolicy(string method, string route, string? policy)
     {
         var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
@@ -162,7 +218,7 @@ public sealed class OidcTests : IDisposable
             .Single(e => e.RoutePattern.RawText == route
                 && e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()!.HttpMethods.Contains(method));
 
-        var policies = endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Select(a => a.Policy).ToArray();
+        var policies = endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Select(a => a.Policy ?? "").ToArray();
         Assert.Equal(policy is null ? [] : [policy], policies);
     }
 

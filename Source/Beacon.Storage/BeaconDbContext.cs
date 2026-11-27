@@ -21,6 +21,7 @@ public class BeaconDbContext : DbContext
     public DbSet<BucketOptions> BucketOptions => Set<BucketOptions>();
     public DbSet<User> Users => Set<User>();
     public DbSet<OidcProvider> OidcProviders => Set<OidcProvider>();
+    public DbSet<OidcPendingFlow> OidcPendingFlows => Set<OidcPendingFlow>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<WorkflowTask> WorkflowTasks => Set<WorkflowTask>();
     public DbSet<ConsentAuditEntry> ConsentAuditEntries => Set<ConsentAuditEntry>();
@@ -201,6 +202,16 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.EmailClaim).HasMaxLength(100).IsRequired();
             entity.Property(e => e.CreatedRole).HasMaxLength(20).IsRequired();
             entity.HasIndex(e => e.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<OidcPendingFlow>(entity =>
+        {
+            entity.HasKey(e => e.State);
+            entity.Property(e => e.State).HasMaxLength(64);
+            entity.Property(e => e.Verifier).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.Nonce).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.RedirectUri).HasMaxLength(500).IsRequired();
+            entity.HasIndex(e => e.ExpiresAt);
         });
 
         modelBuilder.Entity<ApiKey>(entity =>

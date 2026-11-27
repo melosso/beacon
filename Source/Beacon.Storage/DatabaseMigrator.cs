@@ -248,6 +248,22 @@ public static class DatabaseMigrator
                 """);
             db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IX_OidcProviders_Slug ON OidcProviders (Slug)");
         }
+
+        if (!TableExists(db, "OidcPendingFlows"))
+        {
+            db.Database.ExecuteSqlRaw("""
+                CREATE TABLE OidcPendingFlows (
+                    State TEXT NOT NULL PRIMARY KEY,
+                    ProviderId INTEGER NOT NULL,
+                    Verifier TEXT NOT NULL,
+                    Nonce TEXT NOT NULL,
+                    RedirectUri TEXT NOT NULL,
+                    ExpiresAt TEXT NOT NULL,
+                    LinkUserId TEXT NULL
+                )
+                """);
+            db.Database.ExecuteSqlRaw("CREATE INDEX IX_OidcPendingFlows_ExpiresAt ON OidcPendingFlows (ExpiresAt)");
+        }
     }
 
     private static void MigrateWorkflowTasks(BeaconDbContext db)
