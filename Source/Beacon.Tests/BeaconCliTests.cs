@@ -26,11 +26,13 @@ public sealed class BeaconCliTests : IDisposable
         _connection.Dispose();
     }
 
-    private async Task<(int Code, string Output, string Error)> Run(params string[] args)
+    private Task<(int Code, string Output, string Error)> Run(params string[] args) => RunWithInput("", args);
+
+    private async Task<(int Code, string Output, string Error)> RunWithInput(string input, params string[] args)
     {
         var output = new StringWriter();
         var error = new StringWriter();
-        var code = await BeaconCli.RunAsync(_db, args, output, error, TestContext.Current.CancellationToken);
+        var code = await BeaconCli.RunAsync(_db, args, new StringReader(input), output, error, TestContext.Current.CancellationToken);
         _db.ChangeTracker.Clear();
         return (code, output.ToString(), error.ToString());
     }
@@ -38,15 +40,16 @@ public sealed class BeaconCliTests : IDisposable
     [Fact]
     public async Task Accounts_CreateValidatesAndPrintsKeyOnce()
     {
-        var created = await Run("accounts", "create", "alice", "correct-horse-battery");
-        var duplicate = await Run("accounts", "create", "ALICE", "correct-horse-battery");
-        var weak = await Run("accounts", "create", "bob", "short");
-        var role = await Run("accounts", "create", "bob", "correct-horse-battery", "owner");
+        var created = await RunWithInput("correct-horse-battery", "accounts", "create", "alice");
+        var duplicate = await RunWithInput("correct-horse-battery", "accounts", "create", "ALICE");
+        var weak = await RunWithInput("short", "accounts", "create", "bob");
+        var role = await RunWithInput("correct-horse-battery", "accounts", "create", "bob", "owner");
+        var argvPassword = await Run("accounts", "create", "bob", "correct-horse-battery");
         var list = await Run("accounts", "list");
 
         Assert.Equal(0, created.Code);
         Assert.Contains("API key (shown once): ", created.Output);
-        Assert.Equal((1, 1, 1), (duplicate.Code, weak.Code, role.Code));
+        Assert.Equal((1, 1, 1, 1), (duplicate.Code, weak.Code, role.Code, argvPassword.Code));
         Assert.Contains("alice", list.Output);
         Assert.DoesNotContain("bob", list.Output);
         var alice = await _db.Users.SingleAsync(TestContext.Current.CancellationToken);
@@ -57,12 +60,12 @@ public sealed class BeaconCliTests : IDisposable
     [Fact]
     public async Task Accounts_PasswordAndKeyRotation()
     {
-        await Run("accounts", "create", "alice", "correct-horse-battery");
+        await RunWithInput("correct-horse-battery", "accounts", "create", "alice");
         var before = (await _db.Users.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken)).ApiKeyHash;
 
-        Assert.Equal(0, (await Run("accounts", "password", "alice", "another-long-password")).Code);
+        Assert.Equal(0, (await RunWithInput("another-long-password", "accounts", "password", "alice")).Code);
         var rotated = await Run("accounts", "apikey", "alice");
-        Assert.Equal(1, (await Run("accounts", "password", "nobody", "another-long-password")).Code);
+        Assert.Equal(1, (await RunWithInput("another-long-password", "accounts", "password", "nobody")).Code);
 
         var alice = await _db.Users.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
         Assert.True(PasswordHasher.VerifyPassword("another-long-password", alice.PasswordHash, alice.Salt));
@@ -73,13 +76,13 @@ public sealed class BeaconCliTests : IDisposable
     [Fact]
     public async Task Accounts_LastAdminCannotBeDemotedDisabledOrDeleted()
     {
-        await Run("accounts", "create", "alice", "correct-horse-battery");
+        await RunWithInput("correct-horse-battery", "accounts", "create", "alice");
 
         Assert.Equal(1, (await Run("accounts", "demote", "alice")).Code);
         Assert.Equal(1, (await Run("accounts", "disable", "alice")).Code);
         Assert.Equal(1, (await Run("accounts", "delete", "alice")).Code);
 
-        await Run("accounts", "create", "bob", "correct-horse-battery", "user");
+        await RunWithInput("correct-horse-battery", "accounts", "create", "bob", "user");
         Assert.Equal(0, (await Run("accounts", "promote", "bob")).Code);
         Assert.Equal(0, (await Run("accounts", "demote", "alice")).Code);
         Assert.Equal(0, (await Run("accounts", "disable", "alice")).Code);
@@ -90,7 +93,7 @@ public sealed class BeaconCliTests : IDisposable
     [Fact]
     public async Task Providers_DisableAndDeleteUnlinksAccounts()
     {
-        await Run("accounts", "create", "alice", "correct-horse-battery");
+        await RunWithInput("correct-horse-battery", "accounts", "create", "alice");
         var alice = await _db.Users.SingleAsync(TestContext.Current.CancellationToken);
         alice.Provider = "idp";
         alice.ExternalId = "sub";

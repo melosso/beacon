@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Beacon.Api;
 using Beacon.Core.Models;
@@ -39,19 +40,19 @@ public static class BeaconCli
             return 1;
         }
 
-        return await RunAsync(db, args, Console.Out, Console.Error);
+        return await RunAsync(db, args, Console.In, Console.Out, Console.Error);
     }
 
-    internal static async Task<int> RunAsync(BeaconDbContext db, string[] args, TextWriter output, TextWriter error, CancellationToken ct = default)
+    internal static async Task<int> RunAsync(BeaconDbContext db, string[] args, TextReader input, TextWriter output, TextWriter error, CancellationToken ct = default)
     {
-        var cli = new Session(db, output, error, ct);
+        var cli = new Session(db, () => ReadPassword(input, error), output, error, ct);
         return args switch
         {
             ["migrate"] => cli.Done("Database schema is up to date."),
             ["accounts", "list"] => await cli.ListAccountsAsync(),
-            ["accounts", "create", var user, var password] => await cli.CreateAccountAsync(user, password, "admin"),
-            ["accounts", "create", var user, var password, var role] => await cli.CreateAccountAsync(user, password, role),
-            ["accounts", "password", var user, var password] => await cli.SetPasswordAsync(user, password),
+            ["accounts", "create", var user] => await cli.CreateAccountAsync(user, "admin"),
+            ["accounts", "create", var user, var role] => await cli.CreateAccountAsync(user, role),
+            ["accounts", "password", var user] => await cli.SetPasswordAsync(user),
             ["accounts", "promote", var user] => await cli.SetRoleAsync(user, "admin"),
             ["accounts", "demote", var user] => await cli.SetRoleAsync(user, "user"),
             ["accounts", "enable", var user] => await cli.SetEnabledAsync(user, true),
@@ -83,6 +84,21 @@ public static class BeaconCli
         return $"dotnet {Quote(dll)}";
     }
 
+    private static string? ReadPassword(TextReader input, TextWriter prompt)
+    {
+        if (!ReferenceEquals(input, Console.In) || Console.IsInputRedirected) return input.ReadLine();
+
+        prompt.Write("Password: ");
+        var password = new StringBuilder();
+        for (var key = Console.ReadKey(intercept: true); key.Key != ConsoleKey.Enter; key = Console.ReadKey(intercept: true))
+        {
+            if (key.Key == ConsoleKey.Backspace) { if (password.Length > 0) password.Length--; }
+            else if (!char.IsControl(key.KeyChar)) password.Append(key.KeyChar);
+        }
+        prompt.WriteLine();
+        return password.ToString();
+    }
+
     private static string Quote(string path) => path.Contains(' ') ? $"\"{path}\"" : path;
 
     private static int Usage(TextWriter output, int exitCode)
@@ -90,8 +106,8 @@ public static class BeaconCli
         var me = Invocation();
         output.WriteLine("Beacon commands:");
         output.WriteLine($"  {me} accounts list");
-        output.WriteLine($"  {me} accounts create <username> <password> [admin|user]");
-        output.WriteLine($"  {me} accounts password <username> <password>");
+        output.WriteLine($"  {me} accounts create <username> [admin|user]");
+        output.WriteLine($"  {me} accounts password <username>");
         output.WriteLine($"  {me} accounts promote|demote|enable|disable|delete <username>");
         output.WriteLine($"  {me} accounts apikey <username>");
         output.WriteLine($"  {me} accounts providers");
@@ -102,11 +118,12 @@ public static class BeaconCli
         output.WriteLine($"  {me} webhooks enable|disable <bucket>");
         output.WriteLine($"  {me} migrate");
         output.WriteLine();
+        output.WriteLine("Passwords are read from standard input.");
         output.WriteLine("Reads the same configuration as the server (.env, environment, appsettings.json).");
         return exitCode;
     }
 
-    private sealed class Session(BeaconDbContext db, TextWriter output, TextWriter error, CancellationToken ct)
+    private sealed class Session(BeaconDbContext db, Func<string?> readPassword, TextWriter output, TextWriter error, CancellationToken ct)
     {
         public int Done(string message)
         {
@@ -139,7 +156,7 @@ public static class BeaconCli
             if (users.Count == 0)
             {
                 output.WriteLine("No accounts. Sign in with ADMIN_API_KEY, or create one with:");
-                output.WriteLine($"  {Invocation()} accounts create <username> <password>");
+                output.WriteLine($"  {Invocation()} accounts create <username>");
                 return 0;
             }
 
@@ -149,13 +166,14 @@ public static class BeaconCli
             return 0;
         }
 
-        public async Task<int> CreateAccountAsync(string username, string password, string role)
+        public async Task<int> CreateAccountAsync(string username, string role)
         {
             if (!UserEndpoints.ValidateUsername(username, out var nameError)) return Fail(nameError);
-            if (!UserEndpoints.ValidatePassword(password, out var passwordError)) return Fail(passwordError);
             if (role is not ("admin" or "user")) return Fail($"Unknown role \"{role}\". Use admin or user.");
             var lowered = username.ToLowerInvariant();
             if (await db.Users.AnyAsync(u => u.Username.ToLower() == lowered, ct)) return Fail($"\"{username}\" is already taken.");
+            var password = readPassword();
+            if (!UserEndpoints.ValidatePassword(password, out var passwordError)) return Fail(passwordError);
 
             var (hash, salt) = PasswordHasher.HashPassword(password);
             var (apiKey, apiKeyHash) = ApiKeyGenerator.Generate();
@@ -175,9 +193,10 @@ public static class BeaconCli
             return 0;
         }
 
-        public async Task<int> SetPasswordAsync(string username, string password)
+        public async Task<int> SetPasswordAsync(string username)
         {
             if (await FindAsync(username) is not { } user) return 1;
+            var password = readPassword();
             if (!UserEndpoints.ValidatePassword(password, out var passwordError)) return Fail(passwordError);
             (user.PasswordHash, user.Salt) = PasswordHasher.HashPassword(password);
             user.UpdatedAt = DateTime.UtcNow;
@@ -260,7 +279,7 @@ public static class BeaconCli
             await db.SaveChangesAsync(ct);
             output.WriteLine($"Deleted {provider.Slug}. {unbound} account(s) unlinked.");
             if (unbound > 0)
-                output.WriteLine($"Accounts created by this provider have no known password. Set one with:  {Invocation()} accounts password <username> <password>");
+                output.WriteLine($"Accounts created by this provider have no known password. Set one with:  {Invocation()} accounts password <username>");
             return 0;
         }
 

@@ -49,10 +49,10 @@ public abstract class DatabaseProviderTests
         var output = new StringWriter();
         var error = new StringWriter();
 
-        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "create", name, "correct-horse-battery", "user"], output, error, TestContext.Current.CancellationToken));
-        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "disable", name], output, error, TestContext.Current.CancellationToken));
-        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "list"], output, error, TestContext.Current.CancellationToken));
-        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "delete", name], output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "create", name, "user"], new StringReader("correct-horse-battery"), output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "disable", name], TextReader.Null, output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "list"], TextReader.Null, output, error, TestContext.Current.CancellationToken));
+        Assert.Equal(0, await Beacon.Cli.BeaconCli.RunAsync(db, ["accounts", "delete", name], TextReader.Null, output, error, TestContext.Current.CancellationToken));
 
         Assert.Contains($"{name}", output.ToString());
         Assert.Equal("", error.ToString());

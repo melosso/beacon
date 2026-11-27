@@ -10,8 +10,8 @@ The Beacon binary runs management commands in place of the web server. Commands 
 | Command | Action |
 |---|---|
 | `accounts list` | Returns accounts with role, state, linked provider and last sign-in |
-| `accounts create <username> <password> [admin\|user]` | Creates an account. Default role: `admin`. Prints the account API key once |
-| `accounts password <username> <password>` | Sets a password. Minimum 12 characters |
+| `accounts create <username> [admin\|user]` | Creates an account. Default role: `admin`. Prints the account API key once |
+| `accounts password <username>` | Sets a password. Minimum 12 characters |
 | `accounts promote\|demote <username>` | Sets the role to `admin` or `user` |
 | `accounts enable\|disable <username>` | Allows or blocks sign-in |
 | `accounts delete <username>` | Deletes the account |
@@ -24,6 +24,8 @@ The Beacon binary runs management commands in place of the web server. Commands 
 | `webhooks enable\|disable <bucket>` | Starts or stops webhook requests for a bucket |
 | `migrate` | Applies schema changes and exits |
 
+Passwords are read from standard input. An interactive terminal prompts without echo.
+
 The last enabled admin account cannot be demoted, disabled or deleted. `ADMIN_API_KEY` signs in without an account.
 
 ## Docker
@@ -35,7 +37,8 @@ docker compose exec beacon dotnet Beacon.dll accounts list
 ## Linux and Windows
 
 ```bash
-dotnet Beacon.dll accounts password alice "a-new-long-password"
+dotnet Beacon.dll accounts password alice
+printf '%s\n' "$NEW_PASSWORD" | dotnet Beacon.dll accounts password alice
 ```
 
 Exit code `0` means success. Exit code `1` means the command failed. Standard error contains the reason.
