@@ -963,6 +963,7 @@ function _flushConsentUpdates() {
 
     // Refresh subscriptions view if active
     if (currentView === "subscriptions") {
+  "new-bucket": ["newBucketSheet", () => closeNewBucketSheet()],
       if (subDetailHash) showIdentityDetails(subDetailHash, false);
       else loadIdentities(false);
     }

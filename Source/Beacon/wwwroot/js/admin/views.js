@@ -46,10 +46,31 @@ function closeMobileNav() {
   if (nav?.matches(":popover-open")) nav.hidePopover();
 }
 
+const SHEET_VIEWS = {
+  "new-token": (pushState) => openNewTokenSheet(pushState),
+  "new-bucket": (pushState) => openNewBucketSheet(pushState),
+};
+
+function openUrlSheet(id, key, pushState) {
+  openModal(id);
+  if (!pushState) return;
+  const url = new URL(window.location);
+  url.searchParams.set("modal", key);
+  history.pushState(null, "", url);
+}
+
+function closeUrlSheet(id, force) {
+  if (!closeModal(id, force)) return false;
+  const url = new URL(window.location);
+  url.searchParams.delete("modal");
+  history.replaceState(null, "", url);
+  return true;
+}
+
 function showView(view, pushState = true, skipLoad = false) {
   closeMobileNav();
-  if (view === "new-token") {
-    openNewTokenSheet(pushState);
+  if (SHEET_VIEWS[view]) {
+    SHEET_VIEWS[view](pushState);
     return;
   }
   if (view === "users") {
@@ -100,7 +121,6 @@ function showView(view, pushState = true, skipLoad = false) {
   if (view === "overview") loadOverview();
   if (view === "submissions") loadSubmissionForms();
   if (view === "submission-create") initSubmissionWizard();
-  if (view === "new-bucket") renderNewBucketPerms();
   if (view === "settings") loadSettings();
   if (view === "workflow") loadWorkflowPage();
   if (view === "audit") loadAudit();

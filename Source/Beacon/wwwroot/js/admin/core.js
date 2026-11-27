@@ -212,6 +212,7 @@ function restoreViewFromUrl() {
         });
     }
   } else if (view === "new-bucket") {
+    showView("overview", false);
     showView("new-bucket", false);
   } else if (view === "new-token") {
     showView("overview", false);
@@ -271,5 +272,5 @@ function restoreViewFromUrl() {
   } else {
     showView("overview", false);
   }
-  if (modal === "new-token") showView("new-token", false);
+  if (SHEET_VIEWS[modal]) showView(modal, false);
 }

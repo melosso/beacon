@@ -28,20 +28,12 @@ function openNewTokenSheet(pushState = true) {
   if (!isModalOpen("newTokenSheet"))
     document.getElementById("tokenLanguage").value =
       appSettings.uiLanguage || "en";
-  openModal("newTokenSheet");
-  if (pushState) {
-    const url = new URL(window.location);
-    url.searchParams.set("modal", "new-token");
-    history.pushState(null, "", url);
-  }
+  openUrlSheet("newTokenSheet", "new-token", pushState);
 }
 
 function closeNewTokenSheet() {
-  if (!closeModal("newTokenSheet")) return false;
+  if (!closeUrlSheet("newTokenSheet")) return false;
   clearTokenForm();
-  const url = new URL(window.location);
-  url.searchParams.delete("modal");
-  history.replaceState(null, "", url);
   return true;
 }
 

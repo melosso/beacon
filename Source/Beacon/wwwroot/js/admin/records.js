@@ -1055,6 +1055,19 @@ document.addEventListener("click", function (e) {
 // NEW BUCKET
 let newBucketPerms = [];
 
+function openNewBucketSheet(pushState = true) {
+  if (!isModalOpen("newBucketSheet")) renderNewBucketPerms();
+  openUrlSheet("newBucketSheet", "new-bucket", pushState);
+}
+
+function closeNewBucketSheet(force) {
+  if (!closeUrlSheet("newBucketSheet", force)) return false;
+  newBucketPerms = [];
+  document.getElementById("newBucketName").value = "";
+  renderNewBucketPerms();
+  return true;
+}
+
 function renderNewBucketPerms() {
   const container = document.getElementById("newBucketPermsList");
   paint(
@@ -1153,9 +1166,7 @@ async function createNewBucket() {
       "Bucket created",
       `${name} has ${newBucketPerms.length} permission(s).`,
     );
-    newBucketPerms = [];
-    document.getElementById("newBucketName").value = "";
-    renderNewBucketPerms();
+    closeNewBucketSheet(true);
     await loadBuckets();
     showBucket(name);
   }
