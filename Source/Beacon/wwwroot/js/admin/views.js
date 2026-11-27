@@ -576,11 +576,81 @@ function clearSubSelection() {
   updateSubBulkBar();
 }
 
+function subExportHashes() {
+  return subDetailHash ? [subDetailHash] : [...subSelectedHashes];
+}
+
 function openSubExportModal() {
-  const count = subSelectedHashes.size;
+  closeAllMenus();
+  const count = subExportHashes().length;
   document.getElementById("subExportCount").textContent =
     count > 0 ? count : "all";
+  if (subDetailHash) document.getElementById("subExportContents").value = "full";
   openModal("subExportModal");
+}
+
+function openIdentityNameModal() {
+  closeAllMenus();
+  const input = document.getElementById("identityNameInput");
+  input.value = subDetailName || "";
+  openModal("identityNameModal");
+  input.focus();
+}
+
+function closeIdentityNameModal() {
+  closeModal("identityNameModal");
+}
+
+async function saveIdentityName() {
+  const name = document.getElementById("identityNameInput").value.trim();
+  const result = await apiRequest(
+    `/api/admin/identities/${encodeURIComponent(subDetailHash)}/name`,
+    { method: "PUT", body: { name } },
+  );
+  if (!result.ok) return;
+  closeIdentityNameModal();
+  notify("success", "Name saved");
+  showIdentityDetails(subDetailHash, false);
+}
+
+function identityDeleteKey() {
+  return subDetailEmail || subDetailHash.slice(0, 12);
+}
+
+function openIdentityDeleteModal() {
+  closeAllMenus();
+  document.getElementById("identityDeleteLabel").textContent = subDetailEmail
+    ? `Type ${subDetailEmail} to confirm.`
+    : `Type ${identityDeleteKey()} to confirm.`;
+  document.getElementById("identityDeleteInput").value = "";
+  document.getElementById("identityDeleteBtn").disabled = true;
+  openModal("identityDeleteModal");
+  document.getElementById("identityDeleteInput").focus();
+}
+
+function closeIdentityDeleteModal() {
+  closeModal("identityDeleteModal");
+}
+
+function checkIdentityDeleteInput(value) {
+  document.getElementById("identityDeleteBtn").disabled =
+    value.trim().toLowerCase() !== identityDeleteKey().toLowerCase();
+}
+
+async function deleteIdentity() {
+  if (document.getElementById("identityDeleteBtn").disabled) return;
+  const result = await apiRequest(
+    `/api/admin/identities/${encodeURIComponent(subDetailHash)}`,
+    { method: "DELETE" },
+  );
+  if (!result.ok) return;
+  closeIdentityDeleteModal();
+  notify(
+    "success",
+    "Subscriber deleted",
+    `Wiped from ${formatNumber(result.data.bucketsDeleted)} bucket(s).`,
+  );
+  loadIdentities();
 }
 
 function closeSubExportModal() {
@@ -594,10 +664,8 @@ async function confirmSubExport() {
   btn.disabled = true;
   btn.textContent = "Exporting…";
 
-  const body =
-    subSelectedHashes.size > 0
-      ? { hashes: [...subSelectedHashes], format, full }
-      : { format, full };
+  const hashes = subExportHashes();
+  const body = hashes.length > 0 ? { hashes, format, full } : { format, full };
 
   try {
     if (
@@ -629,6 +697,8 @@ async function loadIdentities(pushState = true) {
   badge.ondblclick = null;
   subDetailHash = "";
   document.getElementById("subBackBtn").hidden = true;
+  document.getElementById("subIdentityActions").hidden = true;
+  document.getElementById("subAddBtn").textContent = "Add identity";
   document.querySelector("#view-subscriptions .pagination-container").hidden =
     false;
 
@@ -832,6 +902,8 @@ async function showIdentityDetails(emailHash, pushState = true) {
       ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,
   );
   document.getElementById("subBackBtn").hidden = false;
+  document.getElementById("subIdentityActions").hidden = false;
+  document.getElementById("subAddBtn").textContent = "Add subscription";
   document.querySelector("#view-subscriptions .pagination-container").hidden =
     true;
 

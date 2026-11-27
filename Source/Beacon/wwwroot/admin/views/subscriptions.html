@@ -14,8 +14,38 @@
       >
         Back
       </button>
-      <button class="btn btn-primary" data-click="showView new-token">
-        New token
+      <span class="relative" id="subIdentityActions" hidden>
+        <button
+          class="btn btn-outline"
+          data-stop
+          data-click="toggleMenu subIdentityMenu $el"
+          aria-haspopup="menu"
+          aria-controls="subIdentityMenu"
+        >
+          Manage
+        </button>
+        <div class="dropdown-menu" id="subIdentityMenu" role="menu">
+          <button class="dropdown-item" role="menuitem" data-click="openIdentityNameModal">
+            Edit name
+          </button>
+          <button class="dropdown-item" role="menuitem" data-click="openSubExportModal">
+            Export data
+          </button>
+          <button
+            class="dropdown-item dropdown-item--destructive"
+            role="menuitem"
+            data-click="openIdentityDeleteModal"
+          >
+            Delete all data
+          </button>
+        </div>
+      </span>
+      <button
+        class="btn btn-primary"
+        id="subAddBtn"
+        data-click="showView new-token"
+      >
+        Add identity
       </button>
     </div>
   </section>
@@ -164,4 +194,65 @@
       </button>
     </div>
   </div>
+</dialog>
+
+<dialog
+  class="modal-backdrop"
+  id="identityNameModal"
+  aria-labelledby="identityNameTitle"
+  data-self
+  data-click="closeIdentityNameModal"
+>
+  <form class="modal modal--sm" data-submit="saveIdentityName">
+    <div class="modal-header">
+      <h3 id="identityNameTitle">Edit name</h3>
+      <button type="button" class="btn btn-icon" data-click="closeIdentityNameModal" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>The name is updated in every bucket this subscriber is in.</p>
+    <div class="form-group">
+      <label for="identityNameInput">Full name</label>
+      <input type="text" id="identityNameInput" maxlength="250" autocomplete="off" />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-click="closeIdentityNameModal">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save name</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog
+  class="modal-backdrop"
+  id="identityDeleteModal"
+  aria-labelledby="identityDeleteTitle"
+  data-self
+  data-click="closeIdentityDeleteModal"
+>
+  <form class="modal modal--sm" data-submit="deleteIdentity">
+    <div class="modal-header">
+      <h3 id="identityDeleteTitle">Delete all data?</h3>
+      <button type="button" class="btn btn-icon" data-click="closeIdentityDeleteModal" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p>
+      Wipes this subscriber from every bucket, with their consent history and
+      queued emails. Connected webhooks get an erasure notice. This cannot be
+      undone.
+    </p>
+    <div class="form-group">
+      <label for="identityDeleteInput" id="identityDeleteLabel">Type the email address to confirm.</label>
+      <input
+        type="text"
+        id="identityDeleteInput"
+        autocomplete="off"
+        data-input="checkIdentityDeleteInput $value"
+      />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-click="closeIdentityDeleteModal">Cancel</button>
+      <button type="submit" class="btn btn-destructive" id="identityDeleteBtn" disabled>Delete all data</button>
+    </div>
+  </form>
 </dialog>

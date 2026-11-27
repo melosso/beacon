@@ -37,6 +37,10 @@ function openNewTokenSheet(pushState = true) {
     document.getElementById("tokenLanguage").value =
       appSettings.uiLanguage || "en";
     prefillTokenFromIdentity();
+    document.getElementById("newTokenTitle").textContent =
+      currentView === "subscriptions" && subDetailHash
+        ? "Add subscription"
+        : "Add identity";
   }
   openUrlSheet("newTokenSheet", "new-token", pushState);
 }
