@@ -93,6 +93,20 @@ public sealed class WebhookService : IWebhookService
         return secret;
     }
 
+    public async Task<string?> RotateWebhookSecretAsync(string bucket)
+    {
+        var config = await _repository.GetByBucketAsync(bucket.Trim().ToLowerInvariant());
+        if (config is null)
+        {
+            return null;
+        }
+
+        var secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        config.EncryptedSecret = _encryptor.Encrypt(secret);
+        await _repository.UpsertAsync(config);
+        return secret;
+    }
+
     public async Task DeleteWebhookConfigAsync(string bucket)
     {
         var normalizedBucket = bucket.Trim().ToLowerInvariant();

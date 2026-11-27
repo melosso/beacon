@@ -144,6 +144,10 @@ public static class AdminEndpoints
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/buckets/{bucket}/webhook/secret", RotateWebhookSecret)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
         routes.MapDelete("/api/admin/buckets/{bucket}/webhook", DeleteWebhookConfig)
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
@@ -1155,6 +1159,29 @@ public static class AdminEndpoints
             success = true,
             signingSecret = secret
         });
+    }
+
+    private static async Task<IResult> RotateWebhookSecret(
+        string bucket,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] BucketRepository bucketRepository)
+    {
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+        {
+            return Results.BadRequest(new { error = bucketValidation.Error });
+        }
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        if (await bucketRepository.IsArchivedAsync(normalizedBucket))
+        {
+            return Results.Conflict(new { error = "Bucket is archived" });
+        }
+
+        var secret = await webhookService.RotateWebhookSecretAsync(normalizedBucket);
+        return secret is null
+            ? Results.NotFound(new { error = "Webhook is not configured" })
+            : Results.Ok(new { signingSecret = secret });
     }
 
     private static async Task<IResult> DeleteWebhookConfig(

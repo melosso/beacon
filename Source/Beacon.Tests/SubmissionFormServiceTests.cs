@@ -881,6 +881,8 @@ public class SubmissionFormServiceTests
             return Task.FromResult<string?>("test-id");
         }
 
+        public Task<string?> RotateWebhookSecretAsync(string bucket) => Task.FromResult<string?>(null);
+
         public Task DeleteWebhookConfigAsync(string bucket) => Task.CompletedTask;
 
         public Task TriggerWebhookAsync(string bucket, WebhookTriggerData data)

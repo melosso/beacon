@@ -170,11 +170,7 @@ public class WebhookTests
     public async Task WebhookService_Update_KeepsIssuedSigningSecret()
     {
         using var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        using var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(connection).Options);
-        db.Database.EnsureCreated();
-        var queue = new WebhookDeliveryQueue();
-        var service = new WebhookService(new WebhookRepository(db), new Encryptor(TestEncryptionKey), queue);
+        var (service, queue) = CreateSqliteWebhookService(connection);
 
         var issued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, """{"v":1}""");
         var reissued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook2", "PUT", null, """{"v":2}""");
@@ -182,15 +178,64 @@ public class WebhookTests
         Assert.NotNull(issued);
         Assert.Null(reissued);
 
+        var message = await TriggerAndDequeueAsync(service, queue);
+        Assert.Equal("https://example.com/hook2", message.Url);
+        Assert.Equal(Sign(issued, message.Body!), message.SignatureHeader);
+    }
+
+    [Fact]
+    public async Task WebhookService_Rotate_SignsWithNewSecret()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        var (service, queue) = CreateSqliteWebhookService(connection);
+
+        Assert.Null(await service.RotateWebhookSecretAsync(TestBucket));
+
+        var issued = await service.SaveWebhookConfigAsync(TestBucket, "https://example.com/hook", "POST", null, """{"v":1}""");
+        var rotated = await service.RotateWebhookSecretAsync(TestBucket);
+
+        Assert.NotNull(issued);
+        Assert.NotNull(rotated);
+        Assert.NotEqual(issued, rotated);
+
+        var message = await TriggerAndDequeueAsync(service, queue);
+        Assert.Equal(Sign(rotated, message.Body!), message.SignatureHeader);
+    }
+
+    [Fact]
+    public void RotateSecretEndpoint_RequiresAdminPolicy()
+    {
+        var app = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder().Build();
+        app.MapAdminEndpoints();
+
+        var endpoint = ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources
+            .SelectMany(d => d.Endpoints)
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Single(e => e.RoutePattern.RawText == "/api/admin/buckets/{bucket}/webhook/secret");
+
+        var policies = endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>().Select(a => a.Policy);
+        Assert.Equal(["Admin"], policies);
+    }
+
+    private static (WebhookService service, WebhookDeliveryQueue queue) CreateSqliteWebhookService(SqliteConnection connection)
+    {
+        connection.Open();
+        var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(connection).Options);
+        db.Database.EnsureCreated();
+        var queue = new WebhookDeliveryQueue();
+        return (new WebhookService(new WebhookRepository(db), new Encryptor(TestEncryptionKey), queue), queue);
+    }
+
+    private static async Task<WebhookDeliveryMessage> TriggerAndDequeueAsync(WebhookService service, WebhookDeliveryQueue queue)
+    {
         await service.TriggerWebhookAsync(TestBucket, CreateTriggerData());
         var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-        var message = await queue.DequeueAllAsync(cts.Token).FirstAsync(cts.Token);
-
-        var expected = "sha256=" + Convert.ToHexString(
-            System.Security.Cryptography.HMACSHA256.HashData(Convert.FromBase64String(issued), System.Text.Encoding.UTF8.GetBytes(message.Body!))).ToLowerInvariant();
-        Assert.Equal("https://example.com/hook2", message.Url);
-        Assert.Equal(expected, message.SignatureHeader);
+        return await queue.DequeueAllAsync(cts.Token).FirstAsync(cts.Token);
     }
+
+    private static string Sign(string secret, string body) =>
+        "sha256=" + Convert.ToHexString(System.Security.Cryptography.HMACSHA256.HashData(
+            Convert.FromBase64String(secret), System.Text.Encoding.UTF8.GetBytes(body))).ToLowerInvariant();
 
     // SubstituteVariables
 
