@@ -97,6 +97,19 @@ TOKENS=(
     'campaign_eu_q2|Miguel|miguel@empresa.es|es|"weekly_updates":false,"monthly_updates":false,"annual_updates":false|3c7a5b8d-1faa-4d8a-b9c2-6e4f1d0a8888'
     'system_updates|Systems|systems@heyyou.com|en|"weekly_updates":true,"monthly_updates":false,"annual_updates":true|9b7d3a1e-1f4a-4f3c-b9b5-7d2b8e6a1c11'
     'system_updates|Administrator|administrator@harz.co.uk|en|"weekly_updates":false,"monthly_updates":true,"annual_updates":false|4f9a1d2c-3a44-4a8e-8f7c-6e4f1d0a8888'
+    'campaign_eu_q2|John Doe|john.doe@example.com|en|"weekly_updates":true,"monthly_updates":true,"annual_updates":false|11111111-1111-4111-8111-111111111111'
+    'system_updates|John Doe|john.doe@example.com|en|"weekly_updates":false,"monthly_updates":false,"annual_updates":true|11111111-1111-4111-8111-111111111111'
+    'campaign_eu_q2|Marie Durand|marie.durand@exemple.fr|fr|"weekly_updates":false,"monthly_updates":true,"annual_updates":true|66666666-6666-4666-8666-666666666666'
+    'system_updates|Jan Jansen|jan.jansen@voorbeeld.nl|nl|"weekly_updates":true,"monthly_updates":false,"annual_updates":false|77777777-7777-4777-8777-777777777777'
+    'campaign_eu_q2|Anna Kowalska|anna.kowalska@demo.pl|pl|"weekly_updates":false,"monthly_updates":false,"annual_updates":true|99999999-9999-4999-8999-999999999999'
+    'campaign_eu_q1|Hans Mueller|hans.mueller@firma.de|de|"marketing":true,"system_updates":true|0d1e2f3a-4b5c-4d6e-8f70-819203a4b5c6'
+    'campaign_eu_q1|Luca Rossi|luca.rossi@azienda.it|it|"marketing":true,"system_updates":false|1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+    'system_updates|Luca Rossi|luca.rossi@azienda.it|it|"weekly_updates":true,"monthly_updates":true,"annual_updates":false|1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+    'campaign_eu_q1|Emma Fischer|emma.fischer@firma.de|de|"marketing":false,"system_updates":true|2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e'
+    'campaign_eu_q2|Emma Fischer|emma.fischer@firma.de|de|"weekly_updates":true,"monthly_updates":false,"annual_updates":true|2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e'
+    'system_updates|Emma Fischer|emma.fischer@firma.de|de|"weekly_updates":false,"monthly_updates":true,"annual_updates":false|2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e'
+    'campaign_eu_q2|Sanne Visser|sanne.visser@voorbeeld.nl|nl|"weekly_updates":true,"monthly_updates":true,"annual_updates":true|3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f'
+    'campaign_eu_q2|Ines Costa|ines.costa@empresa.pt|pt|"weekly_updates":false,"monthly_updates":true,"annual_updates":false|4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f80'
 )
 
 echo "Generating ${#TOKENS[@]} preference tokens..."
@@ -131,6 +144,7 @@ form() {
 form newsletter_de "German Newsletter" de "Newsletter abonnieren" "Erhalten Sie Updates direkt in Ihr Postfach." "Abonnieren" "Vielen Dank für Ihre Anmeldung!" \
     "Hans Mueller:hans.mueller@firma.de" "Anna Schmidt:anna.schmidt@firma.de" "Lukas Weber:lukas.weber@unternehmen.eu" || exit 1
 form newsletter_en "English Newsletter" en "Subscribe to our newsletter" "Receive updates directly in your inbox." "Subscribe" "Thank you for subscribing!" \
-    "John Smith:john.smith@company.co.uk" "Emily Jones:emily.jones@business.com" "Oliver Brown:oliver.brown@enterprise.eu" "Sophia Taylor:sophia.taylor@firm.org" || exit 1
+    "John Smith:john.smith@company.co.uk" "Emily Jones:emily.jones@business.com" "Oliver Brown:oliver.brown@enterprise.eu" "Sophia Taylor:sophia.taylor@firm.org" \
+    "John Doe:john.doe@example.com" "Emma Fischer:emma.fischer@firma.de" || exit 1
 
 echo "[$(date)] Demo reset successfully!"
