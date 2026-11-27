@@ -1121,6 +1121,15 @@ h1 {
   overflow: hidden;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+*:hover,
+*:focus-within {
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+}
+
 .scroll-area {
   flex: 1;
   overflow: auto;
