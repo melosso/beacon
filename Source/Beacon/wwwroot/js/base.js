@@ -275,13 +275,7 @@ function _applyAuthFormMode(isPassword) {
 
 function setupAuthOverlay() {
   const isBoth = AUTH_METHOD === "both";
-  if (isBoth) {
-    const saved = localStorage.getItem("beacon_auth_preference");
-    if (saved === "password" || saved === "apikey") _authFormMode = saved;
-    _applyAuthFormMode(_authFormMode === "password");
-  } else if (AUTH_METHOD === "user" || AUTH_METHOD === "api") {
-    _applyAuthFormMode(AUTH_METHOD === "user");
-  }
+  _applyAuthFormMode(isBoth || AUTH_METHOD === "user");
   document.getElementById("authToggleBtn").hidden = !isBoth;
   document.getElementById("authToggleSep").hidden = !isBoth;
 }
@@ -294,7 +288,6 @@ function showAuthError(message) {
 
 function toggleAuthMode() {
   _authFormMode = _authFormMode === "password" ? "apikey" : "password";
-  localStorage.setItem("beacon_auth_preference", _authFormMode);
   showAuthError("");
   document.getElementById("apiKeyInput").value = "";
   _applyAuthFormMode(_authFormMode === "password");
