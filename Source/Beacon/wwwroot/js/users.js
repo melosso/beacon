@@ -163,7 +163,7 @@ function updateUsersPageSize() {
 }
 
 function formatRelativeTime(isoString) {
-  const date = new Date(isoString);
+  const date = parseServerDate(isoString);
   const diff = Date.now() - date.getTime();
   const abs = Math.abs(diff);
   const full = date.toLocaleString(UI_LOCALE, {

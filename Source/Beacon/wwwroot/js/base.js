@@ -3,6 +3,12 @@
 // The admin UI is English: dates follow it, day-first with a 24-hour clock, regardless of the browser locale
 const UI_LOCALE = "en-GB";
 
+// Server stores UTC but may serialize without Z suffix to ensure UTC parsing
+function parseServerDate(value) {
+  const zoned = /(Z|[+-]\d{2}:?\d{2})$/.test(value);
+  return new Date(zoned ? value : `${value}Z`);
+}
+
 const NUMBER_FORMAT = new Intl.NumberFormat();
 
 function formatNumber(value) {

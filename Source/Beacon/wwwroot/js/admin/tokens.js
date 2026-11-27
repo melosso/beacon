@@ -306,14 +306,7 @@ function consentChip(optedIn, pending) {
 
 function formatDate(dateStr) {
   if (!dateStr) return "N/A";
-  // Server stores UTC but may serialize without Z suffix to ensure UTC parsing
-  if (
-    !dateStr.endsWith("Z") &&
-    !dateStr.includes("+") &&
-    !dateStr.includes("-", 10)
-  )
-    dateStr += "Z";
-  const date = new Date(dateStr);
+  const date = parseServerDate(dateStr);
   if (isNaN(date.getTime())) return "N/A";
   return date.toLocaleString(UI_LOCALE, {
     year: "numeric",
