@@ -37,6 +37,39 @@ function saveSidebarPrefs() {
   localStorage.setItem("beacon_sidebar_prefs", JSON.stringify(sidebarPrefs));
 }
 
+function syncSidebarCollapsed() {
+  const collapsed = document.documentElement.classList.toggle(
+    "sidebar-collapsed",
+    !!sidebarPrefs.collapsed,
+  );
+  const btn = document.getElementById("sidebarToggle");
+  if (!btn) return;
+  btn.setAttribute("aria-expanded", String(!collapsed));
+  btn.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+}
+syncSidebarCollapsed();
+
+function toggleSidebar() {
+  if (matchMedia("(max-width: 768px)").matches) return;
+  sidebarPrefs.collapsed = !sidebarPrefs.collapsed;
+  saveSidebarPrefs();
+  syncSidebarCollapsed();
+}
+
+function toggleAccountMenu(trigger) {
+  toggleMenu("accountMenu");
+  const menu = document.getElementById("accountMenu");
+  if (!menu.classList.contains("open")) return;
+  const rect = trigger.getBoundingClientRect();
+  menu.style.left = `${rect.left}px`;
+  menu.style.top = `${rect.top - menu.offsetHeight - 4}px`;
+}
+
+function openAccountMenuView(view) {
+  closeAllMenus();
+  showView(view);
+}
+
 function cycleSidebarSort() {
   const cycle = { default: "az", az: "za", za: "default" };
   sidebarPrefs.sort = cycle[sidebarPrefs.sort] || "az";

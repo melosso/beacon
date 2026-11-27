@@ -230,6 +230,8 @@ async function loadServerSettings() {
     if (promoToggle) promoToggle.checked = appSettings.promoBarEnabled;
     initPromoBar();
     if (res.data.version) {
+      document.getElementById("sidebarVersion").textContent =
+        `v${res.data.version}`;
       const sysHd = document.querySelector(
         "#settings-section-system .settings-content-hd h3",
       );
