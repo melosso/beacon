@@ -575,18 +575,15 @@ async function loadBucket(bucket = currentBucket) {
   }
 
   const brandBadge = document.getElementById("bucketBrandBadge");
-  const brandIdentity = details.brandIdentity;
-  if (brandIdentity) {
-    const accent = brandIdentity.accent;
-    brandBadge.textContent = brandIdentity.name;
-    brandBadge.classList.toggle("status-badge--brand", !!accent);
-    if (accent) {
-      brandBadge.style.setProperty("--badge-bg", accent);
-      brandBadge.style.setProperty("--badge-fg", contrastFg(accent));
-    }
-    brandBadge.hidden = false;
+  const accent = details.brandIdentity?.accent;
+  brandBadge.textContent = details.brandIdentity?.name || "Default";
+  brandBadge.classList.toggle("status-badge--brand", !!accent);
+  if (accent) {
+    brandBadge.style.setProperty("--badge-bg", accent);
+    brandBadge.style.setProperty("--badge-fg", contrastFg(accent));
   } else {
-    brandBadge.hidden = true;
+    brandBadge.style.removeProperty("--badge-bg");
+    brandBadge.style.removeProperty("--badge-fg");
   }
 
   // Fetch webhook errors for this bucket
