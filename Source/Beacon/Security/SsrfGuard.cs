@@ -80,17 +80,26 @@ public static class SsrfGuard
                 192 when bytes[1] == 168 => true,                    // 192.168.0.0/16
                 0 => true,                                           // 0.0.0.0/8
                 100 when bytes[1] >= 64 && bytes[1] <= 127 => true,  // 100.64.0.0/10 (CGNAT)
+                192 when bytes[1] == 0 && bytes[2] == 0 => true,
+                198 when bytes[1] is 18 or 19 => true,
+                >= 224 => true,
                 _ => false
             };
         }
 
         if (address.AddressFamily == AddressFamily.InterNetworkV6)
         {
-            if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6UniqueLocal)
+            if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6UniqueLocal || address.IsIPv6Multicast)
+                return true;
+
+            var bytes = address.GetAddressBytes();
+            if (bytes[0] == 0x00 && bytes[1] == 0x64 && bytes[2] == 0xff && bytes[3] == 0x9b)
+                return true;
+            if (bytes[0] == 0x20 && bytes[1] == 0x02)
                 return true;
 
             // :: and ::1
-            return address.GetAddressBytes().Take(15).All(b => b == 0);
+            return bytes.Take(15).All(b => b == 0);
         }
 
         return false;

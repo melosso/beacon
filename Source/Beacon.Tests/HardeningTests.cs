@@ -66,6 +66,15 @@ public class SsrfGuardTests
     [InlineData("fd00::1")]
     [InlineData("fe80::1")]
     [InlineData("::ffff:127.0.0.1")]
+    [InlineData("192.0.0.170")]
+    [InlineData("198.18.0.1")]
+    [InlineData("224.0.0.1")]
+    [InlineData("240.0.0.1")]
+    [InlineData("255.255.255.255")]
+    [InlineData("64:ff9b::a9fe:a9fe")]
+    [InlineData("64:ff9b:1::a00:1")]
+    [InlineData("2002:a9fe:a9fe::1")]
+    [InlineData("ff02::1")]
     public void BlocksPrivateAndReserved(string address)
     {
         Assert.True(SsrfGuard.IsPrivateOrReserved(IPAddress.Parse(address)));
@@ -74,6 +83,8 @@ public class SsrfGuardTests
     [Theory]
     [InlineData("8.8.8.8")]
     [InlineData("1.1.1.1")]
+    [InlineData("192.0.1.1")]
+    [InlineData("223.255.255.1")]
     [InlineData("2606:4700:4700::1111")]
     public void AllowsPublic(string address)
     {
