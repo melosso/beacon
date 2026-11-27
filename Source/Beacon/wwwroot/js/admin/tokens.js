@@ -146,7 +146,9 @@ async function generateToken() {
         result.data[0].doubleOptIn ?? tokenDefaultOptOut;
       tokenDefaultOptOut = doubleOptInConfirmed;
       const hasOptIn = Object.values(permissions).some((v) => v === true);
-      document.getElementById("tokenDoubleOptInNotice").hidden = !(doubleOptInConfirmed && hasOptIn);
+      document.getElementById("tokenDoubleOptInNotice").hidden = !(
+        doubleOptInConfirmed && hasOptIn
+      );
       document.getElementById("tokenSkipEmailGroup").hidden = true;
 
       const toastMsg =
@@ -232,7 +234,20 @@ async function clipboardWrite(text) {
 }
 
 // Acronyms and quarter labels stay upper case: sms_notifications -> SMS Notifications, q2 -> Q2
-const NAME_ACRONYMS = new Set(["api", "crm", "doi", "erp", "eu", "gdpr", "id", "sms", "uk", "url", "us", "utm"]);
+const NAME_ACRONYMS = new Set([
+  "api",
+  "crm",
+  "doi",
+  "erp",
+  "eu",
+  "gdpr",
+  "id",
+  "sms",
+  "uk",
+  "url",
+  "us",
+  "utm",
+]);
 
 function formatPermission(p) {
   if (!p) return "";
@@ -407,11 +422,7 @@ async function confirmRemoval() {
   );
 
   if (result.ok) {
-    notify(
-      "success",
-      "Bucket removed",
-      `${bucketToRemove} is deleted.`,
-    );
+    notify("success", "Bucket removed", `${bucketToRemove} is deleted.`);
     closeRemoveModal();
     await loadBuckets();
     showView("overview");
@@ -425,16 +436,58 @@ function closeRemoveModal() {
 }
 
 const PASSPHRASE_WORDS = [
-  "PHOTON", "CHIRP", "JITTER", "PARITY", "LUMEN", "GOSSIP", "LATENCY", "QUORUM", "UPSTREAM", "PACKET",
-  "PULSAR", "QUASAR", "ENTROPY", "NONCE", "CIPHER", "MANTISSA", "MODULO", "KERNEL", "SOCKET", "BINARY",
-  "REEF", "PORT", "DOCK", "VOYAGE", "CROWNEST", "AHOY", "BILGE", "SCALLYWAG", "CUTLASS", "STARBOARD",
-  "KEELHAUL", "LANDLUBBER", "SEADOG", "YOHOHO", "BRIG", "CAPSTAN", "GALLEON", "JOLLYROGER", "MAROONED",
-  "PLUNDER", "RIGGING", "SWASHBUCKLE", "ANCHOR", "DEADRECKON",
+  "PHOTON",
+  "CHIRP",
+  "JITTER",
+  "PARITY",
+  "LUMEN",
+  "GOSSIP",
+  "LATENCY",
+  "QUORUM",
+  "UPSTREAM",
+  "PACKET",
+  "PULSAR",
+  "QUASAR",
+  "ENTROPY",
+  "NONCE",
+  "CIPHER",
+  "MANTISSA",
+  "MODULO",
+  "KERNEL",
+  "SOCKET",
+  "BINARY",
+  "REEF",
+  "PORT",
+  "DOCK",
+  "VOYAGE",
+  "CROWNEST",
+  "AHOY",
+  "BILGE",
+  "SCALLYWAG",
+  "CUTLASS",
+  "STARBOARD",
+  "KEELHAUL",
+  "LANDLUBBER",
+  "SEADOG",
+  "YOHOHO",
+  "BRIG",
+  "CAPSTAN",
+  "GALLEON",
+  "JOLLYROGER",
+  "MAROONED",
+  "PLUNDER",
+  "RIGGING",
+  "SWASHBUCKLE",
+  "ANCHOR",
+  "DEADRECKON",
 ];
 
 // Typed confirmation for destructive actions; not a secret.
 function makePassphrase() {
-  return Array.from({ length: 3 }, () => PASSPHRASE_WORDS[Math.floor(Math.random() * PASSPHRASE_WORDS.length)]).join(" ");
+  return Array.from(
+    { length: 3 },
+    () => PASSPHRASE_WORDS[Math.floor(Math.random() * PASSPHRASE_WORDS.length)],
+  ).join(" ");
 }
 
 // BUCKET PERMISSIONS MANAGEMENT
@@ -452,14 +505,19 @@ function renderBucketPermsGrid() {
     badge.classList.remove("active");
   }
 
-  paint(container, bucketPermsData.length === 0
-    ? html`<p class="list-empty">No permissions. Add one below, or generate a token to create them.</p>`
-    : html`${bucketPermsData.map((p) => html`
+  paint(
+    container,
+    bucketPermsData.length === 0
+      ? html`<p class="list-empty">No permissions. Add one below, or generate a token to create them.</p>`
+      : html`${bucketPermsData.map(
+          (p) => html`
         <div class="permission-row" data-perm=${p.permission}>
           <span class="permission-name">${formatPermission(p.permission)}</span>
           <span class="permission-count">${p.optedIn} in / ${p.optedOut} out</span>
           <button type="button" class="btn-remove" @click=${() => showPermRemoveModal(p.permission)} title="Remove" aria-label="Remove">&times;</button>
-        </div>`)}`);
+        </div>`,
+        )}`,
+  );
 }
 
 async function loadBucketPerms() {
@@ -491,7 +549,11 @@ async function addBucketPermission() {
   }
 
   if (bucketPermsData.some((p) => p.permission === perm)) {
-    notify("warning", "Duplicate permission", "The bucket already has this permission.");
+    notify(
+      "warning",
+      "Duplicate permission",
+      "The bucket already has this permission.",
+    );
     return;
   }
 

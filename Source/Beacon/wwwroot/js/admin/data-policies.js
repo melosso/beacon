@@ -5,7 +5,9 @@ async function toggleDataPoliciesEnabled(enabled) {
 }
 
 function syncDataPoliciesControls(enabled) {
-  document.getElementById("data-policies-controls")?.classList.toggle("is-disabled", !enabled);
+  document
+    .getElementById("data-policies-controls")
+    ?.classList.toggle("is-disabled", !enabled);
 }
 
 async function loadDataPoliciesSection() {
@@ -62,47 +64,82 @@ async function loadAudit() {
   renderAuditHeader();
 
   const tbody = document.getElementById("auditBody");
-  paint(tbody, html`<tr><td class="table-empty" colspan="8">Loading…</td></tr>`);
+  paint(
+    tbody,
+    html`<tr><td class="table-empty" colspan="8">Loading…</td></tr>`,
+  );
 
   const res = await apiRequest(`/api/admin/audit?${params}`);
   if (!res.ok) {
-    paint(tbody, html`<tr><td class="table-empty" colspan="8">Failed to load audit log.</td></tr>`);
+    paint(
+      tbody,
+      html`<tr><td class="table-empty" colspan="8">Failed to load audit log.</td></tr>`,
+    );
     return;
   }
 
   auditTotalRecords = res.data.total;
-  const msg = auditFilterBucket || auditFilterIdentity || auditFilterEmail
-    ? "No audit entries match the filter."
-    : "No audit entries.";
-  paint(tbody, res.data.records.length === 0
-    ? html`<tr><td class="table-empty" colspan="8">${msg}</td></tr>`
-    : html`${res.data.records.map(renderAuditRow)}`);
+  const msg =
+    auditFilterBucket || auditFilterIdentity || auditFilterEmail
+      ? "No audit entries match the filter."
+      : "No audit entries.";
+  paint(
+    tbody,
+    res.data.records.length === 0
+      ? html`<tr><td class="table-empty" colspan="8">${msg}</td></tr>`
+      : html`${res.data.records.map(renderAuditRow)}`,
+  );
   updateAuditPagination();
 }
 
 function renderAuditHeader() {
   const thead = document.getElementById("auditTableHead");
   if (!thead) return;
-  paint(thead, html`
+  paint(
+    thead,
+    html`
     <th>Timestamp</th>
     <th>${searchColumn({
-      label: "Email or ID", title: "Filter by identity", actionLabel: "Filter",
-      ids: { trigger: "auditIdentitySearchTrigger", popover: "auditIdentityPopover", input: "auditIdentityInput" },
-      type: auditFilterType, query: auditFilterType === "email" ? auditFilterEmail : auditFilterIdentity,
-      idLabel: "Filter by identity hash (partial)", emailLabel: "Filter by email — use * as wildcard",
-      onToggle: toggleAuditIdentityPopover, onType: setAuditFilterType, onSearch: applyAuditIdentityFilter, onClear: clearAuditIdentityFilter,
+      label: "Email or ID",
+      title: "Filter by identity",
+      actionLabel: "Filter",
+      ids: {
+        trigger: "auditIdentitySearchTrigger",
+        popover: "auditIdentityPopover",
+        input: "auditIdentityInput",
+      },
+      type: auditFilterType,
+      query:
+        auditFilterType === "email" ? auditFilterEmail : auditFilterIdentity,
+      idLabel: "Filter by identity hash (partial)",
+      emailLabel: "Filter by email — use * as wildcard",
+      onToggle: toggleAuditIdentityPopover,
+      onType: setAuditFilterType,
+      onSearch: applyAuditIdentityFilter,
+      onClear: clearAuditIdentityFilter,
     })}</th>
     <th>${searchColumn({
-      label: "Bucket", title: "Filter by bucket", actionLabel: "Filter",
-      ids: { trigger: "auditBucketSearchTrigger", popover: "auditBucketPopover", input: "auditBucketInput" },
-      fixedLabel: "Filter by bucket name", placeholder: "e.g., newsletter", query: auditFilterBucket,
-      onToggle: toggleAuditBucketPopover, onSearch: applyAuditBucketFilter, onClear: clearAuditBucketFilter,
+      label: "Bucket",
+      title: "Filter by bucket",
+      actionLabel: "Filter",
+      ids: {
+        trigger: "auditBucketSearchTrigger",
+        popover: "auditBucketPopover",
+        input: "auditBucketInput",
+      },
+      fixedLabel: "Filter by bucket name",
+      placeholder: "e.g., newsletter",
+      query: auditFilterBucket,
+      onToggle: toggleAuditBucketPopover,
+      onSearch: applyAuditBucketFilter,
+      onClear: clearAuditBucketFilter,
     })}</th>
     <th>Permission</th>
     <th>Change</th>
     <th>Source</th>
     <th>Actor</th>
-    <th></th>`);
+    <th></th>`,
+  );
 }
 
 function toggleAuditIdentityPopover(event) {
@@ -217,7 +254,10 @@ function clearAuditBucketFilter() {
   loadAudit();
 }
 
-const AUDIT_STATUS = { OptedIn: ["opted-in", "Opted in"], OptedOut: ["opted-out", "Opted out"] };
+const AUDIT_STATUS = {
+  OptedIn: ["opted-in", "Opted in"],
+  OptedOut: ["opted-out", "Opted out"],
+};
 
 function auditStatusChip(status) {
   if (!status) return html`<span class="status-chip">None</span>`;
@@ -226,15 +266,18 @@ function auditStatusChip(status) {
 }
 
 function renderAuditRow(e) {
-  const sourceLabel = { Url: "User", Api: "API", Admin: "Administrator" }[e.source] || e.source;
+  const sourceLabel =
+    { Url: "User", Api: "API", Admin: "Administrator" }[e.source] || e.source;
   return html`
     <tr>
       <td>${formatDate(e.changedAt)}</td>
       <td>
         <span class="tooltip-wrapper" @click=${() => auditIdentityClick(e.emailHash)} @dblclick=${() => auditIdentityDblClick(e.emailHash)}>
-          ${e.email
-            ? html`<span class="email-text cursor-pointer">${e.email}</span>`
-            : html`<span class="email-hash cursor-pointer">${e.displayId}</span>`}${e.name ? html`<span class="cell-sub">${e.name}</span>` : nothing}
+          ${
+            e.email
+              ? html`<span class="email-text cursor-pointer">${e.email}</span>`
+              : html`<span class="email-hash cursor-pointer">${e.displayId}</span>`
+          }${e.name ? html`<span class="cell-sub">${e.name}</span>` : nothing}
           <span class="tooltip">Click to filter · double-click to copy ID</span>
         </span>
       </td>
@@ -257,15 +300,22 @@ function openAuditCustomFields(customFields) {
   let fields = {};
   try {
     fields = JSON.parse(customFields || "{}") || {};
-  } catch { /* Malformed JSON: show none. */ }
+  } catch {
+    /* Malformed JSON: show none. */
+  }
   const entries = Object.entries(fields);
-  paint(document.getElementById("auditCustomFieldsList"), entries.length
-    ? html`${entries.map(([k, v]) => html`
+  paint(
+    document.getElementById("auditCustomFieldsList"),
+    entries.length
+      ? html`${entries.map(
+          ([k, v]) => html`
         <div class="custom-field-row">
           <span class="custom-field-key">${k}</span>
           <span class="custom-field-value">${String(v)}</span>
-        </div>`)}`
-    : html`<p class="list-empty">No custom fields.</p>`);
+        </div>`,
+        )}`
+      : html`<p class="list-empty">No custom fields.</p>`,
+  );
   openModal("auditCustomFieldsModal");
 }
 
@@ -349,7 +399,10 @@ const _workflowTypeLabels = {
 };
 
 function noWorkflowPolicies() {
-  return !appSettings.retentionPurgeEnabled && !appSettings.pendingConfirmationPurgeEnabled;
+  return (
+    !appSettings.retentionPurgeEnabled &&
+    !appSettings.pendingConfirmationPurgeEnabled
+  );
 }
 
 // A manual run executes the enabled policies only: with none enabled there is nothing to run
@@ -358,7 +411,10 @@ function syncWorkflowRunButton() {
   const tip = document.getElementById("workflowRunTip");
   const none = noWorkflowPolicies();
   if (btn) btn.disabled = none;
-  if (tip) tip.textContent = none ? "Enable a policy to run" : "Run data policies immediately";
+  if (tip)
+    tip.textContent = none
+      ? "Enable a policy to run"
+      : "Run data policies immediately";
 }
 
 async function loadWorkflowPage() {
@@ -395,22 +451,33 @@ const WORKFLOW_BADGES = {
   Failed: html`<span class="status-badge failed">Failed</span>`,
   Rejected: html`<span class="status-badge rejected">Rejected</span>`,
 };
-const SHORT_DATE = { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" };
+const SHORT_DATE = {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+};
 
 function workflowStatus(t) {
-  return html`${WORKFLOW_BADGES[t.status] || WORKFLOW_BADGES.Rejected}${t.errorMessage
-    ? html`<span class="info-tip" title=${t.errorMessage} aria-label=${t.errorMessage}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>`
-    : nothing}`;
+  return html`${WORKFLOW_BADGES[t.status] || WORKFLOW_BADGES.Rejected}${
+    t.errorMessage
+      ? html`<span class="info-tip" title=${t.errorMessage} aria-label=${t.errorMessage}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>`
+      : nothing
+  }`;
 }
 
 function visibleWorkflowTasks() {
   return _workflowArchivedVisible
     ? _workflowAllTasks.filter((t) => t.status !== "Running")
-    : _workflowAllTasks.filter((t) => t.status === "PendingApproval" || _locallyActionedIds.has(t.id));
+    : _workflowAllTasks.filter(
+        (t) => t.status === "PendingApproval" || _locallyActionedIds.has(t.id),
+      );
 }
 
 function renderWorkflowTable() {
-  const tasks = visibleWorkflowTasks().sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+  const tasks = visibleWorkflowTasks().sort(
+    (a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt),
+  );
   const total = tasks.length;
   const totalPages = Math.ceil(total / _workflowPageSize) || 1;
   _workflowPage = Math.min(_workflowPage, totalPages);
@@ -422,23 +489,35 @@ function renderWorkflowTable() {
 
   // With no policy on and no history, the notice is the whole page
   const table = document.getElementById("workflowTable");
-  if (table) table.hidden = noWorkflowPolicies() && _workflowAllTasks.length === 0;
+  if (table)
+    table.hidden = noWorkflowPolicies() && _workflowAllTasks.length === 0;
 
-  const msg = _workflowArchivedVisible ? "No runs." : "No items awaiting approval.";
-  paint(tbody, total === 0
-    ? html`<tr><td class="table-empty" colspan="6">${msg}</td></tr>`
-    : html`${page.map((t) => html`
+  const msg = _workflowArchivedVisible
+    ? "No runs."
+    : "No items awaiting approval.";
+  paint(
+    tbody,
+    total === 0
+      ? html`<tr><td class="table-empty" colspan="6">${msg}</td></tr>`
+      : html`${page.map(
+          (t) => html`
         <tr>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
           <td>${t.scheduledAt ? new Date(t.scheduledAt).toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
           <td>${t.status === "Completed" || t.status === "Failed" ? t.recordsAffected : "—"}</td>
           <td>${workflowStatus(t)}</td>
-          <td>${t.status === "PendingApproval" ? html`<div class="inline-actions nowrap">
+          <td>${
+            t.status === "PendingApproval"
+              ? html`<div class="inline-actions nowrap">
             <button class="btn btn-outline btn-sm" @click=${(e) => actOnWorkflowTask(t.id, "approve", e.currentTarget)}>Approve</button>
             <button class="btn btn-outline btn-sm text-muted" @click=${(e) => actOnWorkflowTask(t.id, "reject", e.currentTarget)}>Reject</button>
-          </div>` : nothing}</td>
-        </tr>`)}`);
+          </div>`
+              : nothing
+          }</td>
+        </tr>`,
+        )}`,
+  );
 
   // Pagination
   const bar = document.getElementById("workflowPaginationBar");
@@ -481,13 +560,21 @@ function toggleWorkflowArchived() {
 function renderSettingsRunHistory(tasks) {
   const tbody = document.getElementById("workflowTasksTbody");
   if (!tbody) return;
-  paint(tbody, !tasks?.length
-    ? html`<tr><td class="table-empty" colspan="6">No completed runs.</td></tr>`
-    : html`${tasks.map((t) => {
-        const started = t.startedAt ? new Date(t.startedAt) : null;
-        const durationMs = started && t.completedAt ? new Date(t.completedAt) - started : null;
-        const duration = durationMs === null ? "—" : durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`;
-        return html`<tr>
+  paint(
+    tbody,
+    !tasks?.length
+      ? html`<tr><td class="table-empty" colspan="6">No completed runs.</td></tr>`
+      : html`${tasks.map((t) => {
+          const started = t.startedAt ? new Date(t.startedAt) : null;
+          const durationMs =
+            started && t.completedAt ? new Date(t.completedAt) - started : null;
+          const duration =
+            durationMs === null
+              ? "—"
+              : durationMs < 1000
+                ? `${durationMs}ms`
+                : `${(durationMs / 1000).toFixed(1)}s`;
+          return html`<tr>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
           <td>${started ? started.toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
@@ -495,16 +582,25 @@ function renderSettingsRunHistory(tasks) {
           <td>${t.recordsAffected}</td>
           <td>${workflowStatus(t)}</td>
         </tr>`;
-      })}`);
+        })}`,
+  );
 }
 
 async function actOnWorkflowTask(id, action, button) {
   const buttons = button.parentElement.querySelectorAll("button");
   buttons.forEach((b) => (b.disabled = true));
-  const res = await apiRequest(`/api/admin/data-policies/tasks/${encodeURIComponent(id)}/${action}`, { method: "POST" });
+  const res = await apiRequest(
+    `/api/admin/data-policies/tasks/${encodeURIComponent(id)}/${action}`,
+    { method: "POST" },
+  );
   if (!res.ok || !res.data) {
     buttons.forEach((b) => (b.disabled = false));
-    if (res.ok) notify("error", action === "approve" ? "Approval failed" : "Rejection failed", "The server returned no task.");
+    if (res.ok)
+      notify(
+        "error",
+        action === "approve" ? "Approval failed" : "Rejection failed",
+        "The server returned no task.",
+      );
     return;
   }
   _locallyActionedIds.add(id);
@@ -512,8 +608,18 @@ async function actOnWorkflowTask(id, action, button) {
   if (idx >= 0) _workflowAllTasks[idx] = res.data;
   renderWorkflowTable();
   if (action !== "approve") return;
-  if (res.data.status === "Completed") notify("success", "Policy executed", `${res.data.recordsAffected} record(s) affected.`);
-  else notify("error", "Execution failed", res.data.errorMessage || "An error occurred.");
+  if (res.data.status === "Completed")
+    notify(
+      "success",
+      "Policy executed",
+      `${res.data.recordsAffected} record(s) affected.`,
+    );
+  else
+    notify(
+      "error",
+      "Execution failed",
+      res.data.errorMessage || "An error occurred.",
+    );
 }
 
 async function triggerDataPoliciesRun() {

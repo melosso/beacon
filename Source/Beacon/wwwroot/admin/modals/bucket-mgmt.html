@@ -102,9 +102,7 @@
         </svg>
       </button>
     </div>
-    <p>
-      Removing the bucket permanently deletes all of its consent records.
-    </p>
+    <p>Removing the bucket permanently deletes all of its consent records.</p>
     <p class="confirm-label">Type the passphrase to confirm.</p>
     <div class="passphrase-box select-none" id="passphraseDisplay">-</div>
     <input
@@ -117,15 +115,15 @@
     />
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeRemoveModal">
-          Cancel
-        </button>
+        Cancel
+      </button>
       <button
-          class="btn btn-confirm"
-          id="confirmRemoveBtn"
-          data-click="confirmRemoval"
-        >
-          Remove bucket
-        </button>
+        class="btn btn-confirm"
+        id="confirmRemoveBtn"
+        data-click="confirmRemoval"
+      >
+        Remove bucket
+      </button>
     </div>
   </div>
 </dialog>
@@ -180,15 +178,15 @@
     />
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closeSubmissionRemoveModal">
-          Cancel
-        </button>
+        Cancel
+      </button>
       <button
-          class="btn btn-confirm"
-          id="confirmSubmissionRemoveBtn"
-          data-click="confirmSubmissionRemoval"
-        >
-          Remove form
-        </button>
+        class="btn btn-confirm"
+        id="confirmSubmissionRemoveBtn"
+        data-click="confirmSubmissionRemoval"
+      >
+        Remove form
+      </button>
     </div>
   </div>
 </dialog>
@@ -307,7 +305,9 @@
 >
   <div class="modal">
     <div class="modal-header">
-      <h3 id="permissionRemoveModalTitle" class="select-none">Remove permission</h3>
+      <h3 id="permissionRemoveModalTitle" class="select-none">
+        Remove permission
+      </h3>
       <button
         class="btn btn-icon"
         data-click="closePermRemoveModal"
@@ -345,15 +345,15 @@
     />
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closePermRemoveModal">
-          Cancel
-        </button>
+        Cancel
+      </button>
       <button
-          class="btn btn-confirm"
-          id="confirmPermRemoveBtn"
-          data-click="confirmPermRemoval"
-        >
-          Remove permission
-        </button>
+        class="btn btn-confirm"
+        id="confirmPermRemoveBtn"
+        data-click="confirmPermRemoval"
+      >
+        Remove permission
+      </button>
     </div>
   </div>
 </dialog>
@@ -429,8 +429,7 @@
       </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          The bucket ID identifies the bucket in all API calls. The ID is
-          fixed.
+          The bucket ID identifies the bucket in all API calls. The ID is fixed.
         </p>
         <div class="form-group mb-0">
           <label for="optionsBucketId">Bucket ID</label>
@@ -636,7 +635,11 @@
             data-input="checkWebhookEmailVar $value"
             data-blur="checkWebhookEmailVar $value"
           ></textarea>
-          <div class="notice notice--danger mt-2" id="webhookEmailWarning" hidden>
+          <div
+            class="notice notice--danger mt-2"
+            id="webhookEmailWarning"
+            hidden
+          >
             <strong>Data processing notice.</strong> The template includes
             <code>{{email}}</code>, the plaintext address. A Data Processing
             Agreement with the recipient and a privacy policy disclosure are
@@ -822,7 +825,11 @@
           <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
         </svg>
         <span class="options-section-label">Brand identity</span>
-        <span class="options-section-badge" id="optionsBrandBadge" hidden></span>
+        <span
+          class="options-section-badge"
+          id="optionsBrandBadge"
+          hidden
+        ></span>
         <svg
           class="options-chevron"
           width="16"

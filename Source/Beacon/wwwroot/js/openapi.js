@@ -12,7 +12,7 @@ Scalar.createApiReference("#app", {
     --scalar-font: "IBM Plex Sans", system-ui, sans-serif;
     --scalar-font-code: "IBM Plex Mono", ui-monospace, monospace;
   }`,
-  showDeveloperTools: 'never',
+  showDeveloperTools: "never",
 });
 console.log(
   "%c@melosso/beacon%c. Licensed under %cEUPL 1.2%c.",

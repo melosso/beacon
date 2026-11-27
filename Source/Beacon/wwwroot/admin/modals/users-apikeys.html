@@ -93,9 +93,9 @@
       <input
         type="text"
         id="renameUserInput"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore="true"
+        data-bwignore
+        data-1p-ignore
+        data-lpignore="true"
         placeholder="e.g., user@domain.local"
         autocomplete="off"
         maxlength="100"
@@ -149,9 +149,7 @@
         </svg>
       </button>
     </div>
-    <p >
-      Minimum 12 characters.
-    </p>
+    <p>Minimum 12 characters.</p>
     <div id="accountCurrentPasswordGroup" class="form-group">
       <label
         >Current password
@@ -404,20 +402,24 @@
       </button>
     </div>
     <div class="form-group">
-      <label for="newUserUsername">Username <span class="required" title="Required">*</span></label>
+      <label for="newUserUsername"
+        >Username <span class="required" title="Required">*</span></label
+      >
       <input
         type="text"
         id="newUserUsername"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore="true"
+        data-bwignore
+        data-1p-ignore
+        data-lpignore="true"
         placeholder="e.g., user@domain.local"
         autocomplete="off"
         maxlength="100"
       />
     </div>
     <div class="form-group">
-      <label for="newUserPassword">Password <span class="required" title="Required">*</span></label>
+      <label for="newUserPassword"
+        >Password <span class="required" title="Required">*</span></label
+      >
       <div class="input-reveal-wrapper">
         <input
           type="password"
@@ -456,9 +458,9 @@
       <input
         type="password"
         id="newUserConfirmPassword"
-          data-bwignore
-          data-1p-ignore
-          data-lpignore="true"
+        data-bwignore
+        data-1p-ignore
+        data-lpignore="true"
         placeholder="Repeat password"
         autocomplete="new-password"
       />
@@ -523,7 +525,9 @@
       </button>
     </div>
     <div class="form-group">
-      <label for="newApiKeyName">Name <span class="required" title="Required">*</span></label>
+      <label for="newApiKeyName"
+        >Name <span class="required" title="Required">*</span></label
+      >
       <input
         type="text"
         id="newApiKeyName"
@@ -536,9 +540,7 @@
       <label
         >Permissions <span class="required" title="Required">*</span></label
       >
-      <div class="field-box"
-        id="newApiKeyPermissions"
-      ></div>
+      <div class="field-box" id="newApiKeyPermissions"></div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -572,7 +574,8 @@
         id="addApiKeyBtn"
         data-click="createApiKey"
       >
-        <span class="btn-label">Create API key</span><span class="spinner"></span>
+        <span class="btn-label">Create API key</span
+        ><span class="spinner"></span>
       </button>
     </div>
   </div>
@@ -658,9 +661,7 @@
       </button>
     </div>
     <p id="editApiKeyPermissionsDesc"></p>
-    <div class="field-box mb-5"
-      id="editApiKeyPermissionsList"
-    ></div>
+    <div class="field-box mb-5" id="editApiKeyPermissionsList"></div>
     <div class="modal-actions">
       <button
         class="btn btn-outline"
@@ -770,7 +771,8 @@
       </button>
     </div>
     <p>
-      Opted-out records past the time limit are wiped of personal info, keeping only an irreversible email hash on the suppression list.
+      Opted-out records past the time limit are wiped of personal info, keeping
+      only an irreversible email hash on the suppression list.
     </p>
     <div class="form-group">
       <label for="setting-retentionPurgeDays">Anonymise after (days)</label>
@@ -825,7 +827,8 @@
       </button>
     </div>
     <p>
-      Expired opt-ins are opted out and wiped of personal info, keeping only an irreversible email hash to block future messages.
+      Expired opt-ins are opted out and wiped of personal info, keeping only an
+      irreversible email hash to block future messages.
     </p>
     <div class="form-group">
       <label for="setting-pendingConfirmationPurgeDays"

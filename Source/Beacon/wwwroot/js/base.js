@@ -69,7 +69,9 @@ function bindActions(root = document) {
 document.addEventListener(
   "cancel",
   (e) => {
-    const close = e.target.matches?.("dialog[data-click]") && e.target.dataset.click.split(" ")[0];
+    const close =
+      e.target.matches?.("dialog[data-click]") &&
+      e.target.dataset.click.split(" ")[0];
     if (!close) return;
     e.preventDefault();
     window[close]();
@@ -104,7 +106,8 @@ function applyVars(root) {
     for (const decl of el.dataset.vars.split(";")) {
       const i = decl.indexOf(":");
       const name = decl.slice(0, i).trim();
-      if (i > 0 && name.startsWith("--")) el.style.setProperty(name, decl.slice(i + 1).trim());
+      if (i > 0 && name.startsWith("--"))
+        el.style.setProperty(name, decl.slice(i + 1).trim());
     }
   }
 }
@@ -192,12 +195,16 @@ function _applyAuthFormMode(isPassword) {
   const secret = document.getElementById("apiKeyInput");
   document.getElementById("usernameGroup").hidden = !isPassword;
   username.disabled = !isPassword;
-  document.getElementById("apiKeyLabel").textContent = isPassword ? "Password" : "API key";
+  document.getElementById("apiKeyLabel").textContent = isPassword
+    ? "Password"
+    : "API key";
   secret.autocomplete = isPassword ? "current-password" : "off";
   document.getElementById("authOverlayDesc").textContent = isPassword
     ? "Enter your username and password to sign in."
     : "Enter your API key to sign in.";
-  document.getElementById("authToggleBtn").textContent = isPassword ? "Use API key" : "Use password";
+  document.getElementById("authToggleBtn").textContent = isPassword
+    ? "Use API key"
+    : "Use password";
 }
 
 function setupAuthOverlay() {
@@ -308,20 +315,28 @@ function showPromoBar() {
   const bar = document.getElementById("promoBar");
   if (!bar) return;
   let dismissed = null;
-  try { dismissed = localStorage.getItem(PROMO_DISMISSED_KEY); } catch {}
+  try {
+    dismissed = localStorage.getItem(PROMO_DISMISSED_KEY);
+  } catch {}
   bar.classList.toggle("is-visible", dismissed !== bar.textContent.trim());
 }
 
 function dismissPromoBar() {
   const bar = document.getElementById("promoBar");
   if (!bar) return;
-  try { localStorage.setItem(PROMO_DISMISSED_KEY, bar.textContent.trim()); } catch {}
+  try {
+    localStorage.setItem(PROMO_DISMISSED_KEY, bar.textContent.trim());
+  } catch {}
   bar.classList.remove("is-visible");
 }
 
 // Same beacon_settings.theme value as the admin Appearance setting and js/theme.js.
 function readSettings() {
-  try { return JSON.parse(localStorage.getItem("beacon_settings") || "{}"); } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem("beacon_settings") || "{}");
+  } catch {
+    return {};
+  }
 }
 
 // data-theme is the applied choice, valid without storage. No attribute: the system preference decides.
@@ -335,7 +350,9 @@ function cycleTheme() {
   const settings = readSettings();
   settings.theme = effectiveTheme() === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", settings.theme);
-  try { localStorage.setItem("beacon_settings", JSON.stringify(settings)); } catch {}
+  try {
+    localStorage.setItem("beacon_settings", JSON.stringify(settings));
+  } catch {}
   syncThemeToggle();
 }
 
@@ -344,11 +361,17 @@ function syncThemeToggle() {
   if (!btn) return;
   const theme = effectiveTheme();
   btn.dataset.mode = theme;
-  btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
+  btn.setAttribute(
+    "aria-label",
+    theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+  );
   btn.title = btn.getAttribute("aria-label");
 }
 
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeToggle);
+matchMedia("(prefers-color-scheme: dark)").addEventListener(
+  "change",
+  syncThemeToggle,
+);
 
 function isoDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -359,7 +382,12 @@ function enhanceDateFields() {
     const field = document.createElement("div");
     field.className = "date-field";
     input.replaceWith(field);
-    Object.assign(input, { type: "text", inputMode: "numeric", placeholder: "YYYY-MM-DD", autocomplete: "off" });
+    Object.assign(input, {
+      type: "text",
+      inputMode: "numeric",
+      placeholder: "YYYY-MM-DD",
+      autocomplete: "off",
+    });
     input.pattern = "\\d{4}-\\d{2}-\\d{2}";
     const pickerId = `${input.id}-picker`;
     const close = () => document.getElementById(pickerId).hidePopover();
@@ -382,9 +410,11 @@ function enhanceDateFields() {
       setHeading(cal, new Date(`${cal.focusedDate}T00:00`));
     };
     const setHeading = (cal, date) => {
-      cal.querySelector('[slot="heading"]').textContent = date.toLocaleDateString(UI_LOCALE, { month: "long", year: "numeric" });
+      cal.querySelector('[slot="heading"]').textContent =
+        date.toLocaleDateString(UI_LOCALE, { month: "long", year: "numeric" });
     };
-    render(html`
+    render(
+      html`
       ${input}
       <button type="button" class="date-field-btn" popovertarget=${pickerId} aria-label="Choose date">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -400,7 +430,9 @@ function enhanceDateFields() {
           <button type="button" class="btn btn-outline btn-sm" @click=${() => set(isoDate(new Date()))}>Today</button>
           <button type="button" class="btn btn-outline btn-sm" @click=${() => set("")}>Clear</button>
         </div>
-      </div>`, field);
+      </div>`,
+      field,
+    );
   }
 }
 

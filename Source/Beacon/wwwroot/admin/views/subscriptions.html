@@ -4,15 +4,14 @@
     <div>
       <h1 class="select-none" id="subTitle">Subscribers</h1>
       <span class="status-badge select-none" id="subBadge" hidden></span>
-      <span class="text-sm text-muted mt-0-5"
-        id="subDetailName" hidden
-      ></span>
+      <span class="text-sm text-muted mt-0-5" id="subDetailName" hidden></span>
     </div>
     <div class="bucket-actions">
       <button
         class="btn btn-outline"
         id="subBackBtn"
-        data-click="loadIdentities" hidden
+        data-click="loadIdentities"
+        hidden
       >
         Back
       </button>
@@ -130,14 +129,15 @@
         </svg>
       </button>
     </div>
-    <p>
-      Export <strong id="subExportCount">0</strong> subscriber(s).
-    </p>
+    <p>Export <strong id="subExportCount">0</strong> subscriber(s).</p>
     <div class="form-group">
       <label for="subExportContents">Contents</label>
       <select id="subExportContents">
         <option value="summary">Summary: one row per subscriber</option>
-        <option value="full">Full copy for access requests: one row per permission, with consent text and custom fields</option>
+        <option value="full">
+          Full copy for access requests: one row per permission, with consent
+          text and custom fields
+        </option>
       </select>
     </div>
     <div class="form-group">

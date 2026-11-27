@@ -73,10 +73,7 @@ function renderBucketsSidebar() {
   const container = document.getElementById("bucketsList");
   updateSidebarButtons();
   if (buckets.length === 0) {
-    paint(
-      container,
-      html`<div class="nav-empty">No buckets, yet!</div>`,
-    );
+    paint(container, html`<div class="nav-empty">No buckets, yet!</div>`);
     return;
   }
 
@@ -88,7 +85,9 @@ function renderBucketsSidebar() {
   else sorted.sort((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived));
 
   const expanded = Boolean(sidebarPrefs.expanded);
-  const displayBuckets = expanded ? sorted : sorted.slice(0, MAX_SIDEBAR_BUCKETS);
+  const displayBuckets = expanded
+    ? sorted
+    : sorted.slice(0, MAX_SIDEBAR_BUCKETS);
   const showCode = sidebarPrefs.display === "code";
   const remaining = buckets.length - MAX_SIDEBAR_BUCKETS;
   paint(
@@ -104,13 +103,16 @@ function renderBucketsSidebar() {
             e.preventDefault();
             showBucket(b.name);
           }}
-          ><span class="nav-item-text">${showCode ? b.name : formatPermission(b.name)}</span>${b.isArchived
-            ? html`<svg class="nav-item-badge" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Archived" role="img"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`
-            : nothing}</a
+          ><span class="nav-item-text">${showCode ? b.name : formatPermission(b.name)}</span>${
+            b.isArchived
+              ? html`<svg class="nav-item-badge" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Archived" role="img"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`
+              : nothing
+          }</a
         >`,
     )}
-    ${remaining > 0
-      ? html`<button
+    ${
+      remaining > 0
+        ? html`<button
           type="button"
           class="nav-item show-more"
           aria-expanded=${expanded ? "true" : "false"}
@@ -118,7 +120,8 @@ function renderBucketsSidebar() {
         >
           ${expanded ? "Show less" : `… ${remaining} more`}
         </button>`
-      : nothing}`,
+        : nothing
+    }`,
   );
   if (currentView === "bucket")
     container
@@ -238,17 +241,15 @@ function showPermissionSuggestions() {
 
   paint(
     dropdown,
-    html`${available
-      .slice(0, 10)
-      .map(
-        (p) =>
-          html`<div
+    html`${available.slice(0, 10).map(
+      (p) =>
+        html`<div
             class="autocomplete-item"
             @click=${() => selectPermission(p)}
           >
             ${formatPermission(p)}
           </div>`,
-      )}`,
+    )}`,
   );
   positionDropdown(input, dropdown);
   dropdown.classList.add("open");
@@ -277,7 +278,11 @@ function addCustomPermission() {
   }
 
   if (tokenPermissions.has(perm)) {
-    notify("warning", "Duplicate permission", "The token already has this permission.");
+    notify(
+      "warning",
+      "Duplicate permission",
+      "The token already has this permission.",
+    );
     return;
   }
 
@@ -416,13 +421,16 @@ function customFieldRows(fields, context, readonly = false) {
       html` <div class="custom-field-row">
         <span class="custom-field-key">${k}</span>
         <span class="custom-field-value"
-          >${context === "nl" && /^\{\{.+\}\}$/.test(v)
-            ? html`<code>${v}</code>`
-            : v}</span
+          >${
+            context === "nl" && /^\{\{.+\}\}$/.test(v)
+              ? html`<code>${v}</code>`
+              : v
+          }</span
         >
-        ${readonly
-          ? nothing
-          : html`<button
+        ${
+          readonly
+            ? nothing
+            : html`<button
               type="button"
               class="btn-remove"
               @click=${() => removeCustomField(k, context)}
@@ -430,7 +438,8 @@ function customFieldRows(fields, context, readonly = false) {
               aria-label="Remove"
             >
               &times;
-            </button>`}
+            </button>`
+        }
       </div>`,
   )}`;
 }
@@ -444,7 +453,7 @@ function renderCustomFieldsGrid(readonly = false) {
 
 function renderTokenCustomFieldsDisplay() {
   const group = document.getElementById("tokenCustomFieldsGroup");
-  group.hidden = !(Object.keys(tokenCustomFields).length);
+  group.hidden = !Object.keys(tokenCustomFields).length;
   paint(
     document.getElementById("tokenCustomFieldsList"),
     customFieldRows(tokenCustomFields, "token"),

@@ -110,8 +110,7 @@ function showView(view, pushState = true, skipLoad = false) {
 
 function showBucket(bucket, pushState = true) {
   closeMobileNav();
-  if (isModalOpen("optionsModal"))
-    closeOptionsModal();
+  if (isModalOpen("optionsModal")) closeOptionsModal();
   if (bucket !== currentBucket) {
     bucketSelectedHashes.clear();
     const bar = document.getElementById("bucketBulkBar");
@@ -235,13 +234,15 @@ function searchColumn(o) {
       ${text}
     </button>`;
   return html` <div class="column-search">
-    ${o.onSort
-      ? html`<span
+    ${
+      o.onSort
+        ? html`<span
           class="sortable ${o.sortActive ? o.sortDir : ""}"
           @click=${o.onSort}
           >${o.label} <span class="sort-icon">▲</span></span
         >`
-      : html`<span>${o.label}</span>`}
+        : html`<span>${o.label}</span>`
+    }
     <button
       class="search-trigger ${o.query ? "has-search" : ""}"
       id=${o.ids.trigger}
@@ -255,11 +256,13 @@ function searchColumn(o) {
       class="search-popover"
       id=${o.ids.popover}
     >
-      ${o.onType
-        ? html`<div class="search-type-toggle">
+      ${
+        o.onType
+          ? html`<div class="search-type-toggle">
             ${typeBtn("email", "By email")}${typeBtn("id", "By ID")}
           </div>`
-        : nothing}
+          : nothing
+      }
       <label for=${o.ids.input}>${labelText}</label>
       <input
         type="text"
@@ -293,11 +296,11 @@ function renderDetailSubscriptions() {
   paint(
     document.getElementById("subscriptionsTableHead"),
     html` ${sortHeader(
-        "Bucket",
-        subDetailSortBy === "bucket",
-        subDetailSortDir,
-        () => toggleDetailSort("bucket"),
-      )}
+      "Bucket",
+      subDetailSortBy === "bucket",
+      subDetailSortDir,
+      () => toggleDetailSort("bucket"),
+    )}
       <th>Permissions</th>
       ${sortHeader(
         "Last changed",
@@ -412,8 +415,11 @@ function updateSubPagination() {
   const start =
     subTotalRecords === 0 ? 0 : (subCurrentPage - 1) * subPageSize + 1;
   const end = Math.min(subCurrentPage * subPageSize, subTotalRecords);
-  document.getElementById("subPaginationInfo").textContent =
-    pageRangeText(start, end, subTotalRecords);
+  document.getElementById("subPaginationInfo").textContent = pageRangeText(
+    start,
+    end,
+    subTotalRecords,
+  );
   document.getElementById("subPrevBtn").disabled = subCurrentPage === 1;
   document.getElementById("subNextBtn").disabled = subCurrentPage >= totalPages;
 }
@@ -573,7 +579,13 @@ async function confirmSubExport() {
       : { format, full };
 
   try {
-    if (await downloadExport(`${window.location.origin}/api/admin/identities/export`, body, `beacon-subscribers${full ? "-full" : ""}.${format}`))
+    if (
+      await downloadExport(
+        `${window.location.origin}/api/admin/identities/export`,
+        body,
+        `beacon-subscribers${full ? "-full" : ""}.${format}`,
+      )
+    )
       closeSubExportModal();
   } finally {
     btn.disabled = false;
@@ -596,9 +608,8 @@ async function loadIdentities(pushState = true) {
   badge.ondblclick = null;
   subDetailHash = "";
   document.getElementById("subBackBtn").hidden = true;
-  document.querySelector(
-    "#view-subscriptions .pagination-container",
-  ).hidden = false;
+  document.querySelector("#view-subscriptions .pagination-container").hidden =
+    false;
   const subNameEl = document.getElementById("subDetailName");
   if (subNameEl) subNameEl.hidden = true;
 
@@ -695,8 +706,9 @@ async function loadIdentities(pushState = true) {
             /></label>
           </td>
           <td>
-            ${id.email
-              ? html`<span class="tooltip-wrapper"
+            ${
+              id.email
+                ? html`<span class="tooltip-wrapper"
                   ><span
                     class="email-text select-none cursor-pointer"
                     @click=${stop(() => copyText(id.email))}
@@ -706,18 +718,21 @@ async function loadIdentities(pushState = true) {
                     >Click to copy &middot; double-click for ID</span
                   ></span
                 >`
-              : html`<span
+                : html`<span
                   class="tooltip-wrapper"
                   @dblclick=${stop(() => copyTextNow(id.emailHash))}
                   ><span class="email-hash"
                     >${id.emailHash.substring(0, 16)}…</span
                   ><span class="tooltip">Double-click to copy ID</span></span
-                >`}
+                >`
+            }
           </td>
           <td>
-            ${id.name
-              ? html`<span class="name-text">${id.name}</span>`
-              : html`<span class="muted">—</span>`}
+            ${
+              id.name
+                ? html`<span class="name-text">${id.name}</span>`
+                : html`<span class="muted">—</span>`
+            }
           </td>
           <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? "s" : ""}</td>
           <td
@@ -725,9 +740,11 @@ async function loadIdentities(pushState = true) {
             title="View audit"
             @click=${stop(() => showAuditForIdentity(id.emailHash))}
           >
-            ${formatDate(id.lastChanged)}${formatDate(id.firstSeen) !== formatDate(id.lastChanged)
-              ? html`<span class="cell-sub">Created ${formatDate(id.firstSeen)}</span>`
-              : nothing}
+            ${formatDate(id.lastChanged)}${
+              formatDate(id.firstSeen) !== formatDate(id.lastChanged)
+                ? html`<span class="cell-sub">Created ${formatDate(id.firstSeen)}</span>`
+                : nothing
+            }
           </td>
           <td>
             <div class="row-actions">
@@ -795,9 +812,8 @@ async function showIdentityDetails(emailHash, pushState = true) {
       ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,
   );
   document.getElementById("subBackBtn").hidden = false;
-  document.querySelector(
-    "#view-subscriptions .pagination-container",
-  ).hidden = true;
+  document.querySelector("#view-subscriptions .pagination-container").hidden =
+    true;
 
   // Clear cached data and render the detail headers with a blank body (no stale rows)
   subDetailSubscriptions = [];

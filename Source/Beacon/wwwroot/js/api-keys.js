@@ -77,12 +77,14 @@ function updateApiKeysPageSize() {
 
 function renderPermissionBadges(permissions) {
   if (!permissions?.length) return html`<span class="text-muted">—</span>`;
-  return permissions.map((p) => html`<span class="status-badge status-badge--sm${p === "_all" ? "" : " status-badge-muted"}">${p}</span>`);
+  return permissions.map(
+    (p) =>
+      html`<span class="status-badge status-badge--sm${p === "_all" ? "" : " status-badge-muted"}">${p}</span>`,
+  );
 }
 
 function apiKeyStatus(k) {
-  if (!k.isEnabled)
-    return { label: "Disabled", tone: "text-muted" };
+  if (!k.isEnabled) return { label: "Disabled", tone: "text-muted" };
   const now = new Date();
   if (k.activeFrom && now < new Date(k.activeFrom))
     return { label: "Pending", tone: "text-warning" };
@@ -94,16 +96,21 @@ function apiKeyStatus(k) {
 function renderApiKeysTable(keys) {
   const tbody = document.getElementById("apiKeysBody");
   if (!keys.length) {
-    paint(tbody, html`<tr><td colspan="7"><div class="table-empty-state">
+    paint(
+      tbody,
+      html`<tr><td colspan="7"><div class="table-empty-state">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
           <p class="empty-title">No API keys</p>
           <p class="empty-sub">Add an API key to grant programmatic access.</p>
-        </div></td></tr>`);
+        </div></td></tr>`,
+    );
     return;
   }
-  paint(tbody, html`${keys.map((k) => {
-    const st = apiKeyStatus(k);
-    return html`
+  paint(
+    tbody,
+    html`${keys.map((k) => {
+      const st = apiKeyStatus(k);
+      return html`
         <tr>
           <td><strong>${k.name}</strong></td>
           <td>${renderPermissionBadges(k.permissions)}</td>
@@ -112,14 +119,35 @@ function renderApiKeysTable(keys) {
           <td>${k.createdAt ? new Date(k.createdAt).toLocaleDateString(UI_LOCALE) : "-"}</td>
           <td>${k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : html`<span class="text-muted">Never</span>`}</td>
           <td class="col-actions">${rowMenu(`apiKeyDropdown-${k.id}`, [
-            ["Edit permissions", () => openEditApiKeyPermissionsModal(k.id, k.name, k.permissions || [])],
-            ["Edit validity window", () => openEditApiKeyDatesModal(k.id, k.name, k.activeFrom || "", k.activeUntil || "")],
-            [k.isEnabled ? "Disable" : "Enable", () => toggleApiKeyEnabled(k.id, k.isEnabled)],
+            [
+              "Edit permissions",
+              () =>
+                openEditApiKeyPermissionsModal(
+                  k.id,
+                  k.name,
+                  k.permissions || [],
+                ),
+            ],
+            [
+              "Edit validity window",
+              () =>
+                openEditApiKeyDatesModal(
+                  k.id,
+                  k.name,
+                  k.activeFrom || "",
+                  k.activeUntil || "",
+                ),
+            ],
+            [
+              k.isEnabled ? "Disable" : "Enable",
+              () => toggleApiKeyEnabled(k.id, k.isEnabled),
+            ],
             ["Rotate key", () => rotateApiKey(k.id, k.name)],
             ["Delete", () => deleteApiKey(k.id, k.name), true],
           ])}</td>
         </tr>`;
-  })}`);
+    })}`,
+  );
   staggerRows(tbody);
 }
 
@@ -129,18 +157,25 @@ function buildPermissionCheckboxes(containerId, selected) {
   // Initial sync keeps the saved selection; toggling _all sets every box to match it.
   const syncAllState = (event) => {
     const isAll = container.querySelector('input[value="_all"]').checked;
-    container.querySelectorAll('input[type=checkbox]:not([value="_all"])').forEach((cb) => {
-      if (event || isAll) cb.checked = isAll;
-      cb.disabled = isAll;
-      if (isAll) triggerClass(cb, "cb-flash", 300);
-    });
+    container
+      .querySelectorAll('input[type=checkbox]:not([value="_all"])')
+      .forEach((cb) => {
+        if (event || isAll) cb.checked = isAll;
+        cb.disabled = isAll;
+        if (isAll) triggerClass(cb, "cb-flash", 300);
+      });
   };
-  paint(container, html`${KNOWN_PERMISSIONS.map((p) => html`
+  paint(
+    container,
+    html`${KNOWN_PERMISSIONS.map(
+      (p) => html`
         <label class="check-row">
           <input type="checkbox" value=${p.value} ?checked=${selected.includes(p.value)}
             @change=${p.value === "_all" ? syncAllState : null}>
           ${p.label}
-        </label>`)}`);
+        </label>`,
+    )}`,
+  );
   syncAllState();
 }
 
@@ -156,7 +191,9 @@ function openAddApiKeyModal() {
   document.getElementById("newApiKeyName").value = "";
   const today = new Date();
   document.getElementById("newApiKeyActiveFrom").value = isoDate(today);
-  document.getElementById("newApiKeyActiveUntil").value = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90));
+  document.getElementById("newApiKeyActiveUntil").value = isoDate(
+    new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90),
+  );
   document.getElementById("newApiKeyRevealSection").hidden = true;
   buildPermissionCheckboxes("newApiKeyPermissions", []);
   const btn = document.getElementById("addApiKeyBtn");
@@ -188,7 +225,11 @@ async function createApiKey() {
     return;
   }
   if (_apiKeysAll.some((k) => k.name.toLowerCase() === name.toLowerCase())) {
-    notify("error", "Duplicate name", "An API key with this name exists. Choose another name.");
+    notify(
+      "error",
+      "Duplicate name",
+      "An API key with this name exists. Choose another name.",
+    );
     return;
   }
   if (!permissions.length) {
@@ -209,7 +250,11 @@ async function createApiKey() {
   btn.disabled = true;
 
   const body = { name, permissions };
-  if (activeFrom) body.activeFrom = activeFrom === isoDate(new Date()) ? new Date().toISOString() : activeFrom;
+  if (activeFrom)
+    body.activeFrom =
+      activeFrom === isoDate(new Date())
+        ? new Date().toISOString()
+        : activeFrom;
   if (activeUntil) body.activeUntil = activeUntil;
 
   const result = await apiRequest("/api/admin/api-keys", {

@@ -91,7 +91,8 @@
       </button>
     </div>
     <p>
-      Choose how confirmation emails go out when subscribers must confirm by email.
+      Choose how confirmation emails go out when subscribers must confirm by
+      email.
     </p>
 
     <div class="settings-items">
@@ -157,21 +158,29 @@
         </svg>
       </button>
     </div>
-    <p>
-      Choose what your webhooks receive when a subscriber is deleted.
-    </p>
+    <p>Choose what your webhooks receive when a subscriber is deleted.</p>
 
     <div class="settings-items">
       <div class="settings-item-card">
-        <label class="settings-item-card-label" for="setting-erasureNoticeIncludeEmail">
+        <label
+          class="settings-item-card-label"
+          for="setting-erasureNoticeIncludeEmail"
+        >
           <div class="settings-item-info">
-            <span class="settings-item-title select-none">Include email address</span>
+            <span class="settings-item-title select-none"
+              >Include email address</span
+            >
             <p class="settings-item-desc">
-              Adds the email address for systems that do not store the Beacon ID. Off keeps wiped personal info out of your webhooks.
+              Adds the email address for systems that do not store the Beacon
+              ID. Off keeps wiped personal info out of your webhooks.
             </p>
           </div>
           <div class="settings-item-control">
-            <input type="checkbox" id="setting-erasureNoticeIncludeEmail" data-change="saveSettingImmediate erasureNoticeIncludeEmail $checked">
+            <input
+              type="checkbox"
+              id="setting-erasureNoticeIncludeEmail"
+              data-change="saveSettingImmediate erasureNoticeIncludeEmail $checked"
+            />
             <span class="toggle-track"></span>
           </div>
         </label>
@@ -179,10 +188,7 @@
     </div>
 
     <div class="modal-actions">
-      <button
-        class="btn btn-primary"
-        data-click="closeErasureNoticeModal"
-      >
+      <button class="btn btn-primary" data-click="closeErasureNoticeModal">
         Done
       </button>
     </div>
@@ -425,7 +431,9 @@
     <div class="form-group">
       <label for="objectStoragePublicUrl"
         >Public URL
-        <span class="font-normal text-muted">(bucket or CDN base URL)</span></label
+        <span class="font-normal text-muted"
+          >(bucket or CDN base URL)</span
+        ></label
       >
       <input
         type="url"
@@ -503,9 +511,7 @@
         placeholder="e.g. Scheduled maintenance on [Saturday 14:00 UTC](https://status.example.com)."
         data-input="updateCharCount $el"
       ></textarea>
-      <p class="field-hint" id="modal-promoBar-count">
-        0 / 500
-      </p>
+      <p class="field-hint" id="modal-promoBar-count">0 / 500</p>
     </div>
 
     <label
@@ -585,8 +591,8 @@
       </button>
     </div>
     <p>
-      Message shown below the sign-in box. Supports <strong>**bold**</strong>, <em>_italic_</em>, and
-      <code>[text](url)</code> links. Max 500 characters.
+      Message shown below the sign-in box. Supports <strong>**bold**</strong>,
+      <em>_italic_</em>, and <code>[text](url)</code> links. Max 500 characters.
     </p>
 
     <div class="form-group">
@@ -597,9 +603,7 @@
         placeholder="e.g. Contact your [administrator](mailto:admin@example.com) for access."
         data-input="updateCharCount $el"
       ></textarea>
-      <p class="field-hint" id="modal-loginFooter-count">
-        0 / 500
-      </p>
+      <p class="field-hint" id="modal-loginFooter-count">0 / 500</p>
     </div>
 
     <div class="modal-actions">

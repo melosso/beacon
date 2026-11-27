@@ -22,11 +22,16 @@ function renderUsersPagination() {
   const totalPages = Math.ceil(total / _usersPageSize) || 1;
   const start = total === 0 ? 0 : (_usersPage - 1) * _usersPageSize + 1;
   const end = Math.min(_usersPage * _usersPageSize, total);
-  document.getElementById("usersPaginationInfo").textContent =
-    pageRangeText(start, end, total);
+  document.getElementById("usersPaginationInfo").textContent = pageRangeText(
+    start,
+    end,
+    total,
+  );
   document.getElementById("usersPrevBtn").disabled = _usersPage <= 1;
   document.getElementById("usersNextBtn").disabled = _usersPage >= totalPages;
-  document.getElementById("usersPaginationBar").hidden = !(total > _usersPageSize);
+  document.getElementById("usersPaginationBar").hidden = !(
+    total > _usersPageSize
+  );
 }
 
 function changeUsersPage(dir) {
@@ -64,7 +69,10 @@ const KEBAB_ICON = html`<svg width="16" height="16" viewBox="0 0 24 24" fill="no
 function rowMenu(menuId, items) {
   return html`
     <div class="row-actions">
-      <button class="btn-actions" aria-label="Actions" @click=${(e) => { e.stopPropagation(); toggleMenu(menuId, e.currentTarget); }}>${KEBAB_ICON}</button>
+      <button class="btn-actions" aria-label="Actions" @click=${(e) => {
+        e.stopPropagation();
+        toggleMenu(menuId, e.currentTarget);
+      }}>${KEBAB_ICON}</button>
       <div class="dropdown-menu" id=${menuId}>
         ${items.map(([label, onClick, destructive]) => html`<button class="dropdown-item${destructive ? " dropdown-item--destructive" : ""}" @click=${onClick}>${label}</button>`)}
       </div>
@@ -81,14 +89,20 @@ function staggerRows(tbody) {
 function renderUsersTable(users) {
   const tbody = document.getElementById("usersBody");
   if (!users.length) {
-    paint(tbody, html`<tr><td colspan="6"><div class="table-empty-state">
+    paint(
+      tbody,
+      html`<tr><td colspan="6"><div class="table-empty-state">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <p class="empty-title">No users</p>
           <p class="empty-sub">Add a user to grant sign-in access.</p>
-        </div></td></tr>`);
+        </div></td></tr>`,
+    );
     return;
   }
-  paint(tbody, html`${users.map((u) => html`
+  paint(
+    tbody,
+    html`${users.map(
+      (u) => html`
         <tr>
           <td><strong>${u.username}</strong></td>
           <td><span class="status-badge ${u.role === "admin" ? "" : "status-badge-muted"}">${u.role}</span></td>
@@ -99,10 +113,15 @@ function renderUsersTable(users) {
             ["Rename", () => openRenameUserModal(u.id, u.username)],
             ["Change password", () => openUserPasswordModal(u.id, u.username)],
             ["Change role", () => openUserRoleModal(u.id, u.username, u.role)],
-            ["Regenerate API key", () => regenerateUserApiKey(u.id, u.username)],
+            [
+              "Regenerate API key",
+              () => regenerateUserApiKey(u.id, u.username),
+            ],
             ["Delete", () => deleteUser(u.id, u.username), true],
           ])}</td>
-        </tr>`)}`);
+        </tr>`,
+    )}`,
+  );
   staggerRows(tbody);
 }
 
@@ -259,8 +278,7 @@ function closeUserApiKeyRevealModal() {
 function copyUserApiKey() {
   const key = document.getElementById("userApiKeyRevealOutput").textContent;
   if (!key) return;
-  clipboardWrite(key)
-    .then(() => notify("success", "API key copied"));
+  clipboardWrite(key).then(() => notify("success", "API key copied"));
 }
 
 // CONFIRM MODAL
@@ -302,7 +320,9 @@ function openAddUserModal() {
   const addBtn = document.getElementById("addUserBtn");
   addBtn.disabled = false;
   addBtn.hidden = false;
-  document.querySelector("#addUserModal .modal-actions .btn-outline").textContent = "Cancel";
+  document.querySelector(
+    "#addUserModal .modal-actions .btn-outline",
+  ).textContent = "Cancel";
   openModal("addUserModal");
 }
 
@@ -356,6 +376,7 @@ async function createUser() {
 
 function copyNewUserApiKey() {
   if (!_newUserApiKey) return;
-  clipboardWrite(_newUserApiKey)
-    .then(() => notify("success", "API key copied"));
+  clipboardWrite(_newUserApiKey).then(() =>
+    notify("success", "API key copied"),
+  );
 }

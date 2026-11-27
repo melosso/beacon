@@ -31,8 +31,7 @@ function resetWebhookBodyTemplate() {
 
 function checkWebhookEmailVar(body) {
   const warning = document.getElementById("webhookEmailWarning");
-  if (warning)
-    warning.hidden = !(/\{\{\s*email\s*\}\}/i.test(body));
+  if (warning) warning.hidden = !/\{\{\s*email\s*\}\}/i.test(body);
 }
 
 function toggleWebhookTemplateMenu(trigger) {
@@ -136,15 +135,23 @@ async function showOptionsModal(pushState = true) {
   if (biContent) {
     if (identity) {
       const accent = safeColor(identity.settings?.primaryAccent, null);
-      paint(biContent, html`<div class="identity-chip">${accent
-        ? html`<span class="swatch" data-vars="--swatch:${accent}"></span>`
-        : nothing}<span>${identity.name}</span></div>`);
+      paint(
+        biContent,
+        html`<div class="identity-chip">${
+          accent
+            ? html`<span class="swatch" data-vars="--swatch:${accent}"></span>`
+            : nothing
+        }<span>${identity.name}</span></div>`,
+      );
       if (biBadge) {
         biBadge.textContent = identity.name;
         biBadge.hidden = false;
       }
     } else {
-      paint(biContent, html`<p class="list-empty">Uses the default identity.</p>`);
+      paint(
+        biContent,
+        html`<p class="list-empty">Uses the default identity.</p>`,
+      );
       if (biBadge) biBadge.hidden = true;
     }
   }
@@ -184,7 +191,9 @@ async function loadBucketOptions() {
   // Default state: inherit global (true), grayed out when global feature is off or email is disabled
   if (toggle) toggle.checked = true;
   if (toggle) toggle.disabled = !globalEnabled;
-  label?.closest(".toggle-row")?.classList.toggle("is-disabled", !globalEnabled);
+  label
+    ?.closest(".toggle-row")
+    ?.classList.toggle("is-disabled", !globalEnabled);
   if (desc)
     desc.textContent = globalEnabled
       ? "Subscribers confirm by email. Off: this bucket opts out of the global setting."
@@ -264,9 +273,12 @@ function renderWebhookHeaders() {
   const grid = document.getElementById("webhookHeadersGrid");
   const entries = Object.entries(webhookHeaders);
 
-  paint(grid, entries.length === 0
-    ? html`<p class="list-empty">No headers.</p>`
-    : html`${entries.map(([key, value]) => html`
+  paint(
+    grid,
+    entries.length === 0
+      ? html`<p class="list-empty">No headers.</p>`
+      : html`${entries.map(
+          ([key, value]) => html`
         <div class="custom-field-row">
           <div class="custom-field-key">${key}</div>
           <div class="custom-field-value">${value}</div>
@@ -276,7 +288,9 @@ function renderWebhookHeaders() {
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
-        </div>`)}`);
+        </div>`,
+        )}`,
+  );
 }
 
 async function saveWebhook() {
@@ -296,7 +310,10 @@ async function saveWebhook() {
     bodyTemplate: bodyTemplate || null,
   };
 
-  const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`, { method: "POST", body: payload });
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`,
+    { method: "POST", body: payload },
+  );
 
   if (result.ok) {
     if (result.data?.signingSecret) {
@@ -312,10 +329,7 @@ async function saveWebhook() {
       );
     } else {
       setWebhookBadge(true);
-      notify(
-        "success",
-        "Webhook saved",
-      );
+      notify("success", "Webhook saved");
       closeOptionsModal();
     }
   }
@@ -326,12 +340,12 @@ async function deleteWebhook() {
     return;
   }
 
-  const result = await apiRequest(`/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`, { method: "DELETE" });
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/webhook`,
+    { method: "DELETE" },
+  );
   if (result.ok) {
-    notify(
-      "success",
-      "Webhook deleted",
-    );
+    notify("success", "Webhook deleted");
     setWebhookBadge(false);
     closeOptionsModal();
   }
@@ -412,13 +426,26 @@ async function loadWebhookErrors(bucket) {
   webhookErrorsCache = errors;
 
   trigger.classList.toggle("has-errors", errors.length > 0);
-  paint(dropdown, errors.length === 0
-    ? EMPTY_NOTIFICATIONS
-    : html`<div class="error-header"><span>Recent errors</span><button class="clear-all-btn" @click=${(e) => { e.stopPropagation(); clearAllWebhookErrors(); }}>Clear all</button></div>
-      ${errors.map((err) => html`<div class="error-item" @click=${(e) => { e.stopPropagation(); openErrorDetail(err); }}>
+  paint(
+    dropdown,
+    errors.length === 0
+      ? EMPTY_NOTIFICATIONS
+      : html`<div class="error-header"><span>Recent errors</span><button class="clear-all-btn" @click=${(
+          e,
+        ) => {
+          e.stopPropagation();
+          clearAllWebhookErrors();
+        }}>Clear all</button></div>
+      ${errors.map(
+        (err) => html`<div class="error-item" @click=${(e) => {
+          e.stopPropagation();
+          openErrorDetail(err);
+        }}>
         <div class="error-time">${formatDate(err.occurredAt)}</div>
         <div class="error-msg">${truncate(err.errorMessage, 120)}${errorStatus(err)}</div>
-      </div>`)}`);
+      </div>`,
+      )}`,
+  );
 }
 
 const EMPTY_NOTIFICATIONS = html`<div class="error-header">Notifications</div><div class="error-empty">No notifications.</div>`;
@@ -428,7 +455,9 @@ function truncate(text, max) {
 }
 
 function errorStatus(err) {
-  return err.statusCode ? html`<span class="error-status">${err.statusCode}</span>` : nothing;
+  return err.statusCode
+    ? html`<span class="error-status">${err.statusCode}</span>`
+    : nothing;
 }
 
 function openOverviewErrorDetail(error) {
@@ -449,8 +478,12 @@ function openErrorDetail(error) {
   ).toLocaleString(UI_LOCALE);
   paint(document.getElementById("errorDetailBadge"), errorStatus(error));
   const parts = [];
-  if (error.requestMethod && error.requestUrl) parts.push(`${error.requestMethod} ${error.requestUrl}`);
-  if (error.attemptCount > 0) parts.push(`${error.attemptCount} attempt${error.attemptCount !== 1 ? "s" : ""}`);
+  if (error.requestMethod && error.requestUrl)
+    parts.push(`${error.requestMethod} ${error.requestUrl}`);
+  if (error.attemptCount > 0)
+    parts.push(
+      `${error.attemptCount} attempt${error.attemptCount !== 1 ? "s" : ""}`,
+    );
   document.getElementById("errorDetailRequest").textContent = parts.join(" · ");
 
   document.getElementById("errorDetailMessage").textContent =
@@ -554,13 +587,21 @@ function toggleOverviewWebhookErrors(event) {
 
 function renderOverviewErrorsDropdown() {
   const dropdown = document.getElementById("overviewWebhookErrorsDropdown");
-  paint(dropdown, overviewErrorsCache.length === 0
-    ? EMPTY_NOTIFICATIONS
-    : html`<div class="error-header"><span>Notifications</span></div>
-      ${overviewErrorsCache.map((err) => html`<div class="error-item" @click=${(e) => { e.stopPropagation(); openOverviewErrorDetail(err); }}>
+  paint(
+    dropdown,
+    overviewErrorsCache.length === 0
+      ? EMPTY_NOTIFICATIONS
+      : html`<div class="error-header"><span>Notifications</span></div>
+      ${overviewErrorsCache.map(
+        (err) => html`<div class="error-item" @click=${(e) => {
+          e.stopPropagation();
+          openOverviewErrorDetail(err);
+        }}>
         <div class="error-time"><strong>${err.bucket}</strong> &middot; ${formatDate(err.occurredAt)}</div>
         <div class="error-msg">${truncate(err.errorMessage, 100)}${errorStatus(err)}</div>
-      </div>`)}`);
+      </div>`,
+      )}`,
+  );
 }
 
 // EDIT PERMISSIONS MODAL
@@ -577,10 +618,14 @@ function openEditPermissions(record) {
   document.getElementById("editPermissionsBucket").textContent = editingBucket;
   document.getElementById("editName").value = editingRecord.name || "";
 
-  paint(document.getElementById("editPermissionsGrid"), html`${currentBucketPermissions.map((p) => {
-    // Pending and unrecorded permissions start with no choice: saving leaves them unchanged
-    const state = editingRecord.pendingPermissions?.includes(p) ? undefined : editingRecord.permissions[p];
-    return html`
+  paint(
+    document.getElementById("editPermissionsGrid"),
+    html`${currentBucketPermissions.map((p) => {
+      // Pending and unrecorded permissions start with no choice: saving leaves them unchanged
+      const state = editingRecord.pendingPermissions?.includes(p)
+        ? undefined
+        : editingRecord.permissions[p];
+      return html`
       <div class="permission-row" data-perm=${p}>
         <span class="permission-name">${formatPermission(p)}${editingRecord.pendingPermissions?.includes(p) ? html` ${consentChip(false, true)}` : nothing}</span>
         <div class="permission-toggle">
@@ -588,7 +633,8 @@ function openEditPermissions(record) {
           <button type="button" class="opted-out ${state === false ? "active" : ""}" @click=${(e) => setPermState(e.currentTarget, false)}>Out</button>
         </div>
       </div>`;
-  })}`);
+    })}`,
+  );
 
   document.getElementById("editLanguage").value =
     appSettings.uiLanguage || "en";
@@ -729,11 +775,17 @@ async function savePermissions() {
     .forEach((row) => {
       const chosen = row.querySelector(".opted-in.active, .opted-out.active");
       if (chosen)
-        permissions[row.dataset.perm] = chosen.classList.contains("opted-in") ? "OptedIn" : "OptedOut";
+        permissions[row.dataset.perm] = chosen.classList.contains("opted-in")
+          ? "OptedIn"
+          : "OptedOut";
     });
 
   if (Object.keys(permissions).length === 0) {
-    notify("warning", "Nothing to save", "Choose In or Out for at least one permission.");
+    notify(
+      "warning",
+      "Nothing to save",
+      "Choose In or Out for at least one permission.",
+    );
     return;
   }
 
@@ -756,10 +808,7 @@ async function savePermissions() {
   );
 
   if (result.ok) {
-    notify(
-      "success",
-      "Permissions saved",
-    );
+    notify("success", "Permissions saved");
     closeEditPermissionsModal();
     if (currentBucket) loadBucket(currentBucket);
   }

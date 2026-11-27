@@ -164,7 +164,11 @@ async function downloadExport(endpoint, body, fallbackName) {
     setTimeout(() => URL.revokeObjectURL(url), 0);
     return true;
   } catch {
-    notify("error", "Export failed", "Server unreachable. Check the connection and retry.");
+    notify(
+      "error",
+      "Export failed",
+      "Server unreachable. Check the connection and retry.",
+    );
     return false;
   }
 }
@@ -174,17 +178,23 @@ let webhookBuckets = new Set();
 
 let overviewErrorBuckets = new Set();
 let overviewQuery = "";
-const _overviewSortPrefs = JSON.parse(localStorage.getItem("beacon_overview_sort_prefs") || "{}");
+const _overviewSortPrefs = JSON.parse(
+  localStorage.getItem("beacon_overview_sort_prefs") || "{}",
+);
 let overviewSortBy = _overviewSortPrefs.sortBy || "";
 let overviewSortDir = _overviewSortPrefs.sortDir || "asc";
 
 function toggleOverviewSort(column) {
-  if (overviewSortBy === column) overviewSortDir = overviewSortDir === "asc" ? "desc" : "asc";
+  if (overviewSortBy === column)
+    overviewSortDir = overviewSortDir === "asc" ? "desc" : "asc";
   else {
     overviewSortBy = column;
     overviewSortDir = column === "records" ? "desc" : "asc";
   }
-  localStorage.setItem("beacon_overview_sort_prefs", JSON.stringify({ sortBy: overviewSortBy, sortDir: overviewSortDir }));
+  localStorage.setItem(
+    "beacon_overview_sort_prefs",
+    JSON.stringify({ sortBy: overviewSortBy, sortDir: overviewSortDir }),
+  );
   renderOverview();
 }
 
@@ -192,12 +202,22 @@ function toggleOverviewSearchPopover(event) {
   event.stopPropagation();
   const popover = document.getElementById("overviewSearchPopover");
   popover.classList.toggle("open");
-  document.getElementById("overviewSearchTrigger").classList.toggle("active", popover.classList.contains("open"));
-  if (popover.classList.contains("open")) setTimeout(() => document.getElementById("overviewSearchInput")?.focus(), 50);
+  document
+    .getElementById("overviewSearchTrigger")
+    .classList.toggle("active", popover.classList.contains("open"));
+  if (popover.classList.contains("open"))
+    setTimeout(
+      () => document.getElementById("overviewSearchInput")?.focus(),
+      50,
+    );
 }
 
 function searchOverview(query) {
-  overviewQuery = (query ?? document.getElementById("overviewSearchInput")?.value ?? "").trim();
+  overviewQuery = (
+    query ??
+    document.getElementById("overviewSearchInput")?.value ??
+    ""
+  ).trim();
   document.getElementById("overviewSearchPopover")?.classList.remove("open");
   document.getElementById("overviewSearchTrigger")?.classList.remove("active");
   renderOverview();
@@ -208,9 +228,17 @@ function overviewMatches(b) {
   if (!overviewQuery) return true;
   const q = overviewQuery.toLowerCase();
   const test = q.includes("*")
-    ? (text) => new RegExp(`^${q.split("*").map((p) => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`).test(text)
+    ? (text) =>
+        new RegExp(
+          `^${q
+            .split("*")
+            .map((p) => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+            .join(".*")}$`,
+        ).test(text)
     : (text) => text.includes(q);
-  return test(b.name.toLowerCase()) || test(formatPermission(b.name).toLowerCase());
+  return (
+    test(b.name.toLowerCase()) || test(formatPermission(b.name).toLowerCase())
+  );
 }
 
 async function loadOverview(refresh = false) {
@@ -279,7 +307,11 @@ function renderOverview() {
           sortActive: overviewSortBy === "name",
           sortDir: overviewSortDir,
           onSort: () => toggleOverviewSort("name"),
-          ids: { trigger: "overviewSearchTrigger", popover: "overviewSearchPopover", input: "overviewSearchInput" },
+          ids: {
+            trigger: "overviewSearchTrigger",
+            popover: "overviewSearchPopover",
+            input: "overviewSearchInput",
+          },
           fixedLabel: "Bucket name or label, use * as wildcard",
           placeholder: "e.g., newsletter*",
           query: overviewQuery,
@@ -298,12 +330,18 @@ function renderOverview() {
   const body = document.getElementById("overviewBody");
   const dir = overviewSortDir === "asc" ? 1 : -1;
   const shown = buckets.filter(overviewMatches);
-  if (overviewSortBy === "name") shown.sort((a, b) => dir * a.name.localeCompare(b.name));
-  else if (overviewSortBy === "records") shown.sort((a, b) => dir * ((a.totalEmails ?? 0) - (b.totalEmails ?? 0)));
-  else if (overviewSortBy === "optin") shown.sort((a, b) => dir * (optInRate(a) - optInRate(b)));
+  if (overviewSortBy === "name")
+    shown.sort((a, b) => dir * a.name.localeCompare(b.name));
+  else if (overviewSortBy === "records")
+    shown.sort((a, b) => dir * ((a.totalEmails ?? 0) - (b.totalEmails ?? 0)));
+  else if (overviewSortBy === "optin")
+    shown.sort((a, b) => dir * (optInRate(a) - optInRate(b)));
 
   if (buckets.length > 0 && shown.length === 0) {
-    paint(body, html`<tr><td class="table-empty" colspan="5">No buckets match "${overviewQuery}".</td></tr>`);
+    paint(
+      body,
+      html`<tr><td class="table-empty" colspan="5">No buckets match "${overviewQuery}".</td></tr>`,
+    );
     return;
   }
 
@@ -328,40 +366,49 @@ function renderOverview() {
         brandId?.settings?.primaryAccent || "hsl(var(--muted-foreground))";
       return html` <tr>
         <td class="cursor-pointer" @click=${() => showBucket(b.name)}>
-          <strong>${formatPermission(b.name) || "N/A"}</strong>${b.isArchived
-            ? html` <span class="status-badge status-badge--sm">Archived</span>`
-            : nothing}<span class="cell-sub">${b.name}</span>
+          <strong>${formatPermission(b.name) || "N/A"}</strong>${
+            b.isArchived
+              ? html` <span class="status-badge status-badge--sm">Archived</span>`
+              : nothing
+          }<span class="cell-sub">${b.name}</span>
         </td>
         <td>
-          ${b.totalEmails != null
-            ? Number(b.totalEmails).toLocaleString(UI_LOCALE)
-            : "N/A"}
+          ${
+            b.totalEmails != null
+              ? Number(b.totalEmails).toLocaleString(UI_LOCALE)
+              : "N/A"
+          }
         </td>
         <td
-          title=${b.totalRecords
-            ? `${b.optedInRecords} of ${b.totalRecords} consent records`
-            : ""}
+          title=${
+            b.totalRecords
+              ? `${b.optedInRecords} of ${b.totalRecords} consent records`
+              : ""
+          }
         >
           ${b.totalRecords ? `${Math.round(optInRate(b) * 100)}%` : "—"}
         </td>
         <td>
-          ${b.permissions?.length
-            ? b.permissions.map(
-                (p) =>
-                  html`<span
+          ${
+            b.permissions?.length
+              ? b.permissions.map(
+                  (p) =>
+                    html`<span
                     class="tooltip-wrapper select-none cursor-pointer"
                     @click=${() => copyTextNow(p)}
                     ><span class="status-badge">${formatPermission(p)}</span
                     ><span class="tooltip">${p}</span></span
                   > `,
-              )
-            : "None"}
+                )
+              : "None"
+          }
         </td>
         <td class="col-actions">
           <div class="row-actions">
             <span class="row-status-icons">
-              ${overviewErrorBuckets.has(b.name)
-                ? html`<span class="tooltip-wrapper">
+              ${
+                overviewErrorBuckets.has(b.name)
+                  ? html`<span class="tooltip-wrapper">
                     <svg class="align-middle"
                       width="14"
                       height="14"
@@ -382,9 +429,11 @@ function renderOverview() {
                       >Webhook errors. Open the bucket to review them.</span
                     >
                   </span>`
-                : nothing}
-              ${webhookBuckets.has(b.name)
-                ? html`<span class="tooltip-wrapper">
+                  : nothing
+              }
+              ${
+                webhookBuckets.has(b.name)
+                  ? html`<span class="tooltip-wrapper">
                     <svg class="align-middle"
                       width="14"
                       height="14"
@@ -407,9 +456,11 @@ function renderOverview() {
                       >Webhook configured</span
                     >
                   </span>`
-                : nothing}
-              ${brandId
-                ? html`<span class="tooltip-wrapper">
+                  : nothing
+              }
+              ${
+                brandId
+                  ? html`<span class="tooltip-wrapper">
                     <svg class="align-middle"
                       width="14"
                       height="14"
@@ -433,7 +484,8 @@ function renderOverview() {
                       >${brandId.name}</span
                     >
                   </span>`
-                : nothing}
+                  : nothing
+              }
             </span>
             <span class="tooltip-wrapper">
               <button
@@ -509,9 +561,10 @@ async function loadBucket(bucket = currentBucket) {
   currentBucketPermissions = details.permissions || [];
   currentBucketArchived = details.isArchived || false;
   const archivedBadge = document.getElementById("archivedBadge");
-  if (archivedBadge)
-    archivedBadge.hidden = !currentBucketArchived;
-  document.getElementById("bucketTitle")?.classList.toggle("is-archived", currentBucketArchived);
+  if (archivedBadge) archivedBadge.hidden = !currentBucketArchived;
+  document
+    .getElementById("bucketTitle")
+    ?.classList.toggle("is-archived", currentBucketArchived);
 
   const removeBtn = document.getElementById("removeBucketBtn");
   if (removeBtn) {
@@ -634,8 +687,9 @@ async function loadBucket(bucket = currentBucket) {
             /></label>
           </td>
           <td>
-            ${r.email
-              ? html`<span class="tooltip-wrapper"
+            ${
+              r.email
+                ? html`<span class="tooltip-wrapper"
                   ><span
                     class="email-text select-none cursor-pointer"
                     @click=${() => copyText(r.email)}
@@ -646,16 +700,19 @@ async function loadBucket(bucket = currentBucket) {
                     >Click to copy &middot; double-click for ID</span
                   ></span
                 >`
-              : html`<span class="email-hash" title=${r.emailHash || ""}
-                  >${r.emailHash
-                    ? r.emailHash.substring(0, 16) + "…"
-                    : "N/A"}</span
-                >`}
+                : html`<span class="email-hash" title=${r.emailHash || ""}
+                  >${
+                    r.emailHash ? r.emailHash.substring(0, 16) + "…" : "N/A"
+                  }</span
+                >`
+            }
           </td>
           <td>
-            ${r.name
-              ? html`<span class="name-text">${r.name}</span>`
-              : html`<span class="muted">—</span>`}
+            ${
+              r.name
+                ? html`<span class="name-text">${r.name}</span>`
+                : html`<span class="muted">—</span>`
+            }
           </td>
           ${currentBucketPermissions.map((p) => {
             return html`<td>
@@ -677,9 +734,11 @@ async function loadBucket(bucket = currentBucket) {
                   :
                 </button>
                 <span class="tooltip tooltip-above tooltip-right"
-                  >${currentBucketArchived
-                    ? "Actions disabled (archived)"
-                    : "Actions"}</span
+                  >${
+                    currentBucketArchived
+                      ? "Actions disabled (archived)"
+                      : "Actions"
+                  }</span
                 >
               </span>
               <div class="dropdown-menu" id="rowMenu-${idx}">
@@ -746,8 +805,11 @@ function updatePagination() {
   const start = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, totalRecords);
 
-  document.getElementById("paginationInfo").textContent =
-    pageRangeText(start, end, totalRecords);
+  document.getElementById("paginationInfo").textContent = pageRangeText(
+    start,
+    end,
+    totalRecords,
+  );
   document.getElementById("prevBtn").disabled = currentPage === 1;
   document.getElementById("nextBtn").disabled = currentPage >= totalPages;
 }
@@ -919,7 +981,8 @@ async function selectBucket(name) {
   }
 
   // Show/hide confirmation email notice + skip-email toggle
-  document.getElementById("tokenDoubleOptInNotice").hidden = !tokenDefaultOptOut;
+  document.getElementById("tokenDoubleOptInNotice").hidden =
+    !tokenDefaultOptOut;
   document.getElementById("tokenSkipEmailGroup").hidden = !tokenDefaultOptOut;
   if (tokenDefaultOptOut)
     document.getElementById("tokenSendConfirmation").checked = true;
@@ -1046,7 +1109,11 @@ function addNewBucketPerm() {
     return;
   }
   if (newBucketPerms.includes(perm)) {
-    notify("warning", "Duplicate permission", "The permission is already in the list.");
+    notify(
+      "warning",
+      "Duplicate permission",
+      "The permission is already in the list.",
+    );
     return;
   }
   newBucketPerms.push(perm);
@@ -1075,7 +1142,11 @@ async function createNewBucket() {
     return;
   }
   if (buckets.some((b) => b.name === name)) {
-    notify("warning", "Bucket exists", `Bucket "${name}" already exists. Choose another name.`);
+    notify(
+      "warning",
+      "Bucket exists",
+      `Bucket "${name}" already exists. Choose another name.`,
+    );
     return;
   }
 

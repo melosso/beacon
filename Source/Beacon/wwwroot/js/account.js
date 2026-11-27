@@ -5,8 +5,10 @@ async function loadAccount() {
   const me = result.data;
   const usernameEl = document.getElementById("accountUsername");
   if (usernameEl) usernameEl.textContent = me.username || "";
-  paint(document.getElementById("accountRoleBadge"),
-    html`<span class="status-badge ${me.role === "admin" ? "" : "status-badge-muted"}">${me.role || "admin"}</span>`);
+  paint(
+    document.getElementById("accountRoleBadge"),
+    html`<span class="status-badge ${me.role === "admin" ? "" : "status-badge-muted"}">${me.role || "admin"}</span>`,
+  );
   sessionStorage.setItem("beacon_user_id", me.id || "");
   sessionStorage.setItem("beacon_user_role", me.role || "");
   const hasDbRecord = !!me.id;
