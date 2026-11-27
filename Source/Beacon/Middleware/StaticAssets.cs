@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.StaticFiles;
 
 namespace Beacon.Middleware;
 
-/// <summary>Content types served from wwwroot. Any other extension returns 404.</summary>
 public static class StaticAssets
 {
     public static readonly FileExtensionContentTypeProvider ContentTypes = new(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

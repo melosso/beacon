@@ -39,10 +39,8 @@ public class JwtAuthHandler : AuthenticationHandler<JwtAuthOptions>
         return await tokenUsage.TryMarkUsedAsync(SessionHash(token), expiresAt.Value.UtcDateTime);
     }
 
-    /// <summary>Auth cookie name for this instance. Set once at startup by <see cref="UseInstanceCookieName"/>.</summary>
     public static string CookieName { get; private set; } = "beacon_auth";
 
-    /// <summary>Cookie name derived from the signing key: instances on one host keep separate sessions. Secure cookies use the <c>__Host-</c> prefix.</summary>
     public static string InstanceCookieName(byte[] signingKey, bool secure)
     {
         var id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData([.. "beacon-auth-cookie"u8, .. signingKey]))[..12].ToLowerInvariant();
