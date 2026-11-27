@@ -3,7 +3,7 @@
 # Configuration
 API_URL="http://localhost:5000/api/tokens/generate"
 # Key: $ADMIN_API_KEY, else ADMIN_API_KEY from Source/Beacon/.env.
-API_KEY="${ADMIN_API_KEY:-$(grep -s '^ADMIN_API_KEY=' "$(dirname "$0")/Source/Beacon/.env" | cut -d= -f2-)}"
+API_KEY="${ADMIN_API_KEY:-$(grep -s '^ADMIN_API_KEY=' "$(dirname "$0")/../Source/Beacon/.env" | cut -d= -f2-)}"
 
 AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Api-Key: $API_KEY" "http://localhost:5001/api/admin/auth/me")
 case "$AUTH_STATUS" in
@@ -348,9 +348,9 @@ done
 
 echo "Creating webhooks..."
 admin_call POST /buckets/customer_loyalty_programme_eu/webhook \
-    '{"url": "https://example.com/hooks/beacon", "method": "POST"}' > /dev/null && echo "  customer_loyalty_programme_eu: enabled"
+    '{"url": "https://httpbin.org/post", "method": "POST"}' > /dev/null && echo "  customer_loyalty_programme_eu: enabled"
 admin_call POST /buckets/partner_enablement_network_eu/webhook \
-    '{"url": "https://example.com/hooks/partners", "method": "POST", "headers": {"X-Source": "beacon"}}' > /dev/null
+    '{"url": "https://httpbin.org/post", "method": "POST", "headers": {"X-Source": "beacon"}}' > /dev/null
 admin_call PUT /buckets/partner_enablement_network_eu/webhook/enabled '{"enabled": false}' > /dev/null && echo "  partner_enablement_network_eu: disabled"
 
 echo "Renaming and erasing a subscriber..."
