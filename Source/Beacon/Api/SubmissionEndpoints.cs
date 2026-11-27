@@ -449,7 +449,7 @@ public static class SubmissionEndpoints
 
     // Public endpoints
 
-    private static async Task<IResult> GetEmbedPage(
+    internal static async Task<IResult> GetEmbedPage(
         Guid id,
         HttpContext context,
         [FromServices] SubmissionFormService service,
@@ -461,8 +461,6 @@ public static class SubmissionEndpoints
         var form = await service.GetFormAsync(id);
         if (form == null)
             return Results.Content(Minify(FormUnavailableHtml("en", null)), "text/html");
-        if (!form.IsEnabled)
-            return Results.Content(Minify(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig))), "text/html");
 
         var origins = DeserializeOrigins(form.AllowedOrigins);
         // An empty frame-ancestors list is invalid CSS-wise and browsers ignore it; fail closed instead.
@@ -472,6 +470,9 @@ public static class SubmissionEndpoints
         // DENY alongside it would block the embedding this page exists for.
         context.Response.Headers["Content-Security-Policy"] = $"frame-ancestors {cspOrigins}";
         context.Response.Headers.Remove("X-Frame-Options");
+
+        if (!form.IsEnabled)
+            return Results.Content(Minify(FormUnavailableHtml(form.Language, DeserializeFormConfig(form.FormConfig))), "text/html");
 
         var config = DeserializeFormConfig(form.FormConfig) ?? new FormConfigDto();
         var formIdStr = form.Id.ToString();
