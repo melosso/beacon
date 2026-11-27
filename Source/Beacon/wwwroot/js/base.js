@@ -79,13 +79,34 @@ document.addEventListener(
   true,
 );
 
+document.addEventListener("input", (e) => {
+  if (e.target.closest?.("[data-guard]"))
+    e.target.closest("dialog")?.setAttribute("data-dirty", "");
+});
+window.addEventListener("beforeunload", (e) => {
+  if (document.querySelector("dialog[open][data-dirty]")) e.preventDefault();
+});
+
+function markClean(id) {
+  document.getElementById(id)?.removeAttribute("data-dirty");
+}
+
 function openModal(id) {
   const dialog = document.getElementById(id);
+  dialog.removeAttribute("data-dirty");
   if (!dialog.open) dialog.showModal();
 }
 
 function closeModal(id) {
-  document.getElementById(id)?.close();
+  const dialog = document.getElementById(id);
+  if (
+    dialog?.hasAttribute("data-dirty") &&
+    !confirm("Discard unsaved changes?")
+  )
+    return false;
+  dialog?.removeAttribute("data-dirty");
+  dialog?.close();
+  return true;
 }
 
 function isModalOpen(id) {

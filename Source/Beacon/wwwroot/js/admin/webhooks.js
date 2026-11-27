@@ -20,12 +20,14 @@ function insertWebhookVar(name) {
   const varText = `{{${name}}}`;
   ta.value = text.substring(0, start) + varText + text.substring(end);
   ta.selectionStart = ta.selectionEnd = start + varText.length;
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
   ta.focus();
 }
 
 function resetWebhookBodyTemplate() {
-  document.getElementById("webhookBody").value = WEBHOOK_DEFAULT_BODY;
-  checkWebhookEmailVar(WEBHOOK_DEFAULT_BODY);
+  const ta = document.getElementById("webhookBody");
+  ta.value = WEBHOOK_DEFAULT_BODY;
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
   closeWebhookTemplateMenu();
 }
 
@@ -96,6 +98,8 @@ async function showOptionsModal(pushState = true) {
   document.getElementById("deleteWebhookBtn").hidden = true;
   document.getElementById("webhookSecretSection").hidden = true;
   document.getElementById("webhookSecretValue").value = "";
+  document.getElementById("webhookSecretKept").hidden = true;
+  document.getElementById("webhookAdvanced").open = false;
   setWebhookBadge(false);
 
   const sections = document.querySelectorAll("#optionsModal .options-section");
@@ -120,6 +124,11 @@ async function showOptionsModal(pushState = true) {
       webhookHeaders = config.headers || {};
       renderWebhookHeaders();
       document.getElementById("deleteWebhookBtn").hidden = false;
+      document.getElementById("webhookSecretKept").hidden = false;
+      document.getElementById("webhookAdvanced").open =
+        document.getElementById("webhookMethod").value !== "POST" ||
+        Object.keys(webhookHeaders).length > 0 ||
+        webhookBodyVal !== WEBHOOK_DEFAULT_BODY;
       setWebhookBadge(true);
 
       sections[2].open = true;
@@ -167,7 +176,7 @@ async function showOptionsModal(pushState = true) {
 }
 
 function closeOptionsModal() {
-  closeModal("optionsModal");
+  if (!closeModal("optionsModal")) return;
   webhookHeaders = {};
   bucketPermsData = [];
   document.getElementById("newBucketPermInput").value = "";
@@ -259,6 +268,7 @@ function addWebhookHeader() {
 
   webhookHeaders[key] = value;
   renderWebhookHeaders();
+  keyInput.dispatchEvent(new Event("input", { bubbles: true }));
 
   keyInput.value = "";
   valueInput.value = "";
@@ -267,6 +277,9 @@ function addWebhookHeader() {
 function removeWebhookHeader(key) {
   delete webhookHeaders[key];
   renderWebhookHeaders();
+  document
+    .getElementById("webhookHeadersGrid")
+    .dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function renderWebhookHeaders() {
@@ -316,6 +329,7 @@ async function saveWebhook() {
   );
 
   if (result.ok) {
+    markClean("optionsModal");
     if (result.data?.signingSecret) {
       document.getElementById("webhookSecretValue").value =
         result.data.signingSecret;
@@ -345,6 +359,7 @@ async function deleteWebhook() {
     { method: "DELETE" },
   );
   if (result.ok) {
+    markClean("optionsModal");
     notify("success", "Webhook deleted");
     setWebhookBadge(false);
     closeOptionsModal();
