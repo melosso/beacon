@@ -54,7 +54,7 @@ function renderApiKeysPagination() {
   if (info) {
     const start = (_apiKeysPage - 1) * _apiKeysPageSize + 1;
     const end = Math.min(_apiKeysPage * _apiKeysPageSize, total);
-    info.textContent = `${start}–${end} of ${total}`;
+    info.textContent = pageRangeText(start, end, total);
   }
   if (prevBtn) prevBtn.disabled = _apiKeysPage <= 1;
   if (nextBtn) nextBtn.disabled = _apiKeysPage >= totalPages;

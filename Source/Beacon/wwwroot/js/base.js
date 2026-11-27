@@ -1,11 +1,16 @@
 // Shared by the login page and the admin shell. Requires /js/lit.js (html, render, nothing).
 
-// The admin UI is English: numbers and dates follow it, day-first with a 24-hour clock, regardless of the browser locale
+// The admin UI is English: dates follow it, day-first with a 24-hour clock, regardless of the browser locale
 const UI_LOCALE = "en-GB";
 
-// "1–10 of 2,080"; "0 of 0" when empty
+const NUMBER_FORMAT = new Intl.NumberFormat();
+
+function formatNumber(value) {
+  return NUMBER_FORMAT.format(value);
+}
+
 function pageRangeText(start, end, total) {
-  const n = (v) => v.toLocaleString(UI_LOCALE);
+  const n = formatNumber;
   return total === 0 ? "0 of 0" : `${n(start)}–${n(end)} of ${n(total)}`;
 }
 

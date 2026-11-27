@@ -375,14 +375,14 @@ function renderOverview() {
         <td>
           ${
             b.totalEmails != null
-              ? Number(b.totalEmails).toLocaleString(UI_LOCALE)
+              ? formatNumber(b.totalEmails)
               : "N/A"
           }
         </td>
         <td
           title=${
             b.totalRecords
-              ? `${b.optedInRecords} of ${b.totalRecords} consent records`
+              ? `${formatNumber(b.optedInRecords)} of ${formatNumber(b.totalRecords)} consent records`
               : ""
           }
         >
@@ -931,7 +931,7 @@ function showBucketSuggestions() {
         >
           <div class="bucket-name">${b.name}</div>
           <div class="bucket-info">
-            ${Number(b.totalEmails || 0).toLocaleString(UI_LOCALE)} records ·
+            ${formatNumber(b.totalEmails || 0)} records ·
             ${(b.permissions || []).length} permissions
           </div>
         </div>`,
@@ -1052,7 +1052,7 @@ document.addEventListener("click", function (e) {
   }
 });
 
-// NEW BUCKET
+// Add bucket
 let newBucketPerms = [];
 
 function openNewBucketSheet(pushState = true) {

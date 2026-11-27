@@ -363,11 +363,7 @@ function updateAuditPagination() {
     auditTotalRecords === 0 ? 0 : (auditCurrentPage - 1) * auditPageSize + 1;
   const end = Math.min(auditCurrentPage * auditPageSize, auditTotalRecords);
   const info = document.getElementById("auditPaginationInfo");
-  if (info)
-    info.textContent =
-      auditTotalRecords === 0
-        ? "No entries"
-        : `${start}–${end} of ${auditTotalRecords}`;
+  if (info) info.textContent = pageRangeText(start, end, auditTotalRecords);
   const prev = document.getElementById("auditPrevBtn");
   const next = document.getElementById("auditNextBtn");
   if (prev) prev.disabled = auditCurrentPage <= 1;
