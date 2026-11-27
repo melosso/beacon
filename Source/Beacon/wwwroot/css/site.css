@@ -1128,8 +1128,6 @@ h1 {
 }
 
 .table-wrapper {
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -2643,8 +2641,7 @@ details.advanced > summary:hover {
 .settings-subnav {
   width: 196px;
   flex-shrink: 0;
-  padding-right: var(--space-4);
-  border-right: 1px solid hsl(var(--border));
+  padding-right: var(--space-6);
   overflow-y: auto;
 }
 
@@ -2737,8 +2734,7 @@ details.advanced > summary:hover {
 
 .settings-sep {
   border: none;
-  border-top: 1px solid hsl(var(--border));
-  margin: var(--space-4) 0;
+  margin: var(--space-2) 0;
 }
 
 .settings-items {
@@ -2765,7 +2761,7 @@ label.settings-item-card,
   align-items: center;
   justify-content: space-between;
   border-radius: var(--radius);
-  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.35);
   padding: var(--space-4);
   gap: var(--space-6);
   cursor: pointer;
@@ -2777,14 +2773,14 @@ label.settings-item-card,
 }
 
 label.settings-item-card:hover {
-  background: hsl(var(--muted) / 0.5);
+  background: hsl(var(--muted) / 0.7);
 }
 
 .settings-item-card--split {
   display: flex;
   align-items: stretch;
   border-radius: var(--radius);
-  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.35);
   overflow: hidden;
 }
 
