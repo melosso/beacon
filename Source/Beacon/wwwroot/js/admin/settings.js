@@ -200,6 +200,10 @@ async function loadServerSettings() {
     appSettings.emailQueueCron = res.data.emailQueueCron ?? "*/5 * * * *";
     const cronEl = document.getElementById("setting-emailQueueCron");
     if (cronEl) cronEl.value = appSettings.emailQueueCron;
+    appSettings.emailQueueRetentionDays = res.data.emailQueueRetentionDays ?? 90;
+    appSettings.webhooksEnabled = res.data.webhooksEnabled ?? true;
+    document.getElementById("setting-webhooksEnabled").checked =
+      appSettings.webhooksEnabled;
     appSettings.erasureNoticeEnabled = res.data.erasureNoticeEnabled ?? true;
     appSettings.erasureNoticeIncludeEmail =
       res.data.erasureNoticeIncludeEmail ?? false;
@@ -416,6 +420,10 @@ const DATA_POLICY_CRON_PRESETS = [
   },
   {
     expr: "0 9 * * *",
+      emailQueueRetentionDays: appSettings.emailQueueRetentionDays,
+      webhooksEnabled: appSettings.webhooksEnabled,
+      erasureNoticeEnabled: appSettings.erasureNoticeEnabled,
+      erasureNoticeIncludeEmail: appSettings.erasureNoticeIncludeEmail,
     label: "Once a day (09:00 UTC)",
   },
   {
