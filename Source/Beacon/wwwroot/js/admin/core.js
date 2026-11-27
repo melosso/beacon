@@ -180,7 +180,7 @@ async function init() {
   connectSSE();
   loadServerSettings();
   console.log(
-    "%c@melosso/beacon%c. Licensed under %cAGPL 3.0%c.",
+    "%c@melosso/beacon%c. Licensed under %cEUPL 1.2%c.",
     "color:#6f42c1;font-weight:bold",
     "",
     "color:#28a745;font-weight:bold",
