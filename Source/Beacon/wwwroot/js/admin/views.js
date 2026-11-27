@@ -631,8 +631,6 @@ async function loadIdentities(pushState = true) {
   document.getElementById("subBackBtn").hidden = true;
   document.querySelector("#view-subscriptions .pagination-container").hidden =
     false;
-  const subNameEl = document.getElementById("subDetailName");
-  if (subNameEl) subNameEl.hidden = true;
 
   if (pushState) syncSubUrl();
 
@@ -865,11 +863,8 @@ async function showIdentityDetails(emailHash, pushState = true) {
   }
 
   subDetailName = details.name || null;
-  const nameEl = document.getElementById("subDetailName");
-  if (nameEl) {
-    nameEl.textContent = subDetailName || "";
-    nameEl.hidden = !subDetailName;
-  }
+  if (subDetailName)
+    document.getElementById("subTitle").textContent = subDetailName;
 
   subDetailSubscriptions = details.subscriptions;
   subDetailEmail = details.email || null;
