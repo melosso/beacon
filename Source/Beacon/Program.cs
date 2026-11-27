@@ -227,7 +227,7 @@ try
         var db = scope.ServiceProvider.GetRequiredService<BeaconDbContext>();
         var entity = db.SystemConfigurations.Find(1);
         var systemConfig = entity is not null
-            ? JsonSerializer.Deserialize<SystemConfig>(entity.Configuration) ?? new SystemConfig()
+            ? SystemConfigStore.Read(entity.Configuration)
             : new SystemConfig();
         return new SystemConfigurationService(sp.GetRequiredService<IServiceScopeFactory>(), systemConfig);
     });

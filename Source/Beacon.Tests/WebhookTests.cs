@@ -687,4 +687,39 @@ public class WebhookTests
             return Task.CompletedTask;
         }
     }
+
+    private static readonly Encryptor ErasureEncryptor = new("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+
+    private static IReadOnlyList<ConsentRecord> Erased() =>
+    [
+        new() { Bucket = "b", EmailHash = "h", Permission = "news", Status = ConsentStatus.OptedIn, EncryptedEmail = ErasureEncryptor.Encrypt("a@b.nl") },
+        new() { Bucket = "b", EmailHash = "h", Permission = "offers", Status = ConsentStatus.PendingConfirmation }
+    ];
+
+    [Theory]
+    [InlineData(false, "")]
+    [InlineData(true, "a@b.nl")]
+    public async Task ErasureNotice_OptsOutEveryPermission(bool includeEmail, string expectedEmail)
+    {
+        var webhooks = new SubmissionFormServiceTests.InMemoryWebhookService();
+        var config = new SystemConfig { ErasureNoticeEnabled = true, ErasureNoticeIncludeEmail = includeEmail };
+
+        await AdminEndpoints.SendErasureNoticeAsync(webhooks, config, ErasureEncryptor, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, "b", "h", Erased());
+
+        var sent = Assert.Single(webhooks.TriggeredWebhooks);
+        Assert.Equal(expectedEmail, sent.Email);
+        Assert.Equal("h", sent.EmailHash);
+        Assert.All(sent.Permissions, p => Assert.Equal(ConsentStatus.OptedOut, p.Status));
+        Assert.Equal(["news", "offers"], sent.Permissions.Select(p => p.Permission));
+    }
+
+    [Fact]
+    public async Task ErasureNotice_Disabled_SendsNothing()
+    {
+        var webhooks = new SubmissionFormServiceTests.InMemoryWebhookService();
+
+        await AdminEndpoints.SendErasureNoticeAsync(webhooks, new SystemConfig { ErasureNoticeEnabled = false }, ErasureEncryptor, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, "b", "h", Erased());
+
+        Assert.Empty(webhooks.TriggeredWebhooks);
+    }
 }

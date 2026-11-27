@@ -796,6 +796,9 @@ public static class AdminEndpoints
         string emailHash,
         [FromServices] IConsentRepository repository,
         [FromServices] AdminNotificationService notifications,
+        [FromServices] IWebhookService webhookService,
+        [FromServices] ISystemConfigurationService configService,
+        [FromServices] Encryptor encryptor,
         ILogger<Program> logger)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
@@ -817,10 +820,39 @@ public static class AdminEndpoints
             emailHash[..Math.Min(12, emailHash.Length)],
             DateTime.UtcNow);
 
+        var erased = await repository.GetByEmailAsync(normalizedBucket, emailHash);
         var deleted = await repository.DeleteRecordAsync(normalizedBucket, emailHash);
         await notifications.PublishConsentUpdateAsync(new ConsentUpdateNotification(normalizedBucket));
+        await SendErasureNoticeAsync(webhookService, configService.Get(), encryptor, logger, normalizedBucket, emailHash, erased);
 
         return Results.Ok(new { message = "Record deleted", permissionsDeleted = deleted });
+    }
+
+    internal static async Task SendErasureNoticeAsync(
+        IWebhookService webhookService,
+        SystemConfig config,
+        Encryptor encryptor,
+        ILogger logger,
+        string bucket,
+        string emailHash,
+        IReadOnlyList<ConsentRecord> erased)
+    {
+        if (!config.ErasureNoticeEnabled || erased.Count == 0) return;
+        try
+        {
+            var encryptedEmail = erased.FirstOrDefault(r => r.EncryptedEmail is not null)?.EncryptedEmail;
+            await webhookService.TriggerWebhookAsync(bucket, new WebhookTriggerData
+            {
+                Bucket = bucket,
+                Email = config.ErasureNoticeIncludeEmail && encryptedEmail is not null ? encryptor.Decrypt(encryptedEmail) : string.Empty,
+                EmailHash = emailHash,
+                Permissions = erased.Select(r => new PermissionState { Permission = r.Permission, Status = ConsentStatus.OptedOut }).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Erasure notice failed for bucket {Bucket}", bucket);
+        }
     }
 
     private static async Task<IResult> DeletePermission(

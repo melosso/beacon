@@ -125,6 +125,70 @@
   </div>
 </dialog>
 
+<!-- Erasure Notice Settings Modal -->
+<dialog
+  class="modal-backdrop"
+  id="erasureNoticeModal"
+  aria-labelledby="erasureNoticeModalTitle"
+  data-self
+  data-click="closeErasureNoticeModal"
+>
+  <div class="modal modal--lg">
+    <div class="modal-header">
+      <h3 id="erasureNoticeModalTitle">Erasure notice settings</h3>
+      <button
+        class="btn btn-icon"
+        data-click="closeErasureNoticeModal"
+        aria-label="Close"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <p>
+      Choose what your webhooks receive when a subscriber is deleted.
+    </p>
+
+    <div class="settings-items">
+      <div class="settings-item-card">
+        <label class="settings-item-card-label" for="setting-erasureNoticeIncludeEmail">
+          <div class="settings-item-info">
+            <span class="settings-item-title select-none">Include email address</span>
+            <p class="settings-item-desc">
+              Adds the email address for systems that do not store the Beacon ID. Off keeps wiped personal info out of your webhooks.
+            </p>
+          </div>
+          <div class="settings-item-control">
+            <input type="checkbox" id="setting-erasureNoticeIncludeEmail" data-change="saveSettingImmediate erasureNoticeIncludeEmail $checked">
+            <span class="toggle-track"></span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button
+        class="btn btn-primary"
+        data-click="closeErasureNoticeModal"
+      >
+        Done
+      </button>
+    </div>
+  </div>
+</dialog>
+
 <!-- Submission Forms Settings Modal -->
 <dialog
   class="modal-backdrop"

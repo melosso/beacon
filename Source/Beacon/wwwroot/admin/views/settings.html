@@ -243,7 +243,7 @@
                     <label for="setting-retentionPurgeEnabled">
                       <div class="settings-item-info">
                         <span class="settings-item-title select-none">Opted-out anonymisation</span>
-                        <p class="settings-item-desc">Removes personal data from opted-out records after a set period. The email hash and opt-out status are retained for suppression.</p>
+                        <p class="settings-item-desc">Opted-out records past the time limit are wiped of personal info, keeping only an irreversible email hash on the suppression list.</p>
                       </div>
                       <div class="settings-item-control">
                         <input type="checkbox" id="setting-retentionPurgeEnabled" data-change="saveSettingImmediate retentionPurgeEnabled $checked">
@@ -268,7 +268,7 @@
                     <label for="setting-pendingConfirmationPurgeEnabled">
                       <div class="settings-item-info">
                         <span class="settings-item-title select-none">Pending confirmation cleanup</span>
-                        <p class="settings-item-desc">Opts out and anonymises unconfirmed double opt-in attempts after a set period.</p>
+                        <p class="settings-item-desc">Expired opt-ins are opted out and wiped of personal info, keeping only an irreversible email hash to block future messages.</p>
                       </div>
                       <div class="settings-item-control">
                         <input type="checkbox" id="setting-pendingConfirmationPurgeEnabled" data-change="saveSettingImmediate pendingConfirmationPurgeEnabled $checked">
@@ -717,6 +717,24 @@
                 <button class="btn-settings-gear" data-click="showSettingsSection api-keys" aria-label="Manage API keys">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="m9 18 6-6-6-6"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="settings-item-card settings-item-card--split">
+                <label class="settings-item-card-label" for="setting-erasureNoticeEnabled">
+                  <div class="settings-item-info">
+                    <span class="settings-item-title select-none">Erasure notices</span>
+                    <p class="settings-item-desc">Deleted subscribers are sent to your webhooks as opted out, so connected systems can wipe them too.</p>
+                  </div>
+                  <div class="settings-item-control">
+                    <input type="checkbox" id="setting-erasureNoticeEnabled" data-change="saveSettingImmediate erasureNoticeEnabled $checked">
+                    <span class="toggle-track"></span>
+                  </div>
+                </label>
+                <button class="btn-settings-gear" data-click="openErasureNoticeModal" aria-label="Erasure notice settings">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                   </svg>
                 </button>
               </div>
