@@ -3022,7 +3022,7 @@ label.settings-item-card .tooltip-wrapper,
   align-items: flex-start;
   justify-content: space-between;
   border-radius: var(--radius);
-  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.35);
   padding: var(--space-4);
   gap: var(--space-8);
 }

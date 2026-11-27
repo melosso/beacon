@@ -952,3 +952,29 @@
     </div>
   </form>
 </dialog>
+
+<dialog
+  class="modal-backdrop"
+  id="ssoPasswordModal"
+  aria-labelledby="ssoPasswordTitle"
+  data-self
+  data-click="closeSsoPasswordModal"
+>
+  <form class="modal modal--sm" data-submit="confirmSsoPassword">
+    <div class="modal-header">
+      <h3 id="ssoPasswordTitle">Confirm your password</h3>
+      <button type="button" class="btn btn-icon" data-click="closeSsoPasswordModal" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p id="ssoPasswordDesc"></p>
+    <div class="form-group">
+      <label for="ssoPasswordInput">Current password</label>
+      <input type="password" id="ssoPasswordInput" autocomplete="current-password" required />
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" data-click="closeSsoPasswordModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="ssoPasswordBtn">Continue</button>
+    </div>
+  </form>
+</dialog>
