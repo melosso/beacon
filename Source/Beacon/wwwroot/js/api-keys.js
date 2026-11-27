@@ -123,7 +123,7 @@ function renderApiKeysTable(keys) {
       const st = apiKeyStatus(k);
       return html`
         <tr>
-          <td><strong>${k.name}</strong>${k.user ? html` <span class="status-badge status-badge--sm status-badge-muted">User key</span>` : nothing}</td>
+          <td><strong>${k.name}</strong>${k.user ? html` <span class="status-badge status-badge--sm status-badge-muted">User</span>` : nothing}</td>
           <td>${renderPermissionBadges(k.permissions)}</td>
           <td><span class=${st.tone}>${st.label}</span></td>
           <td>${k.activeUntil ? parseServerDate(k.activeUntil).toLocaleDateString(UI_LOCALE, { timeZone: "UTC" }) : html`<span class="text-muted">—</span>`}</td>
