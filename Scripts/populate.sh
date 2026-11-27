@@ -151,8 +151,18 @@ generate_email_permissions() {
 }
 
 
+SHARED_COUNT=${SHARED_IDENTITIES:-40}
+SHARED_EMAILS=()
+SHARED_NAMES=()
+for (( n=0; n<SHARED_COUNT; n++ )); do
+    DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
+    NAME=$(generate_name "$DOMAIN")
+    SHARED_NAMES+=("$NAME")
+    SHARED_EMAILS+=("$(tr ' ' '.' <<< "${NAME,,}")$(( n + 10 ))@${DOMAIN}")
+done
+
 # Processing
-echo "Initialization: Generating ${#BUCKETS[@]} buckets..."
+echo "Initialization: Generating ${#BUCKETS[@]} buckets with $SHARED_COUNT shared identities..."
 
 for BUCKET_NAME in "${BUCKETS[@]}"; do
 
@@ -169,10 +179,16 @@ for BUCKET_NAME in "${BUCKETS[@]}"; do
     echo "Processing [$BUCKET_NAME]: $NUM_EMAILS users with $NUM_BUCKET_PERMS available permissions..."
 
     for (( i=1; i<=NUM_EMAILS; i++ )); do
-        USER_ID=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
-        DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
-        EMAIL="${USER_ID}@${DOMAIN}"
-        NAME=$(generate_name "$DOMAIN")
+        if (( SHARED_COUNT > 0 && RANDOM % 100 < ${SHARED_PERCENT:-15} )); then
+            SHARED=$(( RANDOM % SHARED_COUNT ))
+            EMAIL=${SHARED_EMAILS[$SHARED]}
+            NAME=${SHARED_NAMES[$SHARED]}
+        else
+            USER_ID=$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)
+            DOMAIN=${DOMAINS[$RANDOM % ${#DOMAINS[@]}]}
+            EMAIL="${USER_ID}@${DOMAIN}"
+            NAME=$(generate_name "$DOMAIN")
+        fi
 
         PERMISSIONS_JSON=$(generate_email_permissions "${BUCKET_PERMISSIONS[@]}")
 
