@@ -1,0 +1,32 @@
+// Shared pager: deep paging, first/last, page jump, clamp after rows shrink, stale response from an overlapping refresh.
+(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const out = [];
+  const pager = () => document.getElementById("bucketPager");
+  const info = () => pager().querySelector(".pagination-info").textContent.trim();
+  const input = () => pager().querySelector(".page-input");
+  const lastPageRequested = () => Number(new URLSearchParams(window.__requests.filter((u) => u.includes("/records")).at(-1).split("?")[1]).get("page"));
+  const check = (label, ok) => out.push(`${ok ? "ok  " : "FAIL"} ${label}`);
+  await wait(800);
+  showBucket("newsletter"); await wait(300);
+  check(`first page: ${info()} / ${pager().querySelector(".page-jump").textContent.replace(/\s+/g, " ").trim()}`, info() === `1–10 of ${formatNumber(14700)}` && pager().textContent.includes(`of ${formatNumber(1470)}`));
+  check("first/prev disabled on page 1", pager().querySelector('[aria-label="First page"]').disabled && pager().querySelector('[aria-label="Previous page"]').disabled);
+  pager().querySelector('[aria-label="Last page"]').click(); await wait(200);
+  check(`last page request=${lastPageRequested()} input=${input().value}`, lastPageRequested() === 1470 && input().value === "1470");
+  input().value = "25"; input().dispatchEvent(new Event("change")); await wait(200);
+  check(`jump to 25 request=${lastPageRequested()}`, lastPageRequested() === 25 && input().value === "25");
+  input().value = "99999"; input().dispatchEvent(new Event("change")); await wait(200);
+  check(`out-of-range jump clamps request=${lastPageRequested()}`, lastPageRequested() === 1470);
+  pager().querySelector('[aria-label="First page"]').click(); await wait(200);
+  check(`first page request=${lastPageRequested()}`, lastPageRequested() === 1);
+  currentPage = 25; window.__total = 100; loadBucket(); await wait(300);
+  check(`rows shrink: page 25 of 10 moves to ${lastPageRequested()}, ${info()}`, lastPageRequested() === 10 && info() === "91–100 of 100");
+  window.__total = 14700; window.__slowPage = 3;
+  currentPage = 3; loadBucket(); await wait(20);
+  currentPage = 4; loadBucket(); await wait(700);
+  check(`stale slow response ignored: ${info()}`, info() === `31–40 of ${formatNumber(14700)}`);
+  const fails = out.filter((l) => l.startsWith("FAIL")).length;
+  const pre = document.createElement("pre"); pre.id = "guardlog";
+  pre.textContent = [`fails=${fails}`, ...out].join("\n");
+  document.body.append(pre);
+})();

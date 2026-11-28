@@ -348,14 +348,14 @@ if [[ -n "$MELOSSO_ID" ]]; then
             "primaryAccent": "#059669",
             "surfaceColour": "#F8FAFC",
             "theme": "system",
-            "browserTitle": "Melosso preferences",
-            "pageTitle": "Your Melosso preferences",
+            "browserTitle": "Marketing preferences",
+            "pageTitle": "Your marketing preferences",
             "pageBody": "Choose which updates you receive from Melosso.",
             "emailTitle": "Confirm your subscription",
             "emailBody": "Confirm your email address to start receiving updates from Melosso.",
             "confirmTitle": "Subscription confirmed",
             "confirmMsg": "Thanks. Your preferences are saved.",
-            "footer": "Melosso, Europe"
+            "footer": "This link is intented for the following recipient:"
         }
     }' > /dev/null
     admin_call PUT "/brand-identities/$MELOSSO_ID/buckets" \
