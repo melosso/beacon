@@ -8,22 +8,22 @@ public interface IConsentRepository
     /// <summary>Inserts or updates the record subject to <see cref="ConsentTransition"/>. Returns false if no write occurs.</summary>
     /// <param name="insertOnly">If true: an existing record is never updated.</param>
     Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false);
-    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null);
+    Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null, string? actorId = null);
 
     // Admin queries
     Task<IReadOnlyList<BucketInfo>> GetBucketsAsync();
     Task<BucketDetails> GetBucketDetailsAsync(string bucket);
     Task<PagedResult<EmailPermissions>> GetBucketRecordsAsync(string bucket, int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
-    Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket);
+    Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket, CancellationToken ct = default);
     Task<int> DeleteBucketAsync(string bucket);
     Task<int> DeletePermissionAsync(string bucket, string permission);
     Task<int> DeleteRecordAsync(string bucket, string emailHash, string? actorId = null);
     Task<int> UpdateNameAsync(string emailHash, string? encryptedName);
     Task<bool> EmailExistsInBucketAsync(string bucket, string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailAsync(string bucket, string emailHash);
-    Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null);
+    Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null, CancellationToken ct = default);
     Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail, string? EncryptedName)>> GetEmailHashMappingsAsync();
-    Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null);
+    Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null, CancellationToken ct = default);
     Task<Dictionary<string, EncryptedContact>> GetEncryptedEmailsForHashesAsync(IReadOnlyList<string> hashes, CancellationToken ct = default);
     Task<IdentityDetails?> GetIdentityDetailsAsync(string emailHash);
     Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default);
@@ -34,11 +34,16 @@ public interface IConsentRepository
     Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default);
 
     // Data policy operations
-    Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default);
+    /// <summary>Removes personal data from opted-out records older than <paramref name="cutoff"/>. Writes one Erasure audit entry per record, attributed to <paramref name="actorId"/>.</summary>
+    Task<int> AnonymiseOptedOutAsync(DateTime cutoff, string actorId, CancellationToken ct = default);
     /// <summary>Sets pending confirmation records older than <paramref name="cutoff"/> to OptedOut and removes their personal data.</summary>
-    Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default);
+    Task<int> PurgePendingConfirmationAsync(DateTime cutoff, string actorId, CancellationToken ct = default);
     Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default);
     Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default);
+    /// <summary>Records the retention policy anonymises at <paramref name="cutoff"/>, oldest first.</summary>
+    Task<IReadOnlyList<ConsentRecord>> ListOptedOutToAnonymiseAsync(DateTime cutoff, int limit, CancellationToken ct = default);
+    /// <summary>Records the pending confirmation policy purges at <paramref name="cutoff"/>, oldest first.</summary>
+    Task<IReadOnlyList<ConsentRecord>> ListPendingConfirmationToPurgeAsync(DateTime cutoff, int limit, CancellationToken ct = default);
 }
 
 public sealed class BucketInfo

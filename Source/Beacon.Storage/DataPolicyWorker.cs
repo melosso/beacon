@@ -113,13 +113,14 @@ public sealed class DataPolicyWorker : BackgroundService
 
         var policies = sp.GetRequiredService<DataPolicyService>();
         var tasks = sp.GetRequiredService<WorkflowTaskRepository>();
+        var notifications = sp.GetService<AdminNotificationService>();
         var now = DateTime.UtcNow;
 
         if (config.RetentionPurgeEnabled)
-            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.RetentionPurge, now, config.RetentionPurgeDays, config.RetentionPurgeRequireApproval, stoppingToken);
+            await RunPolicyAsync(policies, tasks, notifications, triggeredBy, WorkflowTaskType.RetentionPurge, now, config.RetentionPurgeDays, config.RetentionPurgeRequireApproval, stoppingToken);
 
         if (config.PendingConfirmationPurgeEnabled && !stoppingToken.IsCancellationRequested)
-            await RunPolicyAsync(policies, tasks, triggeredBy, WorkflowTaskType.PendingConfirmationPurge, now, config.PendingConfirmationPurgeDays, config.PendingConfirmationPurgeRequireApproval, stoppingToken);
+            await RunPolicyAsync(policies, tasks, notifications, triggeredBy, WorkflowTaskType.PendingConfirmationPurge, now, config.PendingConfirmationPurgeDays, config.PendingConfirmationPurgeRequireApproval, stoppingToken);
 
         if (!config.RetentionPurgeEnabled && !config.PendingConfirmationPurgeEnabled)
         {
@@ -130,6 +131,7 @@ public sealed class DataPolicyWorker : BackgroundService
     private async Task RunPolicyAsync(
         DataPolicyService policies,
         WorkflowTaskRepository taskRepo,
+        AdminNotificationService? notifications,
         WorkflowTrigger triggeredBy,
         WorkflowTaskType taskType,
         DateTime scheduledAt,
@@ -152,7 +154,7 @@ public sealed class DataPolicyWorker : BackgroundService
                 return;
             }
 
-            await taskRepo.CreateAsync(new WorkflowTask
+            var queued = await taskRepo.CreateAsync(new WorkflowTask
             {
                 Id = Guid.NewGuid(),
                 TaskType = taskType,
@@ -161,9 +163,10 @@ public sealed class DataPolicyWorker : BackgroundService
                 ScheduledAt = scheduledAt,
                 PolicyDays = policyDays
             }, stoppingToken);
+            if (notifications is not null) await notifications.PublishWorkflowUpdateAsync();
             _logger.LogInformation(
-                "Data policy: {TaskType} queued for approval (triggeredBy={TriggeredBy}, pending={Pending})",
-                taskType, triggeredBy, pending);
+                "Data policy: {Reference} {TaskType} queued for approval (triggeredBy={TriggeredBy}, pending={Pending})",
+                queued.Reference, taskType, triggeredBy, pending);
             return;
         }
 
@@ -181,9 +184,9 @@ public sealed class DataPolicyWorker : BackgroundService
         var done = await policies.RunAsync(running, stoppingToken);
         if (done.Status == WorkflowTaskStatus.Completed)
             _logger.LogInformation(
-                "Data policy: {TaskType} completed (triggeredBy={TriggeredBy}, affected={Affected})",
-                taskType, triggeredBy, done.RecordsAffected);
+                "Data policy: {Reference} {TaskType} completed (triggeredBy={TriggeredBy}, affected={Affected})",
+                done.Reference, taskType, triggeredBy, done.RecordsAffected);
         else
-            _logger.LogError("Data policy: {TaskType} failed: {Error}", taskType, done.ErrorMessage);
+            _logger.LogError("Data policy: {Reference} {TaskType} failed: {Error}", done.Reference, taskType, done.ErrorMessage);
     }
 }

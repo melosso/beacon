@@ -33,6 +33,16 @@ public class TokenTests
     }
 
     [Fact]
+    public void Generate_SignsActorClaim()
+    {
+        var generator = new TokenGenerator(_options);
+        var validator = new TokenValidator(_options);
+
+        Assert.Equal("admin-1", validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"], actor: "admin-1")).Payload?.Actor);
+        Assert.Null(validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"])).Payload?.Actor);
+    }
+
+    [Fact]
     public void Generate_NormalizesEmail()
     {
         var generator = new TokenGenerator(_options);

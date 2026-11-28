@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Beacon.Core.Models;
 using Beacon.Core.Services;
 using Beacon.Storage;
@@ -29,6 +30,22 @@ public class ConsentAuditRepositoryTests : IDisposable
     {
         _db.Dispose();
         _connection.Dispose();
+    }
+
+    [Fact]
+    public async Task ProcessOptOutAsync_AdminLink_AuditsSourceAndActor()
+    {
+        var service = new ConsentService(_repository, new NullBeaconCacheService(),
+            new Beacon.Tests.Fakes.StubSystemConfigurationService(),
+            new Beacon.Core.Security.EmailHasher("test-pepper"),
+            new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="));
+
+        await service.ProcessOptOutAsync("bucket-a", "a@example.com", ["newsletter"], "tok", ConsentSource.AdminLink, actorId: "admin-1");
+        _db.ChangeTracker.Clear();
+
+        var entry = Assert.Single((await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken)).Records);
+        Assert.Equal(ConsentSource.AdminLink, entry.Source);
+        Assert.Equal("admin-1", entry.ActorId);
     }
 
     [Fact]
@@ -145,7 +162,7 @@ public class ConsentAuditRepositoryTests : IDisposable
 
         var cutoff = DateTime.UtcNow.AddMinutes(1);
         Assert.Equal(1, await _repository.CountOptedOutToAnonymiseAsync(cutoff, TestContext.Current.CancellationToken));
-        Assert.Equal(1, await _repository.AnonymiseOptedOutAsync(cutoff, TestContext.Current.CancellationToken));
+        Assert.Equal(1, await _repository.AnonymiseOptedOutAsync(cutoff, "test", TestContext.Current.CancellationToken));
         _db.ChangeTracker.Clear();
 
         var stored = await _db.ConsentRecords.SingleAsync(TestContext.Current.CancellationToken);
@@ -165,7 +182,7 @@ public class ConsentAuditRepositoryTests : IDisposable
         await _repository.UpsertAsync(record);
         _db.ChangeTracker.Clear();
 
-        Assert.Equal(0, await _repository.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken));
+        Assert.Equal(0, await _repository.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), "test", TestContext.Current.CancellationToken));
         _db.ChangeTracker.Clear();
 
         Assert.NotNull((await _db.ConsentAuditEntries.SingleAsync(TestContext.Current.CancellationToken)).CustomFields);
@@ -197,6 +214,52 @@ public class ConsentAuditRepositoryTests : IDisposable
             Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
             CancellationToken cancellationToken = default) =>
             Armed ? throw new DbUpdateException("Simulated audit write failure.") : base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    [Fact]
+    public async Task ExportIdentities_BucketFilter_ReturnsOnlyThatBucket()
+    {
+        var a = new string('a', 64);
+        var b = new string('b', 64);
+        await _repository.UpsertAsync(MakeRecord("bucket-a", a, "newsletter", ConsentStatus.OptedIn));
+        await _repository.UpsertAsync(MakeRecord("bucket-b", a, "newsletter", ConsentStatus.OptedIn));
+        await _repository.UpsertAsync(MakeRecord("bucket-b", b, "newsletter", ConsentStatus.OptedIn));
+        _db.ChangeTracker.Clear();
+
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            RequestServices = new ServiceCollection().AddLogging().BuildServiceProvider()
+        };
+        var encryptor = new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=");
+        var ct = TestContext.Current.CancellationToken;
+
+        var full = await Beacon.Api.AdminEndpoints.ExportIdentities(new(Full: true, Bucket: "Bucket-A"), _repository, encryptor, context, ct);
+        var fullCsv = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ContentHttpResult>(full).ResponseContent!;
+        Assert.Contains("bucket-a", fullCsv);
+        Assert.DoesNotContain("bucket-b", fullCsv);
+
+        var summary = await Beacon.Api.AdminEndpoints.ExportIdentities(new(Bucket: "bucket-a"), _repository, encryptor, context, ct);
+        var summaryCsv = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ContentHttpResult>(summary).ResponseContent!;
+        Assert.Contains(a, summaryCsv);
+        Assert.DoesNotContain(b, summaryCsv);
+        Assert.Equal("1", context.Response.Headers["X-Total-Count"].ToString());
+
+        var selected = await Beacon.Api.AdminEndpoints.ExportIdentities(new(Hashes: [a.ToUpperInvariant(), b], Bucket: "bucket-a"), _repository, encryptor, context, ct);
+        var selectedCsv = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.ContentHttpResult>(selected).ResponseContent!;
+        Assert.Contains(a, selectedCsv);
+        Assert.DoesNotContain(b, selectedCsv);
+    }
+
+    [Fact]
+    public async Task BulkReads_CancelledToken_Throw()
+    {
+        await _repository.UpsertAsync(MakeRecord("bucket-a", new string('a', 64), "newsletter", ConsentStatus.OptedIn));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _repository.GetAllBucketRecordsAsync("bucket-a", cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _repository.GetIdentitiesAsync(1, 10, ct: cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _repository.GetIdentitiesByHashesAsync([new string('a', 64)], 1, 10, ct: cts.Token));
     }
 
     private static ConsentRecord MakeRecord(string bucket, string emailHash, string permission, ConsentStatus status) =>

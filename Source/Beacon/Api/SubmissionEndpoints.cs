@@ -520,7 +520,8 @@ public static class SubmissionEndpoints
                 .container { max-width: 480px; margin: 0 auto; }
                 h2 { font-size: var(--text-xl); margin-bottom: var(--space-2); font-weight: 600; }
                 .description { font-size: var(--text-base); opacity: 0.7; margin-bottom: var(--space-4); }
-                .form-row { display: flex; gap: var(--space-2); }
+                .form-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+                .form-row .consent-row, .consent-row + button { flex-basis: 100%; margin-top: 0; }
                 input[type="text"], input[type="email"] {
                   padding: var(--space-2-5) var(--space-3-5);
                   border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
@@ -568,9 +569,9 @@ public static class SubmissionEndpoints
                   {{(form.CollectName ? $"<input type=\"text\" name=\"name\" placeholder=\"{WebUtility.HtmlEncode(form.NameLabel ?? embedT.NamePlaceholder)}\" autocomplete=\"name\" />" : "")}}
                   <div class="form-row">
                     <input type="email" name="email" placeholder="{{WebUtility.HtmlEncode(embedT.EmailPlaceholder)}}" required />
+                    {{consentHtml}}
                     <button type="submit">{{WebUtility.HtmlEncode(config.ButtonText ?? embedT.Subscribe)}}</button>
                   </div>
-                  {{consentHtml}}
                   {{privacyHtml}}
                 </form>
                 <div id="msg" class="message"></div>
@@ -677,7 +678,7 @@ public static class SubmissionEndpoints
         if (form.ConsentRequired)
         {
             var escapedConsentText = JsonSerializer.Serialize(form.ConsentText ?? jsT.ConsentText).Trim('"');
-            consentJs = $"var cRow=document.createElement('div');cRow.className='consent-row';var cCb=document.createElement('input');cCb.type='checkbox';cCb.name='consent';cCb.id='consentCb';cCb.value='true';cCb.required=true;var cLbl=document.createElement('label');cLbl.setAttribute('for','consentCb');cLbl.textContent=\"{escapedConsentText}\";cRow.appendChild(cCb);cRow.appendChild(cLbl);f.appendChild(cRow);";
+            consentJs = $"var cRow=document.createElement('div');cRow.className='consent-row';var cCb=document.createElement('input');cCb.type='checkbox';cCb.name='consent';cCb.id='consentCb';cCb.value='true';cCb.required=true;var cLbl=document.createElement('label');cLbl.setAttribute('for','consentCb');cLbl.textContent=\"{escapedConsentText}\";cRow.appendChild(cCb);cRow.appendChild(cLbl);row.appendChild(cRow);";
         }
 
         var privacyJs = "";
@@ -710,7 +711,8 @@ public static class SubmissionEndpoints
                 .container { background: {{containerBg}}; color: {{containerFg}}; padding: 16px; }
                 h2 { font-size: 1.25rem; margin-bottom: 8px; font-weight: 600; }
                 .description { font-size: 0.9rem; opacity: 0.7; margin-bottom: 16px; }
-                .form-row { display: flex; gap: 8px; }
+                .form-row { display: flex; flex-wrap: wrap; gap: 8px; }
+                .form-row .consent-row, .consent-row + button { flex-basis: 100%; margin-top: 0; }
                 {{nameInputCss}}
                 input[type="email"] { flex: 1; padding: 10px 14px; border: 1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius: {{safeRadius}}; font-size: 0.95rem; font-family: inherit; background: color-mix(in srgb,currentColor 5%,transparent); color: inherit; outline: none; }
                 input[type="email"]:focus { border-color: {{safePrimary}}; }
@@ -740,9 +742,10 @@ public static class SubmissionEndpoints
               input.type = 'email'; input.name = 'email'; input.placeholder = '{{jsEmail}}'; input.required = true;
               var btn = document.createElement('button');
               btn.type = 'submit'; btn.textContent = cfg.buttonText || '{{jsSubscribe}}';
-              row.appendChild(input); row.appendChild(btn);
-              f.appendChild(row);
+              row.appendChild(input);
               {{consentJs}}
+              row.appendChild(btn);
+              f.appendChild(row);
               {{privacyJs}}
               wrapper.appendChild(f);
               var msg = document.createElement('div');

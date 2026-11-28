@@ -23,7 +23,7 @@ public sealed class TokenGenerator
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
-    public string Generate(string bucket, string email, string[] permissions, GenerateTokenRequest? options = null)
+    public string Generate(string bucket, string email, string[] permissions, GenerateTokenRequest? options = null, string? actor = null)
     {
         var normalizedEmail = NormalizeEmail(email);
         var now = _timeProvider.GetUtcNow();
@@ -40,7 +40,8 @@ public sealed class TokenGenerator
             ExpiresAt = now.AddDays(expiryDays).ToUnixTimeSeconds(),
             Nonce = GenerateNonce(),
             AllowReplay = allowReplay,
-            Language = language
+            Language = language,
+            Actor = actor
         };
 
         return CreateToken(payload);

@@ -778,7 +778,7 @@ public class SubmissionFormServiceTests
 
         public Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(
             string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default,
-            IReadOnlyList<string>? emailHashes = null)
+            IReadOnlyList<string>? emailHashes = null, string? actorId = null)
             => Task.FromResult(new PagedResult<ConsentAuditEntry>
                 { Records = [], Total = 0, Page = page, PageSize = pageSize });
 
@@ -801,7 +801,7 @@ public class SubmissionFormServiceTests
             return Task.FromResult(new PagedResult<EmailPermissions> { Records = [], Total = 0, Page = page, PageSize = pageSize });
         }
 
-        public Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket)
+        public Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket, CancellationToken ct = default)
         {
             return Task.FromResult<IReadOnlyList<EmailPermissions>>(new List<EmailPermissions>());
         }
@@ -820,9 +820,9 @@ public class SubmissionFormServiceTests
             return Task.FromResult<IReadOnlyList<ConsentRecord>>(records);
         }
 
-        public Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null) => throw new NotImplementedException();
+        public Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<IReadOnlyList<(string EmailHash, string? EncryptedEmail, string? EncryptedName)>> GetEmailHashMappingsAsync() => throw new NotImplementedException();
-        public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null) => throw new NotImplementedException();
+        public Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(IReadOnlyList<string> hashes, int page, int pageSize, string? sortBy = null, string? sortDir = null, CancellationToken ct = default) => throw new NotImplementedException();
 
         public Task<IReadOnlyList<ConsentRecord>> GetByEmailHashesAsync(IReadOnlyList<string> emailHashes, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ConsentRecord>>([]);
@@ -857,10 +857,12 @@ public class SubmissionFormServiceTests
         public Task CommitTransactionAsync() => Task.CompletedTask;
 
         public Task DeleteAuditEntriesByEmailHashAsync(string emailHash, string bucket, CancellationToken ct = default) => Task.CompletedTask;
-        public Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
-        public Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> AnonymiseOptedOutAsync(DateTime cutoff, string actorId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> PurgePendingConfirmationAsync(DateTime cutoff, string actorId, CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
         public Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<IReadOnlyList<ConsentRecord>> ListOptedOutToAnonymiseAsync(DateTime cutoff, int limit, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ConsentRecord>>([]);
+        public Task<IReadOnlyList<ConsentRecord>> ListPendingConfirmationToPurgeAsync(DateTime cutoff, int limit, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<ConsentRecord>>([]);
 
         private class NoOpDisposable : IDisposable
         {

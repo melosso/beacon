@@ -12,7 +12,8 @@ public enum ConsentSource
     Url = 0,
     Api = 1,
     Admin = 2,
-    Erasure = 3
+    Erasure = 3,
+    AdminLink = 4
 }
 
 public static class ConsentTransition

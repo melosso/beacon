@@ -34,6 +34,7 @@ internal static partial class ExportWriter
             context.Request.Path.Value, context.User.Identity?.Name, context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
             context.Connection.RemoteIpAddress?.ToString(), rows.Count, format);
         context.Response.Headers.ContentDisposition = $"attachment; filename=\"{fileName}.{format}\"";
+        context.Response.Headers["X-Total-Count"] = rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return format switch
         {
             "json" => Results.Text(JsonSerializer.Serialize(rows.Select(ToJsonObject), Json), "application/json", Encoding.UTF8),

@@ -41,4 +41,7 @@ public sealed record WorkflowTask
     public int RecordsAffected { get; init; }
     public string? Notes { get; init; }
     public string? ErrorMessage { get; init; }
+
+    /// <summary>Short display reference derived from <see cref="Id"/>, e.g. WF-1A2B3C4D. Audit entries written by the task name it as their actor.</summary>
+    public string Reference => $"WF-{Id.ToString("N")[..8].ToUpperInvariant()}";
 }

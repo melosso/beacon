@@ -56,6 +56,18 @@ public sealed class DataPolicyService
         _ => throw new InvalidOperationException($"Unknown task type: {type}")
     };
 
+    /// <summary>Returns records the policy affects for a task scheduled at <paramref name="scheduledAt"/>, oldest first.</summary>
+    public Task<IReadOnlyList<ConsentRecord>> ListAsync(WorkflowTaskType type, DateTime scheduledAt, int policyDays, int limit, CancellationToken ct = default)
+    {
+        var cutoff = scheduledAt.AddDays(-policyDays);
+        return type switch
+        {
+            WorkflowTaskType.RetentionPurge => _consentRepo.ListOptedOutToAnonymiseAsync(cutoff, limit, ct),
+            WorkflowTaskType.PendingConfirmationPurge => _consentRepo.ListPendingConfirmationToPurgeAsync(cutoff, limit, ct),
+            _ => throw new InvalidOperationException($"Unknown task type: {type}")
+        };
+    }
+
     /// <summary>Counts records the policy affects for a task scheduled at <paramref name="scheduledAt"/>.</summary>
     public Task<int> CountAsync(WorkflowTaskType type, DateTime scheduledAt, int policyDays, CancellationToken ct = default)
     {
@@ -80,10 +92,10 @@ public sealed class DataPolicyService
             var (affected, notes) = running.TaskType switch
             {
                 WorkflowTaskType.RetentionPurge => (
-                    await _consentRepo.AnonymiseOptedOutAsync(cutoff, ct),
+                    await _consentRepo.AnonymiseOptedOutAsync(cutoff, running.Reference, ct),
                     $"Anonymised opted-out records older than {days} days"),
                 WorkflowTaskType.PendingConfirmationPurge => (
-                    await _consentRepo.PurgePendingConfirmationAsync(cutoff, ct),
+                    await _consentRepo.PurgePendingConfirmationAsync(cutoff, running.Reference, ct),
                     $"Opted out and anonymised pending confirmation records older than {days} days"),
                 _ => throw new InvalidOperationException($"Unknown task type: {running.TaskType}")
             };

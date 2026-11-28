@@ -243,7 +243,7 @@ public abstract class DatabaseProviderTests
         await repo.UpsertAsync(MakeRecord(bucket, "h", "email", ConsentStatus.PendingConfirmation, "enc", "name"));
         db.ChangeTracker.Clear();
 
-        Assert.True(await repo.PurgePendingConfirmationAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken) >= 1);
+        Assert.True(await repo.PurgePendingConfirmationAsync(DateTime.UtcNow.AddMinutes(1), "test", TestContext.Current.CancellationToken) >= 1);
         db.ChangeTracker.Clear();
 
         var record = await repo.GetAsync(bucket, "h", "email");
@@ -264,7 +264,7 @@ public abstract class DatabaseProviderTests
         await repo.UpsertAsync(seeded);
         db.ChangeTracker.Clear();
 
-        Assert.True(await repo.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken) >= 1);
+        Assert.True(await repo.AnonymiseOptedOutAsync(DateTime.UtcNow.AddMinutes(1), "test", TestContext.Current.CancellationToken) >= 1);
         db.ChangeTracker.Clear();
 
         var record = await repo.GetAsync(bucket, "h", "email");

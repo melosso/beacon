@@ -104,11 +104,13 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(
         string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default,
-        IReadOnlyList<string>? emailHashes = null)
+        IReadOnlyList<string>? emailHashes = null, string? actorId = null)
     {
         var query = _context.ConsentAuditEntries.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(bucket))
             query = query.Where(e => e.Bucket == bucket);
+        if (!string.IsNullOrWhiteSpace(actorId))
+            query = query.Where(e => e.ActorId == actorId);
         if (emailHashes is { Count: > 0 })
         {
             query = query.Where(e => emailHashes.Contains(e.EmailHash));
@@ -271,12 +273,12 @@ public sealed class ConsentRepository : IConsentRepository
         };
     }
 
-    public async Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket)
+    public async Task<IReadOnlyList<EmailPermissions>> GetAllBucketRecordsAsync(string bucket, CancellationToken ct = default)
     {
         var bucketRecords = await _context.ConsentRecords
             .AsNoTracking()
             .Where(r => r.Bucket == bucket)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return bucketRecords
             .GroupBy(r => r.EmailHash)
@@ -381,7 +383,7 @@ public sealed class ConsentRepository : IConsentRepository
             .ToListAsync();
     }
 
-    public async Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null)
+    public async Task<PagedResult<IdentityInfo>> GetIdentitiesAsync(int page, int pageSize, string? sortBy = null, string? sortDir = null, string? search = null, CancellationToken ct = default)
     {
         var baseQuery = _context.ConsentRecords.AsNoTracking().AsQueryable();
 
@@ -397,7 +399,7 @@ public sealed class ConsentRepository : IConsentRepository
         var total = await baseQuery
             .Select(r => r.EmailHash)
             .Distinct()
-            .CountAsync();
+            .CountAsync(ct);
 
         var grouped = baseQuery
             .GroupBy(r => r.EmailHash)
@@ -428,7 +430,7 @@ public sealed class ConsentRepository : IConsentRepository
         var paged = await sorted
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return new PagedResult<IdentityInfo>
         {
@@ -478,7 +480,7 @@ public sealed class ConsentRepository : IConsentRepository
 
     public async Task<PagedResult<IdentityInfo>> GetIdentitiesByHashesAsync(
         IReadOnlyList<string> hashes, int page, int pageSize,
-        string? sortBy = null, string? sortDir = null)
+        string? sortBy = null, string? sortDir = null, CancellationToken ct = default)
     {
         if (hashes.Count == 0)
             return new PagedResult<IdentityInfo> { Records = [], Total = 0, Page = page, PageSize = pageSize };
@@ -490,7 +492,7 @@ public sealed class ConsentRepository : IConsentRepository
         var total = await baseQuery
             .Select(r => r.EmailHash)
             .Distinct()
-            .CountAsync();
+            .CountAsync(ct);
 
         var grouped = baseQuery
             .GroupBy(r => r.EmailHash)
@@ -521,7 +523,7 @@ public sealed class ConsentRepository : IConsentRepository
         var paged = await sorted
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return new PagedResult<IdentityInfo>
         {
@@ -584,25 +586,37 @@ public sealed class ConsentRepository : IConsentRepository
         }
     }
 
-    public async Task<int> AnonymiseOptedOutAsync(DateTime cutoff, CancellationToken ct = default)
+    public async Task<int> AnonymiseOptedOutAsync(DateTime cutoff, string actorId, CancellationToken ct = default)
     {
         await using var tx = _context.Database.CurrentTransaction is null ? await _context.Database.BeginTransactionAsync(ct) : null;
-        var affected = await CountOptedOutToAnonymiseAsync(cutoff, ct);
-        await _context.ConsentRecords
-            .Where(r => r.Status == ConsentStatus.OptedOut && r.ChangedAt < cutoff)
-            .Where(HasPersonalData)
-            .ExecuteUpdateAsync(ScrubPersonalData, ct);
+        var affected = await OptedOutWithPersonalData(cutoff).AsNoTracking()
+            .Concat(OptedOutWithAuditLeft(cutoff).AsNoTracking())
+            .Select(r => new { r.Bucket, r.EmailHash, r.Permission })
+            .ToListAsync(ct);
+        await OptedOutWithPersonalData(cutoff).ExecuteUpdateAsync(ScrubPersonalData, ct);
         await ScrubAuditAsync(cutoff, ct);
+        var now = DateTime.UtcNow;
+        _context.ConsentAuditEntries.AddRange(affected.Select(r => new ConsentAuditEntry
+        {
+            Id = Guid.NewGuid(),
+            Bucket = r.Bucket,
+            EmailHash = r.EmailHash,
+            Permission = r.Permission,
+            OldStatus = ConsentStatus.OptedOut,
+            NewStatus = ConsentStatus.OptedOut,
+            Source = ConsentSource.Erasure,
+            ActorId = actorId,
+            ChangedAt = now
+        }));
+        await _context.SaveChangesAsync(ct);
         if (tx is not null) await tx.CommitAsync(ct);
-        return affected;
+        return affected.Count;
     }
 
-    public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, CancellationToken ct = default)
+    public async Task<int> PurgePendingConfirmationAsync(DateTime cutoff, string actorId, CancellationToken ct = default)
     {
         // A deleted row reads as OptedIn: the record stays as an OptedOut suppression entry.
-        var candidates = await _context.ConsentRecords.AsNoTracking()
-            .Where(r => r.Status == ConsentStatus.PendingConfirmation && r.ChangedAt < cutoff)
-            .ToListAsync(ct);
+        var candidates = await PendingConfirmationToPurge(cutoff).AsNoTracking().ToListAsync(ct);
 
         await using var tx = _context.Database.CurrentTransaction is null ? await _context.Database.BeginTransactionAsync(ct) : null;
         var now = DateTime.UtcNow;
@@ -629,7 +643,7 @@ public sealed class ConsentRepository : IConsentRepository
                 OldStatus = ConsentStatus.PendingConfirmation,
                 NewStatus = ConsentStatus.OptedOut,
                 Source = r.Source,
-                ActorId = "policy:pending-confirmation-purge",
+                ActorId = actorId,
                 ChangedAt = now
             });
         }
@@ -640,14 +654,33 @@ public sealed class ConsentRepository : IConsentRepository
         return purged;
     }
 
-    public async Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default)
+    // Count and list share these queries: the preview and the policy run select the same rows.
+    private IQueryable<ConsentRecord> OptedOutWithPersonalData(DateTime cutoff) =>
+        _context.ConsentRecords.Where(r => r.Status == ConsentStatus.OptedOut && r.ChangedAt < cutoff).Where(HasPersonalData);
+
+    private IQueryable<ConsentRecord> OptedOutWithAuditLeft(DateTime cutoff)
     {
-        var optedOut = _context.ConsentRecords.Where(r => r.Status == ConsentStatus.OptedOut && r.ChangedAt < cutoff);
         var auditLeft = _context.ConsentAuditEntries.Where(e => e.CustomFields != null && e.ChangedAt < cutoff);
-        return await optedOut.Where(HasPersonalData).CountAsync(ct)
-             + await optedOut.Where(NoPersonalData)
-                 .CountAsync(r => auditLeft.Any(e => e.Bucket == r.Bucket && e.EmailHash == r.EmailHash && e.Permission == r.Permission), ct);
+        return _context.ConsentRecords.Where(r => r.Status == ConsentStatus.OptedOut && r.ChangedAt < cutoff).Where(NoPersonalData)
+            .Where(r => auditLeft.Any(e => e.Bucket == r.Bucket && e.EmailHash == r.EmailHash && e.Permission == r.Permission));
     }
+
+    private IQueryable<ConsentRecord> PendingConfirmationToPurge(DateTime cutoff) =>
+        _context.ConsentRecords.Where(r => r.Status == ConsentStatus.PendingConfirmation && r.ChangedAt < cutoff);
+
+    public async Task<int> CountOptedOutToAnonymiseAsync(DateTime cutoff, CancellationToken ct = default) =>
+        await OptedOutWithPersonalData(cutoff).CountAsync(ct) + await OptedOutWithAuditLeft(cutoff).CountAsync(ct);
+
+    public async Task<IReadOnlyList<ConsentRecord>> ListOptedOutToAnonymiseAsync(DateTime cutoff, int limit, CancellationToken ct = default)
+    {
+        var withData = await OptedOutWithPersonalData(cutoff).AsNoTracking().OrderBy(r => r.ChangedAt).Take(limit).ToListAsync(ct);
+        if (withData.Count >= limit) return withData;
+        var auditOnly = await OptedOutWithAuditLeft(cutoff).AsNoTracking().OrderBy(r => r.ChangedAt).Take(limit - withData.Count).ToListAsync(ct);
+        return [.. withData.Concat(auditOnly).OrderBy(r => r.ChangedAt)];
+    }
+
+    public async Task<IReadOnlyList<ConsentRecord>> ListPendingConfirmationToPurgeAsync(DateTime cutoff, int limit, CancellationToken ct = default) =>
+        await PendingConfirmationToPurge(cutoff).AsNoTracking().OrderBy(r => r.ChangedAt).Take(limit).ToListAsync(ct);
 
     private static readonly Expression<Func<ConsentRecord, bool>> HasPersonalData = r =>
         r.EncryptedEmail != null || r.EncryptedName != null || r.CustomFields != null || r.ConsentText != null;
@@ -670,11 +703,8 @@ public sealed class ConsentRepository : IConsentRepository
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.CustomFields, (string?)null), ct);
     }
 
-    public async Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default)
-    {
-        return await _context.ConsentRecords
-            .CountAsync(r => r.Status == ConsentStatus.PendingConfirmation && r.ChangedAt < cutoff, ct);
-    }
+    public Task<int> CountPendingConfirmationToPurgeAsync(DateTime cutoff, CancellationToken ct = default) =>
+        PendingConfirmationToPurge(cutoff).CountAsync(ct);
 
     private static Dictionary<string, string>? DeserializeCustomFields(string? json)
     {

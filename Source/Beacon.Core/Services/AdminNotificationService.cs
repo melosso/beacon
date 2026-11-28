@@ -2,10 +2,11 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace Beacon.Api;
+namespace Beacon.Core.Services;
 
 public record WebhookErrorNotification(string Bucket, string ErrorMessage, int StatusCode, DateTime OccurredAt);
 public record ConsentUpdateNotification(string Bucket);
+public record WorkflowUpdateNotification;
 
 public sealed class AdminNotificationService
 {
@@ -17,6 +18,8 @@ public sealed class AdminNotificationService
     public Task PublishAsync(WebhookErrorNotification notification) => Publish(notification);
 
     public Task PublishConsentUpdateAsync(ConsentUpdateNotification notification) => Publish(notification);
+
+    public Task PublishWorkflowUpdateAsync() => Publish(new WorkflowUpdateNotification());
 
     private Task Publish(object notification)
     {

@@ -180,6 +180,8 @@ public static class ConsentEndpoints
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
         var utmCustomFields = sysConfig.Get().EnableUtmTracking ? BuildUtmCustomFields(context) : null;
+        var actor = result.Payload.Actor;
+        var source = actor is null ? ConsentSource.Url : ConsentSource.AdminLink;
 
         try
         {
@@ -203,8 +205,9 @@ public static class ConsentEndpoints
                     result.Payload.Email,
                     validPermissions,
                     token,
-                    ConsentSource.Url,
-                    utmCustomFields);
+                    source,
+                    utmCustomFields,
+                    actor);
 
                 await consentService.CommitTransactionAsync();
 
@@ -231,8 +234,9 @@ public static class ConsentEndpoints
                         result.Payload.Email,
                         [permission],
                         token,
-                        ConsentSource.Url,
-                        utmCustomFields);
+                        source,
+                        utmCustomFields,
+                        actor);
                     optedOut.Add(permission);
                 }
                 else
@@ -251,7 +255,8 @@ public static class ConsentEndpoints
                             result.Payload.Email,
                             permission,
                             ConsentStatus.OptedIn,
-                            source: ConsentSource.Url);
+                            actorId: actor,
+                            source: source);
                     }
                     keptIn.Add(permission);
                 }

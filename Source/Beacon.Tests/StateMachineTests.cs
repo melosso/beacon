@@ -70,7 +70,7 @@ public sealed class StateMachineTests : IDisposable
         await consent.OverrideAsync(Bucket, Email, Permission, ConsentStatus.OptedOut);
         await consent.OverrideAsync(Bucket, Email, Permission, ConsentStatus.PendingConfirmation);
 
-        await new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), Ct);
+        await new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), "test", Ct);
         _db.ChangeTracker.Clear();
 
         Assert.Equal(ConsentStatus.OptedOut, await consent.CheckAsync(Bucket, Email, Permission));
@@ -117,7 +117,7 @@ public sealed class StateMachineTests : IDisposable
         var consent = Consent();
         await consent.OverrideAsync(Bucket, Email, Permission, ConsentStatus.PendingConfirmation, name: "Ann", consentText: "t");
 
-        var purged = await new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), Ct);
+        var purged = await new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), "test", Ct);
         _db.ChangeTracker.Clear();
 
         Assert.Equal(1, purged);
@@ -135,7 +135,7 @@ public sealed class StateMachineTests : IDisposable
     {
         await Consent().OverrideAsync(Bucket, Email, Permission, ConsentStatus.PendingConfirmation);
 
-        Assert.Equal(0, await new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddDays(-1), Ct));
+        Assert.Equal(0, await new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddDays(-1), "test", Ct));
         Assert.Equal(ConsentStatus.PendingConfirmation, await StoredStatusAsync());
     }
 
@@ -146,7 +146,7 @@ public sealed class StateMachineTests : IDisposable
         var renew = new RenewBeforeUpdate();
         await using var db = new BeaconDbContext(new DbContextOptionsBuilder<BeaconDbContext>().UseSqlite(_connection).AddInterceptors(renew).Options);
 
-        var purged = await new ConsentRepository(db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), Ct);
+        var purged = await new ConsentRepository(db).PurgePendingConfirmationAsync(DateTime.UtcNow.AddSeconds(1), "test", Ct);
 
         Assert.True(renew.Fired);
         Assert.Equal(0, purged);
@@ -330,6 +330,7 @@ public sealed class StateMachineTests : IDisposable
             .AddScoped<WorkflowTaskRepository>()
             .AddScoped<DataPolicyService>()
             .AddSingleton(configSvc ?? new StubSystemConfigurationService(RetentionConfig(requireApproval)))
+            .AddSingleton(_notifications)
             .BuildServiceProvider();
         return new DataPolicyWorker(services.GetRequiredService<IServiceScopeFactory>(), NullLogger<DataPolicyWorker>.Instance, new DataPolicyTrigger());
     }
@@ -350,6 +351,68 @@ public sealed class StateMachineTests : IDisposable
         Assert.Equal(WorkflowTaskStatus.Completed, task.Status);
         Assert.Equal(-1, task.PolicyDays);
         Assert.Equal(1, task.RecordsAffected);
+    }
+
+    [Fact]
+    public async Task Worker_QueuesApproval_PublishesWorkflowUpdate()
+    {
+        var worker = await WorkerAsync(requireApproval: true);
+        await using var events = _notifications.SubscribeAllAsync(Ct).GetAsyncEnumerator(Ct);
+        var next = events.MoveNextAsync();
+
+        await worker.ProcessBatchAsync(WorkflowTrigger.Cron, isManual: false, Ct);
+
+        Assert.True(await next.AsTask().WaitAsync(TimeSpan.FromSeconds(5), Ct));
+        Assert.IsType<WorkflowUpdateNotification>(events.Current);
+    }
+
+    [Fact]
+    public async Task GetWorkflowTasks_PendingApproval_IncludesLiveRecordCount()
+    {
+        var worker = await WorkerAsync(requireApproval: true);
+        await worker.ProcessBatchAsync(WorkflowTrigger.Cron, isManual: false, Ct);
+        var svc = new DataPolicyService(new WorkflowTaskRepository(_db), new ConsentRepository(_db), new StubSystemConfigurationService(RetentionConfig(requireApproval: true)));
+
+        var result = await AdminEndpoints.GetWorkflowTasks(50, new WorkflowTaskRepository(_db), svc, Ct);
+
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(1, json[0].GetProperty("PendingRecords").GetInt32());
+    }
+
+    [Fact]
+    public async Task GetWorkflowTaskRecords_PendingApproval_ListsRecordsTheRunAffects()
+    {
+        var worker = await WorkerAsync(requireApproval: true);
+        await worker.ProcessBatchAsync(WorkflowTrigger.Cron, isManual: false, Ct);
+        var task = await _db.WorkflowTasks.AsNoTracking().SingleAsync(Ct);
+        var svc = new DataPolicyService(new WorkflowTaskRepository(_db), new ConsentRepository(_db), new StubSystemConfigurationService(RetentionConfig(requireApproval: true)));
+
+        var result = await AdminEndpoints.GetWorkflowTaskRecords(task.Id, new WorkflowTaskRepository(_db), svc, _encryptor, Ct);
+
+        var json = System.Text.Json.JsonSerializer.SerializeToElement(Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+        Assert.Equal(1, json.GetProperty("Total").GetInt32());
+        var record = json.GetProperty("Records")[0];
+        Assert.Equal(Bucket, record.GetProperty("Bucket").GetString());
+        Assert.Equal(Email, record.GetProperty("Email").GetString());
+    }
+
+    [Fact]
+    public async Task Approve_RetentionPurge_WritesErasureAuditEntryWithTaskReference()
+    {
+        var worker = await WorkerAsync(requireApproval: true);
+        await worker.ProcessBatchAsync(WorkflowTrigger.Cron, isManual: false, Ct);
+        var task = await _db.WorkflowTasks.AsNoTracking().SingleAsync(Ct);
+        var svc = new DataPolicyService(new WorkflowTaskRepository(_db), new ConsentRepository(_db), new StubSystemConfigurationService(RetentionConfig(requireApproval: true)));
+
+        var result = await svc.ApproveTaskAsync(task.Id, Ct);
+
+        Assert.Equal(1, result.Task!.RecordsAffected);
+        Assert.Matches("^WF-[0-9A-F]{8}$", task.Reference);
+        var entry = await _db.ConsentAuditEntries.AsNoTracking().SingleAsync(e => e.ActorId == task.Reference, Ct);
+        Assert.Equal(ConsentSource.Erasure, entry.Source);
+        Assert.Equal(Bucket, entry.Bucket);
+        var filtered = await new ConsentRepository(_db).GetAuditAsync(null, null, 1, 10, Ct, actorId: task.Reference);
+        Assert.Equal(entry.Id, Assert.Single(filtered.Records).Id);
     }
 
     [Fact]

@@ -36,6 +36,11 @@ public sealed class TokenPayload
     [JsonPropertyName("l")]
     public string Language { get; set; } = "en";
 
+    /// <summary>Admin who issued the link. Changes through the link are audited as <c>AdminLink</c> with this actor.</summary>
+    [JsonPropertyName("a")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Actor { get; set; }
+
     [JsonIgnore]
     public DateTime IssuedAtUtc => DateTimeOffset.FromUnixTimeSeconds(IssuedAt).UtcDateTime;
 

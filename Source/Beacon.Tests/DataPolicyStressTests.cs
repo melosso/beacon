@@ -36,7 +36,7 @@ public sealed class DataPolicyStressTests : IDisposable
     {
         await SeedAsync(ConsentStatus.OptedOut);
 
-        var (affected, elapsed) = await MeasureAsync(() => new ConsentRepository(_db).AnonymiseOptedOutAsync(DateTime.UtcNow, Ct));
+        var (affected, elapsed) = await MeasureAsync(() => new ConsentRepository(_db).AnonymiseOptedOutAsync(DateTime.UtcNow, "test", Ct));
 
         Assert.Equal(Rows, affected);
         Assert.False(await _db.ConsentRecords.AnyAsync(r => r.EncryptedEmail != null || r.EncryptedName != null || r.CustomFields != null, Ct));
@@ -49,7 +49,7 @@ public sealed class DataPolicyStressTests : IDisposable
     {
         await SeedAsync(ConsentStatus.PendingConfirmation);
 
-        var (affected, elapsed) = await MeasureAsync(() => new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow, Ct));
+        var (affected, elapsed) = await MeasureAsync(() => new ConsentRepository(_db).PurgePendingConfirmationAsync(DateTime.UtcNow, "test", Ct));
 
         Assert.Equal(Rows, affected);
         Assert.Equal(Rows, await _db.ConsentRecords.CountAsync(r => r.Status == ConsentStatus.OptedOut && r.EncryptedEmail == null, Ct));

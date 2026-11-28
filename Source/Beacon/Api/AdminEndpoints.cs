@@ -107,6 +107,10 @@ public static class AdminEndpoints
             .RequireAuthorization("ConsentWrite")
             .ExcludeFromDescription();
 
+        routes.MapPost("/api/admin/buckets/{bucket}/records/{emailHash}/preference-link", CreatePreferenceLink)
+            .RequireAuthorization("ConsentWrite")
+            .ExcludeFromDescription();
+
         routes.MapDelete("/api/admin/buckets/{bucket}/permissions/{permission}", DeletePermission)
             .RequireAuthorization("BucketsWrite")
             .ExcludeFromDescription();
@@ -231,6 +235,10 @@ public static class AdminEndpoints
             .ExcludeFromDescription();
 
         routes.MapPost("/api/admin/data-policies/run", TriggerDataPolicies)
+            .RequireAuthorization("Admin")
+            .ExcludeFromDescription();
+
+        routes.MapGet("/api/admin/data-policies/tasks/{id}/records", GetWorkflowTaskRecords)
             .RequireAuthorization("Admin")
             .ExcludeFromDescription();
 
@@ -690,7 +698,8 @@ public static class AdminEndpoints
         [FromQuery] string? search = null,
         [FromQuery] string? searchType = null,
         [FromServices] IConsentRepository? repository = null,
-        [FromServices] Encryptor? encryptor = null)
+        [FromServices] Encryptor? encryptor = null,
+        CancellationToken ct = default)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -706,7 +715,7 @@ public static class AdminEndpoints
 
         var contactSearch = !string.IsNullOrWhiteSpace(search) && searchType is "email" or "name";
         if (contactSearch || IsContactSort(sortBy))
-            return Results.Ok(await GetBucketRecordsSortedByContactAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search, searchType, repository!, encryptor!));
+            return Results.Ok(await GetBucketRecordsSortedByContactAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search, searchType, repository!, encryptor!, ct));
 
         var result = await repository!.GetBucketRecordsAsync(normalizedBucket, page, pageSize, sortBy, sortDir, search);
 
@@ -737,9 +746,9 @@ public static class AdminEndpoints
     // Email and name are encrypted: load the bucket, decrypt, sort and page in memory.
     internal static async Task<object> GetBucketRecordsSortedByContactAsync(
         string bucket, int page, int pageSize, string? sortBy, string? sortDir, string? search, string? searchType,
-        IConsentRepository repository, Encryptor encryptor)
+        IConsentRepository repository, Encryptor encryptor, CancellationToken ct = default)
     {
-        var all = await repository.GetAllBucketRecordsAsync(bucket);
+        var all = await repository.GetAllBucketRecordsAsync(bucket, ct);
         foreach (var record in all)
         {
             record.Email = TryDecrypt(encryptor, record.EncryptedEmail);
@@ -815,6 +824,53 @@ public static class AdminEndpoints
             logger.LogError(ex, "Error deleting bucket {Bucket}", normalizedBucket);
             return ApiError.ServerError();
         }
+    }
+
+    internal sealed record PreferenceLinkRequest(string? Language = null);
+
+    // Issuer identity is signed into the token; the client cannot set it.
+    private static async Task<IResult> CreatePreferenceLink(
+        string bucket,
+        string emailHash,
+        HttpContext context,
+        [FromBody] PreferenceLinkRequest? request,
+        [FromServices] IConsentRepository repository,
+        [FromServices] BucketRepository bucketRepository,
+        [FromServices] TokenGenerator generator,
+        [FromServices] Encryptor encryptor)
+    {
+        var actor = context.User.Identity?.Name;
+        if (string.IsNullOrEmpty(actor))
+            return Results.Forbid();
+
+        var bucketValidation = InputValidator.ValidateBucket(bucket);
+        if (!bucketValidation.IsValid)
+            return Results.BadRequest(new ApiError(bucketValidation.Error));
+
+        var normalizedBucket = bucket.Trim().ToLowerInvariant();
+        if (await bucketRepository.IsArchivedAsync(normalizedBucket))
+            return Results.Conflict(new ApiError("Bucket is archived"));
+
+        var language = request?.Language?.ToLowerInvariant() ?? "en";
+        if (!Beacon.Localization.FormLocalization.SupportedLanguages.Contains(language))
+            return Results.BadRequest(new ApiError($"Unsupported language code '{language}'."));
+
+        var records = await repository.GetByEmailAsync(normalizedBucket, emailHash);
+        var encryptedEmail = records.FirstOrDefault(r => r.EncryptedEmail is not null)?.EncryptedEmail;
+        if (encryptedEmail is null)
+            return Results.NotFound(new ApiError("Record not found"));
+
+        var permissions = (await bucketRepository.GetPermissionsAsync(normalizedBucket)).ToArray();
+        if (permissions.Length == 0)
+            return Results.NotFound(new ApiError("Record not found"));
+
+        var token = generator.Generate(
+            normalizedBucket,
+            encryptor.Decrypt(encryptedEmail),
+            permissions,
+            new Beacon.Tokens.GenerateTokenRequest { ExpiryDays = 1, AllowReplay = false, Language = language },
+            actor);
+        return Results.Ok(new { token });
     }
 
     private static async Task<IResult> DeleteRecord(
@@ -1046,7 +1102,8 @@ public static class AdminEndpoints
     private static async Task<IResult> GetAllBucketRecords(
         string bucket,
         [FromServices] IConsentRepository repository,
-        [FromServices] Encryptor encryptor)
+        [FromServices] Encryptor encryptor,
+        CancellationToken ct)
     {
         var bucketValidation = InputValidator.ValidateBucket(bucket);
         if (!bucketValidation.IsValid)
@@ -1055,7 +1112,7 @@ public static class AdminEndpoints
         }
 
         var normalizedBucket = bucket.Trim().ToLowerInvariant();
-        var records = await repository.GetAllBucketRecordsAsync(normalizedBucket);
+        var records = await repository.GetAllBucketRecordsAsync(normalizedBucket, ct);
 
         // Decrypt emails for display
         foreach (var record in records)
@@ -1367,6 +1424,10 @@ public static class AdminEndpoints
                             occurredAt = webhook.OccurredAt
                         });
                         break;
+                    case WorkflowUpdateNotification:
+                        eventType = "workflow-update";
+                        json = "{}";
+                        break;
                     case ConsentUpdateNotification consentUpdate:
                         eventType = "consent-update";
                         json = JsonSerializer.Serialize(new
@@ -1477,11 +1538,11 @@ public static class AdminEndpoints
                         matchingHashes.Add(mapping.EmailHash);
                     return ValueTask.CompletedTask;
                 });
-            result = await repository.GetIdentitiesByHashesAsync([.. matchingHashes], page, pageSize, sortBy, sortDir);
+            result = await repository.GetIdentitiesByHashesAsync([.. matchingHashes], page, pageSize, sortBy, sortDir, ct);
         }
         else
         {
-            result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search);
+            result = await repository.GetIdentitiesAsync(page, pageSize, sortBy, sortDir, search, ct);
         }
 
         await DecryptIdentityEmailsAsync(result.Records, repository, encryptor, ct);
@@ -1541,7 +1602,7 @@ public static class AdminEndpoints
         if (pageHashes.Count == 0)
             return new PagedResult<IdentityInfo> { Records = [], Total = total, Page = page, PageSize = pageSize };
 
-        var pageResult = await repository.GetIdentitiesByHashesAsync(pageHashes, 1, pageHashes.Count, null, null);
+        var pageResult = await repository.GetIdentitiesByHashesAsync(pageHashes, 1, pageHashes.Count, null, null, ct);
 
         var emailByHash = sorted
             .Skip((page - 1) * pageSize).Take(pageSize)
@@ -1586,7 +1647,7 @@ public static class AdminEndpoints
         }
     }
 
-    private static async Task<IResult> ExportIdentities(
+    internal static async Task<IResult> ExportIdentities(
         [FromBody] ExportIdentitiesRequest? request,
         [FromServices] IConsentRepository repository,
         [FromServices] Encryptor encryptor,
@@ -1597,8 +1658,7 @@ public static class AdminEndpoints
         if (!ExportWriter.Formats.Contains(format))
             return Results.BadRequest(new { error = "Invalid format. Must be 'csv', 'json', 'xml', or 'yaml'" });
 
-        PagedResult<IdentityInfo> result;
-
+        IReadOnlyList<string>? scope = null;
         if (request?.Hashes is { Count: > 0 })
         {
             if (request.Hashes.Count > 10_000)
@@ -1609,16 +1669,30 @@ public static class AdminEndpoints
                 var v = InputValidator.ValidateEmailHash(h);
                 if (!v.IsValid) return Results.BadRequest(new { error = $"Invalid hash: {v.Error}" });
             }
-
-            result = await repository.GetIdentitiesByHashesAsync(request.Hashes, 1, request.Hashes.Count, "lastchanged", "desc");
+            scope = [.. request.Hashes.Select(h => h.ToLowerInvariant()).Distinct()];
         }
-        else
+
+        string? bucket = null;
+        if (!string.IsNullOrWhiteSpace(request?.Bucket))
         {
-            // Export all (capped at 10k for safety)
-            result = await repository.GetIdentitiesAsync(1, 10_000, "lastchanged", "desc");
+            bucket = request.Bucket.Trim().ToLowerInvariant();
+            var bucketVal = InputValidator.ValidateBucket(bucket);
+            if (!bucketVal.IsValid) return Results.BadRequest(new { error = bucketVal.Error });
+
+            // to-do: loads full bucket rows for hashes, add a hash-only repository query if export latency matters.
+            var inBucket = (await repository.GetAllBucketRecordsAsync(bucket, ct)).Select(r => r.EmailHash);
+            scope = scope is null
+                ? [.. inBucket]
+                : [.. scope.Intersect(inBucket)];
         }
 
-        var records = result.Records.ToList();
+        // to-do: whole export in memory, matches bucket export; stream rows if memory becomes the limit.
+        var records = scope switch
+        {
+            null => (await repository.GetIdentitiesAsync(1, int.MaxValue, "lastchanged", "desc", ct: ct)).Records.ToList(),
+            { Count: 0 } => [],
+            _ => (await repository.GetIdentitiesByHashesAsync(scope, 1, scope.Count, "lastchanged", "desc", ct)).Records.ToList()
+        };
 
         if (records.Count > 0)
         {
@@ -1641,10 +1715,10 @@ public static class AdminEndpoints
         {
             var contactsByHash = records.ToDictionary(r => r.EmailHash);
             var consent = await repository.GetByEmailHashesAsync([.. contactsByHash.Keys], ct);
-            var parsed = consent.Select(c => (Record: c, Fields: string.IsNullOrEmpty(c.CustomFields) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(c.CustomFields))).ToList();
+            var parsed = consent.Where(c => bucket is null || c.Bucket == bucket).Select(c => (Record: c, Fields: string.IsNullOrEmpty(c.CustomFields) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(c.CustomFields))).ToList();
             var fieldKeys = parsed.SelectMany(p => p.Fields?.Keys ?? (IEnumerable<string>)[]).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
             var fullRows = parsed.Select(p => FullCopyRow(p.Record, contactsByHash[p.Record.EmailHash], p.Fields, fieldKeys)).ToList();
-            return ExportWriter.Write(context, $"beacon-subscribers-full-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "permission", fullRows);
+            return ExportWriter.Write(context, $"beacon-subscribers-full-{(bucket is null ? "" : bucket + "-")}{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "permission", fullRows);
         }
 
         var rows = records.Select(r => new ExportWriter.Row
@@ -1656,7 +1730,7 @@ public static class AdminEndpoints
             { "createdAt", ExportWriter.Timestamp(r.FirstSeen) },
             { "updatedAt", ExportWriter.Timestamp(r.LastChanged) }
         }).ToList();
-        return ExportWriter.Write(context, $"beacon-subscribers-{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "subscriber", rows);
+        return ExportWriter.Write(context, $"beacon-subscribers-{(bucket is null ? "" : bucket + "-")}{DateTime.UtcNow:yyyyMMdd}", format, "subscribers", "subscriber", rows);
     }
 
     internal static async Task<IResult> DeleteIdentity(
@@ -2031,7 +2105,7 @@ public static class AdminEndpoints
         CancellationToken ct)
     {
         var normalized = bucket.Trim().ToLowerInvariant();
-        var records = await repository.GetAllBucketRecordsAsync(normalized);
+        var records = await repository.GetAllBucketRecordsAsync(normalized, ct);
 
         var baseUrl = !string.IsNullOrEmpty(instanceOptions.PublicUrl)
             ? instanceOptions.PublicUrl.TrimEnd('/')
@@ -2124,7 +2198,8 @@ public static class AdminEndpoints
     internal sealed record ExportIdentitiesRequest(
         IReadOnlyList<string>? Hashes = null,
         string Format = "csv",
-        bool Full = false);
+        bool Full = false,
+        string? Bucket = null);
 
     internal static ExportWriter.Row FullCopyRow(ConsentRecord record, IdentityInfo contact, IReadOnlyDictionary<string, string>? fields, IReadOnlyList<string> fieldKeys)
     {
@@ -2194,7 +2269,7 @@ public static class AdminEndpoints
                 if (!v.IsValid) return Results.BadRequest(new { error = $"Invalid hash: {v.Error}" });
             }
 
-        var allRecords = await repository.GetAllBucketRecordsAsync(normalized);
+        var allRecords = await repository.GetAllBucketRecordsAsync(normalized, ct);
 
         IEnumerable<EmailPermissions> filtered = request?.Hashes is { Count: > 0 }
             ? allRecords.Where(r => request.Hashes.Contains(r.EmailHash))
@@ -2321,13 +2396,29 @@ public static class AdminEndpoints
         string? Language = null,
         string Format = "csv"); // "csv" | "json" | "xml"
 
-    private static async Task<IResult> GetWorkflowTasks(
+    internal static async Task<IResult> GetWorkflowTasks(
         [FromQuery] int limit,
         [FromServices] WorkflowTaskRepository taskRepo,
+        [FromServices] DataPolicyService dataPolicySvc,
         CancellationToken ct)
     {
         var effectiveLimit = limit > 0 ? Math.Min(limit, 200) : 50;
-        return Results.Ok(await taskRepo.GetRecentAsync(effectiveLimit, ct));
+        var tasks = await taskRepo.GetRecentAsync(effectiveLimit, ct);
+        var result = new List<object>(tasks.Count);
+        foreach (var t in tasks)
+        {
+            // Live count of records an approval affects. At most one pending task exists per task type.
+            int? pendingRecords = t is { Status: WorkflowTaskStatus.PendingApproval, PolicyDays: int days }
+                ? await dataPolicySvc.CountAsync(t.TaskType, t.ScheduledAt, days, ct)
+                : null;
+            result.Add(new
+            {
+                t.Id, t.Reference, t.TaskType, t.Status, t.TriggeredBy, t.ScheduledAt, t.PolicyDays,
+                t.StartedAt, t.CompletedAt, t.RecordsAffected, t.Notes, t.ErrorMessage,
+                PendingRecords = pendingRecords
+            });
+        }
+        return Results.Ok(result);
     }
 
     private static IResult TriggerDataPolicies(
@@ -2337,12 +2428,46 @@ public static class AdminEndpoints
         return Results.Accepted();
     }
 
+    private const int WorkflowRecordPreviewLimit = 200;
+
+    /// <summary>Records a pending task affects on approval: the first 200, oldest first, plus the total.</summary>
+    internal static async Task<IResult> GetWorkflowTaskRecords(
+        Guid id,
+        [FromServices] WorkflowTaskRepository taskRepo,
+        [FromServices] DataPolicyService dataPolicySvc,
+        [FromServices] Encryptor encryptor,
+        CancellationToken ct)
+    {
+        var task = await taskRepo.GetByIdAsync(id, ct);
+        if (task is null) return Results.NotFound();
+        if (task is not { Status: WorkflowTaskStatus.PendingApproval, PolicyDays: int days })
+            return Results.BadRequest(new { error = "Task is not pending approval." });
+
+        var total = await dataPolicySvc.CountAsync(task.TaskType, task.ScheduledAt, days, ct);
+        var records = await dataPolicySvc.ListAsync(task.TaskType, task.ScheduledAt, days, WorkflowRecordPreviewLimit, ct);
+        return Results.Ok(new
+        {
+            Total = total,
+            Records = records.Select(r => new
+            {
+                r.EmailHash,
+                Email = TryDecrypt(encryptor, r.EncryptedEmail),
+                r.Bucket,
+                r.Permission,
+                r.Status,
+                r.ChangedAt
+            })
+        });
+    }
+
     private static async Task<IResult> ApproveWorkflowTask(
         Guid id,
         [FromServices] DataPolicyService dataPolicySvc,
+        [FromServices] AdminNotificationService notifications,
         CancellationToken ct)
     {
         var result = await dataPolicySvc.ApproveTaskAsync(id, ct);
+        if (result.Outcome == TaskOperationOutcome.Success) await notifications.PublishWorkflowUpdateAsync();
         return result.Outcome switch
         {
             TaskOperationOutcome.NotFound => Results.NotFound(),
@@ -2354,9 +2479,11 @@ public static class AdminEndpoints
     private static async Task<IResult> RejectWorkflowTask(
         Guid id,
         [FromServices] DataPolicyService dataPolicySvc,
+        [FromServices] AdminNotificationService notifications,
         CancellationToken ct)
     {
         var result = await dataPolicySvc.RejectTaskAsync(id, ct);
+        if (result.Outcome == TaskOperationOutcome.Success) await notifications.PublishWorkflowUpdateAsync();
         return result.Outcome switch
         {
             TaskOperationOutcome.NotFound => Results.NotFound(),
@@ -2371,6 +2498,7 @@ public static class AdminEndpoints
         [FromQuery] string? bucket,
         [FromQuery] string? emailHash,
         [FromQuery] string? emailSearch,
+        [FromQuery] string? actor,
         [FromQuery] int page = 1,
         [FromQuery] int size = 25,
         [FromServices] IConsentRepository repository = null!,
@@ -2382,6 +2510,8 @@ public static class AdminEndpoints
 
         if (!string.IsNullOrWhiteSpace(emailHash) && !PartialHashPattern.IsMatch(emailHash.Trim()))
             return Results.BadRequest(new { error = "Invalid emailHash format" });
+        if (actor is { Length: > 100 })
+            return Results.BadRequest(new { error = "Invalid actor" });
         if (!string.IsNullOrWhiteSpace(bucket))
         {
             var bucketVal = InputValidator.ValidateBucket(bucket.Trim());
@@ -2417,7 +2547,7 @@ public static class AdminEndpoints
             normalizedHash = string.IsNullOrWhiteSpace(emailHash) ? null : emailHash.Trim().ToLowerInvariant();
         }
 
-        var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct, matchedHashes);
+        var result = await repository.GetAuditAsync(normalizedBucket, normalizedHash, page, size, ct, matchedHashes, string.IsNullOrWhiteSpace(actor) ? null : actor.Trim());
 
         // Decrypt emails for audit records
         var distinctHashes = result.Records.Select(e => e.EmailHash).Distinct().ToList();
