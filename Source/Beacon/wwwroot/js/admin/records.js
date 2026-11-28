@@ -162,6 +162,9 @@ async function downloadExport(endpoint, body, fallbackName) {
     a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+    const total = res.headers.get("X-Total-Count");
+    if (total !== null)
+      notify("success", "Export ready", `${formatNumber(Number(total))} row(s) exported.`);
     return true;
   } catch {
     notify(
@@ -336,6 +339,8 @@ function renderOverview() {
     shown.sort((a, b) => dir * ((a.totalEmails ?? 0) - (b.totalEmails ?? 0)));
   else if (overviewSortBy === "optin")
     shown.sort((a, b) => dir * (optInRate(a) - optInRate(b)));
+  // Stable sort: archived buckets last, column order kept within each group.
+  shown.sort((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived));
 
   if (buckets.length > 0 && shown.length === 0) {
     paint(
@@ -364,9 +369,9 @@ function renderOverview() {
       const brandId = getBrandIdentityForBucket(b.name);
       const brandStroke =
         brandId?.settings?.primaryAccent || "hsl(var(--muted-foreground))";
-      return html` <tr>
+      return html` <tr class=${b.isArchived ? "row--archived" : ""}>
         <td class="cursor-pointer cell-clip" @click=${() => showBucket(b.name)}>
-          <strong title=${formatPermission(b.name) || "N/A"}>${formatPermission(b.name) || "N/A"}</strong>${
+          <strong data-tooltip=${formatPermission(b.name) || "N/A"}>${formatPermission(b.name) || "N/A"}</strong>${
             b.isArchived
               ? html` <span class="status-badge status-badge--sm">Archived</span>`
               : nothing
@@ -380,7 +385,7 @@ function renderOverview() {
           }
         </td>
         <td
-          title=${
+          data-tooltip=${
             b.totalRecords
               ? `${formatNumber(b.optedInRecords)} of ${formatNumber(b.totalRecords)} consent records`
               : ""
@@ -394,10 +399,9 @@ function renderOverview() {
               ? b.permissions.map(
                   (p) =>
                     html`<span
-                    class="tooltip-wrapper select-none cursor-pointer"
-                    @click=${() => copyTextNow(p)}
-                    ><span class="status-badge">${formatPermission(p)}</span
-                    ><span class="tooltip">${p}</span></span
+                    class="select-none cursor-pointer"
+                    @click=${() => copyTextNow(p)} data-tooltip=${p}><span class="status-badge">${formatPermission(p)}</span
+                    ></span
                   > `,
                 )
               : "None"
@@ -408,7 +412,7 @@ function renderOverview() {
             <span class="row-status-icons">
               ${
                 overviewErrorBuckets.has(b.name)
-                  ? html`<span class="tooltip-wrapper">
+                  ? html`<span data-tooltip="Webhook errors. Open the bucket to review them.">
                     <svg class="align-middle"
                       width="14"
                       height="14"
@@ -425,15 +429,13 @@ function renderOverview() {
                       ></path>
                       <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                     </svg>
-                    <span class="tooltip tooltip-above tooltip-right"
-                      >Webhook errors. Open the bucket to review them.</span
-                    >
+                    
                   </span>`
                   : nothing
               }
               ${
                 webhookBuckets.has(b.name)
-                  ? html`<span class="tooltip-wrapper">
+                  ? html`<span data-tooltip="Webhook configured">
                     <svg class="align-middle"
                       width="14"
                       height="14"
@@ -452,15 +454,13 @@ function renderOverview() {
                         d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
                       />
                     </svg>
-                    <span class="tooltip tooltip-above tooltip-right"
-                      >Webhook configured</span
-                    >
+                    
                   </span>`
                   : nothing
               }
               ${
                 brandId
-                  ? html`<span class="tooltip-wrapper">
+                  ? html`<span data-tooltip=${brandId.name}>
                     <svg class="align-middle"
                       width="14"
                       height="14"
@@ -480,23 +480,16 @@ function renderOverview() {
                         d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"
                       />
                     </svg>
-                    <span class="tooltip tooltip-above tooltip-right"
-                      >${brandId.name}</span
-                    >
+                    
                   </span>`
                   : nothing
               }
             </span>
-            <span class="tooltip-wrapper">
-              <button
-                class="btn-actions"
+            <button
+                class="btn-icon btn-icon--sm"
                 aria-label="Actions"
                 @click=${(e) => toggleOverviewMenu(e, idx)}
-              >
-                :
-              </button>
-              <span class="tooltip tooltip-above tooltip-right">Actions</span>
-            </span>
+              >${KEBAB_ICON}</button>
             <div class="dropdown-menu" id="overviewMenu-${idx}">
               <button class="dropdown-item" @click=${() => showBucket(b.name)}>
                 View records
@@ -544,13 +537,9 @@ let currentBucketPermissions = [];
 
 async function copyBucketName() {
   if (!currentBucket) return;
-  const tooltipElement = document.getElementById("bucketTooltip");
   try {
     await clipboardWrite(currentBucket);
-    tooltipElement.innerText = "Copied";
-    setTimeout(() => {
-      tooltipElement.innerText = currentBucket;
-    }, 2000);
+    notify("success", "Copied", currentBucket);
   } catch (err) {
     console.error("Failed to copy text: ", err);
   }
@@ -558,13 +547,14 @@ async function copyBucketName() {
 
 // BUCKET RECORDS
 async function loadBucket(bucket = currentBucket) {
+  const isCurrent = latestCall("bucket");
   const thead = document.getElementById("bucketTableHead");
   const body = document.getElementById("bucketBody");
 
   const detailsResult = await apiRequest(
     `/api/admin/buckets/${encodeURIComponent(bucket)}`,
   );
-  if (!detailsResult.ok) return;
+  if (!detailsResult.ok || !isCurrent()) return;
 
   const details = detailsResult.data;
   currentBucketPermissions = details.permissions || [];
@@ -578,7 +568,7 @@ async function loadBucket(bucket = currentBucket) {
   const removeBtn = document.getElementById("removeBucketBtn");
   if (removeBtn) {
     removeBtn.disabled = !currentBucketArchived;
-    removeBtn.title = currentBucketArchived
+    removeBtn.dataset.tooltip = currentBucketArchived
       ? "Deletes the bucket and its records"
       : "Archive the bucket to enable removal";
   }
@@ -601,7 +591,7 @@ async function loadBucket(bucket = currentBucket) {
   paint(
     thead,
     html` <th class="col-select">
-        <label class="row-check" title="Select all"
+        <label class="row-check" data-tooltip="Select all"
           ><input
             type="checkbox"
             id="bucketSelectAll"
@@ -635,9 +625,8 @@ async function loadBucket(bucket = currentBucket) {
         (p) =>
           html`<th>
             <span
-              class="tooltip-wrapper select-none cursor-pointer"
-              @click=${() => copyTextNow(p)}
-              >${formatPermission(p)}<span class="tooltip">${p}</span></span
+              class="select-none cursor-pointer"
+              @click=${() => copyTextNow(p)} data-tooltip=${p}>${formatPermission(p)}</span
             >
           </th>`,
       )}
@@ -652,7 +641,7 @@ async function loadBucket(bucket = currentBucket) {
     url += `&search=${encodeURIComponent(searchQuery)}&searchType=${searchType}`;
   }
   const recordsResult = await apiRequest(url);
-  if (!recordsResult.ok) return;
+  if (!recordsResult.ok || !isCurrent()) return;
 
   const data = recordsResult.data;
   totalRecords = data.total;
@@ -696,18 +685,14 @@ async function loadBucket(bucket = currentBucket) {
           <td>
             ${
               r.email
-                ? html`<span class="tooltip-wrapper"
-                  ><span
-                    class="email-text select-none cursor-pointer"
-                    @click=${() => copyText(r.email)}
-                    @dblclick=${() =>
-                      copyTextNow(r.emailHash?.substring(0, 12) || "")}
-                    >${r.email}</span
-                  ><span class="tooltip"
-                    >Click to copy &middot; double-click for ID</span
-                  ></span
-                >`
-                : html`<span class="email-hash" title=${r.emailHash || ""}
+                ? html`<button
+                    type="button"
+                    class="link-btn email-text"
+                    @click=${() => openSubscriber(r.emailHash)}
+                  >
+                    ${r.email}
+                  </button>`
+                : html`<span class="email-hash" data-tooltip=${r.emailHash || ""}
                   >${
                     r.emailHash ? r.emailHash.substring(0, 16) + "…" : "N/A"
                   }</span
@@ -731,23 +716,13 @@ async function loadBucket(bucket = currentBucket) {
             <div
               class="row-actions${currentBucketArchived ? " is-disabled" : ""}"
             >
-              <span class="tooltip-wrapper">
-                <button
-                  class="btn-actions"
+              <button
+                  class="btn-icon btn-icon--sm"
                   aria-label="Actions"
                   ?disabled=${currentBucketArchived}
-                  @click=${(e) => toggleRowMenu(e, idx)}
-                >
-                  :
-                </button>
-                <span class="tooltip tooltip-above tooltip-right"
-                  >${
-                    currentBucketArchived
+                  @click=${(e) => toggleRowMenu(e, idx)} data-tooltip=${currentBucketArchived
                       ? "Actions disabled (archived)"
-                      : "Actions"
-                  }</span
-                >
-              </span>
+                      : "Actions"}>${KEBAB_ICON}</button>
               <div class="dropdown-menu" id="rowMenu-${idx}">
                 <button
                   class="dropdown-item"
@@ -808,34 +783,22 @@ async function loadBucket(bucket = currentBucket) {
 }
 
 function updatePagination() {
-  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-  const start = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const end = Math.min(currentPage * pageSize, totalRecords);
-
-  document.getElementById("paginationInfo").textContent = pageRangeText(
-    start,
-    end,
-    totalRecords,
-  );
-  document.getElementById("prevBtn").disabled = currentPage === 1;
-  document.getElementById("nextBtn").disabled = currentPage >= totalPages;
-}
-
-function updatePageSize() {
-  pageSize = parseInt(document.getElementById("pageSize").value);
-  currentPage = 1;
-  if (currentBucket) {
-    syncBucketUrl(true);
-    loadBucket(currentBucket);
-  }
-}
-
-function changePage(delta) {
-  currentPage += delta;
-  if (currentBucket) {
-    syncBucketUrl(true);
-    loadBucket(currentBucket);
-  }
+  renderPager(document.getElementById("bucketPager"), {
+    page: currentPage,
+    pageSize,
+    total: totalRecords,
+    onPage: (n) => {
+      currentPage = n;
+      syncBucketUrl(true);
+      loadBucket(currentBucket);
+    },
+    onPageSize: (n) => {
+      pageSize = n;
+      currentPage = 1;
+      syncBucketUrl(true);
+      loadBucket(currentBucket);
+    },
+  });
 }
 
 function toggleSort(column) {
@@ -904,54 +867,11 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// BUCKET AUTOCOMPLETE
-let selectedAutocompleteIndex = -1;
-
-function showBucketSuggestions() {
-  const input = document.getElementById("tokenBucket");
-  const dropdown = document.getElementById("bucketAutocomplete");
-  const query = input.value.trim().toLowerCase();
-  hidePermissionSuggestions();
-
-  // Filter buckets that match the query
-  const matches = buckets.filter((b) => b.name.toLowerCase().includes(query));
-
-  if (
-    matches.length === 0 ||
-    (matches.length === 1 && matches[0].name.toLowerCase() === query)
-  ) {
-    dropdown.classList.remove("open");
-    return;
-  }
-
-  selectedAutocompleteIndex = -1;
-  paint(
-    dropdown,
-    html`${matches.slice(0, 10).map(
-      (b, idx) =>
-        html` <div
-          class="autocomplete-item"
-          data-index=${idx}
-          @click=${() => selectBucket(b.name)}
-          @mouseenter=${() => highlightAutocomplete(idx)}
-        >
-          <div class="bucket-name">${b.name}</div>
-          <div class="bucket-info">
-            ${formatNumber(b.totalEmails || 0)} records ·
-            ${(b.permissions || []).length} permissions
-          </div>
-        </div>`,
-    )}`,
-  );
-
-  positionDropdown(input, dropdown);
-  dropdown.classList.add("open");
-}
+// BUCKET FIELD (token sheet)
+attachBucketPicker(document.getElementById("tokenBucket"), { onSelect: selectBucket });
 
 async function selectBucket(name) {
   document.getElementById("tokenBucket").value = name;
-  document.getElementById("bucketAutocomplete").classList.remove("open");
-  selectedAutocompleteIndex = -1;
   tokenPermissions.clear();
   removedPermissions.clear();
   tokenDefaultOptOut = false;
@@ -978,21 +898,6 @@ async function selectBucket(name) {
   renderPermissionsGrid();
 }
 
-function hideBucketSuggestions() {
-  document.getElementById("bucketAutocomplete").classList.remove("open");
-  selectedAutocompleteIndex = -1;
-}
-
-function highlightAutocomplete(index) {
-  const items = document.querySelectorAll(
-    "#bucketAutocomplete .autocomplete-item",
-  );
-  items.forEach((item, i) => {
-    item.classList.toggle("selected", i === index);
-  });
-  selectedAutocompleteIndex = index;
-}
-
 // When the bucket field loses focus without an autocomplete selection, treat it the same as
 // selecting from the dropdown: normalize the name, clear stale permissions, check double opt-in.
 document.getElementById("tokenBucket")?.addEventListener("blur", function () {
@@ -1005,51 +910,13 @@ document.getElementById("tokenBucket")?.addEventListener("blur", function () {
   selectBucket(name);
 });
 
-// Keyboard navigation for autocomplete
-document
-  .getElementById("tokenBucket")
-  ?.addEventListener("keydown", function (e) {
-    const dropdown = document.getElementById("bucketAutocomplete");
-    if (!dropdown.classList.contains("open")) return;
-
-    const items = dropdown.querySelectorAll(".autocomplete-item");
-    if (items.length === 0) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      selectedAutocompleteIndex = Math.min(
-        selectedAutocompleteIndex + 1,
-        items.length - 1,
-      );
-      highlightAutocomplete(selectedAutocompleteIndex);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      selectedAutocompleteIndex = Math.max(selectedAutocompleteIndex - 1, 0);
-      highlightAutocomplete(selectedAutocompleteIndex);
-    } else if (e.key === "Enter" && selectedAutocompleteIndex >= 0) {
-      e.preventDefault();
-      const selectedItem = items[selectedAutocompleteIndex];
-      if (selectedItem) {
-        const name = selectedItem.querySelector(".bucket-name").textContent;
-        selectBucket(name);
-      }
-    } else if (e.key === "Escape") {
-      hideBucketSuggestions();
-    }
-  });
-
 // Close autocomplete when clicking outside their wrapper
 document.addEventListener("click", function (e) {
-  const bucketWrapper =
-    document.getElementById("bucketAutocomplete")?.parentElement;
   const permWrapper = document.getElementById(
     "permissionAutocomplete",
   )?.parentElement;
   const cronWrapper =
     document.getElementById("cronAutocomplete")?.parentElement;
-  if (bucketWrapper && !bucketWrapper.contains(e.target)) {
-    hideBucketSuggestions();
-  }
   if (permWrapper && !permWrapper.contains(e.target)) {
     hidePermissionSuggestions();
   }
@@ -1088,7 +955,7 @@ function renderNewBucketPerms() {
                 type="button"
                 class="btn-remove"
                 @click=${() => removeNewBucketPerm(p)}
-                title="Remove"
+                data-tooltip="Remove"
                 aria-label="Remove"
               >
                 &times;

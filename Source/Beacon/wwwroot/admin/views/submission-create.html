@@ -17,7 +17,7 @@
         </a>
         <a href="#" class="settings-subnav-item" id="nlStep2Nav" data-click="submissionWizardNext 2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          Origins and consent
+          Origins &amp; consent
         </a>
         <a href="#" class="settings-subnav-item" id="nlStep3Nav" data-click="submissionWizardNext 3">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
@@ -35,7 +35,7 @@
     </aside>
     <div class="settings-content">
     <div class="wizard-layout">
-    <div class="wizard-panel">
+    <div class="wizard-panel" data-guard>
       <!-- Step 1: Basic Info -->
       <div id="nlStep1">
         <div class="settings-content-hd">
@@ -46,25 +46,22 @@
         <div class="form-group">
           <label for="nlName"
             >Form name
-            <span class="required" title="Required field">*</span></label
+            <span class="required" data-tooltip="Required field">*</span></label
           >
           <input type="text" id="nlName" placeholder="e.g., Main signup form" />
         </div>
         <div class="form-group">
           <label for="nlBucket"
             >Bucket
-            <span class="required" title="Required field">*</span></label
+            <span class="required" data-tooltip="Required field">*</span></label
           >
           <div class="autocomplete-wrapper">
             <input
               type="text"
               id="nlBucket"
               placeholder="e.g., newsletter"
-              autocomplete="off"
-              data-input="showNlBucketSuggestions"
-              data-focus="showNlBucketSuggestions"
+              data-input="checkNlBucketArchived"
             />
-            <div class="autocomplete-dropdown" id="nlBucketAutocomplete"></div>
           </div>
           <p class="field-hint text-danger" id="nlBucketArchivedWarning" hidden>
             <svg
@@ -90,7 +87,7 @@
         </div>
         <div class="form-group">
           <label for="nlPermission">
-            Permission <span class="required" title="Required field">*</span>
+            Permission <span class="required" data-tooltip="Required field">*</span>
           </label>
           <div class="autocomplete-wrapper">
             <input
@@ -151,14 +148,14 @@
       <!-- Step 2: Allowed origins -->
       <div id="nlStep2" hidden>
         <div class="settings-content-hd">
-          <h3 class="select-none">Origins and consent</h3>
+          <h3 class="select-none">Origins &amp; consent</h3>
           <p>Website origins allowed to embed and submit this form. Use the full origin, e.g. <code>https://example.com</code>.</p>
         </div>
         <hr class="settings-sep" />
         <div class="form-group">
           <label for="nlNewOrigin"
             >Allowed origins
-            <span class="required" title="Required field">*</span></label
+            <span class="required" data-tooltip="Required field">*</span></label
           >
           <div id="nlOriginsList"></div>
           <div class="flex gap-2 mt-3">
@@ -501,6 +498,7 @@
               </button>
             </div>
             <p class="field-hint">
+              <br>
               <code>{{date}}</code> supports timezones:
               <code>{{date:Europe/Amsterdam}}</code>
             </p>
@@ -533,20 +531,18 @@
             Store this token securely. It is shown once.
           </p>
           <div class="flex gap-2 items-stretch">
-            <span class="tooltip-wrapper grow min-w-0">
+            <span class="grow min-w-0" data-tooltip="Click to copy">
               <div
                 class="token-output m-0"
                 id="nlApiToken"
                 data-click="copyNlApiToken"
               ></div>
-              <span class="tooltip tooltip-above">Click to copy</span>
+              
             </span>
-            <span class="tooltip-wrapper">
-              <button
+            <button
                 class="btn btn-outline h-full"
                 data-click="downloadNlApiToken"
-                aria-label="Download as .txt"
-              >
+                aria-label="Download as .txt" data-tooltip="Download as .txt">
                 <svg
                   aria-hidden="true"
                   width="14"
@@ -563,10 +559,6 @@
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
               </button>
-              <span class="tooltip tooltip-above tooltip-right"
-                >Download as .txt</span
-              >
-            </span>
           </div>
         </div>
         <div class="embed-tabs" id="embedTabs">
@@ -585,14 +577,10 @@
           <p class="text-sm text-muted mb-2">
             Paste into the website HTML. The iframe is self-contained.
           </p>
-          <span class="tooltip-wrapper">
-            <div
+          <div
               class="token-output"
               id="nlIframeCode"
-              data-click="copyEmbedCode iframe"
-            ></div>
-            <span class="tooltip tooltip-above">Click to copy</span>
-          </span>
+              data-click="copyEmbedCode iframe" data-tooltip="Click to copy"></div>
           <button
             class="btn btn-outline mt-3 w-full"
             data-click="testSubmissionForm iframe"
@@ -622,14 +610,10 @@
           <p class="text-sm text-muted mb-2">
             Renders inline using Shadow DOM for style isolation.
           </p>
-          <span class="tooltip-wrapper">
-            <div
+          <div
               class="token-output"
               id="nlJsCode"
-              data-click="copyEmbedCode js"
-            ></div>
-            <span class="tooltip tooltip-above">Click to copy</span>
-          </span>
+              data-click="copyEmbedCode js" data-tooltip="Click to copy"></div>
           <button
             class="btn btn-outline mt-3 w-full"
             data-click="testSubmissionForm js"
@@ -659,14 +643,10 @@
           <p class="text-sm text-muted mb-2">
             A plain <code>&lt;form&gt;</code> that submits via POST. Unstyled.
           </p>
-          <span class="tooltip-wrapper">
-            <div
+          <div
               class="token-output pre-wrap"
               id="nlFormCode"
-              data-click="copyEmbedCode form"
-            ></div>
-            <span class="tooltip tooltip-above">Click to copy</span>
-          </span>
+              data-click="copyEmbedCode form" data-tooltip="Click to copy"></div>
           <button
             class="btn btn-outline mt-3 w-full"
             data-click="testSubmissionForm form"
@@ -697,14 +677,10 @@
             A <code>fetch</code> call with full control over UI and behaviour.
             Returns JSON.
           </p>
-          <span class="tooltip-wrapper">
-            <div
+          <div
               class="token-output pre-wrap"
               id="nlApiCode"
-              data-click="copyEmbedCode api"
-            ></div>
-            <span class="tooltip tooltip-above">Click to copy</span>
-          </span>
+              data-click="copyEmbedCode api" data-tooltip="Click to copy"></div>
         </div>
         <div class="wizard-actions">
           <button class="btn btn-primary" data-click="showView submissions">

@@ -108,6 +108,7 @@ let nlOrigins = [];
 let nlEditId = null;
 let nlCurrentFormId = null;
 let nlCustomFields = {};
+guardExtra("view-submission-create", () => [nlOrigins, nlCustomFields]);
 
 function toggleNlMenu(event, idx) {
   event.stopPropagation();
@@ -127,8 +128,8 @@ async function loadSubmissionForms() {
           (f, idx) => html`
         <tr>
           <td><strong><button type="button" class="link-btn" @click=${() => editSubmissionForm(f.id)}>${f.name}</button></strong></td>
-          <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => showBucket(f.bucket)}>${f.bucket}<span class="tooltip">${f.bucket}</span></span></td>
-          <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => copyTextNow(f.permission)}><span class="status-badge">${formatPermission(f.permission)}</span><span class="tooltip">${f.permission}</span></span></td>
+          <td><span class="select-none cursor-pointer" @click=${() => showBucket(f.bucket)} data-tooltip=${f.bucket}>${f.bucket}</span></td>
+          <td><span class="select-none cursor-pointer" @click=${() => copyTextNow(f.permission)} data-tooltip=${f.permission}><span class="status-badge">${formatPermission(f.permission)}</span></span></td>
           <td>${(f.allowedOrigins || []).length}</td>
           <td>${f.submissionCount}</td>
           <td>
@@ -142,21 +143,18 @@ async function loadSubmissionForms() {
               <span class="row-status-icons">
                 ${
                   buckets.some((b) => b.name === f.bucket && b.isArchived)
-                    ? html`<span class="tooltip-wrapper">
+                    ? html`<span data-tooltip="Bucket is archived. Submissions are rejected.">
                   <svg class="align-middle text-danger" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                     <line x1="12" y1="9" x2="12" y2="13"></line>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                   </svg>
-                  <span class="tooltip tooltip-above tooltip-right">Bucket is archived. Submissions are rejected.</span>
+                  
                 </span>`
                     : nothing
                 }
               </span>
-              <span class="tooltip-wrapper">
-                <button class="btn-actions" aria-label="Actions" @click=${(e) => toggleNlMenu(e, idx)}>:</button>
-                <span class="tooltip tooltip-above tooltip-right">Actions</span>
-              </span>
+              <button class="btn-icon btn-icon--sm" aria-label="Actions" @click=${(e) => toggleNlMenu(e, idx)}>${KEBAB_ICON}</button>
               <div class="dropdown-menu" id="nlMenu-${idx}">
                 <button class="dropdown-item" @click=${() => editSubmissionForm(f.id)}>Settings</button>
                 <button class="dropdown-item" @click=${() => showEmbedCode(f.id)}>View and share <svg class="dropdown-item-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"></line></svg></button>
@@ -222,11 +220,12 @@ function ensurePreviewListener() {
 function updateLivePreview() {
   const panel = document.getElementById("nlLivePreviewForm");
   if (!panel) return;
+  const t = getNlI18n();
   const title = document.getElementById("nlTitle")?.value.trim() || "";
   const description =
     document.getElementById("nlDescription")?.value.trim() || "";
   const buttonText =
-    document.getElementById("nlButtonText")?.value.trim() || "Subscribe";
+    document.getElementById("nlButtonText")?.value.trim() || t.subscribe;
   const primary = document.getElementById("nlPrimaryColor")?.value || "#2563eb";
   const bgEnabled = document.getElementById("nlBgColorEnabled")?.checked;
   const fgEnabled = document.getElementById("nlTextColorEnabled")?.checked;
@@ -241,11 +240,10 @@ function updateLivePreview() {
   const radius = /^[\d.]+(px|%|rem|em)$/.test(rawRadius) ? rawRadius : "8px";
   const collectName = document.getElementById("nlCollectName")?.checked;
   const nameLabel =
-    document.getElementById("nlNameLabel")?.value.trim() || "Your full name";
+    document.getElementById("nlNameLabel")?.value.trim() || t.namePlaceholder;
   const consent = document.getElementById("nlConsentRequired")?.checked;
   const consentTxt =
-    document.getElementById("nlConsentText")?.value.trim() ||
-    "I agree to receive emails and understand I can unsubscribe at any time.";
+    document.getElementById("nlConsentText")?.value.trim() || t.consent;
   const privacyUrl = document
     .getElementById("nlPrivacyPolicyUrl")
     ?.value.trim();
@@ -265,11 +263,11 @@ function updateLivePreview() {
     ${description ? html`<p class="pv-desc">${description}</p>` : nothing}
     ${collectName ? html`<input class="pv-input pv-input--block" type="text" placeholder=${nameLabel} disabled>` : nothing}
     <div class="pv-row">
-      <input class="pv-input" type="email" placeholder="you@example.com" disabled>
+      <input class="pv-input" type="email" placeholder=${t.email} disabled>
+      ${consent ? html`<div class="pv-consent"><input type="checkbox" disabled><span>${shortConsent}</span></div>` : nothing}
       <button class="pv-button" disabled>${buttonText}</button>
     </div>
-    ${consent ? html`<div class="pv-consent"><input type="checkbox" disabled><span>${shortConsent}</span></div>` : nothing}
-    ${privacyUrl ? html`<p class="pv-privacy"><a href="#" @click=${(e) => e.preventDefault()}>Privacy Policy</a></p>` : nothing}`,
+    ${privacyUrl ? html`<p class="pv-privacy"><a href="#" @click=${(e) => e.preventDefault()}>${t.privacy}</a></p>` : nothing}`,
   );
 }
 
@@ -382,6 +380,7 @@ function initSubmissionWizard(editData) {
   ensurePreviewListener();
   updateNlLocale();
   submissionWizardShowStep(1);
+  guardReset("view-submission-create");
 }
 
 function submissionWizardShowStep(step) {
@@ -481,39 +480,13 @@ function renderNlOrigins() {
           (o, i) => html`
         <div class="custom-field-row">
           <span class="custom-field-value">${o}</span>
-          <button type="button" class="btn-remove" @click=${() => removeSubmissionOrigin(i)} title="Remove" aria-label="Remove origin">&times;</button>
+          <button type="button" class="btn-remove" @click=${() => removeSubmissionOrigin(i)} data-tooltip="Remove" aria-label="Remove origin">&times;</button>
         </div>`,
         )}`,
   );
 }
 
-function showNlBucketSuggestions() {
-  checkNlBucketArchived();
-  const input = document.getElementById("nlBucket");
-  const dropdown = document.getElementById("nlBucketAutocomplete");
-  const query = input.value.toLowerCase();
-  const matches = buckets.filter((b) => b.name.toLowerCase().includes(query));
-  if (
-    matches.length === 0 ||
-    (matches.length === 1 && matches[0].name.toLowerCase() === query)
-  ) {
-    dropdown.classList.remove("open");
-    return;
-  }
-  paint(
-    dropdown,
-    html`${matches.map(
-      (b) =>
-        html`<div class="autocomplete-item" @click=${() => {
-          input.value = b.name;
-          dropdown.classList.remove("open");
-          checkNlBucketArchived();
-        }}>${b.name}</div>`,
-    )}`,
-  );
-  positionDropdown(input, dropdown);
-  dropdown.classList.add("open");
-}
+attachBucketPicker(document.getElementById("nlBucket"), { onSelect: checkNlBucketArchived });
 
 function checkNlBucketArchived() {
   const bucket = document.getElementById("nlBucket").value.trim().toLowerCase();
@@ -621,6 +594,7 @@ async function saveSubmissionForm() {
 
   if (!result.ok) return;
 
+  guardReset("view-submission-create");
   nlEditId = result.data.id;
   nlCurrentFormId = nlEditId;
   document.getElementById("nlSaveBtn").textContent = "Save changes";
@@ -801,11 +775,11 @@ function buildFormPostSnippet(apiBase, formId) {
       `\n  </label>`
     : "";
   const privacyField = privacyUrl
-    ? `\n  <p style="margin-top:6px;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>`
+    ? `\n  <p style="margin-top:6px;font-size:0.8rem;opacity:0.65"><a href="${privacyUrl}" target="_blank" rel="noopener noreferrer">${t.privacy}</a></p>`
     : "";
   return `<form method="POST" action="${apiBase}/api/submission/${formId}/subscribe">${nameField}
-  <input type="email" name="email" placeholder="you@example.com" required />${hiddenFields}${consentField}${privacyField}
-  <button type="submit">Subscribe</button>
+  <input type="email" name="email" placeholder="${t.email}" required />${hiddenFields}${consentField}${privacyField}
+  <button type="submit">${t.subscribe}</button>
 </form>`;
 }
 
@@ -910,11 +884,11 @@ function showPreview(id, mode) {
     card.appendChild(script);
   } else if (mode === "form") {
     const actionUrl = `${apiBase}/api/submission/${id}/subscribe`;
+    const t = getNlI18n();
     const consentRequired =
       document.getElementById("nlConsentRequired")?.checked;
     const consentText =
-      document.getElementById("nlConsentText")?.value.trim() ||
-      "I agree to receive emails and understand I can unsubscribe at any time.";
+      document.getElementById("nlConsentText")?.value.trim() || t.consent;
     const privacyUrl = document
       .getElementById("nlPrivacyPolicyUrl")
       ?.value.trim();
@@ -922,7 +896,7 @@ function showPreview(id, mode) {
       document.getElementById("nlDisableRedirects")?.checked;
     const collectName = document.getElementById("nlCollectName")?.checked;
     const nameLabel =
-      document.getElementById("nlNameLabel")?.value.trim() || "Your full name";
+      document.getElementById("nlNameLabel")?.value.trim() || t.namePlaceholder;
 
     const form = document.createElement("form");
     form.method = "POST";
@@ -933,11 +907,11 @@ function showPreview(id, mode) {
       form,
       html`
       ${collectName ? html`<input type="text" name="name" placeholder=${nameLabel} aria-label=${nameLabel} autocomplete="name">` : nothing}
-      <input type="email" name="email" placeholder="you@example.com" aria-label="Email" required>
+      <input type="email" name="email" placeholder=${t.email} aria-label="Email" required>
       ${disableRedirects ? nothing : html`<input type="hidden" name="redirect_success" value="about:blank#success"><input type="hidden" name="redirect_error" value="about:blank#error">`}
       ${consentRequired ? html`<label class="pv-consent"><input type="checkbox" name="consent" value="true" required><span>${consentText}</span></label>` : nothing}
-      ${/^https?:\/\//i.test(privacyUrl || "") ? html`<p class="pv-privacy"><a href=${privacyUrl} target="_blank" rel="noopener noreferrer">Privacy Policy</a></p>` : nothing}
-      <button type="submit" class="btn btn-primary btn-block">Subscribe</button>`,
+      ${/^https?:\/\//i.test(privacyUrl || "") ? html`<p class="pv-privacy"><a href=${privacyUrl} target="_blank" rel="noopener noreferrer">${t.privacy}</a></p>` : nothing}
+      <button type="submit" class="btn btn-primary btn-block">${t.subscribe}</button>`,
     );
     if (disableRedirects) {
       const msg = document.createElement("div");

@@ -210,8 +210,8 @@ async function loadBucketOptions() {
   const globalEnabled = !reason;
   const reasonEl = document.getElementById("bucketDoubleOptInReason");
   if (reasonEl) {
-    reasonEl.textContent = reason ?? "";
-    reasonEl.hidden = !reason;
+    if (reason) reasonEl.dataset.tooltip = reason;
+    else delete reasonEl.dataset.tooltip;
   }
 
   // Default state: inherit global (true), grayed out when global feature is off or email is disabled
@@ -307,7 +307,7 @@ function renderWebhookHeaders() {
         <div class="custom-field-row">
           <div class="custom-field-key">${key}</div>
           <div class="custom-field-value">${value}</div>
-          <button type="button" class="btn-icon-small" @click=${() => removeWebhookHeader(key)} title="Remove" aria-label="Remove header">
+          <button type="button" class="btn-icon-small" @click=${() => removeWebhookHeader(key)} data-tooltip="Remove" aria-label="Remove header">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -341,7 +341,7 @@ async function saveWebhook() {
   );
 
   if (result.ok) {
-    markClean("optionsModal");
+    guardReset("optionsModal");
     if (result.data?.signingSecret) {
       showWebhookSecret(result.data.signingSecret);
       document.getElementById("deleteWebhookBtn").hidden = false;
@@ -420,7 +420,7 @@ async function confirmDeleteWebhook() {
     { method: "DELETE" },
   );
   if (result.ok) {
-    markClean("optionsModal");
+    guardReset("optionsModal");
     notify("success", "Webhook deleted");
     setWebhookBadge(false);
     closeOptionsModal();
@@ -429,6 +429,31 @@ async function confirmDeleteWebhook() {
 
 // ROW ACTIONS DROPDOWN
 let openMenuId = null;
+let openMenuTrigger = null;
+
+// Menu keys: arrows and Home/End move focus, Esc closes and refocuses the trigger, Tab closes.
+document.addEventListener("keydown", (e) => {
+  if (!openMenuId) return;
+  const menu = document.getElementById(openMenuId);
+  const items = [...(menu?.querySelectorAll(".dropdown-item:not(.disabled)") || [])];
+  const i = items.indexOf(document.activeElement);
+  const move = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
+  if (move !== undefined && items.length) {
+    e.preventDefault();
+    items[(move + items.length) % items.length].focus();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
+    const trigger = openMenuTrigger;
+    closeAllMenus();
+    trigger?.focus();
+  } else if (e.key === "Tab") {
+    closeAllMenus();
+  }
+});
+// Close fixed-position menus on scroll and resize: their position is not recomputed.
+document.addEventListener("scroll", () => openMenuId && closeAllMenus(), true);
+window.addEventListener("resize", () => openMenuId && closeAllMenus());
 
 function toggleRowMenu(event, idx) {
   event.stopPropagation();
@@ -443,26 +468,52 @@ function toggleOverviewMenu(event, idx) {
 function toggleMenu(menuId, trigger) {
   const menu = document.getElementById(menuId);
   if (!menu) return;
+  const wasOpen = openMenuId === menuId;
+  closeAllMenus();
+  if (wasOpen) return;
 
-  if (openMenuId && openMenuId !== menuId) {
-    document.getElementById(openMenuId)?.classList.remove("open");
-  }
+  menu.classList.add("open");
+  menu.setAttribute("role", "menu");
+  menu.querySelectorAll(".dropdown-item").forEach((i) => i.setAttribute("role", "menuitem"));
+  openMenuId = menuId;
+  openMenuTrigger = trigger || null;
 
-  menu.classList.toggle("open");
-  openMenuId = menu.classList.contains("open") ? menuId : null;
-
-  if (menu.classList.contains("open") && trigger) {
+  if (trigger) {
+    trigger.setAttribute("aria-expanded", "true");
     const rect = trigger.getBoundingClientRect();
-    menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${rect.right - menu.offsetWidth}px`;
+    const below = rect.bottom + 4 + menu.offsetHeight <= window.innerHeight;
+    menu.style.top = `${below ? rect.bottom + 4 : rect.top - 4 - menu.offsetHeight}px`;
+    menu.style.left = `${Math.max(8, rect.right - menu.offsetWidth)}px`;
+    menu.querySelector(".dropdown-item:not(.disabled)")?.focus({ preventScroll: true });
   }
 }
 
+// Positions a dropdown under its input with Floating UI. Recomputes on scroll, resize and each animation frame until the dropdown closes.
+const _anchoredDropdowns = new WeakSet();
 function positionDropdown(input, dropdown) {
-  const rect = input.getBoundingClientRect();
-  dropdown.style.top = rect.bottom + "px";
-  dropdown.style.left = rect.left + "px";
-  dropdown.style.width = rect.width + "px";
+  if (_anchoredDropdowns.has(dropdown)) return;
+  _anchoredDropdowns.add(dropdown);
+  const { computePosition, autoUpdate, flip } = window.FloatingUIDOM;
+  let first = true;
+  const stop = autoUpdate(
+    input,
+    dropdown,
+    () => {
+      const open = dropdown.classList.contains("open") || dropdown.matches(":popover-open");
+      if (!first && !open) {
+        stop();
+        _anchoredDropdowns.delete(dropdown);
+        return;
+      }
+      first = false;
+      dropdown.style.width = `${input.getBoundingClientRect().width}px`;
+      computePosition(input, dropdown, { strategy: "fixed", placement: "bottom-start", middleware: [flip()] }).then(({ x, y }) => {
+        dropdown.style.left = `${x}px`;
+        dropdown.style.top = `${y}px`;
+      });
+    },
+    { animationFrame: true },
+  );
 }
 
 function closeAllMenus() {
@@ -470,6 +521,8 @@ function closeAllMenus() {
     document.getElementById(openMenuId)?.classList.remove("open");
     openMenuId = null;
   }
+  openMenuTrigger?.setAttribute("aria-expanded", "false");
+  openMenuTrigger = null;
   document.getElementById("webhookErrorsDropdown")?.classList.remove("open");
   document
     .getElementById("overviewWebhookErrorsDropdown")
@@ -747,6 +800,8 @@ function showPermissionsConfirmModal() {
     );
     return;
   }
+  document.getElementById("permissionsDbLookupNote").hidden =
+    appSettings.allowDbLookup !== false;
   openModal("permissionsConfirmModal");
 }
 
@@ -874,30 +929,14 @@ async function openOptOutPage(record) {
     return;
   }
 
-  const permissions = {};
-  currentBucketPermissions.forEach((p) => {
-    permissions[p] = record.permissions[p] === true;
-  });
-
   const language = document.getElementById("editLanguage")?.value || "en";
-
-  const result = await apiRequest("/api/tokens/generate", {
-    method: "POST",
-    body: [
-      {
-        bucket: currentBucket,
-        email: record.email,
-        permissions,
-        expiryDays: 30,
-        allowReplay: true,
-        skipPermissionUpdate: true,
-        language,
-      },
-    ],
-  });
+  const result = await apiRequest(
+    `/api/admin/buckets/${encodeURIComponent(currentBucket)}/records/${encodeURIComponent(record.emailHash)}/preference-link`,
+    { method: "POST", body: { language } },
+  );
 
   if (result.ok) {
-    const url = `${PUBLIC_URL || API_BASE}/u/${result.data[0].token}`;
+    const url = `${PUBLIC_URL || API_BASE}/u/${result.data.token}`;
     window.open(url, "_blank", "noopener");
   }
 }
@@ -912,6 +951,13 @@ function connectSSE() {
   for (const type of ["webhook-error", "consent-update"]) {
     eventSource.addEventListener(type, (e) => handleSSEEvent(type, e.data));
   }
+  // Reload workflow tasks on reconnect: the stream does not replay missed events.
+  eventSource.addEventListener("open", refreshWorkflow);
+  eventSource.addEventListener("workflow-update", refreshWorkflow);
+}
+
+function refreshWorkflow() {
+  if (!document.getElementById("navWorkflow")?.hidden) loadWorkflowTasks();
 }
 
 // Events sent while the tab was hidden or the stream was down are not replayed: catch up on return

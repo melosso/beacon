@@ -273,8 +273,8 @@ td {
   display: none;
 }
 /* Icon shows the target theme, matching the aria-label action. */
-.auth-theme-toggle[data-mode="light"] .theme-icon--dark,
-.auth-theme-toggle[data-mode="dark"] .theme-icon--light {
+.theme-toggle[data-mode="light"] .theme-icon--dark,
+.theme-toggle[data-mode="dark"] .theme-icon--light {
   display: block;
 }
 
@@ -615,6 +615,15 @@ td {
   text-overflow: ellipsis;
 }
 
+.nav-count {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1;
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+}
+
 .nav-empty {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
@@ -636,6 +645,9 @@ td {
 .nav-item--archived .nav-item-badge {
   flex-shrink: 0;
   opacity: 0.7;
+}
+.row--archived > td {
+  color: hsl(var(--muted-foreground));
 }
 #bucketTitle.is-archived {
   color: hsl(var(--muted-foreground));
@@ -661,8 +673,15 @@ td {
 }
 
 .sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   margin-top: auto;
   padding-top: var(--space-3);
+}
+.sidebar-footer .account-trigger {
+  flex: 1;
+  min-width: 0;
 }
 
 .account-trigger {
@@ -715,13 +734,6 @@ td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.account-version {
-  font-size: var(--text-xs);
-  color: hsl(var(--muted-foreground));
-}
-.account-version:empty {
-  display: none;
-}
 .account-chevron {
   flex-shrink: 0;
   color: hsl(var(--muted-foreground));
@@ -769,6 +781,9 @@ td {
   }
   .sidebar-collapsed .nav-icon {
     margin-right: 0;
+  }
+  .sidebar-collapsed .sidebar-footer {
+    flex-direction: column;
   }
 }
 
@@ -1153,9 +1168,14 @@ h1 {
     background-color var(--duration-fast),
     color var(--duration-fast);
 }
-.btn-icon:hover {
+.btn-icon:hover:not(:disabled),
+.btn-icon[aria-expanded="true"] {
   background: hsl(var(--muted));
   color: hsl(var(--foreground));
+}
+.btn-icon:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .btn-icon.is-active {
   color: hsl(var(--foreground));
@@ -1297,7 +1317,36 @@ th {
   background: hsl(var(--muted));
 }
 .column-search .search-trigger.has-search {
-  color: hsl(var(--primary));
+  color: hsl(var(--foreground));
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 18ch;
+  padding: var(--space-0-5) var(--space-1-5);
+  border: 1px solid hsl(var(--input));
+  border-radius: var(--radius-xs);
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+.filter-chip:hover {
+  border-color: hsl(var(--foreground) / 0.4);
+}
+.filter-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-chip svg {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
 }
 .search-popover {
   position: absolute;
@@ -1612,39 +1661,79 @@ input:disabled + .toggle-track {
   pointer-events: auto;
 }
 
+/* Table footer from renderPager(): range on the left; rows per page, page buttons and page number on the right. */
 .pagination-container {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4);
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-top: 1px solid hsl(var(--border));
   background: hsl(var(--background));
+  font-size: var(--text-sm);
+  color: hsl(var(--muted-foreground));
   flex-shrink: 0;
 }
-
-.pagination-settings {
+.pagination-info {
+  font-variant-numeric: tabular-nums;
+}
+.pagination-controls {
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-1);
 }
-.page-size-selector {
+.page-size-selector,
+.page-jump {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-base);
-  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
-select.page-size-input {
+.page-size-selector {
+  margin-right: var(--space-3);
+}
+.page-jump {
+  margin-inline: var(--space-2);
+}
+:is(select.page-size-input, input.page-input) {
   height: 1.875rem;
-  background: hsl(var(--background));
+  padding: 0 var(--space-2);
   border: 1px solid hsl(var(--input));
-  color: hsl(var(--foreground));
   border-radius: var(--radius-sm);
-  padding: 0 var(--space-1-5);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-variant-numeric: tabular-nums;
 }
-.pagination-info {
-  font-size: var(--text-base);
-  color: hsl(var(--muted-foreground));
+input.page-input {
+  width: 4.5rem;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+input.page-input::-webkit-inner-spin-button,
+input.page-input::-webkit-outer-spin-button {
+  appearance: none;
+}
+@container view (max-width: 560px) {
+  .pager-word {
+    display: none;
+  }
+  .pagination-controls {
+    flex-wrap: wrap;
+  }
+  .page-size-selector {
+    display: none;
+  }
+  input.page-input {
+    width: 3.5rem;
+  }
+}
+input.page-input:focus-visible {
+  outline: none;
+  border-color: hsl(var(--foreground) / 0.6);
+  box-shadow: var(--ring);
 }
 
 dialog.modal-backdrop {
@@ -2154,6 +2243,12 @@ textarea.input,
 .autocomplete-dropdown.open {
   display: block;
 }
+.autocomplete-dropdown[popover] {
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+}
 
 .autocomplete-code {
   margin-left: var(--space-1);
@@ -2320,6 +2415,14 @@ textarea.input,
   border-color: hsl(var(--input));
 }
 
+/* Scrollable table inside a modal. */
+.modal-table {
+  max-height: 55vh;
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
 .modal-actions {
   display: flex;
   gap: var(--space-3);
@@ -2478,8 +2581,15 @@ details.advanced > summary:hover {
   gap: var(--space-1-5);
 }
 
+/* Shrinks to its content and right-aligns: row actions share one edge across tables. */
 .col-actions {
+  width: 1%;
   white-space: nowrap;
+  text-align: right;
+}
+.col-actions .inline-actions {
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 .col-select {
   width: 40px;
@@ -2546,30 +2656,6 @@ details.advanced > summary:hover {
   width: 2rem;
 }
 
-.btn-actions {
-  width: 1.75rem;
-  height: 1.75rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: var(--text-md);
-  font-weight: 700;
-  line-height: 1;
-  color: hsl(var(--muted-foreground));
-  transition:
-    background-color var(--duration-fast),
-    color var(--duration-fast);
-}
-
-.btn-actions:hover:not(:disabled) {
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
 .row-actions.is-disabled {
   opacity: 0.45;
   pointer-events: none;
@@ -2589,6 +2675,17 @@ details.advanced > summary:hover {
 
 .dropdown-menu.open {
   display: block;
+  animation: menuIn var(--duration-fast) var(--ease-out);
+}
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+.dropdown-item:focus-visible {
+  outline: none;
+  background: hsl(var(--muted));
 }
 
 .dropdown-item {
@@ -2633,6 +2730,7 @@ details.advanced > summary:hover {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  container: view / inline-size;
 }
 
 @keyframes viewIn {
@@ -2655,48 +2753,30 @@ details.advanced > summary:hover {
   overflow-y: auto;
 }
 
-.tooltip-wrapper {
-  position: relative;
-  display: inline-block;
-}
-
-.tooltip-wrapper .tooltip {
-  visibility: hidden;
-  opacity: 0;
-  position: absolute;
-  top: 100%;
+/* Single tooltip element from /js/tooltip.js. A manual popover: resets the UA popover box. */
+.tooltip {
+  position: fixed;
+  inset: auto;
+  top: 0;
   left: 0;
-  margin-top: var(--space-2);
+  max-width: 280px;
+  margin: 0;
+  padding: var(--space-1-5) var(--space-2-5);
+  border: 0;
+  border-radius: var(--radius-sm);
   background: hsl(var(--foreground));
   color: hsl(var(--background));
   font-size: var(--text-xs);
   font-weight: 400;
-  padding: var(--space-1-5) var(--space-2-5);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  z-index: 50;
-  transition:
-    opacity var(--duration-fast),
-    visibility var(--duration-fast);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
   pointer-events: none;
+  animation: tooltipIn var(--duration-fast) var(--ease-out);
 }
-
-.tooltip-wrapper:hover .tooltip,
-.tooltip-wrapper:has(:focus-visible) .tooltip {
-  visibility: visible;
-  opacity: 1;
-}
-
-.tooltip-wrapper .tooltip.tooltip-above {
-  top: auto;
-  bottom: 100%;
-  margin-top: 0;
-  margin-bottom: var(--space-2);
-}
-
-.tooltip-wrapper .tooltip.tooltip-right {
-  left: auto;
-  right: 0;
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+  }
 }
 
 .embed-tabs {
@@ -2853,7 +2933,7 @@ details.advanced > summary:hover {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-width: 600px;
+  max-width: 660px;
 }
 
 .settings-items--wide {
@@ -3004,17 +3084,6 @@ label.settings-item-card:hover {
 .cron-field {
   flex-shrink: 0;
   width: 180px;
-}
-
-label.settings-item-card .tooltip-wrapper,
-.settings-item-card-label .tooltip-wrapper {
-  display: flex;
-  align-items: center;
-}
-
-.settings-item-card--split > .tooltip-wrapper {
-  display: flex;
-  align-self: stretch;
 }
 
 .btn-settings-gear {
@@ -3740,6 +3809,7 @@ input.appearance-select {
 }
 .pv-row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
@@ -3781,6 +3851,11 @@ input.appearance-select {
 .pv-consent input {
   margin-top: var(--space-0-5);
   flex-shrink: 0;
+}
+.pv-row .pv-consent,
+.pv-consent + .pv-button {
+  flex-basis: 100%;
+  margin: 0;
 }
 .pv-privacy {
   margin-bottom: var(--space-3);
@@ -3957,7 +4032,24 @@ input.appearance-select {
 .select-none { user-select: none; }
 .blend-hard-light { mix-blend-mode: hard-light; }
 
-@media (max-width: 900px) {
+/* Layout depends on the view width. At 1040px or less the wizard section nav is above the form and the preview stays beside it. */
+@container view (max-width: 760px) {
+  .settings-layout {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .settings-subnav {
+    width: 100%;
+    padding: 0 0 var(--space-2);
+    border-bottom: 1px solid hsl(var(--border));
+    overflow-x: auto;
+  }
+  .settings-subnav-nav {
+    flex-direction: row;
+  }
+  .settings-subnav-sep {
+    display: none;
+  }
   .wizard-layout {
     flex-direction: column;
   }
@@ -3966,6 +4058,21 @@ input.appearance-select {
     flex: none;
     width: 100%;
     position: static;
+  }
+}
+
+@container view (min-width: 761px) and (max-width: 1040px) {
+  #view-submission-create .settings-layout {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  #view-submission-create .settings-subnav {
+    width: 100%;
+    padding: 0 0 var(--space-2);
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  #view-submission-create .settings-subnav-nav {
+    flex-direction: row;
   }
 }
 
@@ -4047,36 +4154,9 @@ input.appearance-select {
     max-height: none;
   }
 
-  .pagination-container {
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
-
-  .pagination-settings {
-    flex-wrap: wrap;
-    gap: var(--space-3);
-  }
 
   .settings-layout {
-    flex-direction: column;
-    gap: var(--space-4);
     overflow: visible;
-  }
-
-  .settings-subnav {
-    width: 100%;
-    padding: 0 0 var(--space-2);
-    border-right: 0;
-    border-bottom: 1px solid hsl(var(--border));
-    overflow-x: auto;
-  }
-
-  .settings-subnav-nav {
-    flex-direction: row;
-  }
-
-  .settings-subnav-sep {
-    display: none;
   }
 
   .settings-content {
@@ -4150,7 +4230,6 @@ input.appearance-select {
     min-height: 44px;
   }
   .btn-icon,
-  .btn-actions,
   .btn-sidebar,
   .btn-reveal,
   .github-link {

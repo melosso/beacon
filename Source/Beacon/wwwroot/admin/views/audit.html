@@ -27,40 +27,6 @@
         <tbody id="auditBody"></tbody>
       </table>
     </div>
-    <div class="pagination-container">
-      <div class="pagination-settings">
-        <div class="page-size-selector">
-          <span>Show</span>
-          <select
-            class="page-size-input"
-            id="auditPageSizeSelect"
-            data-change="updateAuditPageSize"
-          >
-            <option value="10">10</option>
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-          <span>per page</span>
-        </div>
-        <div class="pagination-info" id="auditPaginationInfo"></div>
-      </div>
-      <div class="flex gap-2">
-        <button
-          class="btn btn-outline"
-          id="auditPrevBtn"
-          data-click="changeAuditPage -1"
-        >
-          Previous
-        </button>
-        <button
-          class="btn btn-outline"
-          id="auditNextBtn"
-          data-click="changeAuditPage 1"
-        >
-          Next
-        </button>
-      </div>
-    </div>
+    <div class="pagination-container" id="auditPager"></div>
   </div>
 </div>

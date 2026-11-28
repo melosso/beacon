@@ -56,34 +56,23 @@ function renderApiKeysPage() {
 
 function renderApiKeysPagination() {
   const bar = document.getElementById("apiKeysPaginationBar");
-  const info = document.getElementById("apiKeysPaginationInfo");
-  const prevBtn = document.getElementById("apiKeysPrevBtn");
-  const nextBtn = document.getElementById("apiKeysNextBtn");
-  const total = _apiKeysAll.length;
-  const totalPages = Math.ceil(total / _apiKeysPageSize) || 1;
-  if (bar) bar.hidden = !(total > _apiKeysPageSize);
-  if (info) {
-    const start = (_apiKeysPage - 1) * _apiKeysPageSize + 1;
-    const end = Math.min(_apiKeysPage * _apiKeysPageSize, total);
-    info.textContent = pageRangeText(start, end, total);
-  }
-  if (prevBtn) prevBtn.disabled = _apiKeysPage <= 1;
-  if (nextBtn) nextBtn.disabled = _apiKeysPage >= totalPages;
-}
-
-function changeApiKeysPage(dir) {
-  const totalPages = Math.ceil(_apiKeysAll.length / _apiKeysPageSize) || 1;
-  _apiKeysPage = Math.max(1, Math.min(_apiKeysPage + dir, totalPages));
-  renderApiKeysPage();
-}
-
-function updateApiKeysPageSize() {
-  _apiKeysPageSize = parseInt(
-    document.getElementById("apiKeysPageSize").value,
-    10,
-  );
-  _apiKeysPage = 1;
-  renderApiKeysPage();
+  if (!bar) return;
+  bar.hidden = _apiKeysAll.length <= _apiKeysPageSize;
+  renderPager(bar, {
+    page: _apiKeysPage,
+    pageSize: _apiKeysPageSize,
+    total: _apiKeysAll.length,
+    sizes: [10, 25, 50],
+    onPage: (n) => {
+      _apiKeysPage = n;
+      renderApiKeysPage();
+    },
+    onPageSize: (n) => {
+      _apiKeysPageSize = n;
+      _apiKeysPage = 1;
+      renderApiKeysPage();
+    },
+  });
 }
 
 function renderPermissionBadges(permissions) {
@@ -284,7 +273,7 @@ async function createApiKey() {
     newKeyOut.textContent = _newRawApiKey;
     document.getElementById("newApiKeyRevealSection").hidden = false;
     document.getElementById("newApiKeyRevealSection").setAttribute("data-uncopied", "");
-    markClean("addApiKeyModal");
+    guardReset("addApiKeyModal");
     triggerClass(newKeyOut, "key-new", 1200);
     btn.querySelector(".btn-label").textContent = "Done";
     document.getElementById("addApiKeyCancelBtn").hidden = true;

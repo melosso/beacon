@@ -80,7 +80,7 @@
         <thead>
           <tr id="subscriptionsTableHead">
             <th class="col-select">
-              <label class="row-check" title="Select all"
+              <label class="row-check" data-tooltip="Select all"
                 ><input
                   type="checkbox"
                   id="subSelectAll"
@@ -97,41 +97,7 @@
         <tbody id="subscriptionsBody"></tbody>
       </table>
     </div>
-    <div class="pagination-container">
-      <div class="pagination-settings">
-        <div class="page-size-selector">
-          <span>Show</span>
-          <select
-            class="page-size-input"
-            id="subPageSize"
-            data-change="updateSubPageSize"
-          >
-            <option value="10" selected>10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-          <span>per page</span>
-        </div>
-        <div class="pagination-info" id="subPaginationInfo"></div>
-      </div>
-      <div class="flex gap-2">
-        <button
-          class="btn btn-outline"
-          id="subPrevBtn"
-          data-click="changeSubPage -1"
-        >
-          Previous
-        </button>
-        <button
-          class="btn btn-outline"
-          id="subNextBtn"
-          data-click="changeSubPage 1"
-        >
-          Next
-        </button>
-      </div>
-    </div>
+    <div class="pagination-container" id="subPager"></div>
   </div>
 </div>
 
@@ -169,14 +135,20 @@
     </div>
     <p>Export <strong id="subExportCount">0</strong> subscriber(s).</p>
     <div class="form-group">
+      <label for="subExportBucket">Bucket</label>
+      <div class="autocomplete-wrapper">
+        <input type="text" id="subExportBucket" placeholder="All buckets" data-change="updateSubExportCount" />
+      </div>
+    </div>
+    <div class="form-group">
       <label for="subExportContents">Contents</label>
       <select id="subExportContents">
-        <option value="summary">Summary: one row per subscriber</option>
-        <option value="full">
-          Full copy for access requests: one row per permission, with consent
-          text and custom fields
-        </option>
+        <option value="summary">Summary</option>
+        <option value="full">Full record</option>
       </select>
+      <p class="field-hint select-none">
+        Summary has one row per subscriber. Full record has one row per permission, with consent text and custom fields. Use it for access requests.
+      </p>
     </div>
     <div class="form-group">
       <label for="subExportFormat">Format</label>

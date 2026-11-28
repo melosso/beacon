@@ -37,25 +37,21 @@
     <div id="tokenFormFields">
       <div class="form-group">
         <label for="tokenBucket"
-          >Bucket <span class="required" title="Required field">*</span></label
+          >Bucket <span class="required" data-tooltip="Required field">*</span></label
         >
         <div class="autocomplete-wrapper">
           <input
             type="text"
             id="tokenBucket"
             placeholder="e.g., Marketing_Campaign_Q1"
-            autocomplete="off"
-            data-input="showBucketSuggestions"
-            data-focus="showBucketSuggestions"
           />
-          <div class="autocomplete-dropdown" id="bucketAutocomplete"></div>
         </div>
       </div>
 
       <div class="form-group">
         <label for="tokenEmail"
           >Email address
-          <span class="required" title="Required field">*</span></label
+          <span class="required" data-tooltip="Required field">*</span></label
         >
         <input type="email" id="tokenEmail" placeholder="user@example.com" />
       </div>
@@ -179,13 +175,13 @@
       </div>
     </div>
 
-    <div class="tooltip-wrapper" id="tokenOutputWrapper" hidden>
+    <div id="tokenOutputWrapper" hidden data-tooltip="Click to copy">
       <div
         class="token-output"
         id="tokenOutput"
         data-click="copyTokenLink"
       ></div>
-      <span class="tooltip tooltip-above">Click to copy</span>
+      
     </div>
 
     <div class="modal-actions">
@@ -200,7 +196,7 @@
         class="btn-square"
         id="viewTokenBucketBtn"
         data-click="openTokenBucketView"
-        title="View in bucket"
+        data-tooltip="View in bucket"
         aria-label="View in bucket"
         hidden
       >
@@ -222,7 +218,7 @@
       <button
         class="btn-square"
         data-click="openCustomFieldsDialog"
-        title="Custom fields"
+        data-tooltip="Custom fields"
         aria-label="Custom fields"
       >
         <svg

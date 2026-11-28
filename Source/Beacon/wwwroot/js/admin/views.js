@@ -83,6 +83,13 @@ function showView(view, pushState = true, skipLoad = false) {
     showSettingsSection("account", pushState);
     return;
   }
+  // submission-edit reuses the create view DOM
+  const viewId =
+    view === "submission-edit" || view === "submission-embed"
+      ? "view-submission-create"
+      : `view-${view}`;
+  if (guardLeave(viewId, pushState, () => showView(view, pushState, skipLoad)))
+    return;
   currentView = view;
   document
     .querySelectorAll(".view")
@@ -91,11 +98,6 @@ function showView(view, pushState = true, skipLoad = false) {
     .querySelectorAll(".nav-item")
     .forEach((n) => n.classList.remove("active"));
 
-  // submission-edit reuses the create view DOM
-  const viewId =
-    view === "submission-edit" || view === "submission-embed"
-      ? "view-submission-create"
-      : `view-${view}`;
   const viewEl = document.getElementById(viewId);
   if (viewEl) viewEl.classList.add("active");
 
@@ -129,8 +131,20 @@ function showView(view, pushState = true, skipLoad = false) {
   }
 }
 
+// Gate for every view switch: returns true if unsaved edits on the active view require confirmation.
+function guardLeave(targetViewId, pushState, retry) {
+  const active = document.querySelector(".view.active");
+  if (!active || active.id === targetViewId || !isDirty(active)) return false;
+  // Back/forward already changed the URL: restore it, replay the navigation on discard.
+  if (!pushState) history.pushState(null, "", guardUrl(active));
+  confirmDiscard(active, pushState ? retry : () => history.back());
+  return true;
+}
+
 function showBucket(bucket, pushState = true) {
   closeMobileNav();
+  if (guardLeave("view-bucket", pushState, () => showBucket(bucket, pushState)))
+    return;
   if (isModalOpen("optionsModal") && !closeOptionsModal()) return;
   if (bucket !== currentBucket) {
     bucketSelectedHashes.clear();
@@ -154,7 +168,7 @@ function showBucket(bucket, pushState = true) {
 
   document.getElementById("view-bucket").classList.add("active");
   document.getElementById("bucketTitle").textContent = formatPermission(bucket);
-  document.getElementById("bucketTooltip").textContent = bucket;
+  document.getElementById("bucketHeading").dataset.tooltip = bucket;
 
   document
     .querySelector(`.nav-item[data-bucket="${CSS.escape(bucket)}"]`)
@@ -271,12 +285,28 @@ function searchColumn(o) {
     <button
       class="search-trigger ${o.query ? "has-search" : ""}"
       id=${o.ids.trigger}
-      title=${o.title || "Search"}
+      data-tooltip=${o.title || "Search"}
       aria-label=${o.title || "Search"}
       @click=${o.onToggle}
     >
       ${SEARCH_ICON}
     </button>
+    ${
+      o.query
+        ? html`<button
+            type="button"
+            class="filter-chip"
+            aria-label=${`Clear search: ${o.query}`}
+            @click=${(e) => {
+              e.stopPropagation();
+              o.onClear();
+            }}
+          >
+            <span class="filter-chip-text">${o.query}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>`
+        : nothing
+    }
     <div
       class="search-popover"
       id=${o.ids.popover}
@@ -351,7 +381,12 @@ function renderDetailSubscriptions() {
     return;
   }
 
+  const isArchived = (name) =>
+    buckets.some((b) => b.name === name && b.isArchived);
+  // Archived buckets are read-only and listed last.
   const sorted = [...subDetailSubscriptions].sort((a, b) => {
+    const archivedCmp = isArchived(a.bucket) - isArchived(b.bucket);
+    if (archivedCmp) return archivedCmp;
     const cmp =
       subDetailSortBy === "bucket"
         ? a.bucket.localeCompare(b.bucket)
@@ -371,15 +406,20 @@ function renderDetailSubscriptions() {
         customFields: {},
       };
       const viewInBucket = () => showBucketFiltered(s.bucket, subDetailEmail);
-      return html` <tr>
+      const archived = isArchived(s.bucket);
+      return html` <tr class=${archived ? "row--archived" : ""}>
         <td>
           <span
-            class="tooltip-wrapper select-none cursor-pointer"
-            @click=${viewInBucket}
-            >${formatPermission(s.bucket)}<span class="tooltip tooltip-above"
-              >${s.bucket}</span
-            ></span
+            class="select-none cursor-pointer"
+            @click=${viewInBucket} data-tooltip=${s.bucket}>${formatPermission(s.bucket)}</span
           >
+          ${
+            archived
+              ? html`<span class="status-badge status-badge--sm"
+                  >Archived</span
+                >`
+              : nothing
+          }
         </td>
         <td>
           <div class="perm-switch-list">
@@ -392,25 +432,28 @@ function renderDetailSubscriptions() {
             )}
           </div>
         </td>
-        <td>${formatDate(s.lastChanged)}</td>
+        <td>
+          <button
+            type="button"
+            class="link-btn"
+            data-tooltip="Show audit entries of this bucket"
+            @click=${() => showAuditForBucketAndIdentity(s.bucket, subDetailHash)}
+          >${formatDate(s.lastChanged)}</button>
+        </td>
         <td>
           <div class="row-actions">
-            <span class="tooltip-wrapper">
-              <button
-                class="btn-actions"
+            <button
+                class="btn-icon btn-icon--sm"
                 aria-label="Actions"
                 @click=${(e) => toggleRowMenu(e, `sub-${idx}`)}
-              >
-                :
-              </button>
-              <span class="tooltip tooltip-above tooltip-right">Actions</span>
-            </span>
+              >${KEBAB_ICON}</button>
             <div class="dropdown-menu" id="rowMenu-sub-${idx}">
               <button class="dropdown-item" @click=${viewInBucket}>
-                View in Bucket
+                View in bucket
               </button>
               <button
-                class="dropdown-item"
+                class="dropdown-item${archived ? " disabled" : ""}"
+                ?disabled=${archived}
                 @click=${() =>
                   openEditFromSubscription(
                     s.bucket,
@@ -436,28 +479,20 @@ function renderDetailSubscriptions() {
 }
 
 function updateSubPagination() {
-  const totalPages = Math.ceil(subTotalRecords / subPageSize) || 1;
-  const start =
-    subTotalRecords === 0 ? 0 : (subCurrentPage - 1) * subPageSize + 1;
-  const end = Math.min(subCurrentPage * subPageSize, subTotalRecords);
-  document.getElementById("subPaginationInfo").textContent = pageRangeText(
-    start,
-    end,
-    subTotalRecords,
-  );
-  document.getElementById("subPrevBtn").disabled = subCurrentPage === 1;
-  document.getElementById("subNextBtn").disabled = subCurrentPage >= totalPages;
-}
-
-function updateSubPageSize() {
-  subPageSize = parseInt(document.getElementById("subPageSize").value);
-  subCurrentPage = 1;
-  loadIdentities();
-}
-
-function changeSubPage(delta) {
-  subCurrentPage += delta;
-  loadIdentities();
+  renderPager(document.getElementById("subPager"), {
+    page: subCurrentPage,
+    pageSize: subPageSize,
+    total: subTotalRecords,
+    onPage: (n) => {
+      subCurrentPage = n;
+      loadIdentities();
+    },
+    onPageSize: (n) => {
+      subPageSize = n;
+      subCurrentPage = 1;
+      loadIdentities();
+    },
+  });
 }
 
 function toggleSubSort(column) {
@@ -582,11 +617,29 @@ function subExportHashes() {
 
 function openSubExportModal() {
   closeAllMenus();
-  const count = subExportHashes().length;
-  document.getElementById("subExportCount").textContent =
-    count > 0 ? count : "all";
   if (subDetailHash) document.getElementById("subExportContents").value = "full";
+  const bucketInput = document.getElementById("subExportBucket");
+  attachBucketPicker(bucketInput, { allLabel: "All buckets", onSelect: updateSubExportCount });
+  bucketInput.value = "";
+  updateSubExportCount();
   openModal("subExportModal");
+}
+
+function updateSubExportCount() {
+  const selected = subExportHashes().length;
+  const bucket = buckets.find(
+    (b) => b.name === document.getElementById("subExportBucket").value,
+  );
+  const count =
+    selected > 0
+      ? formatNumber(selected)
+      : bucket
+        ? formatNumber(bucket.totalEmails ?? 0)
+        : subSearchQuery
+          ? "all"
+          : formatNumber(subTotalRecords);
+  document.getElementById("subExportCount").textContent =
+    selected > 0 && bucket ? `up to ${count}` : count;
 }
 
 function openIdentityNameModal() {
@@ -673,19 +726,29 @@ function closeSubExportModal() {
 async function confirmSubExport() {
   const format = document.getElementById("subExportFormat").value;
   const full = document.getElementById("subExportContents").value === "full";
+  const bucket = document.getElementById("subExportBucket").value.trim();
+  if (bucket && !buckets.some((b) => b.name === bucket)) {
+    notify("warning", "Bucket not found", "Pick a bucket from the list or leave the field empty for all buckets.");
+    return;
+  }
   const btn = document.getElementById("subExportConfirmBtn");
   btn.disabled = true;
   btn.textContent = "Exporting…";
 
   const hashes = subExportHashes();
-  const body = hashes.length > 0 ? { hashes, format, full } : { format, full };
+  const body = {
+    format,
+    full,
+    ...(hashes.length > 0 ? { hashes } : {}),
+    ...(bucket ? { bucket } : {}),
+  };
 
   try {
     if (
       await downloadExport(
         `${window.location.origin}/api/admin/identities/export`,
         body,
-        `beacon-subscribers${full ? "-full" : ""}.${format}`,
+        `beacon-subscribers${full ? "-full" : ""}${bucket ? `-${bucket}` : ""}.${format}`,
       )
     )
       closeSubExportModal();
@@ -696,6 +759,7 @@ async function confirmSubExport() {
 }
 
 async function loadIdentities(pushState = true) {
+  const isCurrent = latestCall("subscriptions");
   const thead = document.getElementById("subscriptionsTableHead");
   const body = document.getElementById("subscriptionsBody");
 
@@ -703,7 +767,7 @@ async function loadIdentities(pushState = true) {
   const badge = document.getElementById("subBadge");
   badge.hidden = true;
   badge.textContent = "";
-  badge.classList.remove("tooltip-wrapper");
+  delete badge.dataset.tooltip;
   badge.removeAttribute("data-hash");
   badge.classList.remove("cursor-pointer");
   badge.onclick = null;
@@ -723,7 +787,7 @@ async function loadIdentities(pushState = true) {
   paint(
     thead,
     html` <th class="col-select">
-        <label class="row-check" title="Select all"
+        <label class="row-check" data-tooltip="Select all"
           ><input
             type="checkbox"
             id="subSelectAll"
@@ -768,7 +832,7 @@ async function loadIdentities(pushState = true) {
     url += `&search=${encodeURIComponent(subSearchQuery)}&searchType=${subSearchType}`;
 
   const result = await apiRequest(url);
-  if (!result.ok) return;
+  if (!result.ok || !isCurrent()) return;
 
   const data = result.data;
   subTotalRecords = data.total;
@@ -811,23 +875,10 @@ async function loadIdentities(pushState = true) {
           <td>
             ${
               id.email
-                ? html`<span class="tooltip-wrapper"
-                  ><span
-                    class="email-text select-none cursor-pointer"
-                    @click=${stop(() => copyText(id.email))}
-                    @dblclick=${stop(() => copyTextNow(id.emailHash))}
-                    >${id.email}</span
-                  ><span class="tooltip"
-                    >Click to copy &middot; double-click for ID</span
-                  ></span
-                >`
-                : html`<span
-                  class="tooltip-wrapper"
-                  @dblclick=${stop(() => copyTextNow(id.emailHash))}
-                  ><span class="email-hash"
+                ? html`<span class="email-text">${id.email}</span>`
+                : html`<span class="email-hash"
                     >${id.emailHash.substring(0, 16)}…</span
-                  ><span class="tooltip">Double-click to copy ID</span></span
-                >`
+                  >`
             }
           </td>
           <td>
@@ -840,7 +891,7 @@ async function loadIdentities(pushState = true) {
           <td>${id.bucketCount} bucket${id.bucketCount !== 1 ? "s" : ""}</td>
           <td
             class="col-link"
-            title="View audit"
+            data-tooltip="View audit"
             @click=${stop(() => showAuditForIdentity(id.emailHash))}
           >
             ${formatDate(id.lastChanged)}${
@@ -851,19 +902,14 @@ async function loadIdentities(pushState = true) {
           </td>
           <td>
             <div class="row-actions">
-              <span class="tooltip-wrapper">
-                <button
-                  class="btn-actions"
+              <button
+                  class="btn-icon btn-icon--sm"
                   aria-label="Actions"
                   @click=${(e) => {
                     e.stopPropagation();
                     toggleRowMenu(e, `sid-${idx}`);
                   }}
-                >
-                  :
-                </button>
-                <span class="tooltip tooltip-above tooltip-right">Actions</span>
-              </span>
+                >${KEBAB_ICON}</button>
               <div class="dropdown-menu" id="rowMenu-sid-${idx}">
                 <button
                   class="dropdown-item"
@@ -903,13 +949,14 @@ function openSubscriber(emailHash) {
 }
 
 async function showIdentityDetails(emailHash, pushState = true) {
+  const isCurrent = latestCall("subscriptions");
   // Update chrome synchronously before the fetch so there is no flash of stale content
   document.getElementById("subTitle").textContent = "Identity details";
   const badge = document.getElementById("subBadge");
   badge.hidden = false;
   badge.dataset.hash = emailHash;
   delete badge.dataset.email;
-  badge.classList.add("tooltip-wrapper");
+  badge.dataset.tooltip = "Click to copy. Double-click to copy the ID.";
   badge.classList.add("cursor-pointer");
   badge.onclick = () => copyText(badge.dataset.email || badge.dataset.hash);
   badge.ondblclick = () => copyTextNow(badge.dataset.hash);
@@ -917,7 +964,7 @@ async function showIdentityDetails(emailHash, pushState = true) {
     badge,
     html`<span class="email-hash text-inherit"
         >${emailHash.substring(0, 16)}…</span
-      ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,
+      >`,
   );
   document.getElementById("subBackBtn").hidden = false;
   document.getElementById("subIdentityActions").hidden = false;
@@ -936,7 +983,7 @@ async function showIdentityDetails(emailHash, pushState = true) {
   const result = await apiRequest(
     `/api/admin/identities/${encodeURIComponent(emailHash)}`,
   );
-  if (!result.ok) return;
+  if (!result.ok || !isCurrent()) return;
 
   if (pushState) syncSubUrl(emailHash);
 
@@ -947,8 +994,7 @@ async function showIdentityDetails(emailHash, pushState = true) {
     badge.dataset.email = details.email;
     paint(
       badge,
-      html`<span class="text-inherit">${details.email}</span
-        ><span class="tooltip">Click to copy. Double-click to copy the ID.</span>`,
+      html`<span class="text-inherit">${details.email}</span>`,
     );
   }
 

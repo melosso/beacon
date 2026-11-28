@@ -42,7 +42,7 @@
           class="brand select-none"
           id="sidebarToggle"
           data-click="toggleSidebar"
-          title="Collapse sidebar"
+          data-tooltip="Collapse sidebar"
           aria-expanded="true"
         >
           <div class="brand-avatar">
@@ -216,7 +216,7 @@
             href="#"
             class="nav-item"
             data-view="overview"
-            data-click="showView overview" title="Buckets"
+            data-click="showView overview" data-tooltip="Buckets"
           >
             <svg class="nav-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
             <span>Buckets</span>
@@ -225,7 +225,7 @@
             href="#"
             class="nav-item"
             data-view="subscriptions"
-            data-click="showView subscriptions" title="Subscribers"
+            data-click="showView subscriptions" data-tooltip="Subscribers"
           >
             <svg class="nav-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Subscribers</span>
@@ -235,10 +235,11 @@
             class="nav-item"
             id="navWorkflow"
             data-view="workflow"
-            data-click="showView workflow" title="Workflow"
+            data-click="showView workflow" data-tooltip="Workflow"
           >
             <svg class="nav-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M6 9v3a3 3 0 0 0 3 3h6"/></svg>
             <span>Workflow</span>
+            <span class="nav-count" id="navWorkflowCount" hidden></span>
           </a>
         </div>
 
@@ -246,13 +247,11 @@
           <div class="nav-label-container">
             <div class="nav-label select-none">Buckets</div>
             <div class="nav-label-actions">
-              <span class="tooltip-wrapper">
-                <button
+              <button
                   class="btn-sidebar"
                   id="btnSort"
                   data-click="cycleSidebarSort"
-                  aria-label="Sort buckets"
-                >
+                  aria-label="Sort buckets" data-tooltip="Sort buckets">
                   <svg
                     width="14"
                     height="14"
@@ -267,19 +266,11 @@
                     <path d="M4 18h4" />
                   </svg>
                 </button>
-                <span
-                  class="tooltip tooltip-above tooltip-right"
-                  id="btnSortTooltip"
-                  >Sort buckets</span
-                >
-              </span>
-              <span class="tooltip-wrapper">
-                <button
+              <button
                   class="btn-sidebar"
                   id="btnDisplayMode"
                   data-click="toggleSidebarDisplay"
-                  aria-label="Show code names"
-                >
+                  aria-label="Show code names" data-tooltip="Show code names">
                   <svg
                     width="14"
                     height="14"
@@ -292,12 +283,6 @@
                     <polyline points="8 6 2 12 8 18" />
                   </svg>
                 </button>
-                <span
-                  class="tooltip tooltip-above tooltip-right"
-                  id="btnDisplayTooltip"
-                  >Show code names</span
-                >
-              </span>
             </div>
           </div>
 
@@ -313,7 +298,7 @@
             href="#"
             class="nav-item"
             data-view="submissions"
-            data-click="showView submissions" title="Forms"
+            data-click="showView submissions" data-tooltip="Forms"
           >
             <svg class="nav-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
             <span>Forms</span>
@@ -322,7 +307,7 @@
             href="#"
             class="nav-item"
             data-view="audit"
-            data-click="showView audit" title="Audit"
+            data-click="showView audit" data-tooltip="Audit"
           >
             <svg class="nav-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             <span>Audit</span>
@@ -331,7 +316,7 @@
             href="#"
             class="nav-item"
             data-view="settings"
-            data-click="showView settings" title="Settings"
+            data-click="showView settings" data-tooltip="Settings"
           >
             <svg class="nav-icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span>Settings</span>
@@ -346,14 +331,23 @@
             data-click="toggleAccountMenu $el"
             aria-haspopup="menu"
             aria-controls="accountMenu"
-            title="Account"
+            data-tooltip="More options"
           >
             <span class="account-avatar" id="sidebarUserAvatar">A</span>
             <span class="account-meta">
               <span class="account-name" id="sidebarUserName">Admin</span>
-              <span class="account-version" id="sidebarVersion"></span>
             </span>
             <svg class="account-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+          </button>
+          <button
+            type="button"
+            class="btn-icon theme-toggle"
+            id="themeToggle"
+            data-click="cycleAdminTheme"
+            aria-label="Toggle theme"
+          >
+            <svg class="theme-icon theme-icon--light" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            <svg class="theme-icon theme-icon--dark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           </button>
           <div class="dropdown-menu account-menu" id="accountMenu" role="menu" aria-label="Account">
             <a href="#" class="dropdown-item" role="menuitem" data-click="openAccountMenuView account">My profile</a>

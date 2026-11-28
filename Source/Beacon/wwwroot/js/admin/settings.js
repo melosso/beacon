@@ -237,14 +237,22 @@ async function loadServerSettings() {
     if (promoToggle) promoToggle.checked = appSettings.promoBarEnabled;
     initPromoBar();
     if (res.data.version) {
-      document.getElementById("sidebarVersion").textContent =
-        `v${res.data.version}`;
       const sysHd = document.querySelector(
         "#settings-section-system .settings-content-hd h3",
       );
       if (sysHd) sysHd.textContent = `System (v${res.data.version})`;
     }
   }
+}
+
+// Sidebar toggle: flips light and dark, then mirrors the choice into the Appearance setting.
+function cycleAdminTheme() {
+  cycleTheme();
+  appSettings.theme = effectiveTheme();
+  const radio = document.querySelector(
+    `input[name="setting-theme"][value="${appSettings.theme}"]`,
+  );
+  if (radio) radio.checked = true;
 }
 
 function applyAppearance() {
@@ -262,6 +270,7 @@ function applyAppearance() {
   try {
     localStorage.setItem("beacon_settings", JSON.stringify(appSettings));
   } catch {}
+  syncThemeToggle();
 }
 
 const _adminOnlySections = new Set([

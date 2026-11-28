@@ -20,6 +20,66 @@ function pageRangeText(start, end, total) {
   return total === 0 ? "0 of 0" : `${n(start)}–${n(end)} of ${n(total)}`;
 }
 
+// PAGER: one table footer. o: { page, pageSize, total, sizes, onPage(n), onPageSize(n) }; the caller stores page state.
+const PAGER_ICONS = {
+  first: "m11 17-5-5 5-5M18 17l-5-5 5-5",
+  prev: "m15 18-6-6 6-6",
+  next: "m9 18 6-6-6-6",
+  last: "m13 17 5-5-5-5M6 17l5-5-5-5",
+};
+
+function renderPager(el, o) {
+  if (!el) return;
+  const pages = Math.max(1, Math.ceil(o.total / o.pageSize));
+  if (o.page > pages) {
+    queueMicrotask(() => o.onPage(pages));
+    return;
+  }
+  const page = Math.max(1, o.page);
+  const start = o.total === 0 ? 0 : (page - 1) * o.pageSize + 1;
+  const end = Math.min(page * o.pageSize, o.total);
+  const go = (n) => {
+    const target = Math.min(Math.max(1, Math.trunc(n) || 1), pages);
+    if (target !== page) o.onPage(target);
+  };
+  const btn = (key, label, target, disabled) =>
+    html`<button type="button" class="btn-icon btn-icon--sm" aria-label=${label} data-tooltip=${label} ?disabled=${disabled} @click=${() => go(target)}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=${PAGER_ICONS[key]}/></svg>
+    </button>`;
+  paint(
+    el,
+    html`<span class="pagination-info">${pageRangeText(start, end, o.total)}</span>
+      <div class="pagination-controls">
+        <label class="page-size-selector">
+          <span class="pager-word">Rows</span>
+          <select class="page-size-input" aria-label="Rows per page" @change=${(e) => o.onPageSize(Number(e.target.value))}>
+            ${(o.sizes || [10, 25, 50, 100]).map((n) => html`<option value=${n} ?selected=${n === o.pageSize}>${n}</option>`)}
+          </select>
+        </label>
+        ${btn("first", "First page", 1, page <= 1)}
+        ${btn("prev", "Previous page", page - 1, page <= 1)}
+        <label class="page-jump">
+          <span class="pager-word">Page</span>
+          <input type="number" class="page-input" inputmode="numeric" min="1" max=${pages} aria-label="Page number"
+            .value=${String(page)}
+            @change=${(e) => go(Number(e.target.value))}
+            @keydown=${(e) => e.key === "Enter" && go(Number(e.target.value))}>
+          of ${formatNumber(pages)}
+        </label>
+        ${btn("next", "Next page", page + 1, page >= pages)}
+        ${btn("last", "Last page", pages, page >= pages)}
+      </div>`,
+  );
+}
+
+// Stale-response guard: a call returns a check that is false once a newer call with the same key starts. Live refreshes and user paging overlap.
+const _latestCalls = new Map();
+function latestCall(key) {
+  const id = (_latestCalls.get(key) ?? 0) + 1;
+  _latestCalls.set(key, id);
+  return () => _latestCalls.get(key) === id;
+}
+
 const ACTION_EVENTS = {
   click: "click",
   dblclick: "dblclick",
@@ -90,15 +150,77 @@ document.addEventListener(
   true,
 );
 
-document.addEventListener("input", (e) => {
-  if (e.target.closest?.("[data-guard]") && !e.target.hasAttribute("data-instant"))
-    e.target.closest("dialog")?.setAttribute("data-dirty", "");
-});
+// UNSAVED CHANGES: one dirty-state guard for dialogs and views (rules in DESIGN.md, Unsaved changes).
+const _guardBaselines = new WeakMap();
+const _guardExtras = new Map();
+
+function guardScope(scope) {
+  return typeof scope === "string" ? document.getElementById(scope) : scope;
+}
+
+function guardSnapshot(scope) {
+  const controls = scope.querySelectorAll(
+    "[data-guard] :is(input, select, textarea):not([data-instant], [type=file])",
+  );
+  return JSON.stringify([
+    [...controls].map((c) => (c.type === "checkbox" || c.type === "radio" ? c.checked : c.value)),
+    _guardExtras.get(scope.id)?.() ?? null,
+  ]);
+}
+
+function guardExtra(scopeId, fn) {
+  _guardExtras.set(scopeId, fn);
+}
+
+function guardReset(scope) {
+  const el = guardScope(scope);
+  if (el) _guardBaselines.delete(el);
+}
+
+function isDirty(scope) {
+  const el = guardScope(scope);
+  const base = el && _guardBaselines.get(el);
+  return !!base && base.snapshot !== guardSnapshot(el);
+}
+
+// The single gate for closing or leaving a scope with unsaved edits.
+function confirmDiscard(scope, proceed) {
+  const el = guardScope(scope);
+  if (!isDirty(el)) return proceed();
+  openConfirmModal(
+    "Discard changes?",
+    el.matches("dialog") ? "Edits in this panel are not saved." : "Edits on this page are not saved.",
+    "Discard",
+    () => {
+      guardReset(el);
+      proceed();
+    },
+  );
+}
+
+// URL of the page when its baseline was taken: back/forward restores it while the prompt is open.
+function guardUrl(scope) {
+  return _guardBaselines.get(guardScope(scope))?.url ?? location.href;
+}
+
+for (const type of ["focusin", "pointerdown"]) {
+  document.addEventListener(
+    type,
+    (e) => {
+      if (!e.target.closest?.("[data-guard]")) return;
+      const scope = e.target.closest("dialog, .view");
+      if (scope && !_guardBaselines.has(scope))
+        _guardBaselines.set(scope, { snapshot: guardSnapshot(scope), url: location.href });
+    },
+    true,
+  );
+}
+
 window.addEventListener("beforeunload", (e) => {
+  const scopes = document.querySelectorAll("dialog[open], .view.active");
   if (
-    document.querySelector(
-      "dialog[open][data-dirty], dialog[open] [data-uncopied]:not([hidden])",
-    )
+    [...scopes].some(isDirty) ||
+    document.querySelector("dialog[open] [data-uncopied]:not([hidden])")
   )
     e.preventDefault();
 });
@@ -132,34 +254,33 @@ document.addEventListener(
   true,
 );
 
-function markClean(id) {
-  document.getElementById(id)?.removeAttribute("data-dirty");
-}
-
 function openModal(id) {
   const dialog = document.getElementById(id);
   if (dialog.open) return;
-  dialog.removeAttribute("data-dirty");
+  guardReset(dialog);
   dialog.showModal();
 }
 
 function closeModal(id, force = false) {
   const dialog = document.getElementById(id);
   const uncopied = dialog?.querySelector("[data-uncopied]:not([hidden])");
-  if (!force && (uncopied || dialog?.hasAttribute("data-dirty"))) {
-    const closer = window[dialog.dataset.click?.split(" ")[0]];
+  const closer = window[dialog?.dataset.click?.split(" ")[0]];
+  const retry = () => (closer ? closer(true) : closeModal(id, true));
+  if (!force && uncopied) {
     openConfirmModal(
-      uncopied ? "Close without copying?" : "Discard changes?",
-      uncopied
-        ? "The secret is shown once and cannot be shown again."
-        : "Edits in this panel are not saved.",
-      uncopied ? "Close" : "Discard",
-      () => (closer ? closer(true) : closeModal(id, true)),
+      "Close without copying?",
+      "The secret is shown once and cannot be shown again.",
+      "Close",
+      retry,
     );
     return false;
   }
+  if (!force && isDirty(dialog)) {
+    confirmDiscard(dialog, retry);
+    return false;
+  }
   uncopied?.removeAttribute("data-uncopied");
-  dialog?.removeAttribute("data-dirty");
+  guardReset(dialog);
   dialog?.close();
   return true;
 }
@@ -167,6 +288,8 @@ function closeModal(id, force = false) {
 function isModalOpen(id) {
   return !!document.getElementById(id)?.open;
 }
+
+const KEBAB_ICON = html`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
 
 // Escapes interpolations like lit; replaces all children like innerHTML.
 function paint(el, template) {
@@ -462,7 +585,7 @@ function syncThemeToggle() {
     "aria-label",
     theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
   );
-  btn.title = btn.getAttribute("aria-label");
+  btn.dataset.tooltip = btn.getAttribute("aria-label");
 }
 
 matchMedia("(prefers-color-scheme: dark)").addEventListener(

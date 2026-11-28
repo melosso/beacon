@@ -134,32 +134,23 @@ function renderUsersPage() {
 }
 
 function renderUsersPagination() {
-  const total = _usersAll.length;
-  const totalPages = Math.ceil(total / _usersPageSize) || 1;
-  const start = total === 0 ? 0 : (_usersPage - 1) * _usersPageSize + 1;
-  const end = Math.min(_usersPage * _usersPageSize, total);
-  document.getElementById("usersPaginationInfo").textContent = pageRangeText(
-    start,
-    end,
-    total,
-  );
-  document.getElementById("usersPrevBtn").disabled = _usersPage <= 1;
-  document.getElementById("usersNextBtn").disabled = _usersPage >= totalPages;
-  document.getElementById("usersPaginationBar").hidden = !(
-    total > _usersPageSize
-  );
-}
-
-function changeUsersPage(dir) {
-  const totalPages = Math.ceil(_usersAll.length / _usersPageSize) || 1;
-  _usersPage = Math.max(1, Math.min(totalPages, _usersPage + dir));
-  renderUsersPage();
-}
-
-function updateUsersPageSize() {
-  _usersPageSize = parseInt(document.getElementById("usersPageSize").value);
-  _usersPage = 1;
-  renderUsersPage();
+  const bar = document.getElementById("usersPaginationBar");
+  bar.hidden = _usersAll.length <= _usersPageSize;
+  renderPager(bar, {
+    page: _usersPage,
+    pageSize: _usersPageSize,
+    total: _usersAll.length,
+    sizes: [10, 25, 50],
+    onPage: (n) => {
+      _usersPage = n;
+      renderUsersPage();
+    },
+    onPageSize: (n) => {
+      _usersPageSize = n;
+      _usersPage = 1;
+      renderUsersPage();
+    },
+  });
 }
 
 function formatRelativeTime(isoString) {
@@ -176,16 +167,14 @@ function formatRelativeTime(isoString) {
   else if (abs < 86_400_000) rel = `${Math.floor(abs / 3_600_000)}h ago`;
   else if (abs < 7 * 86_400_000) rel = `${Math.floor(abs / 86_400_000)}d ago`;
   else rel = date.toLocaleDateString(UI_LOCALE);
-  return html`<span class="tooltip-wrapper cursor-default">${rel}<span class="tooltip tooltip-above">${full}</span></span>`;
+  return html`<span class="cursor-default" data-tooltip=${full}>${rel}</span>`;
 }
-
-const KEBAB_ICON = html`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>`;
 
 // Row menu: kebab button plus dropdown items as [label, onClick, destructive?].
 function rowMenu(menuId, items) {
   return html`
     <div class="row-actions">
-      <button class="btn-actions" aria-label="Actions" @click=${(e) => {
+      <button class="btn-icon btn-icon--sm" aria-label="Actions" @click=${(e) => {
         e.stopPropagation();
         toggleMenu(menuId, e.currentTarget);
       }}>${KEBAB_ICON}</button>
@@ -484,7 +473,7 @@ async function createUser() {
     document.getElementById("newUserApiKeyOutput").textContent = _newUserApiKey;
     document.getElementById("newUserApiKeySection").hidden = false;
     document.getElementById("newUserApiKeySection").setAttribute("data-uncopied", "");
-    markClean("addUserModal");
+    guardReset("addUserModal");
     document.querySelector(
       "#addUserModal .modal-actions .btn-outline",
     ).textContent = "Done";

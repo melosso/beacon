@@ -18,10 +18,6 @@ function handleGenerateToken() {
   }
 }
 
-function addIdentityFromOptions() {
-  if (closeOptionsModal()) newTokenForBucket(currentBucket);
-}
-
 function newTokenForBucket(bucket = currentBucket) {
   clearTokenForm();
   showView("new-token");
@@ -190,7 +186,7 @@ async function generateToken() {
 
       // Freeze the form fields until the user starts a new token
       document.getElementById("tokenFormFields").classList.add("frozen");
-      markClean("newTokenSheet");
+      guardReset("newTokenSheet");
 
       loadBuckets();
     }
@@ -298,7 +294,7 @@ function formatPermission(p) {
 function consentChip(optedIn, pending) {
   if (pending) return html`<span class="status-chip pending">Pending</span>`;
   if (optedIn === undefined)
-    return html`<span class="status-chip unset" title="No record. Counts as opted in.">Not set</span>`;
+    return html`<span class="status-chip unset" data-tooltip="No record. Counts as opted in.">Not set</span>`;
   return optedIn
     ? html`<span class="status-chip opted-in">Opted in</span>`
     : html`<span class="status-chip opted-out">Opted out</span>`;
@@ -541,7 +537,7 @@ function renderBucketPermsGrid() {
         <div class="permission-row" data-perm=${p.permission}>
           <span class="permission-name">${formatPermission(p.permission)}</span>
           <span class="permission-count">${p.optedIn} in / ${p.optedOut} out</span>
-          <button type="button" class="btn-remove" @click=${() => showPermRemoveModal(p.permission)} title="Remove" aria-label="Remove">&times;</button>
+          <button type="button" class="btn-remove" @click=${() => showPermRemoveModal(p.permission)} data-tooltip="Remove" aria-label="Remove">&times;</button>
         </div>`,
         )}`,
   );

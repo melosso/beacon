@@ -13,7 +13,7 @@
         <button
           class="btn btn-icon text-danger"
           data-click="showDeleteRecordModal"
-          title="Delete record"
+          data-tooltip="Delete record"
           aria-label="Delete record"
         >
           <svg
@@ -158,9 +158,9 @@
     <p>
       Updated permissions change how consent is tracked for this subscriber.
     </p>
-    <p>
-      Existing tokens are <strong>invalidated</strong>. Older tokens no longer
-      reflect the subscriber's permissions.
+    <p id="permissionsDbLookupNote" hidden>
+      Preference links show every permission as opted in. Turn on database
+      lookup in Settings to show saved choices.
     </p>
     <div class="modal-actions">
       <button class="btn btn-outline" data-click="closePermissionsConfirmModal">

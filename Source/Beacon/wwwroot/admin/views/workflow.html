@@ -5,31 +5,21 @@
       <h1 class="select-none">Workflow</h1>
     </div>
     <div class="bucket-actions">
-      <span class="tooltip-wrapper">
-        <button
+      <button
           class="btn btn-outline"
           id="workflowArchiveToggle"
-          data-click="toggleWorkflowArchived"
-        >
+          data-click="toggleWorkflowArchived" data-tooltip="Include completed tasks">
           Show archived
         </button>
-        <span class="tooltip">Include completed tasks</span>
-      </span>
       <button class="btn btn-outline" data-click="loadWorkflowPage">
         Refresh
       </button>
-      <span class="tooltip-wrapper">
-        <button
+      <button
           class="btn btn-outline"
           id="workflowRunBtn"
-          data-click="triggerDataPoliciesRun"
-        >
+          data-click="triggerDataPoliciesRun" data-tooltip="Run data policies immediately">
           <span class="btn-label">Run now</span><span class="spinner"></span>
         </button>
-        <span class="tooltip" id="workflowRunTip"
-          >Run data policies immediately</span
-        >
-      </span>
     </div>
   </section>
   <div class="notice notice--action mb-4" id="workflow-policy-notice" hidden>
@@ -46,6 +36,7 @@
       <table>
         <thead>
           <tr>
+            <th>ID</th>
             <th>Task</th>
             <th>Triggered by</th>
             <th>Queued</th>
@@ -56,44 +47,47 @@
         </thead>
         <tbody id="workflowTbody">
           <tr>
-            <td class="table-empty" colspan="6">No items awaiting approval.</td>
+            <td class="table-empty" colspan="7">No items awaiting approval.</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div class="pagination-container" id="workflowPaginationBar" hidden>
-      <div class="pagination-settings">
-        <div class="page-size-selector">
-          <span>Show</span>
-          <select
-            class="page-size-input"
-            id="workflowPageSize"
-            data-change="updateWorkflowPageSize"
-          >
-            <option value="10">10</option>
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-          </select>
-          <span>per page</span>
-        </div>
-        <div class="pagination-info" id="workflowPaginationInfo"></div>
-      </div>
-      <div class="flex gap-2">
-        <button
-          class="btn btn-outline"
-          id="workflowPrevBtn"
-          data-click="changeWorkflowPage -1"
-        >
-          Previous
-        </button>
-        <button
-          class="btn btn-outline"
-          id="workflowNextBtn"
-          data-click="changeWorkflowPage 1"
-        >
-          Next
-        </button>
-      </div>
-    </div>
+    <div class="pagination-container" id="workflowPaginationBar" hidden></div>
   </div>
 </div>
+
+<!-- Workflow task records: what a pending task changes on approval -->
+<dialog
+  class="modal-backdrop"
+  id="workflowRecordsModal"
+  aria-labelledby="workflowRecordsTitle"
+  data-self
+  data-click="closeWorkflowRecords"
+>
+  <div class="modal modal--xl">
+    <div class="modal-header">
+      <h3 id="workflowRecordsTitle">Records</h3>
+      <button class="btn btn-icon" data-click="closeWorkflowRecords" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+    <p id="workflowRecordsSummary"></p>
+    <div class="modal-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Subscriber</th>
+            <th>Bucket</th>
+            <th>Permission</th>
+            <th>Last changed</th>
+          </tr>
+        </thead>
+        <tbody id="workflowRecordsBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" data-click="closeWorkflowRecords">Close</button>
+      <button class="btn btn-primary" id="workflowRecordsApprove" data-click="approveWorkflowRecords $el">Approve</button>
+    </div>
+  </div>
+</dialog>

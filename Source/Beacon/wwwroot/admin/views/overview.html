@@ -5,11 +5,12 @@
       <h1 class="select-none">Buckets</h1>
     </div>
     <div class="bucket-actions">
-      <span class="tooltip-wrapper" id="overviewWebhookErrorsContainer">
+      <span id="overviewWebhookErrorsContainer">
         <button
           class="btn-square"
           id="overviewWebhookErrorsTrigger"
           data-click="toggleOverviewWebhookErrors $event"
+          data-tooltip="Notifications"
           aria-label="Notifications"
         >
           <svg
@@ -27,7 +28,7 @@
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
         </button>
-        <span class="tooltip">Notifications</span>
+        
       </span>
       <div
         class="webhook-errors-dropdown"

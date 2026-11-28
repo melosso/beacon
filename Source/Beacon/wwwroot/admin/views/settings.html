@@ -125,8 +125,8 @@
               </div>
               <label class="settings-item-card" for="setting-allowDbLookup">
                 <div class="settings-item-info">
-                  <span class="settings-item-title select-none">Show saved choices</span>
-                  <p class="settings-item-desc">Preference pages show each subscriber's saved choices, not the defaults stored in their link.</p>
+                  <span class="settings-item-title select-none">Allow database lookup for token</span>
+                  <p class="settings-item-desc">When enabled, the (user) consent page loads permissions from the database instead of the token.</p>
                 </div>
                 <div class="settings-item-control">
                   <input type="checkbox" id="setting-allowDbLookup" data-confirm-off="saved choices" data-change="saveSettingImmediate allowDbLookup $checked">
@@ -153,12 +153,10 @@
                     <span class="settings-item-title select-none">Enable submission forms</span>
                     <p class="settings-item-desc">When enabled, submission forms can accept incoming subscription requests from external websites.</p>
                   </div>
-                  <span class="tooltip-wrapper">
-                    <div class="settings-item-control">
+                  <div class="settings-item-control">
                       <input type="checkbox" id="setting-enableSubmissionForms" data-confirm-off="submission forms" data-change="saveSettingImmediate enableSubmissionForms $checked">
                       <span class="toggle-track"></span>
                     </div>
-                  </span>
                 </label>
                 <button class="btn-settings-gear" data-click="openSubmissionFormsSettingsModal" aria-label="Submission forms settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -296,7 +294,7 @@
               <div class="mt-6">
                 <div class="flex items-center justify-between mb-3">
                   <h4 class="settings-item-title select-none">Run history</h4>
-                  <button class="btn btn-icon btn-icon--sm" data-click="loadWorkflowTasks" title="Refresh" aria-label="Refresh run history">
+                  <button class="btn btn-icon btn-icon--sm" data-click="loadWorkflowTasks" data-tooltip="Refresh" aria-label="Refresh run history">
                     <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                   </button>
                 </div>
@@ -304,6 +302,7 @@
                   <table class="table">
                     <thead>
                       <tr>
+                        <th>ID</th>
                         <th>Task</th>
                         <th>Triggered by</th>
                         <th>Started</th>
@@ -313,7 +312,7 @@
                       </tr>
                     </thead>
                     <tbody id="workflowTasksTbody">
-                      <tr><td class="table-empty" colspan="6">No runs. Enable a policy, then select Run now.</td></tr>
+                      <tr><td class="table-empty" colspan="7">No runs. Enable a policy, then select Run now.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -467,12 +466,10 @@
                     <span class="settings-item-title select-none">Object storage</span>
                     <p class="settings-item-desc">Store attachments and exports in an external object storage provider such as S3 or R2.</p>
                   </div>
-                  <span class="tooltip-wrapper">
-                    <div class="settings-item-control">
+                  <div class="settings-item-control">
                       <input type="checkbox" id="setting-objectStorage" data-confirm-off="object storage" data-change="onObjectStorageToggle $el">
                       <span class="toggle-track"></span>
                     </div>
-                  </span>
                 </label>
                 <button class="btn-settings-gear" data-click="openObjectStorageModal" aria-label="Object storage settings">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -515,24 +512,7 @@
                 <tbody id="usersBody"></tbody>
               </table>
             </div>
-            <div class="pagination-container" id="usersPaginationBar" hidden>
-              <div class="pagination-settings">
-                <div class="page-size-selector">
-                  <span>Show</span>
-                  <select class="page-size-input" id="usersPageSize" data-change="updateUsersPageSize">
-                    <option value="10">10</option>
-                    <option value="25" selected>25</option>
-                    <option value="50">50</option>
-                  </select>
-                  <span>per page</span>
-                </div>
-                <div class="pagination-info" id="usersPaginationInfo"></div>
-              </div>
-              <div class="flex gap-2">
-                <button class="btn btn-outline" id="usersPrevBtn" data-click="changeUsersPage -1">Previous</button>
-                <button class="btn btn-outline" id="usersNextBtn" data-click="changeUsersPage 1">Next</button>
-              </div>
-            </div>
+            <div class="pagination-container" id="usersPaginationBar" hidden></div>
             <div class="mt-6">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="settings-item-title select-none">Sign-in providers</h4>
@@ -571,24 +551,7 @@
                 <tbody id="apiKeysBody"></tbody>
               </table>
             </div>
-            <div class="pagination-container" id="apiKeysPaginationBar" hidden>
-              <div class="pagination-settings">
-                <div class="page-size-selector">
-                  <span>Show</span>
-                  <select class="page-size-input" id="apiKeysPageSize" data-change="updateApiKeysPageSize">
-                    <option value="10">10</option>
-                    <option value="25" selected>25</option>
-                    <option value="50">50</option>
-                  </select>
-                  <span>per page</span>
-                </div>
-                <div class="pagination-info" id="apiKeysPaginationInfo"></div>
-              </div>
-              <div class="flex gap-2">
-                <button class="btn btn-outline" id="apiKeysPrevBtn" data-click="changeApiKeysPage -1">Previous</button>
-                <button class="btn btn-outline" id="apiKeysNextBtn" data-click="changeApiKeysPage 1">Next</button>
-              </div>
-            </div>
+            <div class="pagination-container" id="apiKeysPaginationBar" hidden></div>
           </div>
 
           <!-- Account section -->
@@ -690,12 +653,10 @@
                     <span class="settings-item-title select-none">Enable caching</span>
                     <p class="settings-item-desc">Cache frequently accessed data to improve response times across the application.</p>
                   </div>
-                  <span class="tooltip-wrapper">
-                    <div class="settings-item-control">
+                  <div class="settings-item-control">
                       <input type="checkbox" id="setting-enableCaching" data-confirm-off="caching" data-change="saveSettingImmediate enableCaching $checked">
                       <span class="toggle-track"></span>
                     </div>
-                  </span>
                 </label>
                 <button class="btn-settings-gear" data-click="openCacheSettingsModal" aria-label="Cache configuration">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -707,7 +668,7 @@
               <label class="settings-item-card" for="setting-requireUserSignIn">
                 <div class="settings-item-info">
                   <span class="settings-item-title select-none">Require user sign-in</span>
-                  <p class="settings-item-desc">Only user accounts can sign in to the admin panel. API keys keep working for the API. Current API key sessions end.</p>
+                  <p class="settings-item-desc">Restricts admin panel access to user accounts only.</p>
                 </div>
                 <div class="settings-item-control">
                   <input type="checkbox" id="setting-requireUserSignIn" data-confirm-on="user sign-in" data-confirm-message="Anyone signed in to the admin panel with an API key is signed out. API keys keep working for the API." data-change="saveSettingImmediate requireUserSignIn $checked">

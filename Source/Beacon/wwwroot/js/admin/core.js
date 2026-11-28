@@ -9,7 +9,8 @@ let auditCurrentPage = 1,
   auditPageSize = 25,
   auditTotalRecords = 0;
 let auditFilterBucket = null,
-  auditFilterIdentity = null;
+  auditFilterIdentity = null,
+  auditFilterActor = null;
 let _auditClickTimer = null;
 let currentBucketArchived = false;
 let currentPage = 1;
@@ -178,6 +179,7 @@ async function init() {
   updateSidebarUser();
   restoreViewFromUrl();
   connectSSE();
+  refreshWorkflow();
   loadServerSettings();
   console.log(
     "%c@melosso/beacon%c. Licensed under %cEUPL 1.2%c.",
@@ -267,6 +269,7 @@ function restoreViewFromUrl() {
   } else if (view === "audit") {
     auditFilterBucket = params.get("bucket") || null;
     auditFilterIdentity = params.get("identity") || null;
+    auditFilterActor = params.get("actor") || null;
     auditCurrentPage = parseInt(params.get("page") || "1");
     showView("audit", false);
   } else {
@@ -274,3 +277,104 @@ function restoreViewFromUrl() {
   }
   if (SHEET_VIEWS[modal]) showView(modal, false);
 }
+
+// BUCKET PICKER: one bucket field. opts: { onSelect(name), allLabel }; free text is allowed for new buckets.
+function attachBucketPicker(input, opts = {}) {
+  if (!input || input.dataset.bucketPicker) return;
+  input.dataset.bucketPicker = "";
+  const list = document.createElement("div");
+  list.className = "autocomplete-dropdown";
+  list.id = `${input.id}Suggestions`;
+  list.setAttribute("role", "listbox");
+  // Top layer: positions the list relative to the viewport, also inside transformed dialogs.
+  list.setAttribute("popover", "manual");
+  input.after(list);
+  input.autocomplete = "off";
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-controls", list.id);
+  input.setAttribute("aria-expanded", "false");
+  let options = [];
+  let active = -1;
+
+  const close = () => {
+    list.classList.remove("open");
+    if (list.matches(":popover-open")) list.hidePopover();
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    active = -1;
+  };
+  const choose = (option) => {
+    input.value = option.all ? "" : option.name;
+    close();
+    opts.onSelect?.(input.value);
+  };
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    const matches = [...buckets]
+      .filter((b) => b.name.includes(q) || formatPermission(b.name).toLowerCase().includes(q))
+      .sort((a, b) => Number(!!a.isArchived) - Number(!!b.isArchived));
+    options = [...(opts.allLabel && !q ? [{ all: true }] : []), ...matches.slice(0, 50)];
+    if (!options.length || (matches.length === 1 && matches[0].name === q)) return close();
+    paint(
+      list,
+      html`${options.map(
+        (o, i) => html`<div
+          class="autocomplete-item ${i === active ? "selected" : ""}"
+          id="${list.id}-${i}"
+          role="option"
+          aria-selected=${i === active}
+          @pointerdown=${(e) => {
+            e.preventDefault();
+            choose(o);
+          }}
+          @mouseenter=${() => {
+            active = i;
+            render();
+          }}
+        >
+          ${
+            o.all
+              ? html`<div class="bucket-name">${opts.allLabel}</div>`
+              : html`<div class="bucket-name">
+                  ${formatPermission(o.name)}<span class="autocomplete-code">${o.name}</span>
+                  ${o.isArchived ? html`<span class="status-badge status-badge--sm archived">Archived</span>` : nothing}
+                </div>
+                <div class="bucket-info">
+                  ${formatNumber(o.totalEmails || 0)} records · ${(o.permissions || []).length} permissions
+                </div>`
+          }
+        </div>`,
+      )}`,
+    );
+    if (active >= 0) input.setAttribute("aria-activedescendant", `${list.id}-${active}`);
+    if (!list.matches(":popover-open")) list.showPopover();
+    positionDropdown(input, list);
+    list.classList.add("open");
+    input.setAttribute("aria-expanded", "true");
+  };
+
+  input.addEventListener("input", () => {
+    active = -1;
+    render();
+  });
+  input.addEventListener("focus", render);
+  input.addEventListener("blur", close);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!list.classList.contains("open")) return render();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      active = (active + step + options.length) % options.length;
+      render();
+      list.children[active]?.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter" && active >= 0 && list.classList.contains("open")) {
+      e.preventDefault();
+      choose(options[active]);
+    } else if (e.key === "Escape" && list.classList.contains("open")) {
+      e.stopPropagation();
+      close();
+    }
+  });
+}
+

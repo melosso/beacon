@@ -429,7 +429,7 @@
       </summary>
       <div class="options-section-body">
         <p class="options-section-desc select-none">
-          The bucket ID identifies the bucket in all API calls. The ID is fixed.
+          The bucket ID identifies the bucket in all API calls. The ID cannot be changed.
         </p>
         <div class="form-group mb-0">
           <label for="optionsBucketId">Bucket ID</label>
@@ -449,15 +449,6 @@
               Copy
             </button>
           </div>
-        </div>
-        <div class="section-actions">
-          <button
-            type="button"
-            class="btn btn-outline"
-            data-click="addIdentityFromOptions"
-          >
-            Add identity to this bucket
-          </button>
         </div>
       </div>
     </details>
@@ -821,18 +812,14 @@
               global setting.
             </p>
           </div>
-          <span class="settings-item-control tooltip-wrapper">
+          <span class="settings-item-control" id="bucketDoubleOptInReason">
             <input
               type="checkbox"
               id="bucketDoubleOptIn"
               data-change="saveBucketDoubleOptIn $checked"
             />
             <span class="toggle-track"></span>
-            <span
-              class="tooltip tooltip-above tooltip-right"
-              id="bucketDoubleOptInReason"
-              hidden
-            ></span>
+            
           </span>
         </label>
         <div class="form-group mt-3 mb-0">

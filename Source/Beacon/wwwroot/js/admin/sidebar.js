@@ -45,7 +45,7 @@ function syncSidebarCollapsed() {
   const btn = document.getElementById("sidebarToggle");
   if (!btn) return;
   btn.setAttribute("aria-expanded", String(!collapsed));
-  btn.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  btn.dataset.tooltip = collapsed ? "Expand sidebar" : "Collapse sidebar";
 }
 syncSidebarCollapsed();
 
@@ -57,7 +57,7 @@ function toggleSidebar() {
 }
 
 function toggleAccountMenu(trigger) {
-  toggleMenu("accountMenu");
+  toggleMenu("accountMenu", trigger);
   const menu = document.getElementById("accountMenu");
   if (!menu.classList.contains("open")) return;
   const rect = trigger.getBoundingClientRect();
@@ -88,7 +88,7 @@ function updateSidebarButtons() {
   const btn = document.getElementById("btnSort");
   const icon = document.getElementById("btnSortIcon");
   btn.classList.toggle("active", sidebarPrefs.sort !== "default");
-  document.getElementById("btnSortTooltip").textContent =
+  btn.dataset.tooltip =
     sidebarPrefs.sort === "az"
       ? "Sorted A\u2013Z"
       : sidebarPrefs.sort === "za"
@@ -98,7 +98,7 @@ function updateSidebarButtons() {
   document
     .getElementById("btnDisplayMode")
     .classList.toggle("active", sidebarPrefs.display === "code");
-  document.getElementById("btnDisplayTooltip").textContent =
+  document.getElementById("btnDisplayMode").dataset.tooltip =
     sidebarPrefs.display === "code" ? "Show descriptions" : "Show code names";
 }
 
@@ -131,7 +131,7 @@ function renderBucketsSidebar() {
           href="#"
           class="nav-item ${b.isArchived ? "nav-item--archived" : ""}"
           data-bucket=${b.name}
-          title=${`${formatPermission(b.name)} (${b.name})${b.isArchived ? ", archived" : ""}`}
+          data-tooltip=${`${formatPermission(b.name)} (${b.name})${b.isArchived ? ", archived" : ""}`}
           @click=${(e) => {
             e.preventDefault();
             showBucket(b.name);
@@ -234,7 +234,7 @@ function renderPermissionsGrid() {
             type="button"
             class="btn-remove"
             @click=${() => removePermission(p)}
-            title="Remove"
+            data-tooltip="Remove"
             aria-label="Remove"
           >
             &times;
@@ -249,7 +249,6 @@ function showPermissionSuggestions() {
   const input = document.getElementById("newPermissionInput");
   const dropdown = document.getElementById("permissionAutocomplete");
   const query = input.value.trim().toLowerCase();
-  document.getElementById("bucketAutocomplete").classList.remove("open");
   const selectedBucket = document
     .getElementById("tokenBucket")
     .value.trim()
@@ -467,7 +466,7 @@ function customFieldRows(fields, context, readonly = false) {
               type="button"
               class="btn-remove"
               @click=${() => removeCustomField(k, context)}
-              title="Remove"
+              data-tooltip="Remove"
               aria-label="Remove"
             >
               &times;

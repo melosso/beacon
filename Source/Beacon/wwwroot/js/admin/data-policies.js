@@ -46,18 +46,21 @@ let auditFilterType = "id"; // 'id' | 'email'
 let auditFilterEmail = null; // used when auditFilterType === 'email'
 
 async function loadAudit() {
+  const isCurrent = latestCall("audit");
   const params = new URLSearchParams();
   if (auditFilterBucket) params.set("bucket", auditFilterBucket);
   if (auditFilterIdentity && auditFilterType === "id")
     params.set("emailHash", auditFilterIdentity);
   if (auditFilterEmail && auditFilterType === "email")
     params.set("emailSearch", auditFilterEmail);
+  if (auditFilterActor) params.set("actor", auditFilterActor);
   params.set("page", auditCurrentPage);
   params.set("size", auditPageSize);
 
   const urlParams = { view: "audit" };
   if (auditFilterBucket) urlParams.bucket = auditFilterBucket;
   if (auditFilterIdentity) urlParams.identity = auditFilterIdentity;
+  if (auditFilterActor) urlParams.actor = auditFilterActor;
   if (auditCurrentPage > 1) urlParams.page = auditCurrentPage;
   updateUrl(urlParams);
 
@@ -70,6 +73,7 @@ async function loadAudit() {
   );
 
   const res = await apiRequest(`/api/admin/audit?${params}`);
+  if (!isCurrent()) return;
   if (!res.ok) {
     paint(
       tbody,
@@ -137,15 +141,30 @@ function renderAuditHeader() {
     <th>Permission</th>
     <th>Change</th>
     <th>Source</th>
-    <th>Actor</th>
+    <th>${searchColumn({
+      label: "Actor",
+      title: "Filter by actor",
+      actionLabel: "Filter",
+      ids: {
+        trigger: "auditActorSearchTrigger",
+        popover: "auditActorPopover",
+        input: "auditActorInput",
+      },
+      fixedLabel: "Filter by actor or workflow ID",
+      placeholder: "e.g., WF-1A2B3C4D",
+      query: auditFilterActor,
+      onToggle: (e) => toggleColumnSearch(e, "auditActor"),
+      onSearch: applyAuditActorFilter,
+      onClear: clearAuditActorFilter,
+    })}</th>
     <th></th>`,
   );
 }
 
-function toggleAuditIdentityPopover(event) {
+// Column search popovers: ids are <prefix>Popover, <prefix>SearchTrigger, <prefix>Input.
+function toggleColumnSearch(event, prefix) {
   event.stopPropagation();
-  const popover = document.getElementById("auditIdentityPopover");
-  const trigger = document.getElementById("auditIdentitySearchTrigger");
+  const popover = document.getElementById(`${prefix}Popover`);
   const isOpen = popover?.classList.contains("open");
   document
     .querySelectorAll(".search-popover.open")
@@ -153,32 +172,40 @@ function toggleAuditIdentityPopover(event) {
   document
     .querySelectorAll(".search-trigger.active")
     .forEach((t) => t.classList.remove("active"));
-  if (!isOpen) {
-    popover?.classList.add("open");
-    trigger?.classList.add("active");
-    setTimeout(
-      () => document.getElementById("auditIdentityInput")?.focus(),
-      50,
-    );
-  }
+  if (isOpen) return;
+  popover?.classList.add("open");
+  document.getElementById(`${prefix}SearchTrigger`)?.classList.add("active");
+  setTimeout(() => document.getElementById(`${prefix}Input`)?.focus(), 50);
 }
 
-function toggleAuditBucketPopover(event) {
-  event.stopPropagation();
-  const popover = document.getElementById("auditBucketPopover");
-  const trigger = document.getElementById("auditBucketSearchTrigger");
-  const isOpen = popover?.classList.contains("open");
-  document
-    .querySelectorAll(".search-popover.open")
-    .forEach((p) => p.classList.remove("open"));
-  document
-    .querySelectorAll(".search-trigger.active")
-    .forEach((t) => t.classList.remove("active"));
-  if (!isOpen) {
-    popover?.classList.add("open");
-    trigger?.classList.add("active");
-    setTimeout(() => document.getElementById("auditBucketInput")?.focus(), 50);
-  }
+function closeColumnSearch(prefix) {
+  document.getElementById(`${prefix}Popover`)?.classList.remove("open");
+  document.getElementById(`${prefix}SearchTrigger`)?.classList.remove("active");
+}
+
+const toggleAuditIdentityPopover = (e) => toggleColumnSearch(e, "auditIdentity");
+const toggleAuditBucketPopover = (e) => toggleColumnSearch(e, "auditBucket");
+
+function applyAuditActorFilter() {
+  auditFilterActor = document.getElementById("auditActorInput")?.value.trim() || null;
+  auditCurrentPage = 1;
+  closeColumnSearch("auditActor");
+  loadAudit();
+}
+
+function clearAuditActorFilter() {
+  auditFilterActor = null;
+  auditCurrentPage = 1;
+  closeColumnSearch("auditActor");
+  loadAudit();
+}
+
+function showAuditForActor(actor) {
+  auditFilterBucket = null;
+  auditFilterIdentity = null;
+  auditFilterActor = actor;
+  auditCurrentPage = 1;
+  showView("audit");
 }
 
 function setAuditFilterType(type) {
@@ -249,40 +276,34 @@ function auditStatusChip(status) {
 
 function renderAuditRow(e) {
   const sourceLabel =
-    { Url: "User", Api: "API", Admin: "Administrator", Erasure: "Erasure" }[e.source] || e.source;
+    { Url: "User", Api: "API", Admin: "Administrator", AdminLink: "Admin via link", Erasure: "Erasure" }[e.source] || e.source;
   return html`
     <tr>
       <td>${formatDate(e.changedAt)}</td>
       <td>
-        <span class="tooltip-wrapper" @click=${() => auditIdentityClick(e.emailHash)} @dblclick=${() => auditIdentityDblClick(e.emailHash)}>
+        <span @click=${() => auditIdentityClick(e.emailHash)} @dblclick=${() => auditIdentityDblClick(e.emailHash)} data-tooltip="Click to filter · double-click to copy ID">
           ${
             e.email
               ? html`<span class="email-text cursor-pointer">${e.email}</span>`
               : html`<span class="email-hash cursor-pointer">${e.displayId}</span>`
           }${e.name ? html`<span class="cell-sub">${e.name}</span>` : nothing}
-          <span class="tooltip">Click to filter · double-click to copy ID</span>
+          
         </span>
       </td>
       <td><span class="bucket-name cursor-pointer" @click=${() => showAuditForBucket(e.bucket)}>${e.bucket}</span></td>
       <td>${e.permission}</td>
-      <td class="nowrap">${auditStatusChip(e.oldStatus)} <svg class="audit-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="to"><path d="M5 12h14M12 5l7 7-7 7"/></svg> ${auditStatusChip(e.newStatus)}</td>
+      <td class="nowrap">${e.source === "Erasure" && e.oldStatus === e.newStatus ? html`<span class="status-chip">Personal data removed</span>` : html`${auditStatusChip(e.oldStatus)} <svg class="audit-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="to"><path d="M5 12h14M12 5l7 7-7 7"/></svg> ${auditStatusChip(e.newStatus)}`}</td>
       <td>${sourceLabel}</td>
-      <td>${e.actorId || html`<span class="muted">—</span>`}</td>
+      <td>${e.actorId ? html`<span class=${/^WF-[0-9A-F]{8}$/.test(e.actorId) ? "mono nowrap" : ""}>${e.actorId}</span>` : html`<span class="muted">—</span>`}</td>
       <td><div class="row-actions">
         ${
           e.email
-            ? html`<span class="tooltip-wrapper">
-          <button class="btn-actions" aria-label="Open subscriber" @click=${() => openSubscriber(e.emailHash)}>
+            ? html`<button class="btn-icon btn-icon--sm" aria-label="Open subscriber" @click=${() => openSubscriber(e.emailHash)} data-tooltip="Open subscriber">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
-          </button>
-          <span class="tooltip tooltip-above tooltip-right">Open subscriber</span>
-        </span>`
+          </button>`
             : nothing
         }
-        <span class="tooltip-wrapper">
-          <button class="btn-actions" aria-label="Custom fields" @click=${() => openAuditCustomFields(e.customFields)}>:</button>
-          <span class="tooltip tooltip-above tooltip-right">Custom fields</span>
-        </span>
+        <button class="btn-icon btn-icon--sm" aria-label="Custom fields" @click=${() => openAuditCustomFields(e.customFields)} data-tooltip="Custom fields"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg></button>
       </div></td>
     </tr>`;
 }
@@ -327,6 +348,7 @@ function auditIdentityDblClick(hash) {
 
 function showAuditForBucket(bucket) {
   auditFilterBucket = bucket;
+  auditFilterActor = null;
   auditFilterIdentity = null;
   auditCurrentPage = 1;
   showView("audit");
@@ -334,6 +356,7 @@ function showAuditForBucket(bucket) {
 
 function showAuditForIdentity(hash) {
   auditFilterBucket = null;
+  auditFilterActor = null;
   auditFilterIdentity = hash;
   auditCurrentPage = 1;
   showView("audit");
@@ -341,6 +364,7 @@ function showAuditForIdentity(hash) {
 
 function showAuditForBucketAndIdentity(bucket, hash) {
   auditFilterBucket = bucket;
+  auditFilterActor = null;
   auditFilterIdentity = hash;
   auditCurrentPage = 1;
   showView("audit");
@@ -348,36 +372,27 @@ function showAuditForBucketAndIdentity(bucket, hash) {
 
 function clearAuditFilter() {
   auditFilterBucket = null;
+  auditFilterActor = null;
   auditFilterIdentity = null;
   auditCurrentPage = 1;
   loadAudit();
 }
 
-function updateAuditPageSize() {
-  auditPageSize = parseInt(
-    document.getElementById("auditPageSizeSelect").value,
-  );
-  auditCurrentPage = 1;
-  loadAudit();
-}
-
-function changeAuditPage(delta) {
-  const maxPage = Math.ceil(auditTotalRecords / auditPageSize) || 1;
-  auditCurrentPage = Math.max(1, Math.min(auditCurrentPage + delta, maxPage));
-  loadAudit();
-}
-
 function updateAuditPagination() {
-  const maxPage = Math.ceil(auditTotalRecords / auditPageSize) || 1;
-  const start =
-    auditTotalRecords === 0 ? 0 : (auditCurrentPage - 1) * auditPageSize + 1;
-  const end = Math.min(auditCurrentPage * auditPageSize, auditTotalRecords);
-  const info = document.getElementById("auditPaginationInfo");
-  if (info) info.textContent = pageRangeText(start, end, auditTotalRecords);
-  const prev = document.getElementById("auditPrevBtn");
-  const next = document.getElementById("auditNextBtn");
-  if (prev) prev.disabled = auditCurrentPage <= 1;
-  if (next) next.disabled = auditCurrentPage >= maxPage;
+  renderPager(document.getElementById("auditPager"), {
+    page: auditCurrentPage,
+    pageSize: auditPageSize,
+    total: auditTotalRecords,
+    onPage: (n) => {
+      auditCurrentPage = n;
+      loadAudit();
+    },
+    onPageSize: (n) => {
+      auditPageSize = n;
+      auditCurrentPage = 1;
+      loadAudit();
+    },
+  });
 }
 // /Audit
 
@@ -396,13 +411,10 @@ function noWorkflowPolicies() {
 // A manual run executes the enabled policies only: with none enabled there is nothing to run
 function syncWorkflowRunButton() {
   const btn = document.getElementById("workflowRunBtn");
-  const tip = document.getElementById("workflowRunTip");
   const none = noWorkflowPolicies();
-  if (btn) btn.disabled = none;
-  if (tip)
-    tip.textContent = none
-      ? "Enable a policy to run"
-      : "Run data policies immediately";
+  if (!btn) return;
+  btn.disabled = none;
+  btn.dataset.tooltip = none ? "Enable a policy to run" : "Run data policies immediately";
 }
 
 async function loadWorkflowPage() {
@@ -421,6 +433,11 @@ async function loadWorkflowTasks() {
   const res = await apiRequest("/api/admin/data-policies/tasks?limit=200");
   if (!res.ok || !res.data) return;
   _workflowAllTasks = res.data;
+  const pending = _workflowAllTasks.filter((t) => t.status === "PendingApproval").length;
+  const count = document.getElementById("navWorkflowCount");
+  count.textContent = pending > 99 ? "99+" : pending;
+  count.dataset.tooltip = `${pending} awaiting approval`;
+  count.hidden = pending === 0;
 
   // Settings panel: last 5 completed/failed only
   renderSettingsRunHistory(
@@ -449,7 +466,7 @@ const SHORT_DATE = {
 function workflowStatus(t) {
   return html`${WORKFLOW_BADGES[t.status] || WORKFLOW_BADGES.Rejected}${
     t.errorMessage
-      ? html`<span class="info-tip" title=${t.errorMessage} aria-label=${t.errorMessage}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>`
+      ? html`<span class="info-tip" data-tooltip=${t.errorMessage} aria-label=${t.errorMessage}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>`
       : nothing
   }`;
 }
@@ -486,18 +503,25 @@ function renderWorkflowTable() {
   paint(
     tbody,
     total === 0
-      ? html`<tr><td class="table-empty" colspan="6">${msg}</td></tr>`
+      ? html`<tr><td class="table-empty" colspan="7">${msg}</td></tr>`
       : html`${page.map(
           (t) => html`
         <tr>
+          <td>${workflowRef(t)}</td>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
           <td>${t.scheduledAt ? parseServerDate(t.scheduledAt).toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
-          <td>${t.status === "Completed" || t.status === "Failed" ? t.recordsAffected : "—"}</td>
-          <td>${workflowStatus(t)}</td>
           <td>${
+            t.status === "Completed" || t.status === "Failed"
+              ? t.recordsAffected
+              : t.pendingRecords != null
+                ? html`<button type="button" class="link-btn" data-tooltip="Show records affected on approval" @click=${() => openWorkflowRecords(t)}>${t.pendingRecords}</button>`
+                : "—"
+          }</td>
+          <td>${workflowStatus(t)}</td>
+          <td class="col-actions">${
             t.status === "PendingApproval"
-              ? html`<div class="inline-actions nowrap">
+              ? html`<div class="inline-actions">
             <button class="btn btn-outline btn-sm" @click=${(e) => actOnWorkflowTask(t.id, "approve", e.currentTarget)}>Approve</button>
             <button class="btn btn-outline btn-sm text-muted" @click=${(e) => actOnWorkflowTask(t.id, "reject", e.currentTarget)}>Reject</button>
           </div>`
@@ -507,31 +531,23 @@ function renderWorkflowTable() {
         )}`,
   );
 
-  // Pagination
   const bar = document.getElementById("workflowPaginationBar");
   if (bar) bar.hidden = total === 0;
-  const startN = total === 0 ? 0 : start + 1;
-  const endN = Math.min(start + _workflowPageSize, total);
-  const info = document.getElementById("workflowPaginationInfo");
-  if (info) info.textContent = pageRangeText(startN, endN, total);
-  const prevBtn = document.getElementById("workflowPrevBtn");
-  const nextBtn = document.getElementById("workflowNextBtn");
-  if (prevBtn) prevBtn.disabled = _workflowPage <= 1;
-  if (nextBtn) nextBtn.disabled = _workflowPage >= totalPages;
-}
-
-function changeWorkflowPage(dir) {
-  const tasks = visibleWorkflowTasks();
-  const totalPages = Math.ceil(tasks.length / _workflowPageSize) || 1;
-  _workflowPage = Math.max(1, Math.min(totalPages, _workflowPage + dir));
-  renderWorkflowTable();
-}
-
-function updateWorkflowPageSize() {
-  const el = document.getElementById("workflowPageSize");
-  if (el) _workflowPageSize = parseInt(el.value, 10);
-  _workflowPage = 1;
-  renderWorkflowTable();
+  renderPager(bar, {
+    page: _workflowPage,
+    pageSize: _workflowPageSize,
+    total,
+    sizes: [10, 25, 50],
+    onPage: (n) => {
+      _workflowPage = n;
+      renderWorkflowTable();
+    },
+    onPageSize: (n) => {
+      _workflowPageSize = n;
+      _workflowPage = 1;
+      renderWorkflowTable();
+    },
+  });
 }
 
 function toggleWorkflowArchived() {
@@ -551,7 +567,7 @@ function renderSettingsRunHistory(tasks) {
   paint(
     tbody,
     !tasks?.length
-      ? html`<tr><td class="table-empty" colspan="6">No completed runs.</td></tr>`
+      ? html`<tr><td class="table-empty" colspan="7">No completed runs.</td></tr>`
       : html`${tasks.map((t) => {
           const started = t.startedAt ? parseServerDate(t.startedAt) : null;
           const durationMs =
@@ -563,6 +579,7 @@ function renderSettingsRunHistory(tasks) {
                 ? `${durationMs}ms`
                 : `${(durationMs / 1000).toFixed(1)}s`;
           return html`<tr>
+          <td>${workflowRef(t)}</td>
           <td>${_workflowTypeLabels[t.taskType] || t.taskType}</td>
           <td>${t.triggeredBy}</td>
           <td>${started ? started.toLocaleString(UI_LOCALE, SHORT_DATE) : "—"}</td>
@@ -572,6 +589,71 @@ function renderSettingsRunHistory(tasks) {
         </tr>`;
         })}`,
   );
+}
+
+// Task reference. Runs that changed records link to their audit entries.
+function workflowRef(t) {
+  return t.status === "Completed" && t.recordsAffected > 0
+    ? html`<button type="button" class="link-btn mono nowrap" data-tooltip="Show audit entries of this run" @click=${() => showAuditForActor(t.reference)}>${t.reference}</button>`
+    : html`<span class="mono nowrap">${t.reference}</span>`;
+}
+
+// Drill-down: the records a pending task changes on approval.
+const _workflowEffects = {
+  RetentionPurge: "Approval removes personal data from these opted-out records.",
+  PendingConfirmationPurge: "Approval opts out these unconfirmed records and removes their personal data.",
+};
+let _workflowRecordsTaskId = null;
+
+async function openWorkflowRecords(task) {
+  const res = await apiRequest(
+    `/api/admin/data-policies/tasks/${encodeURIComponent(task.id)}/records`,
+  );
+  if (!res.ok) return;
+  const { total, records } = res.data;
+  _workflowRecordsTaskId = task.id;
+  document.getElementById("workflowRecordsTitle").textContent =
+    `${task.reference} · ${_workflowTypeLabels[task.taskType] || task.taskType}`;
+  const shown =
+    records.length < total
+      ? `First ${records.length} of ${total} records, oldest first.`
+      : `${total} record${total === 1 ? "" : "s"}, oldest first.`;
+  document.getElementById("workflowRecordsSummary").textContent =
+    `${_workflowEffects[task.taskType] || ""} ${shown}`.trim();
+  paint(
+    document.getElementById("workflowRecordsBody"),
+    records.length
+      ? html`${records.map(
+          (r) => html`<tr>
+            <td>
+              <button type="button" class="link-btn" @click=${() => openWorkflowSubscriber(r.emailHash)}>
+                ${r.email || html`<span class="email-hash">${r.emailHash.substring(0, 16)}…</span>`}
+              </button>
+            </td>
+            <td>${formatPermission(r.bucket)}</td>
+            <td>${formatPermission(r.permission)}</td>
+            <td>${parseServerDate(r.changedAt).toLocaleDateString(UI_LOCALE, { day: "numeric", month: "short", year: "numeric" })}</td>
+          </tr>`,
+        )}`
+      : html`<tr><td class="table-empty" colspan="4">No records match. Approval changes nothing.</td></tr>`,
+  );
+  openModal("workflowRecordsModal");
+}
+
+function closeWorkflowRecords() {
+  closeModal("workflowRecordsModal");
+  _workflowRecordsTaskId = null;
+}
+
+function openWorkflowSubscriber(emailHash) {
+  closeWorkflowRecords();
+  openSubscriber(emailHash);
+}
+
+async function approveWorkflowRecords(button) {
+  if (!_workflowRecordsTaskId) return;
+  await actOnWorkflowTask(_workflowRecordsTaskId, "approve", button);
+  closeWorkflowRecords();
 }
 
 async function actOnWorkflowTask(id, action, button) {
