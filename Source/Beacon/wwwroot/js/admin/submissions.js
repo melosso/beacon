@@ -653,45 +653,18 @@ async function editSubmissionForm(id, pushState = true) {
 }
 
 async function showEmbedCode(id = previewFormId) {
-  nlEditId = id;
+  const result = await apiRequest(`/api/admin/submissions/${id}`);
+  if (!result.ok) return;
   nlCurrentFormId = id;
   showView("submission-edit", false);
   updateUrl({ view: "submission-embed", id });
-
-  // Set title immediately so it never flashes "Edit" or "Create"
+  initSubmissionWizard(result.data);
   document.getElementById("submissionWizardTitle").textContent =
     "View and share";
   document.getElementById("nlIntroTitle").textContent = "Share form";
   document.getElementById("nlIntroDesc").textContent =
     "Embed snippets and the direct link for this form.";
-  document.getElementById("nlApiTokenDisplay").hidden = true;
   submissionWizardShowStep(5);
-
-  const result = await apiRequest(`/api/admin/submissions/${id}`);
-  if (result.ok) {
-    document.getElementById("nlRedirectSuccess").value =
-      result.data.redirectSuccess || "";
-    document.getElementById("nlRedirectError").value =
-      result.data.redirectError || "";
-    document.getElementById("nlRedirectFormPost").checked =
-      result.data.redirectFormPost !== false;
-    document.getElementById("nlRedirectJsEmbed").checked =
-      !!result.data.redirectJsEmbed;
-    document.getElementById("nlDisableRedirects").checked =
-      !!result.data.disableRedirects;
-    toggleRedirectFields();
-    document.getElementById("nlConsentRequired").checked =
-      result.data.consentRequired !== false;
-    document.getElementById("nlConsentText").value =
-      result.data.consentText || "";
-    document.getElementById("nlPrivacyPolicyUrl").value =
-      result.data.privacyPolicyUrl || "";
-    document.getElementById("nlCollectName").checked =
-      !!result.data.collectName;
-    document.getElementById("nlNameLabel").value = result.data.nameLabel || "";
-    nlCustomFields = { ...(result.data.customFields || {}) };
-  }
-
   renderEmbedSnippets(id);
 }
 
