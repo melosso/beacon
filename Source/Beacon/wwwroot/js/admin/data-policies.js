@@ -293,7 +293,7 @@ function renderAuditRow(e) {
       <td><span class="bucket-name cursor-pointer" @click=${() => showAuditForBucket(e.bucket)}>${e.bucket}</span></td>
       <td>${e.permission}</td>
       <td class="nowrap">${e.source === "Erasure" && e.oldStatus === e.newStatus ? html`<span class="status-chip">Personal data removed</span>` : html`${auditStatusChip(e.oldStatus)} <svg class="audit-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="to"><path d="M5 12h14M12 5l7 7-7 7"/></svg> ${auditStatusChip(e.newStatus)}`}</td>
-      <td>${sourceLabel}</td>
+      <td>${sourceLabel}${e.issuedBy && e.source !== "AdminLink" ? html`<span class="cell-sub">Link from ${e.issuedBy}</span>` : nothing}</td>
       <td>${e.actorId ? html`<span class=${/^WF-[0-9A-F]{8}$/.test(e.actorId) ? "mono nowrap" : ""}>${e.actorId}</span>` : html`<span class="muted">—</span>`}</td>
       <td><div class="row-actions">
         ${

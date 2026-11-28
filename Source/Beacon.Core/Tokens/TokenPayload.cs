@@ -36,10 +36,15 @@ public sealed class TokenPayload
     [JsonPropertyName("l")]
     public string Language { get; set; } = "en";
 
-    /// <summary>Admin who issued the link. Changes through the link are audited as <c>AdminLink</c> with this actor.</summary>
+    /// <summary>Identity that created the link. Recorded as <c>IssuedBy</c> on audit entries written through it.</summary>
     [JsonPropertyName("a")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Actor { get; set; }
+    public string? Issuer { get; set; }
+
+    /// <summary>SHA-256 of the issuer's browser binding secret. Changes from the bound browser are audited as <c>AdminLink</c>.</summary>
+    [JsonPropertyName("ab")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AssistHash { get; set; }
 
     [JsonIgnore]
     public DateTime IssuedAtUtc => DateTimeOffset.FromUnixTimeSeconds(IssuedAt).UtcDateTime;

@@ -63,7 +63,7 @@ public sealed class ConsentService {
 
     private sealed record ConsentStatusBox(ConsentStatus Status);
 
-    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? customFieldsJson = null, string? actorId = null)
+    public async Task ProcessOptOutAsync(string bucket, string email, string[] permissions, string token, ConsentSource source, string? customFieldsJson = null, string? actorId = null, string? issuedBy = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -88,14 +88,14 @@ public sealed class ConsentService {
                 CustomFields = customFieldsJson
             };
 
-            await _repository.UpsertAsync(record, actorId);
+            await _repository.UpsertAsync(record, actorId, issuedBy: issuedBy);
             await _cache.RemoveAsync(CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission));
         }
     }
 
     public async Task OverrideAsync(string bucket, string email, string permission, ConsentStatus status,
         string? customFieldsJson = null, string? actorId = null,
-        ConsentSource source = ConsentSource.Admin, string? consentText = null, string? name = null)
+        ConsentSource source = ConsentSource.Admin, string? consentText = null, string? name = null, string? issuedBy = null)
     {
         var normalizedBucket = NormalizeBucket(bucket);
         var normalizedEmail = email.Trim().ToLowerInvariant();
@@ -119,7 +119,7 @@ public sealed class ConsentService {
             ConsentText = consentText
         };
 
-        await _repository.UpsertAsync(record, actorId);
+        await _repository.UpsertAsync(record, actorId, issuedBy: issuedBy);
         await _cache.RemoveAsync(CacheKeys.Consent(normalizedBucket, emailHash, normalizedPermission));
     }
 

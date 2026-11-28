@@ -22,7 +22,7 @@ public sealed class ConsentRepository : IConsentRepository
             .FirstOrDefaultAsync(r => r.Bucket == bucket && r.EmailHash == emailHash && r.Permission == permission);
     }
 
-    public async Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false)
+    public async Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false, string? issuedBy = null)
     {
         for (var attempt = 0; ; attempt++)
         {
@@ -38,7 +38,7 @@ public sealed class ConsentRepository : IConsentRepository
                 ApplyUpdate(existing, record);
 
             if (oldStatus != record.Status)
-                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId));
+                _context.ConsentAuditEntries.Add(BuildAuditEntry(record, oldStatus, actorId, issuedBy));
 
             try
             {
@@ -77,7 +77,7 @@ public sealed class ConsentRepository : IConsentRepository
             target.CustomFields = src.CustomFields;
     }
 
-    private static ConsentAuditEntry BuildAuditEntry(ConsentRecord record, ConsentStatus? oldStatus, string? actorId) =>
+    private static ConsentAuditEntry BuildAuditEntry(ConsentRecord record, ConsentStatus? oldStatus, string? actorId, string? issuedBy) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -88,6 +88,7 @@ public sealed class ConsentRepository : IConsentRepository
             NewStatus = record.Status,
             Source = record.Source,
             ActorId = actorId,
+            IssuedBy = issuedBy,
             ChangedAt = record.ChangedAt,
             CustomFields = record.CustomFields
         };
@@ -110,7 +111,7 @@ public sealed class ConsentRepository : IConsentRepository
         if (!string.IsNullOrWhiteSpace(bucket))
             query = query.Where(e => e.Bucket == bucket);
         if (!string.IsNullOrWhiteSpace(actorId))
-            query = query.Where(e => e.ActorId == actorId);
+            query = query.Where(e => e.ActorId == actorId || e.IssuedBy == actorId);
         if (emailHashes is { Count: > 0 })
         {
             query = query.Where(e => emailHashes.Contains(e.EmailHash));

@@ -10,6 +10,7 @@ public sealed class ConsentAuditEntry
     public ConsentStatus NewStatus { get; set; }
     public ConsentSource Source { get; set; }
     public string? ActorId { get; set; }
+    public string? IssuedBy { get; set; }
     public DateTime ChangedAt { get; set; }
     public string? CustomFields { get; set; }
 }

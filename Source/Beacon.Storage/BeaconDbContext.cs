@@ -250,6 +250,7 @@ public class BeaconDbContext : DbContext
             entity.Property(e => e.EmailHash).HasMaxLength(64).IsRequired();
             entity.Property(e => e.Permission).HasMaxLength(100).IsRequired();
             entity.Property(e => e.ActorId).HasMaxLength(100);
+            entity.Property(e => e.IssuedBy).HasMaxLength(100);
             entity.HasIndex(e => e.EmailHash);
             entity.HasIndex(e => e.ChangedAt);
             entity.HasIndex(e => new { e.Bucket, e.ChangedAt });

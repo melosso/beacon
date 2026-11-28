@@ -33,19 +33,26 @@ public class ConsentAuditRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ProcessOptOutAsync_AdminLink_AuditsSourceAndActor()
+    public async Task ProcessOptOutAsync_AuditsActorAndIssuer()
     {
         var service = new ConsentService(_repository, new NullBeaconCacheService(),
             new Beacon.Tests.Fakes.StubSystemConfigurationService(),
             new Beacon.Core.Security.EmailHasher("test-pepper"),
             new Beacon.Core.Security.Encryptor("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="));
 
-        await service.ProcessOptOutAsync("bucket-a", "a@example.com", ["newsletter"], "tok", ConsentSource.AdminLink, actorId: "admin-1");
+        await service.ProcessOptOutAsync("bucket-a", "a@example.com", ["newsletter"], "tok", ConsentSource.AdminLink, actorId: "admin-1", issuedBy: "admin-1");
+        await service.ProcessOptOutAsync("bucket-a", "b@example.com", ["newsletter"], "tok", ConsentSource.Url, issuedBy: "anna");
         _db.ChangeTracker.Clear();
 
-        var entry = Assert.Single((await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken)).Records);
-        Assert.Equal(ConsentSource.AdminLink, entry.Source);
-        Assert.Equal("admin-1", entry.ActorId);
+        var entries = (await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken)).Records;
+        var admin = Assert.Single(entries, e => e.Source == ConsentSource.AdminLink);
+        Assert.Equal("admin-1", admin.ActorId);
+        var user = Assert.Single(entries, e => e.Source == ConsentSource.Url);
+        Assert.Null(user.ActorId);
+        Assert.Equal("anna", user.IssuedBy);
+
+        var byIssuer = await _repository.GetAuditAsync(null, null, 1, 10, TestContext.Current.CancellationToken, actorId: "anna");
+        Assert.Equal(user.Id, Assert.Single(byIssuer.Records).Id);
     }
 
     [Fact]

@@ -325,6 +325,7 @@ public static class DatabaseMigrator
         }
 
         AddColumnIfMissing(db, "ConsentAuditEntries", "CustomFields", "TEXT NULL");
+        AddColumnIfMissing(db, "ConsentAuditEntries", "IssuedBy", "TEXT NULL");
     }
 
     private static void MigrateSubmissionForms(BeaconDbContext db)

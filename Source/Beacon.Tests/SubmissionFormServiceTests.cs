@@ -767,7 +767,7 @@ public class SubmissionFormServiceTests
             return Task.FromResult(record);
         }
 
-        public Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false)
+        public Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false, string? issuedBy = null)
         {
             var key = $"{record.Bucket}:{record.EmailHash}:{record.Permission}";
             if (_records.TryGetValue(key, out var existing) && (insertOnly || !ConsentTransition.IsAllowed(existing.Status, record.Status)))

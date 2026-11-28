@@ -23,7 +23,7 @@ public sealed class TokenGenerator
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
-    public string Generate(string bucket, string email, string[] permissions, GenerateTokenRequest? options = null, string? actor = null)
+    public string Generate(string bucket, string email, string[] permissions, GenerateTokenRequest? options = null, string? issuer = null, string? assistHash = null)
     {
         var normalizedEmail = NormalizeEmail(email);
         var now = _timeProvider.GetUtcNow();
@@ -41,7 +41,8 @@ public sealed class TokenGenerator
             Nonce = GenerateNonce(),
             AllowReplay = allowReplay,
             Language = language,
-            Actor = actor
+            Issuer = issuer,
+            AssistHash = assistHash
         };
 
         return CreateToken(payload);
@@ -80,6 +81,22 @@ public sealed class TokenGenerator
 
         return $"{version}.{payloadBase64}.{ComputeSignature(signed)}";
     }
+
+    /// <summary>Create a browser binding secret and the hash to sign into the token.</summary>
+    public static (string Secret, string Hash) CreateAssistSecret()
+    {
+        var secret = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+        return (secret, HashAssistSecret(secret));
+    }
+
+    /// <summary>Whether <paramref name="secret"/> is the binding secret for <paramref name="payload"/>.</summary>
+    public static bool IsAssisted(TokenPayload payload, string? secret) =>
+        payload.AssistHash is { } expected
+        && !string.IsNullOrEmpty(secret)
+        && CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(HashAssistSecret(secret)), Encoding.ASCII.GetBytes(expected));
+
+    private static string HashAssistSecret(string secret) =>
+        Base64Url.EncodeToString(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
 
     private string ComputeSignature(string payload)
     {

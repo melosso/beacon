@@ -100,6 +100,25 @@ public static class ConsentEndpoints
             }
         }
 
+        if (context.Request.Query.TryGetValue(AssistQuery, out var assistSecret))
+        {
+            if (TokenGenerator.IsAssisted(result.Payload, assistSecret))
+            {
+                context.Response.Cookies.Append(AssistCookie, assistSecret.ToString(), new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = context.Request.IsHttps,
+                    SameSite = SameSiteMode.Lax,
+                    Path = $"/u/{token}",
+                    Expires = result.Payload.ExpiresAtUtc
+                });
+            }
+
+            // Strip the secret: a URL copied from the address bar must not bind another browser.
+            var clean = QueryString.Create(context.Request.Query.Where(q => q.Key != AssistQuery));
+            return Results.Redirect($"{context.Request.PathBase}{context.Request.Path}{clean}");
+        }
+
         var permissionStates = new List<(string permission, bool optedIn)>();
         var allowDbLookup = configService.Get().AllowDbLookup;
         foreach (var permission in result.Payload.Permissions)
@@ -132,7 +151,8 @@ public static class ConsentEndpoints
             tokens.FormFieldName,
             result.Payload.Language,
             utmInputs,
-            brand), "text/html");
+            brand,
+            IsAssisted(context, result.Payload) ? result.Payload.Issuer ?? "admin" : null), "text/html");
     }
 
     private static async Task<IResult> ProcessPreferenceUpdate(
@@ -180,8 +200,10 @@ public static class ConsentEndpoints
         var form = await context.Request.ReadFormAsync();
         var action = form["action"].ToString();
         var utmCustomFields = sysConfig.Get().EnableUtmTracking ? BuildUtmCustomFields(context) : null;
-        var actor = result.Payload.Actor;
-        var source = actor is null ? ConsentSource.Url : ConsentSource.AdminLink;
+        var issuer = result.Payload.Issuer;
+        var assisted = IsAssisted(context, result.Payload);
+        var source = assisted ? ConsentSource.AdminLink : ConsentSource.Url;
+        var actor = assisted ? issuer : null;
 
         try
         {
@@ -207,7 +229,8 @@ public static class ConsentEndpoints
                     token,
                     source,
                     utmCustomFields,
-                    actor);
+                    actor,
+                    issuer);
 
                 await consentService.CommitTransactionAsync();
 
@@ -236,7 +259,8 @@ public static class ConsentEndpoints
                         token,
                         source,
                         utmCustomFields,
-                        actor);
+                        actor,
+                        issuer);
                     optedOut.Add(permission);
                 }
                 else
@@ -256,7 +280,8 @@ public static class ConsentEndpoints
                             permission,
                             ConsentStatus.OptedIn,
                             actorId: actor,
-                            source: source);
+                            source: source,
+                            issuedBy: issuer);
                     }
                     keptIn.Add(permission);
                 }
@@ -528,6 +553,12 @@ public static class ConsentEndpoints
     private static Beacon.Localization.FormLocalization.StatusStrings GetStatusStrings(string? lang) =>
         Beacon.Localization.FormLocalization.GetStatusStrings(lang);
 
+    private const string AssistQuery = "assist";
+    private const string AssistCookie = "beacon_assist";
+
+    private static bool IsAssisted(HttpContext context, TokenPayload payload) =>
+        TokenGenerator.IsAssisted(payload, context.Request.Cookies[AssistCookie]);
+
     private static string GetPreferencePage(
         string token,
         string email,
@@ -536,9 +567,13 @@ public static class ConsentEndpoints
         string formFieldName,
         string language = "en",
         string utmHiddenInputs = "",
-        BrandIdentitySettings? brand = null)
+        BrandIdentitySettings? brand = null,
+        string? assistedBy = null)
     {
         var lang = Beacon.Localization.FormLocalization.Normalize(language);
+        var assistHtml = assistedBy is null
+            ? ""
+            : $"""<p class="assist" role="status">You're viewing this as an admin. Any changes you make will be logged under your {WebUtility.HtmlEncode(assistedBy)} account.</p>""";
         var t = GetConsentPageStrings(lang);
 
         var title = brand?.PageTitle is { Length: > 0 } pt ? pt : t.Title;
@@ -674,6 +709,14 @@ public static class ConsentEndpoints
                 }
 
                 .select-none { user-select: none;}
+
+                .assist {
+                  margin-bottom: var(--space-4);
+                  padding: var(--space-2-5) var(--space-3);
+                  border-radius: 8px;
+                  background: color-mix(in srgb, var(--accent) 12%, transparent);
+                  font-size: var(--text-sm);
+                }
               </style>
             </head>
             <body>
@@ -682,6 +725,7 @@ public static class ConsentEndpoints
                   {{logoHtml}}
                   <h1 class="select-none">{{WebUtility.HtmlEncode(title)}}</h1>
                   <p class="select-none">{{WebUtility.HtmlEncode(description)}}</p>
+                  {{assistHtml}}
 
                   <form method="post" action="/u/{{WebUtility.HtmlEncode(token)}}">
                     <input name="{{formFieldName}}" type="hidden" value="{{antiforgeryToken}}" />

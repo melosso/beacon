@@ -528,7 +528,7 @@ public static class AdminEndpoints
                         : request.Language
                 };
 
-                var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions);
+                var token = generator.Generate(request.Bucket, request.Email, permissionNames, tokenOptions, context.User.Identity?.Name);
 
                 // Serialize custom fields to JSON for storage
                 string? customFieldsJson = request.CustomFields is { Count: > 0 }
@@ -828,8 +828,8 @@ public static class AdminEndpoints
 
     internal sealed record PreferenceLinkRequest(string? Language = null);
 
-    // Issuer identity is signed into the token; the client cannot set it.
-    private static async Task<IResult> CreatePreferenceLink(
+    // Issuer and browser binding hash are signed into the token; the client sets neither.
+    internal static async Task<IResult> CreatePreferenceLink(
         string bucket,
         string emailHash,
         HttpContext context,
@@ -860,17 +860,23 @@ public static class AdminEndpoints
         if (encryptedEmail is null)
             return Results.NotFound(new ApiError("Record not found"));
 
-        var permissions = (await bucketRepository.GetPermissionsAsync(normalizedBucket)).ToArray();
-        if (permissions.Length == 0)
-            return Results.NotFound(new ApiError("Record not found"));
+        var details = await repository.GetBucketDetailsAsync(normalizedBucket);
+        var permissions = details.Permissions
+            .Union(await bucketRepository.GetPermissionsAsync(normalizedBucket))
+            .Union(records.Select(r => r.Permission))
+            .Order()
+            .ToArray();
 
+        // Generate a new assist secret for this token, which is used to verify the token on the client side without exposing the server's signing key. 
+        var (assist, assistHash) = TokenGenerator.CreateAssistSecret();
         var token = generator.Generate(
             normalizedBucket,
             encryptor.Decrypt(encryptedEmail),
             permissions,
             new Beacon.Tokens.GenerateTokenRequest { ExpiryDays = 1, AllowReplay = false, Language = language },
-            actor);
-        return Results.Ok(new { token });
+            actor,
+            assistHash);
+        return Results.Ok(new { token, assist });
     }
 
     private static async Task<IResult> DeleteRecord(
@@ -2155,7 +2161,7 @@ public static class AdminEndpoints
 
             if (permissionNames.Length == 0) continue;
 
-            var token = generator.Generate(normalized, email, permissionNames, tokenOptions);
+            var token = generator.Generate(normalized, email, permissionNames, tokenOptions, context.User.Identity?.Name);
             rows.Add(new ExportWriter.Row
             {
                 { "beaconId", record.EmailHash },
@@ -2337,7 +2343,7 @@ public static class AdminEndpoints
                     permNames = [.. rec.Permissions.Keys];
                 }
                 if (permNames.Length == 0) continue;
-                var tok = generator.Generate(normalized, rec.Email, permNames, tokenOpts);
+                var tok = generator.Generate(normalized, rec.Email, permNames, tokenOpts, context.User.Identity?.Name);
                 trackingByHash[rec.EmailHash] = ($"{baseUrl}/u/{tok}{qs}", TryDecodeTokenExpiry(tok));
             }
         }
@@ -2582,6 +2588,7 @@ public static class AdminEndpoints
                 newStatus = e.NewStatus.ToString(),
                 source = e.Source.ToString(),
                 actorId = e.ActorId,
+                issuedBy = e.IssuedBy,
                 changedAt = e.ChangedAt,
                 customFields = e.CustomFields
             }),

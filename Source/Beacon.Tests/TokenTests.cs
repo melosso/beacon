@@ -33,13 +33,21 @@ public class TokenTests
     }
 
     [Fact]
-    public void Generate_SignsActorClaim()
+    public void Generate_SignsIssuerAndAssistHash()
     {
         var generator = new TokenGenerator(_options);
         var validator = new TokenValidator(_options);
+        var (secret, hash) = TokenGenerator.CreateAssistSecret();
 
-        Assert.Equal("admin-1", validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"], actor: "admin-1")).Payload?.Actor);
-        Assert.Null(validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"])).Payload?.Actor);
+        var payload = validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"], issuer: "anna", assistHash: hash)).Payload!;
+        Assert.Equal("anna", payload.Issuer);
+        Assert.True(TokenGenerator.IsAssisted(payload, secret));
+        Assert.False(TokenGenerator.IsAssisted(payload, TokenGenerator.CreateAssistSecret().Secret));
+        Assert.False(TokenGenerator.IsAssisted(payload, null));
+
+        var plain = validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"], issuer: "anna")).Payload!;
+        Assert.False(TokenGenerator.IsAssisted(plain, secret));
+        Assert.Null(validator.Validate(generator.Generate(TestBucket, "a@example.com", ["newsletter"])).Payload!.Issuer);
     }
 
     [Fact]

@@ -936,7 +936,7 @@ async function openOptOutPage(record) {
   );
 
   if (result.ok) {
-    const url = `${PUBLIC_URL || API_BASE}/u/${result.data.token}`;
+    const url = `${PUBLIC_URL || API_BASE}/u/${result.data.token}?assist=${encodeURIComponent(result.data.assist)}`;
     window.open(url, "_blank", "noopener");
   }
 }

@@ -7,7 +7,7 @@ public interface IConsentRepository
     Task<ConsentRecord?> GetAsync(string bucket, string emailHash, string permission);
     /// <summary>Inserts or updates the record subject to <see cref="ConsentTransition"/>. Returns false if no write occurs.</summary>
     /// <param name="insertOnly">If true: an existing record is never updated.</param>
-    Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false);
+    Task<bool> UpsertAsync(ConsentRecord record, string? actorId = null, bool insertOnly = false, string? issuedBy = null);
     Task<PagedResult<ConsentAuditEntry>> GetAuditAsync(string? bucket, string? emailHash, int page, int pageSize, CancellationToken ct = default, IReadOnlyList<string>? emailHashes = null, string? actorId = null);
 
     // Admin queries
