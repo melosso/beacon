@@ -238,8 +238,8 @@ const SEARCH_ICON = html`<svg
 // Column header with an optional sort toggle and a search popover; used by records, subscribers and audit.
 function searchColumn(o) {
   const types = {
-    email: ["By email", o.emailLabel || "Enter email — use * as wildcard", "e.g., *@gmail.com"],
-    name: ["By name", "Enter name — use * as wildcard", "e.g., Jane*"],
+    email: ["By email", o.emailLabel || "Enter email", "e.g., *@gmail.com"],
+    name: ["By name", "Enter name", "e.g., Jane*"],
     id: ["By ID", o.idLabel, "e.g., a1b2*"],
   };
   const [, labelText, placeholder] = o.onType

@@ -112,7 +112,7 @@ function renderAuditHeader() {
       query:
         auditFilterType === "email" ? auditFilterEmail : auditFilterIdentity,
       idLabel: "Filter by identity hash (partial)",
-      emailLabel: "Filter by email — use * as wildcard",
+      emailLabel: "Filter by email",
       onToggle: toggleAuditIdentityPopover,
       onType: setAuditFilterType,
       onSearch: applyAuditIdentityFilter,

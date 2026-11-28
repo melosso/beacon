@@ -126,7 +126,7 @@ async function loadSubmissionForms() {
       : html`${forms.map(
           (f, idx) => html`
         <tr>
-          <td><strong>${f.name}</strong></td>
+          <td><strong><button type="button" class="link-btn" @click=${() => editSubmissionForm(f.id)}>${f.name}</button></strong></td>
           <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => showBucket(f.bucket)}>${f.bucket}<span class="tooltip">${f.bucket}</span></span></td>
           <td><span class="tooltip-wrapper select-none cursor-pointer" @click=${() => copyTextNow(f.permission)}><span class="status-badge">${formatPermission(f.permission)}</span><span class="tooltip">${f.permission}</span></span></td>
           <td>${(f.allowedOrigins || []).length}</td>
@@ -183,7 +183,7 @@ function toggleRedirectFields() {
   ];
   ids.forEach((id) => {
     const el = document.getElementById(id);
-    const wrapper = el.closest(".form-group") || el.closest(".checkbox-toggle");
+    const wrapper = el.closest(".form-group") || el.closest(".settings-item-card");
     wrapper?.classList.toggle("is-disabled", disabled);
   });
 }
@@ -276,6 +276,9 @@ function updateLivePreview() {
 function initSubmissionWizard(editData) {
   nlOrigins = [];
   nlEditId = null;
+  const badge = document.getElementById("nlHeaderBadge");
+  badge.textContent = editData?.bucket || "";
+  badge.hidden = !editData?.bucket;
 
   // Reset all fields to defaults
   document.getElementById("nlName").value = "";
@@ -317,9 +320,6 @@ function initSubmissionWizard(editData) {
     nlEditId = editData.id;
     document.getElementById("submissionWizardTitle").textContent =
       "Edit submission form";
-    document.getElementById("nlIntroTitle").textContent = "Edit form";
-    document.getElementById("nlIntroDesc").textContent =
-      "Changes apply to new submissions immediately.";
     document.getElementById("nlSaveBtn").textContent = "Save changes";
     document.getElementById("nlName").value = editData.name || "";
     document.getElementById("nlBucket").value = editData.bucket || "";
@@ -376,9 +376,6 @@ function initSubmissionWizard(editData) {
   } else {
     document.getElementById("submissionWizardTitle").textContent =
       "New submission form";
-    document.getElementById("nlIntroTitle").textContent = "New form";
-    document.getElementById("nlIntroDesc").textContent =
-      "A submission form embeds on an external website and submits permission states to Beacon.";
     document.getElementById("nlSaveBtn").textContent = "Create form";
   }
   renderNlOrigins();
@@ -389,16 +386,18 @@ function initSubmissionWizard(editData) {
 
 function submissionWizardShowStep(step) {
   for (let i = 1; i <= 5; i++) {
-    document.getElementById(`nlStep${i}`).hidden = !(i === step);
-    const ind = document.getElementById(`nlStep${i}Indicator`);
-    ind.classList.toggle("is-current", i === step);
-    ind.classList.toggle("is-done", i < step);
-    if (i === 5) ind.hidden = !(step === 5);
+    document.getElementById(`nlStep${i}`).hidden = i !== step;
+    const nav = document.getElementById(`nlStep${i}Nav`);
+    nav.classList.toggle("active", i === step);
+    if (i === step) nav.setAttribute("aria-current", "step");
+    else nav.removeAttribute("aria-current");
   }
+  document.getElementById("nlStep5Nav").hidden = !nlEditId;
+  if (step === 5) renderEmbedSnippets(nlEditId);
 }
 
 function submissionWizardNext(step) {
-  if (step === 2) {
+  if (step >= 2) {
     const name = document.getElementById("nlName").value.trim();
     const bucket = document.getElementById("nlBucket").value.trim();
     const permission = document.getElementById("nlPermission").value.trim();
@@ -419,7 +418,7 @@ function submissionWizardNext(step) {
       return;
     }
   }
-  if (step === 3) {
+  if (step >= 3) {
     if (nlOrigins.length === 0) {
       notify("warning", "Origin required", "Add at least one allowed origin.");
       return;
@@ -622,9 +621,9 @@ async function saveSubmissionForm() {
 
   if (!result.ok) return;
 
-  const formId = result.data.id;
-  nlCurrentFormId = formId;
-  renderEmbedSnippets(formId);
+  nlEditId = result.data.id;
+  nlCurrentFormId = nlEditId;
+  document.getElementById("nlSaveBtn").textContent = "Save changes";
 
   if (result.data.apiToken) {
     document.getElementById("nlApiTokenDisplay").hidden = false;
@@ -661,11 +660,7 @@ async function showEmbedCode(id = previewFormId) {
   initSubmissionWizard(result.data);
   document.getElementById("submissionWizardTitle").textContent =
     "View and share";
-  document.getElementById("nlIntroTitle").textContent = "Share form";
-  document.getElementById("nlIntroDesc").textContent =
-    "Embed snippets and the direct link for this form.";
   submissionWizardShowStep(5);
-  renderEmbedSnippets(id);
 }
 
 function embedBase() {

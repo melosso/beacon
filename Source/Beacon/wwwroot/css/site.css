@@ -1197,6 +1197,13 @@ h1 {
   text-decoration: underline;
   cursor: pointer;
 }
+td .link-btn {
+  text-align: left;
+  text-decoration: none;
+}
+td .link-btn:hover {
+  text-decoration: underline;
+}
 
 .table-wrapper {
   display: flex;
@@ -3684,39 +3691,39 @@ input.appearance-select {
 }
 .wizard-panel {
   flex: 0 1 560px;
-  width: auto;
   min-width: 0;
+  margin-bottom: var(--space-8);
 }
-.wizard-steps {
+.wizard-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1-5);
-  margin-bottom: var(--space-6);
-}
-.wizard-step {
-  opacity: 0.55;
-}
-.wizard-step.is-done {
-  opacity: 0.8;
-}
-.wizard-step.is-current {
-  opacity: 1;
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid hsl(var(--border));
 }
 .wizard-preview {
-  flex: 1;
-  min-width: 240px;
+  flex: 1 1 320px;
+  min-width: 280px;
   position: sticky;
   top: 0;
   margin-bottom: var(--space-8);
 }
+.preview-canvas {
+  padding: var(--space-8) var(--space-6);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted) / 0.5);
+}
 
 .preview-surface {
+  width: min(480px, 100%);
   min-height: 180px;
+  margin-inline: auto;
   padding: var(--space-5);
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   background: var(--pv-bg, hsl(var(--background)));
   color: var(--pv-fg, hsl(var(--foreground)));
 }

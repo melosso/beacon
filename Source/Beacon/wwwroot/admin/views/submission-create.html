@@ -1,52 +1,54 @@
 <!-- Submission Create/Edit View -->
-<div id="view-submission-create" class="view view--scroll">
+<div id="view-submission-create" class="view">
   <section class="header-container">
     <div>
       <h1 id="submissionWizardTitle" class="select-none">
         New submission form
       </h1>
-      <span class="status-badge select-none">Configuration</span>
+      <span class="status-badge select-none" id="nlHeaderBadge" hidden></span>
     </div>
   </section>
-  <div class="wizard-layout">
-    <div class="panel wizard-panel">
-      <div id="nlCreateIntro">
-        <h3 id="nlIntroTitle">New form</h3>
-        <p id="nlIntroDesc">
-          A submission form embeds on an external website and submits permission
-          states to Beacon.
-        </p>
-      </div>
-      <!-- Step indicators -->
-      <div class="wizard-steps" id="nlStepIndicators">
-        <span class="status-badge wizard-step select-none" id="nlStep1Indicator"
-          >1. Basics</span
-        >
-        <span class="status-badge wizard-step select-none" id="nlStep2Indicator"
-          >2. Details</span
-        >
-        <span class="status-badge wizard-step select-none" id="nlStep3Indicator"
-          >3. Appearance</span
-        >
-        <span class="status-badge wizard-step select-none" id="nlStep4Indicator"
-          >4. Custom fields</span
-        >
-        <span
-          class="status-badge wizard-step select-none"
-          id="nlStep5Indicator"
-          hidden
-          >5. Embed code</span
-        >
-      </div>
-
+  <div class="settings-layout">
+    <aside class="settings-subnav select-none">
+      <nav class="settings-subnav-nav" aria-label="Form sections">
+        <a href="#" class="settings-subnav-item" id="nlStep1Nav" data-click="submissionWizardNext 1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>
+          Basics
+        </a>
+        <a href="#" class="settings-subnav-item" id="nlStep2Nav" data-click="submissionWizardNext 2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Origins and consent
+        </a>
+        <a href="#" class="settings-subnav-item" id="nlStep3Nav" data-click="submissionWizardNext 3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+          Appearance
+        </a>
+        <a href="#" class="settings-subnav-item" id="nlStep4Nav" data-click="submissionWizardNext 4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></svg>
+          Custom fields
+        </a>
+        <a href="#" class="settings-subnav-item" id="nlStep5Nav" data-click="submissionWizardNext 5" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Share
+        </a>
+      </nav>
+    </aside>
+    <div class="settings-content">
+    <div class="wizard-layout">
+    <div class="wizard-panel">
       <!-- Step 1: Basic Info -->
       <div id="nlStep1">
+        <div class="settings-content-hd">
+          <h3 class="select-none">Basics</h3>
+          <p>A submission form embeds on an external website and submits permission states to Beacon.</p>
+        </div>
+        <hr class="settings-sep" />
         <div class="form-group">
           <label for="nlName"
             >Form name
             <span class="required" title="Required field">*</span></label
           >
-          <input type="text" id="nlName" placeholder="e.g., Main Signup Form" />
+          <input type="text" id="nlName" placeholder="e.g., Main signup form" />
         </div>
         <div class="form-group">
           <label for="nlBucket"
@@ -87,10 +89,7 @@
           </p>
         </div>
         <div class="form-group">
-          <label
-            for="nlPermission"
-            title="Use commas to grant multiple permissions, e.g. newsletter, updates"
-          >
+          <label for="nlPermission">
             Permission <span class="required" title="Required field">*</span>
           </label>
           <div class="autocomplete-wrapper">
@@ -111,6 +110,7 @@
               id="nlPermissionAutocomplete"
             ></div>
           </div>
+          <p class="field-hint">Separate multiple permissions with commas.</p>
         </div>
         <div class="form-group">
           <label for="nlLanguage">Language</label>
@@ -127,18 +127,18 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="checkbox-toggle">
-            <div>
-              <div class="checkbox-toggle-label">Form enabled</div>
-              <div class="checkbox-toggle-desc">
-                When disabled, the form rejects all submissions.
-              </div>
+          <label class="settings-item-card">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Form enabled</span>
+              <p class="settings-item-desc">When disabled, the form rejects all submissions.</p>
             </div>
-            <input type="checkbox" id="nlIsEnabled" checked />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlIsEnabled" checked />
+              <span class="toggle-track"></span>
+            </div>
           </label>
         </div>
-        <div class="modal-actions">
+        <div class="wizard-actions">
           <button class="btn btn-outline" data-click="showView submissions">
             Cancel
           </button>
@@ -150,10 +150,11 @@
 
       <!-- Step 2: Allowed origins -->
       <div id="nlStep2" hidden>
-        <p class="text-muted mb-4">
-          Specify which website origins are allowed to embed and submit this
-          form. Use the full origin (e.g., <code>https://example.com</code>).
-        </p>
+        <div class="settings-content-hd">
+          <h3 class="select-none">Origins and consent</h3>
+          <p>Website origins allowed to embed and submit this form. Use the full origin, e.g. <code>https://example.com</code>.</p>
+        </div>
+        <hr class="settings-sep" />
         <div class="form-group">
           <label for="nlNewOrigin"
             >Allowed origins
@@ -179,15 +180,15 @@
         </div>
         <div class="form-section">
           <p class="form-section-title">Consent</p>
-          <label class="checkbox-toggle mb-3">
-            <div>
-              <div class="checkbox-toggle-label">Require consent checkbox</div>
-              <div class="checkbox-toggle-desc">
-                Subscribers check a consent box before submitting.
-              </div>
+          <label class="settings-item-card mb-3">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Require consent checkbox</span>
+              <p class="settings-item-desc">Subscribers check a consent box before submitting.</p>
             </div>
-            <input type="checkbox" id="nlConsentRequired" checked />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlConsentRequired" checked />
+              <span class="toggle-track"></span>
+            </div>
           </label>
           <div class="form-group">
             <label for="nlConsentText">Consent text</label>
@@ -215,19 +216,15 @@
         </div>
         <div class="form-section">
           <p class="form-section-title">Name field</p>
-          <label class="checkbox-toggle">
-            <div>
-              <div class="checkbox-toggle-label">Collect full name</div>
-              <div class="checkbox-toggle-desc">
-                Adds an optional name field above the email input.
-              </div>
+          <label class="settings-item-card">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Collect full name</span>
+              <p class="settings-item-desc">Adds an optional name field above the email input.</p>
             </div>
-            <input
-              type="checkbox"
-              id="nlCollectName"
-              data-change="toggleNlNameLabel"
-            />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlCollectName" data-change="toggleNlNameLabel" />
+              <span class="toggle-track"></span>
+            </div>
           </label>
           <div class="form-group mt-3" id="nlNameLabelGroup">
             <label for="nlNameLabel">Name field label</label>
@@ -245,72 +242,55 @@
         <div class="form-section">
           <p class="form-section-title">Form completion</p>
           <div class="form-group">
-            <label
-              for="nlRedirectSuccess"
-              title="After a successful form POST submission, redirect the user to this URL. Leave empty to return JSON instead."
-              >Redirect on success</label
-            >
+            <label for="nlRedirectSuccess">Redirect on success</label>
             <input
               type="url"
               id="nlRedirectSuccess"
               placeholder="https://yoursite.com/thank-you"
             />
+            <p class="field-hint">Page shown after a successful HTML form post. Leave empty to return JSON.</p>
           </div>
           <div class="form-group">
-            <label
-              for="nlRedirectError"
-              title="After a failed form POST submission, redirect the user to this URL with an ?error= query parameter. Leave empty to return JSON instead."
-              >Redirect on error</label
-            >
+            <label for="nlRedirectError">Redirect on error</label>
             <input
               type="url"
               id="nlRedirectError"
               placeholder="https://yoursite.com/error"
             />
+            <p class="field-hint">Page shown after a failed HTML form post, with an <code>?error=</code> parameter. Leave empty to return JSON.</p>
           </div>
-          <label class="checkbox-toggle">
-            <div>
-              <div class="checkbox-toggle-label">
-                Redirect HTML form submissions
-              </div>
-              <div class="checkbox-toggle-desc">
-                On: redirects to the URLs above after submit. Off: shows a
-                built-in success or error page.
-              </div>
+          <label class="settings-item-card">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Redirect HTML form submissions</span>
+              <p class="settings-item-desc">On: redirects to the URLs above after submit. Off: shows a built-in success or error page.</p>
             </div>
-            <input type="checkbox" id="nlRedirectFormPost" checked />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlRedirectFormPost" checked />
+              <span class="toggle-track"></span>
+            </div>
           </label>
-          <label class="checkbox-toggle mt-2">
-            <div>
-              <div class="checkbox-toggle-label">
-                Redirect JavaScript and iframe embeds
-              </div>
-              <div class="checkbox-toggle-desc">
-                On: redirects to the URLs above after a JS or iframe embed
-                submit. Off: shows an inline message.
-              </div>
+          <label class="settings-item-card mt-2">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Redirect JavaScript and iframe embeds</span>
+              <p class="settings-item-desc">On: redirects to the URLs above after a JS or iframe embed submit. Off: shows an inline message.</p>
             </div>
-            <input type="checkbox" id="nlRedirectJsEmbed" />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlRedirectJsEmbed" />
+              <span class="toggle-track"></span>
+            </div>
           </label>
-          <label class="checkbox-toggle mt-2">
-            <div>
-              <div class="checkbox-toggle-label">Disable all redirects</div>
-              <div class="checkbox-toggle-desc">
-                Ignores all redirect settings above. HTML forms show a built-in
-                result page. JS and iframe embeds show an inline message.
-              </div>
+          <label class="settings-item-card mt-2">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Disable all redirects</span>
+              <p class="settings-item-desc">Ignores all redirect settings above. HTML forms show a built-in result page. JS and iframe embeds show an inline message.</p>
             </div>
-            <input
-              type="checkbox"
-              id="nlDisableRedirects"
-              data-change="toggleRedirectFields"
-            />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlDisableRedirects" data-change="toggleRedirectFields" />
+              <span class="toggle-track"></span>
+            </div>
           </label>
         </div>
-        <div class="modal-actions">
+        <div class="wizard-actions">
           <button class="btn btn-outline" data-click="submissionWizardNext 1">
             Back
           </button>
@@ -322,6 +302,11 @@
 
       <!-- Step 3: Appearance -->
       <div id="nlStep3" hidden>
+        <div class="settings-content-hd">
+          <h3 class="select-none">Appearance</h3>
+          <p>Text, colours and shape of the embedded form.</p>
+        </div>
+        <hr class="settings-sep" />
         <div class="form-group">
           <label for="nlTitle">Title</label>
           <input
@@ -378,19 +363,15 @@
             Forms inherit the host site's colours and support dark mode.
             Override for the iframe embed or a fixed palette.
           </p>
-          <label class="checkbox-toggle">
-            <div>
-              <div class="checkbox-toggle-label">Custom background colour</div>
-              <div class="checkbox-toggle-desc">
-                Overrides the host site background.
-              </div>
+          <label class="settings-item-card">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Custom background colour</span>
+              <p class="settings-item-desc">Overrides the host site background.</p>
             </div>
-            <input
-              type="checkbox"
-              id="nlBgColorEnabled"
-              data-change="toggleNlBgColor"
-            />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlBgColorEnabled" data-change="toggleNlBgColor" />
+              <span class="toggle-track"></span>
+            </div>
           </label>
           <div class="mt-2 is-disabled" id="nlBgColorGroup">
             <input
@@ -400,19 +381,15 @@
               aria-label="Background colour"
             />
           </div>
-          <label class="checkbox-toggle mt-3">
-            <div>
-              <div class="checkbox-toggle-label">Custom text colour</div>
-              <div class="checkbox-toggle-desc">
-                Overrides the host site text colour.
-              </div>
+          <label class="settings-item-card mt-3">
+            <div class="settings-item-info">
+              <span class="settings-item-title">Custom text colour</span>
+              <p class="settings-item-desc">Overrides the host site text colour.</p>
             </div>
-            <input
-              type="checkbox"
-              id="nlTextColorEnabled"
-              data-change="toggleNlTextColor"
-            />
-            <span class="toggle-track"></span>
+            <div class="settings-item-control">
+              <input type="checkbox" id="nlTextColorEnabled" data-change="toggleNlTextColor" />
+              <span class="toggle-track"></span>
+            </div>
           </label>
           <div class="mt-2 is-disabled" id="nlTextColorGroup">
             <input
@@ -423,7 +400,7 @@
             />
           </div>
         </div>
-        <div class="modal-actions">
+        <div class="wizard-actions">
           <button class="btn btn-outline" data-click="submissionWizardNext 2">
             Back
           </button>
@@ -435,10 +412,11 @@
 
       <!-- Step 4: Custom Fields -->
       <div id="nlStep4" hidden>
-        <p class="text-muted mb-4">
-          Key-value pairs stored on every consent record created by this form.
-          Values are static text or variables resolved per submission.
-        </p>
+        <div class="settings-content-hd">
+          <h3 class="select-none">Custom fields</h3>
+          <p>Key-value pairs stored on every consent record created by this form. Values are static text or variables resolved per submission.</p>
+        </div>
+        <hr class="settings-sep" />
         <div class="form-group">
           <label for="nlFieldKey">Custom fields</label>
           <div id="nlCustomFieldsList" class="custom-fields-list"></div>
@@ -528,7 +506,7 @@
             </p>
           </div>
         </div>
-        <div class="modal-actions">
+        <div class="wizard-actions">
           <button class="btn btn-outline" data-click="submissionWizardNext 3">
             Back
           </button>
@@ -544,6 +522,11 @@
 
       <!-- Step 5: Embed Code (after save) -->
       <div id="nlStep5" hidden>
+        <div class="settings-content-hd">
+          <h3 class="select-none">Share</h3>
+          <p>Embed snippets and the direct link for this form.</p>
+        </div>
+        <hr class="settings-sep" />
         <div class="mb-6" id="nlApiTokenDisplay" hidden>
           <h3 class="mb-2">API token</h3>
           <p class="text-muted mb-2">
@@ -723,7 +706,7 @@
             <span class="tooltip tooltip-above">Click to copy</span>
           </span>
         </div>
-        <div class="modal-actions">
+        <div class="wizard-actions">
           <button class="btn btn-primary" data-click="showView submissions">
             Done
           </button>
@@ -734,8 +717,11 @@
     <!-- Live preview panel -->
     <div class="wizard-preview">
       <p class="section-label">Live preview</p>
-      <div class="preview-surface" id="nlLivePreviewForm"></div>
+      <div class="preview-canvas">
+        <div class="preview-surface" id="nlLivePreviewForm"></div>
+      </div>
+    </div>
+    </div>
     </div>
   </div>
-  <!-- end flex row -->
 </div>
